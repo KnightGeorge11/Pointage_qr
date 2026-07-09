@@ -1,0 +1,673 @@
+{% extends 'pointage/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard — Pointage QR{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+/* =====================================================
+   DASHBOARD — styles alignés sur le design system
+   ===================================================== */
+
+/* Page header local */
+.dash-head {
+    margin-bottom: 20px;
+}
+
+.dash-head-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -.03em;
+    line-height: 1.2;
+    margin-bottom: 3px;
+}
+
+.dash-head-sub {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-muted);
+}
+
+/* =====================================================
+   STAT TILES — même style que l'historique
+   ===================================================== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.stat-tile {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    padding: 18px 18px 18px 22px;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-tile::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+}
+
+.st-ink::before    { background: var(--ink); }
+.st-blue::before   { background: var(--blue); }
+.st-amber::before  { background: var(--amber); }
+.st-red::before    { background: var(--red); }
+.st-green::before  { background: var(--green); }
+
+.stat-tile-icon {
+    width: 36px; height: 36px;
+    border-radius: var(--r-xs);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+.st-ink  .stat-tile-icon { background: rgba(11,14,23,.08);   color: var(--ink); }
+.st-blue .stat-tile-icon { background: var(--blue-dim);       color: var(--blue-text); }
+.st-amber .stat-tile-icon{ background: var(--amber-dim);      color: var(--amber-text); }
+.st-red  .stat-tile-icon { background: var(--red-dim);        color: var(--red-text); }
+.st-green .stat-tile-icon{ background: var(--green-dim);      color: var(--green-text); }
+
+.stat-tile-val {
+    font-family: var(--font-mono);
+    font-size: 2.25rem;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.stat-tile-lbl {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .13em;
+    color: var(--ink-muted);
+}
+
+/* =====================================================
+   DASHBOARD CARDS
+   ===================================================== */
+.dash-card {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    margin-bottom: 14px;
+}
+
+.dash-card-head {
+    background: var(--ink);
+    color: var(--white);
+    padding: 13px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.dash-card-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}
+
+.dash-card-title i { color: var(--green); font-size: 13px; }
+
+.dash-card-title-meta {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.35);
+}
+
+.dash-card-body {
+    padding: 20px;
+}
+
+.dash-card-foot {
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    padding: 10px 18px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dash-card-foot i { color: var(--ink-muted); font-size: 10px; }
+
+/* Chart containers */
+.chart-wrap {
+    position: relative;
+    min-height: 280px;
+    padding: 16px;
+}
+
+.chart-wrap-tall { min-height: 320px; }
+
+/* =====================================================
+   TABLE (derniers pointages)
+   ===================================================== */
+.dash-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+}
+
+.dash-table thead th {
+    background: var(--surface);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--ink-muted);
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+}
+
+.dash-table tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: middle;
+    color: var(--ink);
+}
+
+.dash-table tbody tr:last-child td { border-bottom: none; }
+.dash-table tbody tr:hover td { background: var(--surface); }
+
+.dash-table a {
+    color: var(--ink);
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.dash-table a:hover { color: var(--blue-text); }
+
+.dash-table .mono {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* Status chip inline */
+.s-chip {
+    display: inline-block;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    padding: 2px 7px;
+    border-radius: 100px;
+}
+
+.s-chip-green  { background: var(--green-dim);  color: var(--green-text); }
+.s-chip-amber  { background: var(--amber-dim);  color: var(--amber-text); }
+.s-chip-red    { background: var(--red-dim);    color: var(--red-text); }
+.s-chip-grey   { background: var(--surface);    color: var(--ink-muted); border: 1px solid var(--line); }
+
+/* =====================================================
+   REFRESH BUTTON
+   ===================================================== */
+.refresh-row {
+    text-align: center;
+    padding: 10px 0 4px;
+}
+
+/* =====================================================
+   GARDE EN COURS BADGE
+   ===================================================== */
+.gardes-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--amber-dim);
+    border: 1px solid rgba(245,166,35,.3);
+    color: var(--amber-text);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: var(--r-xs);
+}
+
+/* =====================================================
+   LAYOUT GRILLES
+   ===================================================== */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 0; }
+.one-col { margin-bottom: 0; }
+
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
+@media (max-width: 900px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .two-col { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .stat-tile-val { font-size: 1.75rem; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ===== HEAD ===== -->
+<div class="dash-head">
+    <div class="dash-head-title">Tableau de bord</div>
+    <div class="dash-head-sub">Vue d'ensemble des pointages — {{ aujourdhui|date:"l d F Y" }}</div>
+    {% if gardes_en_cours %}
+    <div style="margin-top:10px;">
+        <span class="gardes-badge">
+            <i class="fas fa-moon"></i>
+            {{ gardes_en_cours }} garde{{ gardes_en_cours|pluralize }} en cours
+        </span>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ===== STAT TILES ===== -->
+<div class="stats-grid">
+    <div class="stat-tile st-ink">
+        <div class="stat-tile-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-tile-val">{{ total_employes }}</div>
+        <div class="stat-tile-lbl">Employés total</div>
+    </div>
+    <div class="stat-tile st-blue">
+        <div class="stat-tile-icon"><i class="fas fa-user-check"></i></div>
+        <div class="stat-tile-val">{{ presents_aujourdhui }}</div>
+        <div class="stat-tile-lbl">Présents aujourd'hui</div>
+    </div>
+    <div class="stat-tile st-amber">
+        <div class="stat-tile-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-tile-val">{{ retards_aujourdhui }}</div>
+        <div class="stat-tile-lbl">Retards aujourd'hui</div>
+    </div>
+    <div class="stat-tile st-red">
+        <div class="stat-tile-icon"><i class="fas fa-user-times"></i></div>
+        <div class="stat-tile-val">{{ absents_aujourdhui }}</div>
+        <div class="stat-tile-lbl">Absents aujourd'hui</div>
+    </div>
+</div>
+
+<!-- ===== LIGNE 1 : Journalier + Hebdo ===== -->
+<div class="two-col" style="margin-bottom:14px;">
+
+    <div class="dash-card">
+        <div class="dash-card-head">
+            <div class="dash-card-title"><i class="fas fa-chart-pie"></i> Pointage journalier</div>
+            <span class="dash-card-title-meta">{{ aujourdhui|date:"d/m/Y" }}</span>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="dailyChart"></canvas>
+        </div>
+        <div class="dash-card-foot">
+            <i class="fas fa-info-circle"></i>
+            Total {{ total_employes }} · Présents {{ presents_aujourdhui }} · Retards {{ retards_aujourdhui }} · Absents {{ absents_aujourdhui }}
+        </div>
+    </div>
+
+    <div class="dash-card">
+        <div class="dash-card-head">
+            <div class="dash-card-title"><i class="fas fa-chart-bar"></i> Semaine en cours</div>
+            <span class="dash-card-title-meta">7 derniers jours</span>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="weeklyChart"></canvas>
+        </div>
+        <div class="dash-card-foot">
+            <i class="fas fa-info-circle"></i>
+            Présences et retards sur la semaine glissante
+        </div>
+    </div>
+
+</div>
+
+<!-- ===== LIGNE 2 : Évolution ===== -->
+<div class="dash-card one-col" style="margin-bottom:14px;">
+    <div class="dash-card-head">
+        <div class="dash-card-title"><i class="fas fa-chart-line"></i> Évolution hebdomadaire</div>
+        <span class="dash-card-title-meta">4 dernières semaines</span>
+    </div>
+    <div class="chart-wrap chart-wrap-tall">
+        <canvas id="weekEvolutionChart"></canvas>
+    </div>
+    <div class="dash-card-foot">
+        <i class="fas fa-info-circle"></i>
+        Taux de présence et de ponctualité — tendance mensuelle
+    </div>
+</div>
+
+<!-- ===== LIGNE 3 : Postes + Derniers pointages ===== -->
+{% if postes_data %}
+<div class="two-col" style="margin-bottom:14px;">
+
+    <div class="dash-card">
+        <div class="dash-card-head">
+            <div class="dash-card-title"><i class="fas fa-chart-pie"></i> Répartition par poste</div>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="postesChart"></canvas>
+        </div>
+    </div>
+
+    <div class="dash-card">
+        <div class="dash-card-head">
+            <div class="dash-card-title"><i class="fas fa-history"></i> Derniers pointages</div>
+            <a href="{% url 'pointages' %}" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.5);text-decoration:none;">
+                Voir tout <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+        <div style="max-height:320px;overflow-y:auto;">
+            <table class="dash-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Employé</th>
+                        <th>Site</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pointage in pointages_recents %}
+                    <tr>
+                        <td class="mono">{{ pointage.date_pointage|date:"d/m" }}</td>
+                        <td>
+                            <a href="{% url 'pointage_detail' pointage.pk %}">
+                                {{ pointage.employe.prenom|first }}. {{ pointage.employe.nom }}
+                            </a>
+                        </td>
+                        <td style="color:var(--ink-muted);font-size:11px;">{{ pointage.site.nom|truncatechars:12 }}</td>
+                        <td>
+                            <span class="s-chip
+                                {% if pointage.statut == 'present' %}s-chip-green
+                                {% elif pointage.statut == 'retard'  %}s-chip-amber
+                                {% elif pointage.statut == 'absent'  %}s-chip-red
+                                {% else %}s-chip-grey{% endif %}">
+                                {{ pointage.get_statut_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align:center;padding:28px;color:var(--ink-muted);font-size:12px;">
+                            Aucun pointage enregistré aujourd'hui
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endif %}
+
+<!-- ===== REFRESH ===== -->
+<div class="refresh-row">
+    <button id="refreshBtn" class="btn btn-secondary">
+        <i class="fas fa-sync-alt"></i> Actualiser les graphiques
+    </button>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    /* -------------------------------------------------------
+       PALETTE — alignée sur le design system base.html
+    ------------------------------------------------------- */
+    const C = {
+        ink:     '#0b0e17',
+        blue:    '#2962ff',
+        green:   '#00c27a',
+        amber:   '#f5a623',
+        red:     '#e8344a',
+        muted:   '#374163',
+        line:    '#dde1ec',
+        blueDim: 'rgba(41,98,255,.12)',
+        inkDim:  'rgba(11,14,23,.08)',
+    };
+
+    /* -------------------------------------------------------
+       OPTIONS COMMUNES
+    ------------------------------------------------------- */
+    const font = "'Syne', sans-serif";
+
+    const tooltipDefaults = {
+        backgroundColor: C.ink,
+        titleFont:  { size: 12, family: font, weight: '700' },
+        bodyFont:   { size: 11, family: font },
+        padding: 10,
+        cornerRadius: 6,
+        displayColors: true,
+    };
+
+    const legendDefaults = {
+        position: 'bottom',
+        labels: {
+            padding: 14,
+            font: { size: 11, family: font, weight: '600' },
+            usePointStyle: true,
+            pointStyle: 'circle',
+            color: C.muted,
+        }
+    };
+
+    const axisDefaults = {
+        border: { display: false },
+        grid: { color: C.line, drawTicks: false },
+        ticks: {
+            font: { size: 10, family: font, weight: '600' },
+            color: C.muted,
+            padding: 6,
+        }
+    };
+
+    /* -------------------------------------------------------
+       1. DOUGHNUT JOURNALIER
+    ------------------------------------------------------- */
+    new Chart(document.getElementById('dailyChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Présents', 'Absents', 'Retards', 'Gardes'],
+            datasets: [{
+                data: [
+                    {{ daily_data.presents }},
+                    {{ daily_data.absents }},
+                    {{ daily_data.retards }},
+                    {{ daily_data.gardes }}
+                ],
+                backgroundColor: [C.blue, C.red, C.amber, C.ink],
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '68%',
+            plugins: {
+                legend: legendDefaults,
+                tooltip: tooltipDefaults,
+            }
+        }
+    });
+
+    /* -------------------------------------------------------
+       2. BARRES HEBDOMADAIRES
+    ------------------------------------------------------- */
+    new Chart(document.getElementById('weeklyChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ weekly_data.labels|safe }},
+            datasets: [
+                {
+                    label: 'Présents',
+                    data: {{ weekly_data.presents|safe }},
+                    backgroundColor: C.blue,
+                    borderRadius: 3,
+                    borderSkipped: false,
+                },
+                {
+                    label: 'Absents',
+                    data: {{ weekly_data.absents|safe }},
+                    backgroundColor: C.red,
+                    borderRadius: 3,
+                    borderSkipped: false,
+                },
+                {
+                    label: 'Retards',
+                    data: {{ weekly_data.retards|safe }},
+                    backgroundColor: C.amber,
+                    borderRadius: 3,
+                    borderSkipped: false,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: legendDefaults, tooltip: tooltipDefaults },
+            scales: {
+                y: { ...axisDefaults, beginAtZero: true },
+                x: { ...axisDefaults, grid: { display: false } }
+            }
+        }
+    });
+
+    /* -------------------------------------------------------
+       3. LIGNE ÉVOLUTION
+    ------------------------------------------------------- */
+    new Chart(document.getElementById('weekEvolutionChart'), {
+        type: 'line',
+        data: {
+            labels: {{ evolution_data.labels|safe }},
+            datasets: [
+                {
+                    label: 'Taux de présence',
+                    data: {{ evolution_data.taux_presence|safe }},
+                    borderColor: C.ink,
+                    backgroundColor: C.inkDim,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: C.ink,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                },
+                {
+                    label: 'Taux de ponctualité',
+                    data: {{ evolution_data.taux_punctualite|safe }},
+                    borderColor: C.blue,
+                    backgroundColor: C.blueDim,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: C.blue,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: legendDefaults, tooltip: tooltipDefaults },
+            scales: {
+                y: {
+                    ...axisDefaults,
+                    beginAtZero: false,
+                    min: 0, max: 100,
+                    ticks: {
+                        ...axisDefaults.ticks,
+                        callback: v => v + '%'
+                    }
+                },
+                x: { ...axisDefaults, grid: { display: false } }
+            }
+        }
+    });
+
+    /* -------------------------------------------------------
+       4. CAMEMBERT POSTES (si données)
+    ------------------------------------------------------- */
+    {% if postes_data %}
+    new Chart(document.getElementById('postesChart'), {
+        type: 'pie',
+        data: {
+            labels: [{% for p in postes_data %}"{{ p.nom }}",{% endfor %}],
+            datasets: [{
+                data: [{% for p in postes_data %}{{ p.count }},{% endfor %}],
+                backgroundColor: [C.ink, C.blue, C.green, C.amber, C.red, C.muted],
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: legendDefaults, tooltip: tooltipDefaults }
+        }
+    });
+    {% endif %}
+
+    /* -------------------------------------------------------
+       REFRESH BUTTON
+    ------------------------------------------------------- */
+    document.getElementById('refreshBtn').addEventListener('click', function () {
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualisation…';
+        this.disabled = true;
+        setTimeout(() => window.location.reload(), 800);
+    });
+
+    /* -------------------------------------------------------
+       AUTO-REFRESH (toutes les 60 s si données changées)
+    ------------------------------------------------------- */
+    let autoTimer = setInterval(function () {
+        fetch('/api/pointages/statistiques/')
+            .then(r => r.json())
+            .then(d => {
+                if (d.presents_aujourdhui !== {{ presents_aujourdhui }}) {
+                    clearInterval(autoTimer);
+                    window.location.reload();
+                }
+            })
+            .catch(() => {});
+    }, 60000);
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            clearInterval(autoTimer);
+        } else {
+            window.location.reload();
+        }
+    });
+
+});
+</script>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends 'pointage/base.html' %}
+
+{% block title %}Gestion des postes - Pointage QR{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="display-5">
+                <i class="fas fa-user-tag"></i> Gestion des postes
+            </h1>
+            <a href="{% url 'poste_create' %}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Nouveau poste
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des postes -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Description</th>
+                                <th>Nombre d'employés</th>
+                                <th>Couleur</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for poste in postes %}
+                            <tr>
+                                <td><strong>{{ poste.nom }}</strong></td>
+                                <td>{{ poste.description|truncatechars:100 }}</td>
+                                <td>
+                                    <span class="badge bg-primary">{{ poste.employes.count }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge" style="background-color: {{ poste.couleur }}; color: white;">
+                                        {{ poste.couleur }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'poste_update' poste.pk %}" class="btn btn-sm btn-warning">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'poste_delete' poste.pk %}" class="btn btn-sm btn-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">
+                                    Aucun poste enregistré
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Information sur les postes -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> À propos des postes
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Utilisation des postes :</h6>
+                        <ul>
+                            <li>Les postes définissent le rôle de chaque employé</li>
+                            <li>Chaque employé doit avoir un poste assigné</li>
+                            <li>Les postes peuvent avoir des couleurs pour les graphiques</li>
+                            <li>Les statistiques peuvent être filtrées par poste</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Exemples de postes :</h6>
+                        <ul>
+                            <li><span class="badge" style="background-color: #4361ee;">Médecin</span></li>
+                            <li><span class="badge" style="background-color: #4cc9f0;">Infirmier</span></li>
+                            <li><span class="badge" style="background-color: #f72585;">Aide-soignant</span></li>
+                            <li><span class="badge" style="background-color: #7209b7;">Administratif</span></li>
+                            <li><span class="badge" style="background-color: #3a0ca3;">Technicien</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

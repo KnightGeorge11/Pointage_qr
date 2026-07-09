@@ -1,0 +1,141 @@
+{% extends 'pointage/base.html' %}
+{% load static %}
+
+{% block title %}Autorisations de sortie — Pointage QR{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h1 class="display-6">
+            <i class="fas fa-clock"></i> Autorisations de sortie anticipée
+        </h1>
+        <div class="d-flex gap-2">
+            <span class="badge bg-success fs-6">{{ disponibles }} disponible{{ disponibles|pluralize }}</span>
+            <span class="badge bg-danger fs-6">{{ utilisees }} épuisée{{ utilisees|pluralize }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">Mois</label>
+                <select name="mois" class="form-select form-select-sm">
+                    {% for num, nom in mois_choices %}
+                        <option value="{{ num }}" {% if mois_filter == num %}selected{% endif %}>{{ nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">Année</label>
+                <select name="annee" class="form-select form-select-sm">
+                    {% for annee in annee_choices %}
+                        <option value="{{ annee }}" {% if annee_filter == annee %}selected{% endif %}>{{ annee }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">Statut</label>
+                <select name="statut" class="form-select form-select-sm">
+                    <option value="">— Tous —</option>
+                    <option value="disponible" {% if statut_filter == 'disponible' %}selected{% endif %}>Disponible</option>
+                    <option value="epuisee"    {% if statut_filter == 'epuisee' %}selected{% endif %}>Épuisée</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Recherche</label>
+                <input type="text" name="search" class="form-control form-control-sm"
+                       placeholder="Nom, matricule..." value="{{ filter_search }}">
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="fas fa-filter"></i> Filtrer
+                </button>
+                <a href="{% url 'autorisations_sortie' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-times"></i> Réinitialiser
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Résumé du mois -->
+<div class="alert alert-info py-2 mb-3">
+    <i class="fas fa-info-circle"></i>
+    <strong>{{ mois_label }} {{ annee_filter }}</strong> —
+    {{ total }} autorisation{{ total|pluralize }} enregistrée{{ total|pluralize }} ·
+    {{ disponibles }} disponible{{ disponibles|pluralize }} ·
+    {{ utilisees }} utilisée{{ utilisees|pluralize }}
+</div>
+
+<!-- Tableau -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Employé</th>
+                        <th>Statut</th>
+                        <th>Date d'utilisation</th>
+                        <th>Heure de départ réelle</th>
+                        <th>Confirmé par</th>
+                        <th>Note</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for auto in autorisations %}
+                    <tr>
+                        <td>
+                            <strong>{{ auto.employe.get_nom_complet }}</strong><br>
+                            <small class="text-muted">{{ auto.employe.matricule }}</small>
+                        </td>
+                        <td>
+                            {% if auto.utilisee %}
+                                <span class="badge bg-danger">✗ Épuisée</span>
+                            {% else %}
+                                <span class="badge bg-success">✓ Disponible</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if auto.date_utilisation %}
+                                {{ auto.date_utilisation|date:"d/m/Y H:i" }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if auto.heure_depart_reel %}
+                                {{ auto.heure_depart_reel|time:"H:i" }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if auto.confirme_par %}
+                                {{ auto.confirme_par.get_full_name|default:auto.confirme_par.username }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ auto.note|default:"—"|truncatechars:50 }}</small>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="fas fa-clock fa-2x mb-2 d-block"></i>
+                            Aucune autorisation pour {{ mois_label }} {{ annee_filter }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

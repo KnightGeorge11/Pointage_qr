@@ -1,0 +1,68 @@
+{% extends 'pointage/base.html' %}
+
+{% block title %}Gestion des sites - Pointage QR{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="display-5">
+                <i class="fas fa-building"></i> Gestion des sites
+            </h1>
+            <a href="{% url 'site_create' %}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Nouveau site
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des sites -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Adresse</th>
+                                <th>Horaires matin</th>
+                                <th>Horaires après-midi</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for site in sites %}
+                            <tr>
+                                <td><strong>{{ site.nom }}</strong></td>
+                                <td>{{ site.adresse|truncatechars:50 }}</td>
+                                <td>
+                                    {{ site.heure_ouverture_matin|time:"H:i" }} - {{ site.heure_fermeture_matin|time:"H:i" }}
+                                </td>
+                                <td>
+                                    {{ site.heure_ouverture_apres_midi|time:"H:i" }} - {{ site.heure_fermeture_apres_midi|time:"H:i" }}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'site_update' site.pk %}" class="btn btn-sm btn-warning">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">
+                                    Aucun site enregistré
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

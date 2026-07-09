@@ -1,0 +1,710 @@
+{% extends 'pointage/base.html' %}
+{% load pointage_filters %}
+
+{% block title %}Historique des pointages — Pointage QR{% endblock %}
+{% block page_title %}Historique des pointages{% endblock %}
+
+{% block extra_css %}
+<style>
+/* =====================================================
+   PAGE HEADER
+   ===================================================== */
+.pg-header {
+    background: var(--ink); border-radius: var(--r-lg);
+    padding: 24px 28px; margin-bottom: 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 20px; position: relative; overflow: hidden;
+}
+.pg-header::after {
+    content: ''; position: absolute; right: -60px; top: -60px;
+    width: 200px; height: 200px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,194,122,.1) 0%, transparent 65%);
+    pointer-events: none;
+}
+.pg-eyebrow {
+    font-size: 9px; font-weight: 700; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--green);
+    margin-bottom: 7px; display: flex; align-items: center; gap: 7px;
+}
+.pg-eyebrow::before {
+    content: ''; width: 16px; height: 2px;
+    background: var(--green); border-radius: 1px; display: inline-block;
+}
+.pg-title  { font-size: 1.625rem; font-weight: 700; color: #fff; letter-spacing: -.03em; line-height: 1.15; }
+.pg-sub    { font-size: 12px; color: rgba(255,255,255,.38); font-weight: 500; margin-top: 5px; }
+.pg-kpis   { display: flex; gap: 2px; flex-shrink: 0; }
+.kpi       { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); padding: 14px 22px; min-width: 110px; text-align: center; }
+.kpi:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.kpi:last-child  { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.kpi-lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .16em; color: rgba(255,255,255,.3); margin-bottom: 5px; }
+.kpi-val { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 500; color: #fff; line-height: 1; }
+.kpi-val .u { font-size: .875rem; opacity: .55; }
+
+/* =====================================================
+   FILTER BAR
+   ===================================================== */
+.filter-bar { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px 22px; margin-bottom: 18px; }
+.filter-bar-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line-soft); }
+.filter-bar-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .16em; color: var(--ink-muted); }
+.filter-bar-sep { flex: 1; height: 1px; background: var(--line-soft); }
+.filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.fg { display: flex; flex-direction: column; }
+.fg-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-muted); margin-bottom: 4px; }
+.fg-input { width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-xs); padding: 7px 10px; font-family: var(--font-ui); font-size: 13px; font-weight: 500; color: var(--ink); appearance: none; }
+.fg-input:focus { outline: none; border-color: var(--ink); background: var(--white); box-shadow: 0 0 0 3px rgba(11,14,23,.08); }
+.filter-actions { display: flex; justify-content: flex-end; gap: 7px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+
+/* =====================================================
+   STATS ROW
+   ===================================================== */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+.stat-tile { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px 18px 16px 22px; position: relative; overflow: hidden; }
+.stat-tile::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.st-green::before { background: var(--green); }
+.st-blue::before  { background: var(--blue); }
+.st-amber::before { background: var(--amber); }
+.st-red::before   { background: var(--red); }
+.st-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--ink-muted); margin-bottom: 7px; }
+.st-val { font-family: var(--font-mono); font-size: 1.875rem; font-weight: 500; color: var(--ink); line-height: 1; margin-bottom: 4px; }
+.st-sub { font-size: 11px; color: var(--ink-muted); font-weight: 500; }
+
+/* =====================================================
+   CARDS GRID — NOUVEAU STYLE HYBRIDE
+   ===================================================== */
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; margin-bottom: 28px; }
+
+.jour-card { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-xl); overflow: hidden; display: flex; flex-direction: column; }
+.jour-card.is-garde { border-color: rgba(100,80,200,.3); }
+
+/* Header carte */
+.jour-header {
+    display: flex; align-items: center; padding: 11px 16px;
+    border-bottom: 1px solid var(--line-soft); background: var(--surface); gap: 12px;
+}
+.emp-avatar {
+    width: 36px; height: 36px; border-radius: var(--r-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.emp-info { flex: 1; min-width: 0; }
+.emp-name { font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emp-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
+.emp-matricule { font-family: var(--font-mono); font-size: 9px; color: var(--ink-muted); background: var(--surface-alt); padding: 1px 5px; border-radius: var(--r-xs); border: 1px solid var(--line); }
+.emp-poste { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 1px 6px; border-radius: var(--r-xs); }
+.jour-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+.jour-date  { font-size: 11px; font-weight: 700; color: var(--ink); }
+.jour-sub   { font-size: 9px; color: var(--ink-muted); }
+.jour-badges { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* Chips/badges */
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; padding: 3px 7px; border-radius: 100px; white-space: nowrap; }
+.chip-green  { background: var(--green-dim); color: var(--green-text); }
+.chip-red    { background: var(--red-dim);   color: var(--red-text); }
+.chip-amber  { background: var(--amber-dim); color: var(--amber-text); }
+.chip-blue   { background: var(--blue-dim);  color: var(--blue-text); }
+.chip-purple { background: #EEEDFE; color: #3C3489; }
+
+/* Grille des 4 scans */
+.scans-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+.scan-cell  { padding: 10px 12px; border-right: 1px solid var(--line-soft); }
+.scan-cell:last-child { border-right: none; }
+.scan-cell.sc-missing { background: #fffaf9; }
+.scan-cell.sc-active  { background: #f0fdf7; }
+.scan-cell.sc-nuit    { background: #1e1b4b; }
+.scan-type  { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-muted); margin-bottom: 4px; }
+.scan-cell.sc-nuit .scan-type { color: rgba(255,255,255,.4); }
+.scan-time  { font-family: var(--font-mono); font-size: 16px; font-weight: 500; color: var(--ink); }
+.scan-time.empty { color: #ccc; font-size: 13px; }
+.scan-cell.sc-nuit .scan-time { color: #a5b4fc; }
+.scan-site   { font-size: 10px; color: var(--ink-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scan-cell.sc-nuit .scan-site { color: rgba(255,255,255,.35); }
+.scan-status { font-size: 10px; font-weight: 600; margin-top: 3px; }
+.ss-ok      { color: var(--green-text); }
+.ss-warn    { color: var(--amber-text); }
+.ss-miss    { color: #bbb; }
+.ss-active  { color: var(--blue-text); }
+
+/* Garde de nuit — bande spéciale */
+.nuit-band {
+    display: flex; align-items: center; gap: 16px; padding: 12px 16px;
+    background: #1e1b4b; flex-wrap: wrap;
+}
+.nuit-block { display: flex; flex-direction: column; gap: 2px; }
+.nuit-lbl   { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: rgba(255,255,255,.4); }
+.nuit-time  { font-family: var(--font-mono); font-size: 17px; font-weight: 500; color: #a5b4fc; }
+.nuit-site  { font-size: 10px; color: rgba(255,255,255,.35); }
+.nuit-arrow { font-size: 18px; color: rgba(255,255,255,.2); font-family: var(--font-mono); }
+.nuit-total { margin-left: auto; background: #EEEDFE; color: #3C3489; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: var(--r-xs); }
+
+/* Footer carte : totaux + bouton */
+.jour-footer { border-top: 1px solid var(--line-soft); }
+.totals-row  { display: flex; gap: 12px; padding: 7px 14px; background: var(--surface); flex-wrap: wrap; }
+.total-item  { font-size: 10px; color: var(--ink-muted); display: flex; align-items: center; gap: 5px; }
+.total-item strong { font-weight: 700; color: var(--ink); }
+.tdot        { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.tdot-ok     { background: var(--green); }
+.tdot-warn   { background: var(--amber); }
+.tdot-err    { background: var(--red); }
+.tdot-muted  { background: #ccc; }
+
+.btn-detail-row { padding: 10px 14px; display: flex; justify-content: flex-end; background: var(--white); }
+.btn-detail {
+    background: var(--ink); color: rgba(255,255,255,.85); border: none;
+    border-radius: var(--r-xs); padding: 7px 16px; font-family: var(--font-ui); font-size: 9px;
+    font-weight: 700; text-transform: uppercase; letter-spacing: .1em; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-detail:hover { background: var(--ink-soft); color: #fff; }
+
+/* =====================================================
+   EMPTY STATE
+   ===================================================== */
+.empty-state { grid-column: 1 / -1; text-align: center; padding: 56px 32px; background: var(--white); border: 2px dashed var(--line); border-radius: var(--r-xl); }
+.empty-icon  { width: 58px; height: 58px; border-radius: 50%; background: var(--surface); margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: var(--ink-muted); }
+.empty-state h3 { font-size: 1rem; font-weight: 700; margin-bottom: 5px; }
+.empty-state p  { font-size: 13px; color: var(--ink-muted); margin-bottom: 18px; }
+
+/* =====================================================
+   PAGINATION
+   ===================================================== */
+.pager     { display: flex; justify-content: center; gap: 3px; padding: 18px 0; }
+.pager-btn { min-width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: var(--white); border: 1px solid var(--line); border-radius: var(--r-xs); color: var(--ink-muted); text-decoration: none; font-weight: 700; font-size: 11px; }
+.pager-btn:hover     { border-color: var(--ink-muted); color: var(--ink); background: var(--surface); }
+.pager-btn.is-active { background: var(--ink); border-color: var(--ink); color: #fff; }
+
+/* =====================================================
+   MODAL DETAIL
+   ===================================================== */
+dialog#modalDetail {
+    border: none; border-radius: 16px; padding: 0;
+    width: min(720px, 95vw); max-height: 86vh;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    display: flex; flex-direction: column; overflow: hidden; margin: auto;
+}
+dialog#modalDetail::backdrop { background: rgba(0,0,0,.55); backdrop-filter: blur(2px); }
+dialog#modalDetail:not([open]) { display: none; }
+
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
+@media (max-width: 1100px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 768px)  {
+    .pg-kpis { display: none; }
+    .pg-header { flex-direction: column; align-items: flex-start; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .cards-grid { grid-template-columns: 1fr; }
+    .scans-grid { grid-template-columns: repeat(2,1fr); }
+    dialog#modalDetail { max-height: 92vh; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ===== PAGE HEADER ===== -->
+<div class="pg-header">
+    <div>
+        <div class="pg-eyebrow">Suivi des présences</div>
+        <div class="pg-title">Historique des pointages</div>
+        <div class="pg-sub">Pointages enregistrés · Matin, Après-midi, Gardes de nuit</div>
+    </div>
+    <div class="pg-kpis">
+        <div class="kpi"><div class="kpi-lbl">Journées</div><div class="kpi-val">{{ jours.paginator.count }}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Heures</div><div class="kpi-val">{% if total_heures %}{{ total_heures|timedelta_format }}{% else %}—{% endif %}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Retard</div><div class="kpi-val">{% if total_retard %}{{ total_retard|timedelta_format }}{% else %}0<span class="u">min</span>{% endif %}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Employés</div><div class="kpi-val">{{ unique_employes_count|default:"—" }}</div></div>
+    </div>
+</div>
+
+<!-- ===== FILTERS ===== -->
+<div class="filter-bar">
+    <div class="filter-bar-head">
+        <span class="filter-bar-label">Filtres de recherche</span>
+        <div class="filter-bar-sep"></div>
+    </div>
+    <form method="get">
+        <div class="filter-grid">
+            <div class="fg">
+                <div class="fg-lbl">Date début</div>
+                <input type="date" class="fg-input" name="date_debut" value="{{ filter_date_debut }}">
+            </div>
+            <div class="fg">
+                <div class="fg-lbl">Date fin</div>
+                <input type="date" class="fg-input" name="date_fin" value="{{ filter_date_fin }}">
+            </div>
+            <div class="fg">
+                <div class="fg-lbl">Employé</div>
+                <select class="fg-input" name="employe">
+                    <option value="">Tous les employés</option>
+                    {% for employe in employes %}
+                    <option value="{{ employe.id }}" {% if request.GET.employe == employe.id|stringformat:"s" %}selected{% endif %}>
+                        {{ employe.prenom }} {{ employe.nom }} ({{ employe.matricule }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="fg">
+                <div class="fg-lbl">Site</div>
+                <select class="fg-input" name="site">
+                    <option value="">Tous les sites</option>
+                    {% for site in sites %}
+                    <option value="{{ site.id }}" {% if request.GET.site == site.id|stringformat:"s" %}selected{% endif %}>
+                        {{ site.nom }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="fg">
+                <div class="fg-lbl">Type de période</div>
+                <select class="fg-input" name="periode_type">
+                    <option value="">Tous (Jour + Nuit)</option>
+                    <option value="jour"  {% if request.GET.periode_type == 'jour'  %}selected{% endif %}>Jour seulement</option>
+                    <option value="nuit"  {% if request.GET.periode_type == 'nuit'  %}selected{% endif %}>Nuit (Gardes) seulement</option>
+                </select>
+            </div>
+        </div>
+        <div class="filter-actions">
+            <a href="{% url 'pointages' %}" class="btn btn-secondary"><i class="fas fa-times"></i> Réinitialiser</a>
+            <a href="{% url 'export_resume_excel' %}?date_debut={{ filter_date_debut }}&date_fin={{ filter_date_fin }}&employe={{ request.GET.employe }}&site={{ request.GET.site }}&periode_type={{ request.GET.periode_type }}"
+               class="btn btn-success"><i class="fas fa-file-excel"></i> Exporter Excel</a>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Appliquer</button>
+        </div>
+    </form>
+</div>
+
+<!-- ===== STATS ===== -->
+<div class="stats-row">
+    <div class="stat-tile st-green">
+        <div class="st-lbl">Pointages enregistrés</div>
+        <div class="st-val">{{ total_journees|default:jours.paginator.count }}</div>
+        <div class="st-sub">Sur la période filtrée</div>
+    </div>
+    <div class="stat-tile st-blue">
+        <div class="st-lbl">Heures travaillées</div>
+        <div class="st-val">{% if total_heures %}{{ total_heures|timedelta_format }}{% else %}0h00{% endif %}</div>
+        <div class="st-sub">Temps cumulé</div>
+    </div>
+    <div class="stat-tile st-amber">
+        <div class="st-lbl">Retard cumulé</div>
+        <div class="st-val">{% if total_retard %}{{ total_retard|timedelta_format }}{% else %}0min{% endif %}</div>
+        <div class="st-sub">À régulariser</div>
+    </div>
+    <div class="stat-tile st-red">
+        <div class="st-lbl">Employés distincts</div>
+        <div class="st-val">{{ unique_employes_count|default:"—" }}</div>
+        <div class="st-sub">Sur la période</div>
+    </div>
+</div>
+
+<!-- ===== CARDS ===== -->
+<div class="cards-grid">
+{% for jour in jours %}
+
+{% comment %}Couleur avatar basée sur id employé{% endcomment %}
+{% with colors="2962ff,00c27a,f5a623,e8344a,374163,3C3489,007a4d,a86f00" %}
+{% with color_idx=jour.employe.id|stringformat:"d" %}
+
+<div class="jour-card {% if jour.nuit and jour.nuit.type_journee == 'garde' %}is-garde{% endif %}">
+
+    <!-- HEADER : avatar + infos employé + date + badges -->
+    <div class="jour-header">
+        <div class="emp-avatar" style="background:#{{ jour.employe.id|divisibleby:7|yesno:'3C3489,2962ff' }}">
+            {{ jour.employe.prenom|slice:"0:1" }}{{ jour.employe.nom|slice:"0:1" }}
+        </div>
+        <div class="emp-info">
+            <div class="emp-name">{{ jour.employe.prenom }} {{ jour.employe.nom }}</div>
+            <div class="emp-meta">
+                <span class="emp-matricule">{{ jour.employe.matricule }}</span>
+                {% if jour.employe.poste %}
+                <span class="emp-poste" style="background:{{ jour.employe.poste.couleur }}22;color:{{ jour.employe.poste.couleur }}">
+                    {{ jour.employe.poste.nom }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="jour-right">
+            <div class="jour-date">{{ jour.date|date:"d M Y" }}</div>
+            <div class="jour-sub">{{ jour.date|date:"l" }}</div>
+            <div class="jour-badges">
+                {% if jour.nuit and jour.nuit.type_journee == 'garde' %}
+                    <span class="chip chip-purple"><i class="fas fa-moon"></i> Garde</span>
+                {% endif %}
+                {% if jour.statut_global == 'present' %}
+                    <span class="chip chip-green">Présent</span>
+                {% elif jour.statut_global == 'partiel' %}
+                    <span class="chip chip-amber">Incomplet</span>
+                {% else %}
+                    <span class="chip chip-red">Absent</span>
+                {% endif %}
+                {% if jour.retard_total and jour.retard_total.total_seconds > 0 %}
+                    <span class="chip chip-amber">Retard</span>
+                {% endif %}
+                {% if jour.matin and jour.apres_midi and jour.matin.site != jour.apres_midi.site %}
+                    <span class="chip chip-blue">Multi-site</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- SCANS GRID : E1 S1 E2 S2 -->
+    {% if jour.nuit and jour.nuit.type_journee == 'garde' %}
+    <div class="nuit-band">
+        <div class="nuit-block">
+            <div class="nuit-lbl">Début garde</div>
+            <div class="nuit-time">{{ jour.nuit.heure_arrivee|time:"H:i"|default:"—" }}</div>
+            <div class="nuit-site">{{ jour.site.nom }}</div>
+        </div>
+        <div class="nuit-arrow">→</div>
+        <div class="nuit-block">
+            <div class="nuit-lbl">Fin garde</div>
+            <div class="nuit-time">{{ jour.nuit.heure_depart|time:"H:i"|default:"—" }}</div>
+            <div class="nuit-site">{{ jour.site.nom }}</div>
+        </div>
+        {% if jour.nuit.heures_travaillees %}
+        <div class="nuit-total">{{ jour.nuit.heures_travaillees|timedelta_format }} travaillées</div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="scans-grid">
+        <!-- E1 -->
+        <div class="scan-cell {% if not jour.matin or not jour.matin.heure_arrivee %}sc-missing{% else %}sc-active{% endif %}">
+            <div class="scan-type">Entrée matin</div>
+            {% if jour.matin and jour.matin.heure_arrivee %}
+                <div class="scan-time">{{ jour.matin.heure_arrivee|time:"H:i" }}</div>
+                <div class="scan-site">{% if jour.matin.site %}{{ jour.matin.site.nom }}{% else %}{{ jour.site.nom }}{% endif %}</div>
+                <div class="scan-status {% if jour.matin.retard and jour.matin.retard.total_seconds > 0 %}ss-warn{% else %}ss-ok{% endif %}">
+                    {% if jour.matin.retard and jour.matin.retard.total_seconds > 0 %}+{{ jour.matin.retard|timedelta_format }}{% else %}À l'heure{% endif %}
+                </div>
+            {% else %}
+                <div class="scan-time empty">—</div>
+                <div class="scan-site">—</div>
+                <div class="scan-status ss-miss">Absent</div>
+            {% endif %}
+        </div>
+        <!-- S1 -->
+        <div class="scan-cell {% if not jour.matin or not jour.matin.heure_depart %}sc-missing{% endif %}">
+            <div class="scan-type">Sortie matin</div>
+            {% if jour.matin and jour.matin.heure_depart %}
+                <div class="scan-time">{{ jour.matin.heure_depart|time:"H:i" }}</div>
+                <div class="scan-site">{% if jour.matin.site %}{{ jour.matin.site.nom }}{% else %}{{ jour.site.nom }}{% endif %}</div>
+                <div class="scan-status ss-ok">
+                    {% if jour.matin.heures_travaillees %}{{ jour.matin.heures_travaillees|timedelta_format }} trav.{% else %}Pointé{% endif %}
+                </div>
+            {% else %}
+                <div class="scan-time empty">—</div>
+                <div class="scan-site">—</div>
+                <div class="scan-status ss-miss">Non pointé</div>
+            {% endif %}
+        </div>
+        <!-- E2 -->
+        <div class="scan-cell {% if not jour.apres_midi or not jour.apres_midi.heure_arrivee %}sc-missing{% else %}sc-active{% endif %}">
+            <div class="scan-type">Entrée après-midi</div>
+            {% if jour.apres_midi and jour.apres_midi.heure_arrivee %}
+                <div class="scan-time">{{ jour.apres_midi.heure_arrivee|time:"H:i" }}</div>
+                <div class="scan-site">{% if jour.apres_midi.site %}{{ jour.apres_midi.site.nom }}{% else %}{{ jour.site.nom }}{% endif %}</div>
+                <div class="scan-status {% if jour.apres_midi.retard and jour.apres_midi.retard.total_seconds > 0 %}ss-warn{% else %}ss-ok{% endif %}">
+                    {% if jour.apres_midi.retard and jour.apres_midi.retard.total_seconds > 0 %}+{{ jour.apres_midi.retard|timedelta_format }}{% else %}À l'heure{% endif %}
+                </div>
+            {% else %}
+                <div class="scan-time empty">—</div>
+                <div class="scan-site">—</div>
+                <div class="scan-status ss-miss">En attente</div>
+            {% endif %}
+        </div>
+        <!-- S2 -->
+        <div class="scan-cell {% if not jour.apres_midi or not jour.apres_midi.heure_depart %}sc-missing{% endif %}">
+            <div class="scan-type">Sortie après-midi</div>
+            {% if jour.apres_midi and jour.apres_midi.heure_depart %}
+                <div class="scan-time">{{ jour.apres_midi.heure_depart|time:"H:i" }}</div>
+                <div class="scan-site">{% if jour.apres_midi.site %}{{ jour.apres_midi.site.nom }}{% else %}{{ jour.site.nom }}{% endif %}</div>
+                <div class="scan-status ss-ok">
+                    {% if jour.apres_midi.heures_travaillees %}{{ jour.apres_midi.heures_travaillees|timedelta_format }} trav.{% else %}Pointé{% endif %}
+                </div>
+            {% else %}
+                <div class="scan-time empty">—</div>
+                <div class="scan-site">—</div>
+                <div class="scan-status ss-miss">Non pointé</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- FOOTER : totaux + bouton détail -->
+    <div class="jour-footer">
+        <div class="totals-row">
+            <div class="total-item"><div class="tdot tdot-ok"></div>Travaillées : <strong>{{ jour.heures_total|timedelta_format }}</strong></div>
+            {% if jour.retard_total and jour.retard_total.total_seconds > 0 %}
+            <div class="total-item"><div class="tdot tdot-warn"></div>Retard : <strong>{{ jour.retard_total|timedelta_format }}</strong></div>
+            {% endif %}
+            {% if jour.heures_sup and jour.heures_sup.total_seconds > 0 %}
+            <div class="total-item"><div class="tdot tdot-ok"></div>H. sup : <strong>{{ jour.heures_sup|timedelta_format }}</strong></div>
+            {% endif %}
+        </div>
+        <div class="btn-detail-row">
+            <button class="btn-detail"
+                data-employe="{{ jour.employe.prenom }} {{ jour.employe.nom }}"
+                data-matricule="{{ jour.employe.matricule }}"
+                data-poste="{% if jour.employe.poste %}{{ jour.employe.poste.nom }}{% endif %}"
+                data-date="{{ jour.date|date:'d/m/Y' }}"
+                data-jour="{{ jour.date|date:'l' }}"
+                data-site="{{ jour.site.nom }}"
+                data-statut="{{ jour.statut_global }}"
+                data-arr-matin="{% if jour.matin and jour.matin.heure_arrivee %}{{ jour.matin.heure_arrivee|time:'H:i' }}{% endif %}"
+                data-dep-matin="{% if jour.matin and jour.matin.heure_depart %}{{ jour.matin.heure_depart|time:'H:i' }}{% endif %}"
+                data-retard-matin="{% if jour.matin and jour.matin.retard %}{{ jour.matin.retard|timedelta_format }}{% endif %}"
+                data-site-arr-matin="{% if jour.scan_map.entree_matin %}{{ jour.scan_map.entree_matin.site }}{% else %}{{ jour.site.nom }}{% endif %}"
+                data-site-dep-matin="{% if jour.scan_map.sortie_matin %}{{ jour.scan_map.sortie_matin.site }}{% else %}{{ jour.site.nom }}{% endif %}"
+                data-arr-apm="{% if jour.apres_midi and jour.apres_midi.heure_arrivee %}{{ jour.apres_midi.heure_arrivee|time:'H:i' }}{% endif %}"
+                data-dep-apm="{% if jour.apres_midi and jour.apres_midi.heure_depart %}{{ jour.apres_midi.heure_depart|time:'H:i' }}{% endif %}"
+                data-retard-apm="{% if jour.apres_midi and jour.apres_midi.retard %}{{ jour.apres_midi.retard|timedelta_format }}{% endif %}"
+                data-site-arr-apm="{% if jour.scan_map.entree_apres_midi %}{{ jour.scan_map.entree_apres_midi.site }}{% else %}{{ jour.site.nom }}{% endif %}"
+                data-site-dep-apm="{% if jour.scan_map.sortie_apres_midi %}{{ jour.scan_map.sortie_apres_midi.site }}{% else %}{{ jour.site.nom }}{% endif %}"
+                data-arr-nuit="{% if jour.nuit and jour.nuit.heure_arrivee %}{{ jour.nuit.heure_arrivee|time:'H:i' }}{% endif %}"
+                data-dep-nuit="{% if jour.nuit and jour.nuit.heure_depart %}{{ jour.nuit.heure_depart|time:'H:i' }}{% endif %}"
+                data-heures="{{ jour.heures_total|timedelta_format }}"
+                data-retard-total="{{ jour.retard_total|timedelta_format }}"
+                data-heures-sup="{{ jour.heures_sup|timedelta_format }}"
+                onclick="ouvrirDetail(this)">
+                <i class="fas fa-list-ul"></i> Détails
+            </button>
+        </div>
+    </div>
+
+</div>
+{% endwith %}{% endwith %}
+
+{% empty %}
+<div class="empty-state">
+    <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+    <h3>Aucun pointage trouvé</h3>
+    <p>Aucun pointage ne correspond aux filtres sélectionnés.<br>Essayez de modifier vos critères de recherche.</p>
+    <a href="{% url 'pointages' %}" class="btn btn-primary"><i class="fas fa-redo"></i> Réinitialiser</a>
+</div>
+{% endfor %}
+</div>
+
+<!-- ===== PAGINATION ===== -->
+{% if jours.has_other_pages %}
+<nav class="pager">
+    {% if jours.has_previous %}
+    <a class="pager-btn" href="?page={{ jours.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+        <i class="fas fa-chevron-left"></i>
+    </a>
+    {% endif %}
+    {% for num in jours.paginator.page_range %}
+        {% if num <= jours.number|add:2 and num >= jours.number|add:-2 %}
+        <a class="pager-btn {% if jours.number == num %}is-active{% endif %}"
+           href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+    {% if jours.has_next %}
+    <a class="pager-btn" href="?page={{ jours.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+        <i class="fas fa-chevron-right"></i>
+    </a>
+    {% endif %}
+</nav>
+{% endif %}
+
+<!-- ===== MODAL DETAIL ===== -->
+<dialog id="modalDetail">
+    <div style="padding:18px 22px;border-bottom:1px solid #e5e7eb;display:flex;align-items:flex-start;
+                justify-content:space-between;flex-shrink:0;background:#fff;">
+        <div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+                        color:#00c27a;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+                <span style="display:inline-block;width:12px;height:2px;background:#00c27a;border-radius:1px;"></span>
+                Détail du pointage
+            </div>
+            <div id="modal-titre" style="font-size:1rem;font-weight:700;color:#0b0e17;margin:0;"></div>
+            <div id="modal-sub"   style="font-size:12px;color:#6b7280;margin-top:3px;"></div>
+        </div>
+        <button onclick="fermerDetail()"
+            style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;width:32px;height:32px;
+                   cursor:pointer;font-size:16px;color:#6b7280;display:flex;align-items:center;
+                   justify-content:center;flex-shrink:0;">✕</button>
+    </div>
+    <div id="modal-body" style="padding:20px 22px;flex:1;overflow-y:auto;min-height:0;"></div>
+    <div style="padding:14px 22px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;
+                flex-shrink:0;background:#fff;">
+        <button onclick="fermerDetail()" class="btn btn-secondary">Fermer</button>
+    </div>
+</dialog>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function fermerDetail() { document.getElementById('modalDetail').close(); }
+
+function ouvrirDetail(btn) {
+    const d = btn.dataset;
+
+    document.getElementById('modal-titre').textContent =
+        d.employe + '  ·  ' + d.date + ' — ' + d.jour;
+    document.getElementById('modal-sub').textContent =
+        (d.poste ? d.poste + '  |  ' : '') + d.matricule + '  |  ' + d.site;
+
+    const C = {
+        green:  { bg:'#dcfce7', color:'#15803d' },
+        red:    { bg:'#fee2e2', color:'#b91c1c' },
+        amber:  { bg:'#fef3c7', color:'#b45309' },
+        blue:   { bg:'#dbeafe', color:'#1d4ed8' },
+        purple: { bg:'#EEEDFE', color:'#3C3489' },
+    };
+
+    function chip(cls, label) {
+        const c = C[cls] || C.blue;
+        return `<span style="display:inline-flex;align-items:center;font-size:9px;font-weight:700;
+                text-transform:uppercase;letter-spacing:.09em;padding:3px 8px;border-radius:100px;
+                white-space:nowrap;background:${c.bg};color:${c.color};">${label}</span>`;
+    }
+
+    function scanRow(heure, label, site, statutLabel, chipCls, faIcon) {
+        const vide = !heure;
+        const iconBg    = vide ? '#f3f4f6' : (faIcon.includes('in') ? '#dcfce7' : '#fee2e2');
+        const iconColor = vide ? '#9ca3af' : (faIcon.includes('in') ? '#15803d' : '#b91c1c');
+        return `
+        <div style="display:grid;grid-template-columns:32px 70px 1fr 90px auto;align-items:center;
+                    gap:10px;padding:11px 14px;border-bottom:1px solid #f3f4f6;
+                    background:#fff;opacity:${vide?'0.45':'1'}">
+            <div style="width:28px;height:28px;border-radius:6px;display:flex;align-items:center;
+                        justify-content:center;font-size:11px;background:${iconBg};color:${iconColor};flex-shrink:0;">
+                <i class="fas ${vide?'fa-ban':faIcon}"></i>
+            </div>
+            <div style="font-family:monospace;font-size:1.2rem;font-weight:500;
+                        color:${vide?'#9ca3af':'#0b0e17'};line-height:1;">
+                ${heure||'—'}
+            </div>
+            <div style="font-size:12px;font-weight:600;color:#374151;">${label}</div>
+            <div style="font-size:10px;color:#6b7280;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                <i class="fas fa-map-marker-alt" style="font-size:9px;color:#9ca3af;"></i>${site||'—'}
+            </div>
+            ${chip(chipCls, statutLabel)}
+        </div>`;
+    }
+
+    function section(titre) {
+        return `<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.16em;
+                            color:#6b7280;margin:18px 0 10px;display:flex;align-items:center;gap:8px;">
+                    ${titre}
+                    <span style="flex:1;height:1px;background:#e5e7eb;display:inline-block;"></span>
+                </div>`;
+    }
+
+    function timeline(rows) {
+        return `<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">${rows}</div>`;
+    }
+
+    // Calcul pause déjeuner (uniquement dans le détail)
+    function calculerPause(depMatin, arrApm) {
+        if (!depMatin || !arrApm) return null;
+        const [hD, mD] = depMatin.split(':').map(Number);
+        const [hA, mA] = arrApm.split(':').map(Number);
+        const totalMin = (hA * 60 + mA) - (hD * 60 + mD);
+        if (totalMin <= 0) return null;
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
+        return h > 0 ? `${h}h${m > 0 ? m+'min' : ''}` : `${m} min`;
+    }
+
+    let html = '';
+
+    // ── Matin ──
+    html += section('Période Matin');
+    html += timeline(
+        scanRow(d.arrMatin, 'Arrivée matin', d.siteArrMatin,
+            d.arrMatin ? (d.retardMatin ? '+'+d.retardMatin+' retard' : "À l'heure") : 'Absent',
+            d.arrMatin ? (d.retardMatin ? 'amber' : 'green') : 'red', 'fa-sign-in-alt') +
+        scanRow(d.depMatin, 'Départ matin', d.siteDepMatin,
+            d.depMatin ? 'Pointé' : 'Non pointé',
+            d.depMatin ? 'blue' : 'amber', 'fa-sign-out-alt')
+    );
+
+    // ── Pause déjeuner (UNIQUEMENT dans le détail) ──
+    const pause = calculerPause(d.depMatin, d.arrApm);
+    if (pause) {
+        const pauseMin = (() => {
+            const [hD,mD] = d.depMatin.split(':').map(Number);
+            const [hA,mA] = d.arrApm.split(':').map(Number);
+            return (hA*60+mA)-(hD*60+mD);
+        })();
+        const pauseLongue = pauseMin > 120;
+        html += `<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;
+                             background:${pauseLongue?'#fef3c7':'#f0fdf4'};
+                             border:1px solid ${pauseLongue?'#f5a623':'#00c27a'};
+                             border-radius:8px;margin:10px 0;">
+            <i class="fas fa-coffee" style="color:${pauseLongue?'#a86f00':'#007a4d'};font-size:14px;"></i>
+            <div style="flex:1;">
+                <div style="font-size:10px;font-weight:700;color:${pauseLongue?'#a86f00':'#007a4d'};
+                            text-transform:uppercase;letter-spacing:.08em;">
+                    Pause déjeuner : ${pause}${pauseLongue?' ⚠ Pause longue':''}
+                </div>
+                <div style="font-size:11px;color:#6b7280;margin-top:2px;">
+                    ${d.depMatin} → ${d.arrApm}
+                    ${pauseLongue?' — Dépasse le seuil recommandé (2h)':''}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // ── Après-midi ──
+    html += section('Période Après-midi');
+    html += timeline(
+        scanRow(d.arrApm, 'Arrivée après-midi', d.siteArrApm,
+            d.arrApm ? (d.retardApm ? '+'+d.retardApm+' retard' : "À l'heure") : 'En attente',
+            d.arrApm ? (d.retardApm ? 'amber' : 'green') : 'amber', 'fa-sign-in-alt') +
+        scanRow(d.depApm, 'Départ après-midi', d.siteDepApm,
+            d.depApm ? 'Pointé' : 'Non pointé',
+            d.depApm ? 'blue' : 'amber', 'fa-sign-out-alt')
+    );
+
+    // ── Garde de nuit ──
+    if (d.arrNuit || d.depNuit) {
+        html += section('Garde de nuit');
+        html += timeline(
+            scanRow(d.arrNuit, 'Début de garde', d.site,
+                d.arrNuit ? 'En garde' : 'Absent',
+                d.arrNuit ? 'purple' : 'red', 'fa-moon') +
+            scanRow(d.depNuit, 'Fin de garde', d.site,
+                d.depNuit ? 'Terminée' : 'En cours',
+                d.depNuit ? 'blue' : 'amber',
+                d.depNuit ? 'fa-sign-out-alt' : 'fa-sun')
+        );
+    }
+
+    // ── Résumé ──
+    const statutBg    = d.statut==='present'?'#dcfce7':d.statut==='partiel'?'#fef3c7':'#fee2e2';
+    const statutColor = d.statut==='present'?'#15803d':d.statut==='partiel'?'#b45309':'#b91c1c';
+    const statutLabel = d.statut==='present'?'✓ Présent':d.statut==='partiel'?'~ Incomplet':'✗ Absent';
+
+    html += section('Résumé de la journée');
+    html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+        <div style="background:#dbeafe;border:1px solid rgba(29,78,216,.2);border-radius:8px;padding:12px 14px;text-align:center;">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#1d4ed8;margin-bottom:5px;">Heures totales</div>
+            <div style="font-family:monospace;font-size:1.2rem;font-weight:500;color:#1d4ed8;">${d.heures}</div>
+        </div>
+        <div style="background:#dcfce7;border:1px solid rgba(21,128,61,.2);border-radius:8px;padding:12px 14px;text-align:center;">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#15803d;margin-bottom:5px;">Heures suppl.</div>
+            <div style="font-family:monospace;font-size:1.2rem;font-weight:500;color:#15803d;">${d.heuresSup||'0h'}</div>
+        </div>
+        <div style="background:#fef3c7;border:1px solid rgba(180,83,9,.2);border-radius:8px;padding:12px 14px;text-align:center;">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#b45309;margin-bottom:5px;">Retard total</div>
+            <div style="font-family:monospace;font-size:1.2rem;font-weight:500;color:#b45309;">${d.retardTotal||'0min'}</div>
+        </div>
+        <div style="background:${statutBg};border:1px solid rgba(0,0,0,.08);border-radius:8px;padding:12px 14px;text-align:center;">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:${statutColor};margin-bottom:5px;">Statut global</div>
+            <div style="font-family:monospace;font-size:1.2rem;font-weight:500;color:${statutColor};">${statutLabel}</div>
+        </div>
+    </div>`;
+
+    document.getElementById('modal-body').innerHTML = html;
+    document.getElementById('modalDetail').showModal();
+}
+
+document.getElementById('modalDetail').addEventListener('click', function(e) {
+    const r = this.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) this.close();
+});
+document.addEventListener('keydown', e => { if (e.key==='Escape') fermerDetail(); });
+</script>
+{% endblock %}

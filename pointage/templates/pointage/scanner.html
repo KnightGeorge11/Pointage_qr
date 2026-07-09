@@ -1,0 +1,665 @@
+{% extends 'pointage/base.html' %}
+
+{% block title %}Pointage — Pointage QR{% endblock %}
+{% block page_title %}Pointage{% endblock %}
+
+{% block extra_css %}
+<style>
+/* =====================================================
+   SCANNER PAGE
+   ===================================================== */
+.scanner-layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 18px;
+    align-items: start;
+}
+
+/* PAGE HEADER */
+.scan-page-head {
+    background: var(--ink); border-radius: var(--r-lg);
+    padding: 22px 26px; margin-bottom: 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; position: relative; overflow: hidden;
+}
+.scan-page-head::after {
+    content: ''; position: absolute; right: -50px; top: -50px;
+    width: 180px; height: 180px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,194,122,.1) 0%, transparent 65%);
+    pointer-events: none;
+}
+.scan-page-eyebrow {
+    font-size: 9px; font-weight: 700; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--green);
+    margin-bottom: 6px; display: flex; align-items: center; gap: 7px;
+}
+.scan-page-eyebrow::before {
+    content: ''; width: 14px; height: 2px;
+    background: var(--green); border-radius: 1px; display: inline-block;
+}
+.scan-page-title { font-size: 1.5rem; font-weight: 700; color: #fff; letter-spacing: -.03em; line-height: 1.2; }
+.scan-page-sub   { font-size: 12px; color: rgba(255,255,255,.38); font-weight: 500; margin-top: 4px; }
+.scan-kpis { display: flex; gap: 2px; flex-shrink: 0; }
+.scan-kpi  { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); padding: 12px 18px; min-width: 100px; text-align: center; }
+.scan-kpi:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.scan-kpi:last-child  { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.scan-kpi-lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: rgba(255,255,255,.3); margin-bottom: 4px; }
+.scan-kpi-val { font-family: var(--font-mono); font-size: 1.375rem; font-weight: 500; color: #fff; line-height: 1; }
+
+/* FORM CARD */
+.form-card { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-xl); overflow: hidden; }
+.form-card-head { background: var(--ink); padding: 16px 22px; display: flex; align-items: center; gap: 12px; }
+.form-card-icon { width: 36px; height: 36px; border-radius: var(--r-xs); background: rgba(0,194,122,.18); color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.form-card-title    { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.2; }
+.form-card-subtitle { font-size: 10px; color: rgba(255,255,255,.35); font-weight: 500; margin-top: 2px; }
+.form-card-body { padding: 22px; }
+
+/* MODE TABS */
+.mode-tabs { display: flex; gap: 4px; margin-bottom: 18px; background: var(--surface); border-radius: var(--r-sm); padding: 3px; }
+.mode-tab  { flex: 1; text-align: center; padding: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; border-radius: var(--r-xs); cursor: pointer; color: var(--ink-muted); border: none; background: transparent; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.mode-tab.active { background: var(--white); color: var(--ink); border: 1px solid var(--line); box-shadow: 0 1px 3px rgba(11,14,23,.07); }
+.mode-tab i { font-size: 12px; }
+
+/* ZONE SCANNER USB */
+.scan-zone {
+    border: 2px dashed var(--line); border-radius: var(--r-lg);
+    padding: 24px 20px; text-align: center; margin-bottom: 16px;
+    cursor: pointer; transition: all .2s; position: relative;
+}
+.scan-zone:hover  { border-color: var(--ink-muted); background: var(--surface); }
+.scan-zone.ready  { border-color: var(--green); background: var(--green-dim); }
+.scan-zone.error  { border-color: var(--red);   background: var(--red-dim); }
+.scan-zone.waiting { border-color: var(--amber); background: var(--amber-dim); }
+.scan-hidden-input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.scan-zone-icon  { font-size: 36px; color: var(--line); margin-bottom: 8px; line-height: 1; }
+.scan-zone.ready .scan-zone-icon  { color: var(--green); }
+.scan-zone.error .scan-zone-icon  { color: var(--red); }
+.scan-zone.waiting .scan-zone-icon { color: var(--amber); }
+.scan-zone-label { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.scan-zone.ready .scan-zone-label  { color: var(--green-text); }
+.scan-zone.error .scan-zone-label  { color: var(--red-text); }
+.scan-zone.waiting .scan-zone-label { color: var(--amber-text); }
+.scan-zone-hint  { font-size: 10px; color: var(--ink-muted); margin-top: 5px; }
+
+/* FORM FIELDS */
+.sf-group { margin-bottom: 16px; }
+.sf-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-muted); margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
+.sf-label i { font-size: 10px; }
+.sf-input  { width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-xs); padding: 10px 13px; font-family: var(--font-ui); font-size: 14px; font-weight: 500; color: var(--ink); appearance: none; }
+.sf-input:focus { outline: none; border-color: var(--ink); background: var(--white); box-shadow: 0 0 0 3px rgba(11,14,23,.08); }
+.sf-input::placeholder { color: rgba(11,14,23,.3); }
+.sf-hint   { font-size: 10px; color: var(--ink-muted); font-weight: 500; margin-top: 4px; }
+
+/* PERIODE TOGGLE */
+.periode-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.btn-check { position: absolute; clip: rect(0,0,0,0); }
+.periode-option { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 13px 10px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.periode-option .po-icon  { font-size: 18px; color: var(--ink-muted); line-height: 1; }
+.periode-option .po-label { font-size: 12px; font-weight: 700; color: var(--ink); }
+.periode-option .po-sub   { font-size: 9px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-muted); }
+.btn-check:checked + .periode-option { background: var(--ink); border-color: var(--ink); }
+.btn-check:checked + .periode-option .po-icon,
+.btn-check:checked + .periode-option .po-label { color: #fff; }
+.btn-check:checked + .periode-option .po-sub   { color: rgba(255,255,255,.45); }
+#periode_nuit:checked + .periode-option { background: var(--ink-soft); border-color: var(--amber); }
+#periode_nuit:checked + .periode-option .po-icon  { color: var(--amber); }
+#periode_nuit:checked + .periode-option .po-label { color: #fff; }
+#periode_nuit:checked + .periode-option .po-sub   { color: rgba(255,255,255,.4); }
+
+/* SUBMIT */
+.btn-submit { width: 100%; background: var(--ink); color: #fff; border: none; border-radius: var(--r-xs); padding: 12px; font-family: var(--font-ui); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px; }
+.btn-submit:hover { background: var(--ink-soft); }
+
+/* FEEDBACK SCAN */
+.scan-feedback { border-radius: var(--r-lg); padding: 14px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
+.scan-feedback.fb-ok  { background: var(--green-dim); border: 1px solid rgba(0,194,122,.3); }
+.scan-feedback.fb-err { background: var(--red-dim);   border: 1px solid rgba(232,52,74,.3); }
+.scan-feedback.fb-warn{ background: var(--amber-dim); border: 1px solid rgba(245,166,35,.3); }
+.fb-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.fb-ok  .fb-icon { background: var(--green); color: var(--ink); }
+.fb-err .fb-icon { background: var(--red);   color: #fff; }
+.fb-warn .fb-icon{ background: var(--amber); color: var(--ink); }
+.fb-title { font-size: 13px; font-weight: 700; }
+.fb-ok  .fb-title { color: var(--green-text); }
+.fb-err .fb-title { color: var(--red-text); }
+.fb-warn .fb-title{ color: var(--amber-text); }
+.fb-sub   { font-size: 11px; margin-top: 2px; opacity: .75; }
+.fb-ok  .fb-sub { color: var(--green-text); }
+.fb-err .fb-sub { color: var(--red-text); }
+.fb-warn .fb-sub{ color: var(--amber-text); }
+
+/* INFO PANEL */
+.info-panel { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.info-panel-head { background: var(--surface); border-bottom: 1px solid var(--line); padding: 12px 18px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .16em; color: var(--ink-muted); display: flex; align-items: center; gap: 7px; }
+.info-panel-head i { color: var(--green); font-size: 11px; }
+.info-panel-body { padding: 18px; }
+.info-step { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.info-step:last-child { border-bottom: none; padding-bottom: 0; }
+.info-step-num { width: 24px; height: 24px; border-radius: var(--r-xs); background: var(--ink); color: rgba(255,255,255,.8); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: var(--font-mono); }
+.info-step-text { font-size: 12px; font-weight: 500; color: var(--ink-muted); line-height: 1.5; padding-top: 3px; }
+
+/* PERIODE INDICATOR */
+.periode-indicator { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; margin-top: 18px; display: flex; align-items: center; gap: 10px; }
+.pi-icon { width: 30px; height: 30px; border-radius: var(--r-xs); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+.pi-icon.jour { background: var(--amber-dim); color: var(--amber-text); }
+.pi-icon.nuit { background: rgba(11,14,23,.1); color: var(--ink); }
+.pi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-muted); margin-bottom: 1px; }
+.pi-value { font-size: 12px; font-weight: 600; color: var(--ink); }
+
+/* PULSE */
+@keyframes scanPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.scan-pulse { animation: scanPulse 1.8s ease infinite; }
+
+/* RESPONSIVE */
+@media (max-width: 900px) { .scanner-layout { grid-template-columns: 1fr; } .scan-kpis { display: none; } .scan-page-head { flex-direction: column; align-items: flex-start; } }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEAD -->
+<div class="scan-page-head">
+    <div>
+        <div class="scan-page-eyebrow">Enregistrement</div>
+        <div class="scan-page-title">Pointage</div>
+        <div class="scan-page-sub">Scanner QR USB ou saisie manuelle du matricule</div>
+    </div>
+    <div class="scan-kpis">
+        <div class="scan-kpi"><div class="scan-kpi-lbl">Total employés</div><div class="scan-kpi-val">{{ total_employes }}</div></div>
+        <div class="scan-kpi"><div class="scan-kpi-lbl">Présents</div><div class="scan-kpi-val">{{ presents_aujourdhui }}</div></div>
+        <div class="scan-kpi"><div class="scan-kpi-lbl">Gardes</div><div class="scan-kpi-val">{{ gardes_en_cours }}</div></div>
+    </div>
+</div>
+
+<div class="scanner-layout">
+
+    <!-- FORMULAIRE PRINCIPAL -->
+    <div class="form-card">
+        <div class="form-card-head">
+            <div class="form-card-icon"><i class="fas fa-qrcode"></i></div>
+            <div>
+                <div class="form-card-title">Pointage</div>
+                <div class="form-card-subtitle">Période actuelle : {{ periode_actuelle }}</div>
+            </div>
+        </div>
+
+        <div class="form-card-body">
+
+            <!-- Messages Django -->
+            {% if messages %}
+                {% for message in messages %}
+                <div class="scan-feedback {% if 'success' in message.tags %}fb-ok{% elif 'warning' in message.tags %}fb-warn{% else %}fb-err{% endif %}" id="djangoMsg">
+                    <div class="fb-icon">
+                        {% if 'success' in message.tags %}<i class="fas fa-check"></i>
+                        {% elif 'warning' in message.tags %}<i class="fas fa-exclamation"></i>
+                        {% else %}<i class="fas fa-times"></i>{% endif %}
+                    </div>
+                    <div>
+                        <div class="fb-title">{{ message }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- TABS MODE -->
+            <div class="mode-tabs">
+                <button type="button" class="mode-tab active" id="tabUsb" onclick="setMode('usb')">
+                    <i class="fas fa-barcode"></i> Scanner USB
+                </button>
+                <button type="button" class="mode-tab" id="tabManuel" onclick="setMode('manuel')">
+                    <i class="fas fa-keyboard"></i> Saisie manuelle
+                </button>
+            </div>
+
+            <form method="post" id="scanForm">
+                {% csrf_token %}
+                <!-- Champ QR data (rempli automatiquement par scanner USB ou converti depuis matricule) -->
+                <input type="hidden" name="qr_data"      id="qrDataInput">
+                <input type="hidden" name="matricule"     id="matriculeHidden">
+                <input type="hidden" name="periode_type"  id="periodeHidden" value="auto">
+
+                <!-- ═══ MODE USB ═══ -->
+                <div id="zoneUsb">
+                    <div class="scan-zone ready" id="scanZone" onclick="focusScanInput()">
+                        <!-- Champ invisible qui capte la saisie du scanner USB -->
+                        <input type="text"
+                               class="scan-hidden-input"
+                               id="usbInput"
+                               autocomplete="off"
+                               tabindex="0">
+                        <div class="scan-zone-icon scan-pulse" id="scanZoneIcon">
+                            <i class="fas fa-qrcode"></i>
+                        </div>
+                        <div class="scan-zone-label" id="scanZoneLabel">En attente du scanner...</div>
+                        <div class="scan-zone-hint" id="scanZoneHint">Branchez le scanner USB et présentez le QR code</div>
+                    </div>
+                    <!-- BOUTON TEST — simuler un scan sans scanner physique -->
+                    <div style="margin-top:10px;text-align:center;">
+                        <button type="button"
+                                onclick="document.getElementById('testModal').style.display='flex'"
+                                style="font-size:10px;font-weight:700;text-transform:uppercase;
+                                       letter-spacing:.08em;padding:6px 14px;border-radius:var(--r-xs);
+                                       background:var(--surface);border:1px solid var(--line);
+                                       color:var(--ink-muted);cursor:pointer;display:inline-flex;
+                                       align-items:center;gap:6px;">
+                            <i class="fas fa-flask"></i> Simuler un scan (test)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- MODAL TEST -->
+                <div id="testModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);
+                     z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(2px);">
+                    <div style="background:#fff;border-radius:16px;padding:24px;width:min(500px,92vw);
+                                box-shadow:0 20px 60px rgba(0,0,0,.25);">
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
+                            <div>
+                                <div style="font-size:9px;font-weight:700;text-transform:uppercase;
+                                            letter-spacing:.14em;color:var(--green);margin-bottom:4px;
+                                            display:flex;align-items:center;gap:6px;">
+                                    <span style="width:10px;height:2px;background:var(--green);display:inline-block;border-radius:1px;"></span>
+                                    Mode test uniquement
+                                </div>
+                                <div style="font-size:15px;font-weight:700;color:var(--ink);">Simuler un scan QR</div>
+                                <div style="font-size:12px;color:#6b7280;margin-top:3px;">
+                                    Colle le contenu QR d'un employé pour simuler le scanner USB
+                                </div>
+                            </div>
+                            <button type="button" onclick="document.getElementById('testModal').style.display='none'"
+                                    style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;
+                                           width:30px;height:30px;cursor:pointer;font-size:14px;color:#6b7280;
+                                           display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>
+                        </div>
+
+                        <!-- Format attendu -->
+                        <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);
+                                    padding:10px 12px;margin-bottom:12px;font-size:11px;color:var(--ink-muted);">
+                            <span style="font-weight:700;color:var(--ink);">Format attendu :</span>
+                            <span style="font-family:monospace;"> EMPLOYE:matricule:uuid_token</span>
+                        </div>
+
+                        <textarea id="testQrInput"
+                                  placeholder="EMPLOYE:EMP-042:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                  style="width:100%;height:80px;font-family:monospace;font-size:12px;
+                                         padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-xs);
+                                         background:var(--surface);resize:none;margin-bottom:12px;
+                                         color:var(--ink);outline:none;"
+                                  onfocus="this.style.borderColor='var(--ink)'"
+                                  onblur="this.style.borderColor='var(--line)'"></textarea>
+
+                        <!-- Raccourci : récupérer depuis la liste -->
+                        <div style="font-size:10px;color:var(--ink-muted);margin-bottom:14px;">
+                            <i class="fas fa-lightbulb" style="color:var(--amber);"></i>
+                            Récupère le QR data d'un employé depuis le terminal :
+                            <code style="background:var(--surface);padding:2px 6px;border-radius:3px;font-size:10px;
+                                         border:1px solid var(--line);display:block;margin-top:5px;word-break:break-all;">
+                                python manage.py shell -c "from pointage.models import Employe; [print(f'EMPLOYE:{e.matricule}:{e.qr_code_token}') for e in Employe.objects.filter(actif=True)[:5]]"
+                            </code>
+                        </div>
+
+                        <div style="display:flex;gap:8px;justify-content:flex-end;">
+                            <button type="button"
+                                    onclick="document.getElementById('testModal').style.display='none'"
+                                    style="padding:8px 18px;border-radius:var(--r-xs);border:1px solid var(--line);
+                                           background:var(--surface);font-family:var(--font-ui);font-size:10px;
+                                           font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+                                           cursor:pointer;color:var(--ink-muted);">
+                                Annuler
+                            </button>
+                            <button type="button" onclick="lancerTestScan()"
+                                    style="padding:8px 18px;border-radius:var(--r-xs);border:none;
+                                           background:var(--ink);color:#fff;font-family:var(--font-ui);
+                                           font-size:10px;font-weight:700;text-transform:uppercase;
+                                           letter-spacing:.08em;cursor:pointer;display:inline-flex;
+                                           align-items:center;gap:6px;">
+                                <i class="fas fa-play"></i> Lancer le scan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ MODE MANUEL ═══ -->
+                <div id="zoneManuel" style="display:none">
+                    <div class="sf-group">
+                        <div class="sf-label"><i class="fas fa-id-card"></i> Matricule de l'employé</div>
+                        <input type="text"
+                               class="sf-input"
+                               id="matriculeInput"
+                               placeholder="Ex : EMP-042"
+                               autocomplete="off">
+                        <div class="sf-hint">Visible sur la carte ou le QR code de l'employé</div>
+                    </div>
+                </div>
+
+                <!-- SITE (commun aux 2 modes) -->
+                <div class="sf-group">
+                    <div class="sf-label"><i class="fas fa-building"></i> Site</div>
+                    <select class="sf-input" id="site_id" name="site_id" required>
+                        <option value="">Sélectionnez un site…</option>
+                        {% for site in sites %}
+                            <option value="{{ site.id }}">{{ site.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- PERIODE (commun aux 2 modes) -->
+                <div class="sf-group">
+                    <div class="sf-label"><i class="fas fa-clock"></i> Type de période</div>
+                    <div class="periode-toggle">
+                        <input type="radio" class="btn-check" name="periode_type_radio" id="periode_jour" value="auto" checked>
+                        <label class="periode-option" for="periode_jour">
+                            <div class="po-icon"><i class="fas fa-sun"></i></div>
+                            <div class="po-label">Jour</div>
+                            <div class="po-sub">Matin / Après-midi</div>
+                        </label>
+                        <input type="radio" class="btn-check" name="periode_type_radio" id="periode_nuit" value="garde">
+                        <label class="periode-option" for="periode_nuit">
+                            <div class="po-icon"><i class="fas fa-moon"></i></div>
+                            <div class="po-label">Nuit</div>
+                            <div class="po-sub">Garde de nuit</div>
+                        </label>
+                    </div>
+                    <div class="sf-hint" style="margin-top:6px">"Jour" pour pointage normal · "Nuit" pour démarrer ou clôturer une garde</div>
+                </div>
+
+                <!-- BOUTON (visible uniquement en mode manuel) -->
+                <button type="submit" class="btn-submit" id="submitBtn" style="display:none">
+                    <i class="fas fa-check-circle"></i> Enregistrer le pointage
+                </button>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- PANEL INFOS -->
+    <div style="display:flex;flex-direction:column;gap:14px;">
+
+        <div class="info-panel">
+            <div class="info-panel-head">
+                <i class="fas fa-info-circle"></i>
+                <span id="infoTitle">Instructions — Scanner USB</span>
+            </div>
+            <div class="info-panel-body" id="infoBody">
+                <!-- Rempli par JS selon le mode actif -->
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-head">
+                <i class="fas fa-calendar-day"></i> Période en cours
+            </div>
+            <div class="info-panel-body" style="padding:14px;">
+                <div class="periode-indicator" id="periodeIndicator">
+                    <div class="pi-icon jour" id="piIcon"><i class="fas fa-sun"></i></div>
+                    <div>
+                        <div class="pi-label">Mode actif</div>
+                        <div class="pi-value" id="piValue">Pointage de journée</div>
+                    </div>
+                </div>
+                <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft);">
+                    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-muted);margin-bottom:8px;">Résumé du jour</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div style="background:var(--green-dim);border:1px solid rgba(0,194,122,.25);border-radius:var(--r-sm);padding:10px 12px;text-align:center;">
+                            <div style="font-family:var(--font-mono);font-size:1.25rem;font-weight:500;color:var(--green-text);line-height:1;">{{ presents_aujourdhui }}</div>
+                            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--green-text);margin-top:3px;opacity:.7;">Présents</div>
+                        </div>
+                        <div style="background:var(--amber-dim);border:1px solid rgba(245,166,35,.25);border-radius:var(--r-sm);padding:10px 12px;text-align:center;">
+                            <div style="font-family:var(--font-mono);font-size:1.25rem;font-weight:500;color:var(--amber-text);line-height:1;">{{ gardes_en_cours }}</div>
+                            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--amber-text);margin-top:3px;opacity:.7;">Gardes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+
+    var currentMode = 'usb';
+    var scanBuffer  = '';
+    var scanTimer   = null;
+
+    // ─── Instructions par mode ───────────────────────────────
+    var instructions = {
+        usb: {
+            title: 'Instructions — Scanner USB',
+            steps: [
+                'Branchez le scanner QR/barcode en USB sur ce PC.',
+                'Sélectionnez le site de pointage.',
+                'Choisissez le type de période (Jour ou Nuit).',
+                'Présentez le QR code de l\'employé devant le scanner — le pointage s\'enregistre automatiquement.'
+            ]
+        },
+        manuel: {
+            title: 'Instructions — Saisie manuelle',
+            steps: [
+                'Saisissez le matricule de l\'employé visible sur sa carte.',
+                'Sélectionnez le site où l\'employé effectue son pointage.',
+                'Choisissez "Jour" pour matin/après-midi ou "Nuit" pour une garde.',
+                'Cliquez sur Enregistrer — le système détermine automatiquement entrée ou sortie.'
+            ]
+        }
+    };
+
+    function renderInstructions(mode) {
+        var info  = instructions[mode];
+        var title = document.getElementById('infoTitle');
+        var body  = document.getElementById('infoBody');
+        title.textContent = info.title;
+        body.innerHTML = info.steps.map(function(s, i) {
+            return '<div class="info-step">' +
+                '<div class="info-step-num">0' + (i+1) + '</div>' +
+                '<div class="info-step-text">' + s + '</div>' +
+                '</div>';
+        }).join('');
+    }
+
+    // ─── Changement de mode ──────────────────────────────────
+    window.setMode = function(mode) {
+        currentMode = mode;
+
+        document.getElementById('tabUsb').classList.toggle('active',    mode === 'usb');
+        document.getElementById('tabManuel').classList.toggle('active', mode === 'manuel');
+        document.getElementById('zoneUsb').style.display    = mode === 'usb'    ? 'block' : 'none';
+        document.getElementById('zoneManuel').style.display = mode === 'manuel' ? 'block' : 'none';
+        document.getElementById('submitBtn').style.display  = mode === 'manuel' ? 'flex'  : 'none';
+
+        renderInstructions(mode);
+
+        if (mode === 'usb') {
+            focusScanInput();
+        } else {
+            document.getElementById('matriculeInput').focus();
+        }
+    };
+
+    // ─── Focus sur le champ USB caché ────────────────────────
+    window.focusScanInput = function() {
+        document.getElementById('usbInput').focus();
+    };
+
+    // ─── Lecture scanner USB ─────────────────────────────────
+    // Le scanner USB envoie le contenu du QR comme frappe clavier
+    // et termine par un Enter. On accumule les caractères dans un buffer.
+    var usbInput = document.getElementById('usbInput');
+
+    usbInput.addEventListener('input', function() {
+        scanBuffer = usbInput.value;
+        // Reset timer — si pas de nouveau caractère dans 100ms c'est fini
+        clearTimeout(scanTimer);
+        scanTimer = setTimeout(function() {
+            if (scanBuffer.trim()) {
+                traiterScanUSB(scanBuffer.trim());
+                usbInput.value = '';
+                scanBuffer = '';
+            }
+        }, 100);
+    });
+
+    usbInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(scanTimer);
+            var val = usbInput.value.trim();
+            if (val) {
+                traiterScanUSB(val);
+                usbInput.value = '';
+                scanBuffer = '';
+            }
+        }
+    });
+
+    function traiterScanUSB(rawQR) {
+        var zone  = document.getElementById('scanZone');
+        var label = document.getElementById('scanZoneLabel');
+        var hint  = document.getElementById('scanZoneHint');
+        var icon  = document.getElementById('scanZoneIcon');
+
+        // Valider le format EMPLOYE:matricule:token
+        var parts = rawQR.split(':');
+        if (parts.length !== 3 || parts[0] !== 'EMPLOYE') {
+            // Format invalide
+            zone.className  = 'scan-zone error';
+            label.textContent = 'QR code invalide';
+            hint.textContent  = 'Format non reconnu — utilisez le QR code officiel';
+            icon.innerHTML    = '<i class="fas fa-times-circle"></i>';
+            setTimeout(resetZone, 2500);
+            return;
+        }
+
+        // Format OK — afficher "traitement"
+        zone.className  = 'scan-zone waiting';
+        label.textContent = 'Scan reçu — traitement en cours...';
+        hint.textContent  = rawQR.substring(0, 40) + '...';
+        icon.innerHTML    = '<i class="fas fa-spinner fa-spin"></i>';
+
+        // Remplir le formulaire et soumettre
+        document.getElementById('qrDataInput').value    = rawQR;
+        document.getElementById('periodeHidden').value  = getSelectedPeriode();
+
+        // Soumettre après 300ms (pour que l'animation soit visible)
+        setTimeout(function() {
+            document.getElementById('scanForm').submit();
+        }, 300);
+    }
+
+    function resetZone() {
+        var zone  = document.getElementById('scanZone');
+        var label = document.getElementById('scanZoneLabel');
+        var hint  = document.getElementById('scanZoneHint');
+        var icon  = document.getElementById('scanZoneIcon');
+        zone.className    = 'scan-zone ready';
+        label.textContent = 'En attente du scanner...';
+        hint.textContent  = 'Branchez le scanner USB et présentez le QR code';
+        icon.innerHTML    = '<i class="fas fa-qrcode"></i>';
+        focusScanInput();
+    }
+
+    // ─── Mode manuel : soumission ────────────────────────────
+    document.getElementById('scanForm').addEventListener('submit', function(e) {
+        if (currentMode === 'manuel') {
+            var mat  = document.getElementById('matriculeInput').value.trim();
+            var site = document.getElementById('site_id').value;
+
+            if (!mat) {
+                e.preventDefault();
+                alert('Veuillez saisir le matricule de l\'employé.');
+                return;
+            }
+            if (!site) {
+                e.preventDefault();
+                alert('Veuillez sélectionner un site.');
+                return;
+            }
+
+            // En mode manuel on envoie le matricule (pas le QR complet)
+            // La vue scanner_view sait gérer les deux
+            document.getElementById('matriculeHidden').value = mat;
+            document.getElementById('qrDataInput').value     = '';
+            document.getElementById('periodeHidden').value   = getSelectedPeriode();
+
+            if (getSelectedPeriode() === 'garde') {
+                if (!confirm('Vous allez enregistrer une garde de nuit.\nSouhaitez-vous continuer ?')) {
+                    e.preventDefault();
+                }
+            }
+        }
+    });
+
+    // ─── Période sélectionnée ────────────────────────────────
+    function getSelectedPeriode() {
+        var rd = document.querySelector('input[name="periode_type_radio"]:checked');
+        return rd ? rd.value : 'auto';
+    }
+
+    // ─── Sync indicateur période ─────────────────────────────
+    function syncPeriodeUI() {
+        var isNuit  = document.getElementById('periode_nuit').checked;
+        var piIcon  = document.getElementById('piIcon');
+        var piValue = document.getElementById('piValue');
+        if (isNuit) {
+            piIcon.className  = 'pi-icon nuit';
+            piIcon.innerHTML  = '<i class="fas fa-moon"></i>';
+            piValue.textContent = 'Garde de nuit';
+        } else {
+            piIcon.className  = 'pi-icon jour';
+            piIcon.innerHTML  = '<i class="fas fa-sun"></i>';
+            piValue.textContent = 'Pointage de journée';
+        }
+    }
+
+    document.getElementById('periode_jour').addEventListener('change', syncPeriodeUI);
+    document.getElementById('periode_nuit').addEventListener('change', syncPeriodeUI);
+
+    // ─── Garder le focus sur le champ USB si clavier détecté ─
+    document.addEventListener('keydown', function(e) {
+        if (currentMode === 'usb' &&
+            document.activeElement !== usbInput &&
+            !['INPUT','SELECT','TEXTAREA','BUTTON'].includes(document.activeElement.tagName)) {
+            focusScanInput();
+        }
+    });
+
+    // ─── Simulation scan (mode test) ─────────────────────────
+    window.lancerTestScan = function() {
+        var val = document.getElementById('testQrInput').value.trim();
+        if (!val) {
+            document.getElementById('testQrInput').style.borderColor = 'var(--red)';
+            return;
+        }
+        document.getElementById('testModal').style.display = 'none';
+        document.getElementById('testQrInput').value = '';
+        usbInput.value = val;
+        usbInput.dispatchEvent(new Event('input'));
+        setTimeout(function() {
+            usbInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        }, 50);
+    };
+
+    document.getElementById('testModal').addEventListener('click', function(e) {
+        if (e.target === this) this.style.display = 'none';
+    });
+
+    // ─── Auto-dismiss message Django après 4s ────────────────
+    var djangoMsg = document.getElementById('djangoMsg');
+    if (djangoMsg) {
+        setTimeout(function() {
+            djangoMsg.style.transition = 'opacity .4s';
+            djangoMsg.style.opacity    = '0';
+            setTimeout(function() { djangoMsg.remove(); }, 400);
+        }, 4000);
+    }
+
+    // ─── Init ────────────────────────────────────────────────
+    setMode('usb');
+    syncPeriodeUI();
+
+})();
+</script>
+{% endblock %}

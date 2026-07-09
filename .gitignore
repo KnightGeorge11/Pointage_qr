@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+venv/
+.env
+
+# Django
+staticfiles/
+*.db
+media/qr_codes/
+
+# Node / React Native
+node_modules/
+mobile/ScanMobileApp/node_modules/
+mobile/ScanMobileApp/.expo/
+mobile/ScanMobileApp/dist/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

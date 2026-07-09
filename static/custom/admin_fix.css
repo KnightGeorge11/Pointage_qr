@@ -1,0 +1,58 @@
+/* Titre de page et fil d'Ariane plus lisibles */
+.content-header h1,
+.breadcrumb,
+.breadcrumb a,
+.breadcrumb-item {
+    color: #e9ecef !important;
+}
+
+/* Champ de recherche et bouton Rechercher */
+#changelist-search input[type="text"],
+.searchbar {
+    background-color: #2b3035 !important;
+    color: #e9ecef !important;
+    border: 1px solid #495057 !important;
+}
+
+#changelist-search input[type="submit"],
+.searchbar + input[type="submit"] {
+    background-color: #495057 !important;
+    color: #ffffff !important;
+    border: 1px solid #6c757d !important;
+    opacity: 1 !important;
+}
+/* Conteneur de la barre de recherche */
+#changelist-search,
+#toolbar {
+    background-color: #212529 !important;
+    border-color: #495057 !important;
+}
+
+#toolbar form {
+    background-color: transparent !important;
+}
+/* Fond principal de la page */
+body,
+#content,
+#content-main,
+.content-wrapper,
+.main-sidebar ~ .content-wrapper,
+#main-content {
+    background-color: #212529 !important;
+}
+
+/* Cartes et modules */
+.card,
+.module {
+    background-color: #2b3035 !important;
+}
+/* Fond blanc Bootstrap 5 - variable CSS */
+:root {
+    --bs-tertiary-bg: #212529 !important;
+    --bs-body-bg: #212529 !important;
+    --bs-secondary-bg: #2b3035 !important;
+}
+
+.bg-body-tertiary {
+    background-color: #212529 !important;
+}

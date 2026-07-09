@@ -1,0 +1,92 @@
+{% extends 'pointage/base.html' %}
+
+{% block title %}Gestion des employés - Pointage QR{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="display-5">
+                <i class="fas fa-users"></i> Gestion des employés
+            </h1>
+            <a href="{% url 'employe_create' %}" class="btn btn-success">
+                <i class="fas fa-user-plus"></i> Nouvel employé
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des employés -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Matricule</th>
+                                <th>Nom & Prénom</th>
+                                <th style="min-width: 120px;">Poste</th>
+                                <th>QR Code</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for employe in employes %}
+                            <tr>
+                                <td><strong>{{ employe.matricule }}</strong></td>
+                                <td>{{ employe.prenom }} {{ employe.nom }}</td>
+                                <td>
+                                    {% if employe.poste %}
+                                        <span class="badge" style="background-color: {{ employe.poste.couleur|default:'#4361ee' }}">
+                                            {{ employe.poste.nom }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Non défini</span>
+                                    {% endif %}
+                                </td>
+                                </td>
+                                <td>
+                                    {% if employe.qr_code %}
+                                        <a href="{{ employe.qr_code.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-qrcode"></i> Voir QR
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">Non généré</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if employe.actif %}
+                                        <span class="badge bg-success">Actif</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactif</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'employe_update' employe.pk %}" class="btn btn-sm btn-warning">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'employe_delete' employe.pk %}" class="btn btn-sm btn-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">
+                                    Aucun employé enregistré
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

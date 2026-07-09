@@ -1,0 +1,290 @@
+{% extends 'pointage/base.html' %}
+
+{% block title %}Détail du pointage - Pointage QR{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="display-5">
+                <i class="fas fa-calendar-day"></i> Détail du pointage
+            </h1>
+            <a href="{% url 'pointages' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> Informations générales
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Employé :</dt>
+                            <dd class="col-sm-8">{{ pointage.employe.prenom }} {{ pointage.employe.nom }}</dd>
+                            
+                            <dt class="col-sm-4">Matricule :</dt>
+                            <dd class="col-sm-8">{{ pointage.employe.matricule }}</dd>
+                            
+                            <dt class="col-sm-4">Poste :</dt>
+                            <dd class="col-sm-8">{{ pointage.employe.get_poste_display }}</dd>
+                            
+                            <dt class="col-sm-4">Site :</dt>
+                            <dd class="col-sm-8">{{ pointage.site.nom }}</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Date :</dt>
+                            <dd class="col-sm-8">{{ pointage.date_pointage|date:"d/m/Y" }}</dd>
+                            
+                            <dt class="col-sm-4">Statut :</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge bg-{% if pointage.statut == 'present' %}success{% elif pointage.statut == 'retard' %}warning{% elif pointage.statut == 'absent' %}danger{% else %}secondary{% endif %}">
+                                    {{ pointage.get_statut_display }}
+                                </span>
+                            </dd>
+                            
+                            <dt class="col-sm-4">Créé le :</dt>
+                            <dd class="col-sm-8">{{ pointage.date_creation|date:"d/m/Y H:i" }}</dd>
+                            
+                            <dt class="col-sm-4">Modifié le :</dt>
+                            <dd class="col-sm-8">{{ pointage.date_modification|date:"d/m/Y H:i" }}</dd>
+                        </dl>
+                    </div>
+                </div>
+                
+                {% if pointage.notes %}
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <h6>Notes :</h6>
+                        <div class="border p-3 rounded bg-light">
+                            {{ pointage.notes|linebreaks }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Horaires -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock"></i> Horaires de la journée
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Matin -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0">Matin</h6>
+                            </div>
+                            <div class="card-body">
+                                <dl class="row">
+                                    <dt class="col-sm-6">Heure d'ouverture :</dt>
+                                    <dd class="col-sm-6">{{ pointage.site.heure_ouverture_matin|time:"H:i" }}</dd>
+                                    
+                                    <dt class="col-sm-6">Arrivée :</dt>
+                                    <dd class="col-sm-6">
+                                        {% if pointage.heure_arrivee_matin %}
+                                            {{ pointage.heure_arrivee_matin|time:"H:i" }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </dd>
+                                    
+                                    <dt class="col-sm-6">Départ :</dt>
+                                    <dd class="col-sm-6">
+                                        {% if pointage.heure_depart_matin %}
+                                            {{ pointage.heure_depart_matin|time:"H:i" }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </dd>
+                                    
+                                    <dt class="col-sm-6">Heure de fermeture :</dt>
+                                    <dd class="col-sm-6">{{ pointage.site.heure_fermeture_matin|time:"H:i" }}</dd>
+                                    
+                                    <dt class="col-sm-6">Retard :</dt>
+                                    <dd class="col-sm-6">
+                                        {% if pointage.retard_matin %}
+                                            <span class="badge bg-warning">
+                                                {{ pointage.retard_matin|time:"H:i" }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-success">À l'heure</span>
+                                        {% endif %}
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Après-midi -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-warning">
+                                <h6 class="mb-0">Après-midi</h6>
+                            </div>
+                            <div class="card-body">
+                                <dl class="row">
+                                    <dt class="col-sm-6">Heure d'ouverture :</dt>
+                                    <dd class="col-sm-6">{{ pointage.site.heure_ouverture_apres_midi|time:"H:i" }}</dd>
+                                    
+                                    <dt class="col-sm-6">Arrivée :</dt>
+                                    <dd class="col-sm-6">
+                                        {% if pointage.heure_arrivee_apres_midi %}
+                                            {{ pointage.heure_arrivee_apres_midi|time:"H:i" }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </dd>
+                                    
+                                    <dt class="col-sm-6">Départ :</dt>
+                                    <dd class="col-sm-6">
+                                        {% if pointage.heure_depart_apres_midi %}
+                                            {{ pointage.heure_depart_apres_midi|time:"H:i" }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </dd>
+                                    
+                                    <dt class="col-sm-6">Heure de fermeture :</dt>
+                                    <dd class="col-sm-6">{{ pointage.site.heure_fermeture_apres_midi|time:"H:i" }}</dd>
+                                    
+                                    <dt class="col-sm-6">Retard :</dt>
+                                    <dd class="col-sm-6">
+                                        {% if pointage.retard_apres_midi %}
+                                            <span class="badge bg-warning">
+                                                {{ pointage.retard_apres_midi|time:"H:i" }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-success">À l'heure</span>
+                                        {% endif %}
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Scans associés -->
+        {% if pointage.scans.all %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-camera"></i> Historique des scans
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Heure</th>
+                                <th>Type</th>
+                                <th>Site</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for scan in pointage.scans.all %}
+                            <tr>
+                                <td>{{ scan.timestamp|date:"H:i:s" }}</td>
+                                <td>
+                                    <span class="badge bg-{% if scan.type_scan == 'entree_matin' %}primary{% elif scan.type_scan == 'sortie_matin' %}info{% elif scan.type_scan == 'entree_apres_midi' %}warning{% else %}success{% endif %}">
+                                        {{ scan.get_type_scan_display }}
+                                    </span>
+                                </td>
+                                <td>{{ scan.site.nom }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Résumé -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-calculator"></i> Résumé de la journée
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Heures travaillées
+                        <span class="badge bg-primary rounded-pill">
+                            {% if pointage.heures_travaillees %}
+                                {{ pointage.heures_travaillees|time:"H:i" }}
+                            {% else %}
+                                0:00
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Heures supplémentaires
+                        <span class="badge bg-info rounded-pill">
+                            {% if pointage.heures_sup %}
+                                {{ pointage.heures_sup|time:"H:i" }}
+                            {% else %}
+                                0:00
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Retard total
+                        <span class="badge bg-warning rounded-pill">
+                            {% if pointage.retard_matin or pointage.retard_apres_midi %}
+                                {% widthratio pointage.retard_matin.total_seconds 60 1|add:pointage.retard_apres_midi.total_seconds|divisibleby:60 as total_minutes %}
+                                {{ total_minutes|floatformat:0 }} min
+                            {% else %}
+                                0 min
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Statut de présence
+                        <span class="badge bg-{% if pointage.statut == 'present' %}success{% elif pointage.statut == 'retard' %}warning{% else %}danger{% endif %} rounded-pill">
+                            {{ pointage.get_statut_display }}
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- QR Code de l'employé -->
+                <div class="mt-4 text-center">
+                    <h6>QR Code de l'employé :</h6>
+                    {% if pointage.employe.qr_code %}
+                        <img src="{{ pointage.employe.qr_code.url }}" alt="QR Code" class="img-fluid" style="max-width: 200px;">
+                        <div class="mt-2">
+                            <a href="{{ pointage.employe.qr_code.url }}" download class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-download"></i> Télécharger
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

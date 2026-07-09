@@ -1,0 +1,85 @@
+# pointage/urls.py
+from django.urls import path, include
+from . import views
+from .views import (
+    dashboard, index, scanner_view,export_resume_excel,
+
+    # ✅ Fonctions (remplacent les anciennes classes)
+    employe_create_view, employe_update_view, employe_delete_view,
+    site_create_view, site_update_view,
+    poste_create_view, poste_update_view, poste_delete_view,
+
+    # ✅ Classes conservées
+    EmployeListView,
+    SiteListView,
+    PointageListView, PointageDetailView, PointageDeleteView,
+    PosteListView,
+
+    # ✅ API
+    scan_api_view, get_statut_journee, get_prochain_scan,
+    get_dashboard_stats, get_charts_data, employe_qr_data,
+
+    # ✅ Nouvelles vues RH
+    alertes_rh, autorisations_sortie_view,
+)
+from rest_framework.routers import DefaultRouter
+from .views_mobile import (
+    MobileSitesAPIView,
+    MobileCheckFirstScanAPIView,
+    MobileRecordScanAPIView,
+    MobileCurrentPeriodAPIView,
+    MobilePointagesAPIView,
+    MobileTestAPIView
+)
+router = DefaultRouter()
+router.register(r'employes', views.EmployeViewSet, basename='employe')
+router.register(r'sites',    views.SiteViewSet,    basename='site')
+router.register(r'pointages', views.PointageViewSet, basename='pointage')
+
+urlpatterns = [
+    # Dashboard
+    path('',          dashboard,        name='dashboard'),
+    path('dashboard/', views.dashboard, name='dashboard'),
+    path('index/',     index,           name='index'),
+
+    # Employés
+    path('employes/',                   EmployeListView.as_view(),  name='employes'),
+    path('employes/nouveau/',           employe_create_view,        name='employe_create'),
+    path('employes/<int:pk>/update/',   employe_update_view,        name='employe_update'),
+    path('employes/<int:pk>/delete/',   employe_delete_view,        name='employe_delete'),
+
+    # Sites
+    path('sites/',                      SiteListView.as_view(),     name='sites'),
+    path('sites/nouveau/',              site_create_view,           name='site_create'),
+    path('sites/<int:pk>/modifier/',    site_update_view,           name='site_update'),
+
+    # Pointages
+    path('pointages/',                          PointageListView.as_view(),   name='pointages'),
+    path('pointages/<int:pk>/',                 PointageDetailView.as_view(), name='pointage_detail'),
+    path('pointages/<int:pk>/supprimer/',       PointageDeleteView.as_view(), name='pointage_supprimer'),
+    path('pointages/export/resume/', views.export_resume_excel, name='export_resume_excel'),
+
+    # Postes
+    path('postes/',                     PosteListView.as_view(),    name='postes'),
+    path('postes/nouveau/',             poste_create_view,          name='poste_create'),
+    path('postes/<int:pk>/modifier/',   poste_update_view,          name='poste_update'),
+    path('postes/<int:pk>/supprimer/',  poste_delete_view,          name='poste_delete'),
+
+    # Scanner
+    path('scanner/', scanner_view, name='scanner'),
+
+    # Alertes RH
+    path('alertes/',              alertes_rh,                 name='alertes_rh'),
+    path('autorisations-sortie/', autorisations_sortie_view,  name='autorisations_sortie'),
+
+    # API
+    path('api/',                                      include(router.urls)),
+    path('api/scanner/',                              views.ScanAPIView.as_view(),  name='api_scanner'),
+    path('api/scan/',                                 scan_api_view,               name='api_scan'),
+    path('api/employe-qr-data/<str:matricule>/',      employe_qr_data,             name='employe_qr_data'),
+    path('api/statut-journee/<int:employe_id>/',      get_statut_journee,          name='statut_journee'),
+    path('api/prochain-scan/<int:employe_id>/',       get_prochain_scan,           name='prochain_scan'),
+    path('api/dashboard-stats/',                      get_dashboard_stats,         name='dashboard_stats'),
+    path('api/charts-data/',                          get_charts_data,             name='charts_data'),
+
+]

@@ -1,0 +1,119 @@
+{% extends 'pointage/base.html' %}
+
+{% block title %}Confirmation de suppression - Pointage QR{% endblock %}
+
+{% block page_title %}
+    <i class="fas fa-exclamation-triangle"></i> Confirmation de suppression
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Confirmation requise
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if ask_admin_code %}
+                <div class="alert alert-warning">
+                    <h5><i class="fas fa-shield-alt"></i> Vérification Administrateur</h5>
+                    <p>Cette action est sécurisée et nécessite un code administrateur.</p>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <p class="lead">
+                            Êtes-vous sûr de vouloir désactiver l'employé :
+                            <strong>{{ object.prenom }} {{ object.nom }}</strong> ({{ object.matricule }}) ?
+                        </p>
+                        <p class="text-danger">
+                            <i class="fas fa-exclamation-circle"></i>
+                            L'employé sera marqué comme inactif et ne pourra plus pointer.
+                        </p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="admin_code" class="form-label">
+                            <i class="fas fa-key"></i> Code Administrateur
+                        </label>
+                        <input type="password" 
+                               class="form-control" 
+                               id="admin_code" 
+                               name="admin_code" 
+                               placeholder="Entrez le code administrateur"
+                               required>
+                        <div class="form-text">
+                            Code requis pour confirmer cette action sensible.
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'employes' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Annuler
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-check"></i> Confirmer la désactivation
+                        </button>
+                    </div>
+                </form>
+                
+                {% else %}
+                <div class="text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-lock fa-3x text-warning mb-3"></i>
+                        <h4>Accès Sécurisé</h4>
+                        <p>Cette page nécessite une vérification de sécurité.</p>
+                    </div>
+                    <a href="?require_admin=1" class="btn btn-primary">
+                        <i class="fas fa-shield-alt"></i> Vérifier mes identifiants
+                    </a>
+                    <a href="{% url 'employes' %}" class="btn btn-secondary ms-2">
+                        <i class="fas fa-arrow-left"></i> Retour
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle"></i> Informations sur l'employé
+                </h6>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Matricule:</dt>
+                    <dd class="col-sm-9">{{ object.matricule }}</dd>
+                    
+                    <dt class="col-sm-3">Nom complet:</dt>
+                    <dd class="col-sm-9">{{ object.prenom }} {{ object.nom }}</dd>
+                    
+                    <dt class="col-sm-3">Poste:</dt>
+                    <dd class="col-sm-9">{{ object.poste.nom|default:"Non défini" }}</dd>
+                    
+                    <dt class="col-sm-3">Sites:</dt>
+                    <dd class="col-sm-9">
+                        {% for site in object.sites.all %}
+                            <span class="badge bg-secondary">{{ site.nom }}</span>
+                        {% endfor %}
+                    </dd>
+                    
+                    <dt class="col-sm-3">Statut:</dt>
+                    <dd class="col-sm-9">
+                        {% if object.actif %}
+                            <span class="badge bg-success">Actif</span>
+                        {% else %}
+                            <span class="badge bg-danger">Inactif</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

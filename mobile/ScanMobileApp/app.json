@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Scan Mobile App",
+    "slug": "scan-mobile-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Cette application a besoin d'accéder à la caméra pour scanner les badges QR.",
+        "NSMicrophoneUsageDescription": "Cette application n'utilise pas le microphone."
+      }
+    },
+    "android": {
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.votreentreprise.scanapp"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Cette application a besoin d'accéder à votre caméra pour scanner les badges QR."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "fffefe45-f82c-4433-9ed4-8b2fef948bb0"
+      }
+    }
+  }
+}

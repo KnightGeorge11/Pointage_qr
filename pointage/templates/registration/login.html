@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion — Pointage QR</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    {% load static %}
+
+    <style>
+    :root {
+        --ink:         #0b0e17;
+        --ink-soft:    #1c2235;
+        --ink-muted:   #374163;
+        --surface:     #f2f4f8;
+        --surface-alt: #e8eaf0;
+        --white:       #ffffff;
+        --line:        #dde1ec;
+        --line-soft:   #eceef5;
+        --green:       #00c27a;
+        --green-dim:   #e4f9f1;
+        --green-text:  #007a4d;
+        --red:         #e8344a;
+        --red-dim:     #fdeaed;
+        --red-text:    #b01f32;
+        --font-ui:     'Syne', sans-serif;
+        --font-mono:   'DM Mono', monospace;
+        --r-xs: 4px; --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 18px;
+        --shadow-2: 0 3px 10px rgba(11,14,23,.09);
+        --shadow-3: 0 8px 28px rgba(11,14,23,.13);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: var(--font-ui);
+        background: var(--ink);
+        color: var(--ink);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-font-smoothing: antialiased;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Fond décoratif */
+    body::before {
+        content: '';
+        position: fixed;
+        right: -120px; top: -120px;
+        width: 480px; height: 480px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(0,194,122,.07) 0%, transparent 65%);
+        pointer-events: none;
+    }
+
+    body::after {
+        content: '';
+        position: fixed;
+        left: -80px; bottom: -80px;
+        width: 360px; height: 360px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(41,98,255,.05) 0%, transparent 65%);
+        pointer-events: none;
+    }
+
+    /* ── Carte centrale ── */
+    .login-wrap {
+        width: 100%;
+        max-width: 420px;
+        padding: 16px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .login-card {
+        background: var(--white);
+        border-radius: var(--r-xl);
+        overflow: hidden;
+        box-shadow: var(--shadow-3);
+        border: 1px solid rgba(255,255,255,.06);
+    }
+
+    /* ── Header de la carte ── */
+    .lc-header {
+        background: var(--ink);
+        padding: 28px 32px 26px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .lc-header::after {
+        content: '';
+        position: absolute;
+        right: -40px; top: -40px;
+        width: 160px; height: 160px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(0,194,122,.1) 0%, transparent 65%);
+        pointer-events: none;
+    }
+
+    .lc-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .lc-logo-icon {
+        width: 38px; height: 38px;
+        border-radius: var(--r-sm);
+        background: var(--green);
+        display: flex; align-items: center; justify-content: center;
+        color: var(--ink);
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    .lc-logo-text {
+        font-size: 14px;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: -.01em;
+    }
+
+    .lc-logo-sub {
+        font-size: 10px;
+        color: rgba(255,255,255,.35);
+        font-weight: 500;
+        letter-spacing: .04em;
+        margin-top: 1px;
+    }
+
+    .lc-eyebrow {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+        color: var(--green);
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .lc-eyebrow::before {
+        content: '';
+        width: 14px; height: 2px;
+        background: var(--green);
+        border-radius: 1px;
+        display: inline-block;
+    }
+
+    .lc-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: -.03em;
+        line-height: 1.15;
+    }
+
+    .lc-sub {
+        font-size: 12px;
+        color: rgba(255,255,255,.38);
+        font-weight: 500;
+        margin-top: 5px;
+    }
+
+    /* ── Corps du formulaire ── */
+    .lc-body {
+        padding: 28px 32px 32px;
+        background: var(--white);
+    }
+
+    /* Erreur globale */
+    .lc-error {
+        background: var(--red-dim);
+        border: 1px solid rgba(232,52,74,.2);
+        border-radius: var(--r-md);
+        padding: 11px 14px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .lc-error-icon {
+        width: 26px; height: 26px;
+        border-radius: var(--r-xs);
+        background: var(--red);
+        display: flex; align-items: center; justify-content: center;
+        color: #fff;
+        font-size: 11px;
+        flex-shrink: 0;
+    }
+
+    .lc-error-text {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--red-text);
+        line-height: 1.4;
+    }
+
+    /* Champs */
+    .field {
+        margin-bottom: 16px;
+    }
+
+    .field-lbl {
+        display: block;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .14em;
+        color: var(--ink-muted);
+        margin-bottom: 6px;
+    }
+
+    .field-wrap {
+        position: relative;
+    }
+
+    .field-icon {
+        position: absolute;
+        left: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--ink-muted);
+        font-size: 13px;
+        pointer-events: none;
+    }
+
+    .field-input {
+        width: 100%;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--r-xs);
+        padding: 10px 12px 10px 36px;
+        font-family: var(--font-ui);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ink);
+        appearance: none;
+        outline: none;
+    }
+
+    .field-input:focus {
+        border-color: var(--ink);
+        background: var(--white);
+        box-shadow: 0 0 0 3px rgba(11,14,23,.08);
+    }
+
+    .field-input.has-error {
+        border-color: var(--red);
+        background: var(--red-dim);
+    }
+
+    .field-input.has-error:focus {
+        box-shadow: 0 0 0 3px rgba(232,52,74,.1);
+    }
+
+    /* Django insère des <ul class="errorlist"> pour les erreurs par champ */
+    .errorlist {
+        list-style: none;
+        margin-top: 5px;
+    }
+
+    .errorlist li {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--red-text);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .errorlist li::before {
+        content: '!';
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px; height: 14px;
+        border-radius: 50%;
+        background: var(--red);
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    /* Séparateur */
+    .lc-sep {
+        height: 1px;
+        background: var(--line-soft);
+        margin: 20px 0;
+    }
+
+    /* Bouton principal */
+    .btn-login {
+        width: 100%;
+        background: var(--ink);
+        color: rgba(255,255,255,.88);
+        border: none;
+        border-radius: var(--r-xs);
+        padding: 12px;
+        font-family: var(--font-ui);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .12em;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    .btn-login:hover {
+        background: var(--ink-soft);
+        color: #fff;
+    }
+
+    /* Lien mot de passe oublié */
+    .lc-forgot {
+        text-align: center;
+    }
+
+    .lc-forgot a {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--ink-muted);
+        text-decoration: none;
+        letter-spacing: .02em;
+    }
+
+    .lc-forgot a:hover {
+        color: var(--ink);
+    }
+
+    /* Pied de carte */
+    .lc-foot {
+        background: var(--surface);
+        border-top: 1px solid var(--line);
+        padding: 12px 32px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .lc-foot-dot {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+        flex-shrink: 0;
+    }
+
+    .lc-foot-text {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--ink-muted);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 480px) {
+        .lc-header, .lc-body { padding-left: 22px; padding-right: 22px; }
+        .lc-foot { padding-left: 22px; padding-right: 22px; }
+    }
+    </style>
+</head>
+<body>
+
+<div class="login-wrap">
+    <div class="login-card">
+
+        <!-- Header -->
+        <div class="lc-header">
+            <div class="lc-logo">
+                <div class="lc-logo-icon"><i class="fas fa-qrcode"></i></div>
+                <div>
+                    <div class="lc-logo-text">Pointage QR</div>
+                    <div class="lc-logo-sub">Centre Médical</div>
+                </div>
+            </div>
+            <div class="lc-eyebrow">Accès sécurisé</div>
+            <div class="lc-title">Connexion</div>
+            <div class="lc-sub">Entrez vos identifiants pour accéder au tableau de bord</div>
+        </div>
+
+        <!-- Body -->
+        <div class="lc-body">
+
+            {% if error %}
+            <div class="lc-error">
+                <div class="lc-error-icon"><i class="fas fa-times"></i></div>
+                <div class="lc-error-text">{{ error }}</div>
+            </div>
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+                <!-- Nom d'utilisateur -->
+                <div class="field">
+                    <label class="field-lbl" for="id_username">Nom d'utilisateur</label>
+                    <div class="field-wrap">
+                        <i class="fas fa-user field-icon"></i>
+                        <input
+                            type="text"
+                            id="id_username"
+                            name="username"
+                            class="field-input {% if error %}has-error{% endif %}"
+                            placeholder="Votre identifiant"
+                            value="{{ request.POST.username|default:'' }}"
+                            autocomplete="username"
+                            autofocus
+                        >
+                    </div>
+                </div>
+
+                <!-- Mot de passe -->
+                <div class="field">
+                    <label class="field-lbl" for="id_password">Mot de passe</label>
+                    <div class="field-wrap">
+                        <i class="fas fa-lock field-icon"></i>
+                        <input
+                            type="password"
+                            id="id_password"
+                            name="password"
+                            class="field-input {% if error %}has-error{% endif %}"
+                            placeholder="••••••••"
+                            autocomplete="current-password"
+                        >
+                    </div>
+                </div>
+
+                <div class="lc-sep"></div>
+
+                <button type="submit" class="btn-login">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Se connecter
+                </button>
+
+            </form>
+
+            <div class="lc-forgot">
+                <a href="{% url 'password_reset' %}">
+                    <i class="fas fa-key" style="font-size:9px;margin-right:4px;opacity:.6;"></i>
+                    Mot de passe oublié ?
+                </a>
+            </div>
+
+        </div>
+
+        <!-- Pied -->
+        <div class="lc-foot">
+            <div class="lc-foot-dot"></div>
+            <div class="lc-foot-text">Système sécurisé — accès restreint au personnel autorisé</div>
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>

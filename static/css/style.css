@@ -1,0 +1,330 @@
+/* Styles personnalisés pour Pointage QR */
+
+:root {
+    --primary-color: #4361ee;
+    --secondary-color: #3a0ca3;
+    --success-color: #4cc9f0;
+    --warning-color: #f72585;
+    --danger-color: #7209b7;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+    --scanner-primary: #667eea;
+    --scanner-secondary: #764ba2;
+    --scanner-success: #4CAF50;
+    --scanner-success-dark: #2E7D32;
+}
+
+body {
+    background-color: #f5f7fb;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border-bottom: none;
+    font-weight: 600;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(67, 97, 238, 0.4);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #4cc9f0, #4361ee);
+    border: none;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #f72585, #7209b7);
+    border: none;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #7209b7, #3a0ca3);
+    border: none;
+}
+
+.table {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.table th {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    font-weight: 600;
+}
+
+.table td {
+    vertical-align: middle;
+    border-color: #dee2e6;
+}
+
+.badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.footer {
+    margin-top: 3rem;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Animation pour les alertes */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.alert {
+    animation: fadeIn 0.3s ease;
+    border: none;
+    border-radius: 10px;
+}
+
+/* Styles pour le scanner */
+.scanner-card {
+    background: linear-gradient(135deg, var(--scanner-primary) 0%, var(--scanner-secondary) 100%);
+    color: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    margin-bottom: 2rem;
+}
+
+.scanner-header {
+    background: rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+}
+
+.scanner-body {
+    padding: 2rem;
+}
+
+.scanner-form .form-label {
+    color: white;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.scanner-form .form-control,
+.scanner-form .form-select {
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    padding: 12px 15px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    color: #333;
+}
+
+.scanner-form .form-control:focus,
+.scanner-form .form-select:focus {
+    background: white;
+    border-color: var(--scanner-success);
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+    outline: none;
+    color: #333;
+}
+
+.btn-scan {
+    background: linear-gradient(135deg, var(--scanner-success) 0%, var(--scanner-success-dark) 100%);
+    border: none;
+    border-radius: 10px;
+    padding: 15px 30px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+    width: 100%;
+    color: white;
+}
+
+.btn-scan:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(76, 175, 80, 0.3);
+    background: linear-gradient(135deg, #45a049 0%, #1B5E20 100%);
+    color: white;
+}
+
+.scanner-icon {
+    background: rgba(255, 255, 255, 0.2);
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    font-size: 2rem;
+}
+
+.instruction-box {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    border-left: 4px solid var(--scanner-success);
+}
+
+.instruction-box h6 {
+    color: white;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.instruction-box ul {
+    color: rgba(255, 255, 255, 0.9);
+    padding-left: 1.2rem;
+    margin-bottom: 0;
+}
+
+.instruction-box li {
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+}
+
+/* Style pour les messages d'alerte dans le scanner */
+.scanner-alert {
+    border-radius: 10px;
+    border: none;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1rem;
+    color: white;
+}
+
+.scanner-alert-success {
+    background: linear-gradient(135deg, var(--scanner-success) 0%, var(--scanner-success-dark) 100%);
+}
+
+.scanner-alert-warning {
+    background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+}
+
+.scanner-alert-danger {
+    background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+}
+
+.scanner-alert-info {
+    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+}
+
+/* Style pour le contenu principal de la page scanner */
+.page-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 15px;
+}
+
+.page-title {
+    color: #333;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+/* Responsive design pour le scanner */
+@media (max-width: 768px) {
+    .scanner-body {
+        padding: 1.5rem;
+    }
+    
+    .scanner-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5rem;
+    }
+    
+    .btn-scan {
+        padding: 12px 20px;
+    }
+}
+
+/* Styles pour les formulaires généraux */
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 2px solid #e0e0e0;
+    padding: 10px 15px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.25);
+}
+
+/* Responsive design général */
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+    
+    .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+}
+
+/* Animation de chargement */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(67, 97, 238, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Fix pour le bouton close dans le scanner */
+.btn-close-white {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
