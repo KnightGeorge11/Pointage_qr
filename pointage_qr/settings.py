@@ -168,9 +168,8 @@ JAZZMIN_SETTINGS = {
     "site_brand":    "Pointage QR",
     "welcome_sign":  "Bienvenue dans l'administration",
     "copyright":     "Pointage QR © 2026",
-    "theme":         "darkly",
-    "custom_css": "admin/css/custom_admin.css",
-    "dark_mode_theme": "darkly",
+    "theme":         "flatly",
+    "dark_mode_theme": None,
     "icons": {
         "auth":                         "fas fa-users-cog",
         "auth.customuser":              "fas fa-user",
@@ -203,23 +202,23 @@ JAZZMIN_UI_TWEAKS = {
     "footer_small_text":          False,
     "body_small_text":            False,
     "brand_small_text":           False,
-    "brand_colour":               "navbar-dark",
+    "brand_colour":               "navbar-light",
     "accent":                     "accent-primary",
-    "navbar":                     "navbar-dark",          # ← navbar sombre
+    "navbar":                     "navbar-light navbar-white",  # ← navbar claire
     "no_navbar_border":           True,
     "navbar_fixed":               True,
     "layout_boxed":               False,
     "footer_fixed":               False,
     "sidebar_fixed":              True,
-    "sidebar":                    "sidebar-dark-primary", # ← sidebar sombre
+    "sidebar":                    "sidebar-light-primary", # ← sidebar claire
     "sidebar_nav_small_text":     False,
     "sidebar_disable_expand":     False,
     "sidebar_nav_child_indent":   True,
     "sidebar_nav_compact_style":  False,
     "sidebar_nav_legacy_style":   False,
     "sidebar_nav_flat_style":     True,   # ← style plat, plus moderne
-    "theme":                      "slate",
-    "dark_mode_theme":            "slate",
+    "theme":                      "flatly",
+    "dark_mode_theme":            None,
     "button_classes": {
     "primary":   "btn-outline-primary",
     "secondary": "btn-outline-secondary",
