@@ -54,33 +54,6 @@
 .form-card-subtitle { font-size: 10px; color: rgba(255,255,255,.35); font-weight: 500; margin-top: 2px; }
 .form-card-body { padding: 22px; }
 
-/* MODE TABS */
-.mode-tabs { display: flex; gap: 4px; margin-bottom: 18px; background: var(--surface); border-radius: var(--r-sm); padding: 3px; }
-.mode-tab  { flex: 1; text-align: center; padding: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; border-radius: var(--r-xs); cursor: pointer; color: var(--ink-muted); border: none; background: transparent; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.mode-tab.active { background: var(--white); color: var(--ink); border: 1px solid var(--line); box-shadow: 0 1px 3px rgba(11,14,23,.07); }
-.mode-tab i { font-size: 12px; }
-
-/* ZONE SCANNER USB */
-.scan-zone {
-    border: 2px dashed var(--line); border-radius: var(--r-lg);
-    padding: 24px 20px; text-align: center; margin-bottom: 16px;
-    cursor: pointer; transition: all .2s; position: relative;
-}
-.scan-zone:hover  { border-color: var(--ink-muted); background: var(--surface); }
-.scan-zone.ready  { border-color: var(--green); background: var(--green-dim); }
-.scan-zone.error  { border-color: var(--red);   background: var(--red-dim); }
-.scan-zone.waiting { border-color: var(--amber); background: var(--amber-dim); }
-.scan-hidden-input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
-.scan-zone-icon  { font-size: 36px; color: var(--line); margin-bottom: 8px; line-height: 1; }
-.scan-zone.ready .scan-zone-icon  { color: var(--green); }
-.scan-zone.error .scan-zone-icon  { color: var(--red); }
-.scan-zone.waiting .scan-zone-icon { color: var(--amber); }
-.scan-zone-label { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
-.scan-zone.ready .scan-zone-label  { color: var(--green-text); }
-.scan-zone.error .scan-zone-label  { color: var(--red-text); }
-.scan-zone.waiting .scan-zone-label { color: var(--amber-text); }
-.scan-zone-hint  { font-size: 10px; color: var(--ink-muted); margin-top: 5px; }
-
 /* FORM FIELDS */
 .sf-group { margin-bottom: 16px; }
 .sf-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-muted); margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
@@ -147,8 +120,6 @@
 .pi-value { font-size: 12px; font-weight: 600; color: var(--ink); }
 
 /* PULSE */
-@keyframes scanPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-.scan-pulse { animation: scanPulse 1.8s ease infinite; }
 
 /* RESPONSIVE */
 @media (max-width: 900px) { .scanner-layout { grid-template-columns: 1fr; } .scan-kpis { display: none; } .scan-page-head { flex-direction: column; align-items: flex-start; } }
@@ -201,54 +172,28 @@
                 {% endfor %}
             {% endif %}
 
-            <!-- TABS MODE -->
-            <div class="mode-tabs">
-                <button type="button" class="mode-tab active" id="tabUsb" onclick="setMode('usb')">
-                    <i class="fas fa-barcode"></i> Scanner USB
-                </button>
-                <button type="button" class="mode-tab" id="tabManuel" onclick="setMode('manuel')">
-                    <i class="fas fa-keyboard"></i> Saisie manuelle
-                </button>
-            </div>
-
             <form method="post" id="scanForm">
                 {% csrf_token %}
-                <!-- Champ QR data (rempli automatiquement par scanner USB ou converti depuis matricule) -->
+                <!-- Champ QR data (conservé pour compatibilité avec la vue scanner_view) -->
                 <input type="hidden" name="qr_data"      id="qrDataInput">
                 <input type="hidden" name="matricule"     id="matriculeHidden">
                 <input type="hidden" name="periode_type"  id="periodeHidden" value="auto">
 
-                <!-- ═══ MODE USB ═══ -->
-                <div id="zoneUsb">
-                    <div class="scan-zone ready" id="scanZone" onclick="focusScanInput()">
-                        <!-- Champ invisible qui capte la saisie du scanner USB -->
-                        <input type="text"
-                               class="scan-hidden-input"
-                               id="usbInput"
-                               autocomplete="off"
-                               tabindex="0">
-                        <div class="scan-zone-icon scan-pulse" id="scanZoneIcon">
-                            <i class="fas fa-qrcode"></i>
-                        </div>
-                        <div class="scan-zone-label" id="scanZoneLabel">En attente du scanner...</div>
-                        <div class="scan-zone-hint" id="scanZoneHint">Branchez le scanner USB et présentez le QR code</div>
-                    </div>
-                </div>
-
-                <!-- ═══ MODE MANUEL ═══ -->
-                <div id="zoneManuel" style="display:none">
+                <!-- ═══ SAISIE MANUELLE ═══ -->
+                <div id="zoneManuel">
                     <div class="sf-group">
                         <div class="sf-label"><i class="fas fa-id-card"></i> Matricule de l'employé</div>
                         <input type="text"
                                class="sf-input"
                                id="matriculeInput"
                                placeholder="Ex : EMP-042"
-                               autocomplete="off">
+                               autocomplete="off"
+                               autofocus>
                         <div class="sf-hint">Visible sur la carte ou le QR code de l'employé</div>
                     </div>
                 </div>
 
-                <!-- SITE (commun aux 2 modes) -->
+                <!-- SITE -->
                 <div class="sf-group">
                     <div class="sf-label"><i class="fas fa-building"></i> Site</div>
                     <select class="sf-input" id="site_id" name="site_id" required>
@@ -259,7 +204,7 @@
                     </select>
                 </div>
 
-                <!-- PERIODE (commun aux 2 modes) -->
+                <!-- PERIODE -->
                 <div class="sf-group">
                     <div class="sf-label"><i class="fas fa-clock"></i> Type de période</div>
                     <div class="periode-toggle">
@@ -279,8 +224,8 @@
                     <div class="sf-hint" style="margin-top:6px">"Jour" pour pointage normal · "Nuit" pour démarrer ou clôturer une garde</div>
                 </div>
 
-                <!-- BOUTON (visible uniquement en mode manuel) -->
-                <button type="submit" class="btn-submit" id="submitBtn" style="display:none">
+                <!-- BOUTON -->
+                <button type="submit" class="btn-submit" id="submitBtn">
                     <i class="fas fa-check-circle"></i> Enregistrer le pointage
                 </button>
 
@@ -294,10 +239,10 @@
         <div class="info-panel">
             <div class="info-panel-head">
                 <i class="fas fa-info-circle"></i>
-                <span id="infoTitle">Instructions — Scanner USB</span>
+                <span id="infoTitle">Instructions — Saisie manuelle</span>
             </div>
             <div class="info-panel-body" id="infoBody">
-                <!-- Rempli par JS selon le mode actif -->
+                <!-- Rempli par JS au chargement -->
             </div>
         </div>
 
@@ -338,173 +283,45 @@
 <script>
 (function() {
 
-    var currentMode = 'usb';
-    var scanBuffer  = '';
-    var scanTimer   = null;
+    // ─── Instructions ─────────────────────────────────────────
+    var steps = [
+        'Saisissez le matricule de l\'employé visible sur sa carte.',
+        'Sélectionnez le site où l\'employé effectue son pointage.',
+        'Choisissez "Jour" pour matin/après-midi ou "Nuit" pour une garde.',
+        'Cliquez sur Enregistrer — le système détermine automatiquement entrée ou sortie.'
+    ];
 
-    // ─── Instructions par mode ───────────────────────────────
-    var instructions = {
-        usb: {
-            title: 'Instructions — Scanner USB',
-            steps: [
-                'Branchez le scanner QR/barcode en USB sur ce PC.',
-                'Sélectionnez le site de pointage.',
-                'Choisissez le type de période (Jour ou Nuit).',
-                'Présentez le QR code de l\'employé devant le scanner — le pointage s\'enregistre automatiquement.'
-            ]
-        },
-        manuel: {
-            title: 'Instructions — Saisie manuelle',
-            steps: [
-                'Saisissez le matricule de l\'employé visible sur sa carte.',
-                'Sélectionnez le site où l\'employé effectue son pointage.',
-                'Choisissez "Jour" pour matin/après-midi ou "Nuit" pour une garde.',
-                'Cliquez sur Enregistrer — le système détermine automatiquement entrée ou sortie.'
-            ]
-        }
-    };
+    document.getElementById('infoBody').innerHTML = steps.map(function(s, i) {
+        return '<div class="info-step">' +
+            '<div class="info-step-num">0' + (i+1) + '</div>' +
+            '<div class="info-step-text">' + s + '</div>' +
+            '</div>';
+    }).join('');
 
-    function renderInstructions(mode) {
-        var info  = instructions[mode];
-        var title = document.getElementById('infoTitle');
-        var body  = document.getElementById('infoBody');
-        title.textContent = info.title;
-        body.innerHTML = info.steps.map(function(s, i) {
-            return '<div class="info-step">' +
-                '<div class="info-step-num">0' + (i+1) + '</div>' +
-                '<div class="info-step-text">' + s + '</div>' +
-                '</div>';
-        }).join('');
-    }
+    // ─── Soumission du formulaire ─────────────────────────────
+    document.getElementById('scanForm').addEventListener('submit', function(e) {
+        var mat  = document.getElementById('matriculeInput').value.trim();
+        var site = document.getElementById('site_id').value;
 
-    // ─── Changement de mode ──────────────────────────────────
-    window.setMode = function(mode) {
-        currentMode = mode;
-
-        document.getElementById('tabUsb').classList.toggle('active',    mode === 'usb');
-        document.getElementById('tabManuel').classList.toggle('active', mode === 'manuel');
-        document.getElementById('zoneUsb').style.display    = mode === 'usb'    ? 'block' : 'none';
-        document.getElementById('zoneManuel').style.display = mode === 'manuel' ? 'block' : 'none';
-        document.getElementById('submitBtn').style.display  = mode === 'manuel' ? 'flex'  : 'none';
-
-        renderInstructions(mode);
-
-        if (mode === 'usb') {
-            focusScanInput();
-        } else {
-            document.getElementById('matriculeInput').focus();
-        }
-    };
-
-    // ─── Focus sur le champ USB caché ────────────────────────
-    window.focusScanInput = function() {
-        document.getElementById('usbInput').focus();
-    };
-
-    // ─── Lecture scanner USB ─────────────────────────────────
-    // Le scanner USB envoie le contenu du QR comme frappe clavier
-    // et termine par un Enter. On accumule les caractères dans un buffer.
-    var usbInput = document.getElementById('usbInput');
-
-    usbInput.addEventListener('input', function() {
-        scanBuffer = usbInput.value;
-        // Reset timer — si pas de nouveau caractère dans 100ms c'est fini
-        clearTimeout(scanTimer);
-        scanTimer = setTimeout(function() {
-            if (scanBuffer.trim()) {
-                traiterScanUSB(scanBuffer.trim());
-                usbInput.value = '';
-                scanBuffer = '';
-            }
-        }, 100);
-    });
-
-    usbInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
+        if (!mat) {
             e.preventDefault();
-            clearTimeout(scanTimer);
-            var val = usbInput.value.trim();
-            if (val) {
-                traiterScanUSB(val);
-                usbInput.value = '';
-                scanBuffer = '';
-            }
+            alert('Veuillez saisir le matricule de l\'employé.');
+            return;
         }
-    });
-
-    function traiterScanUSB(rawQR) {
-        var zone  = document.getElementById('scanZone');
-        var label = document.getElementById('scanZoneLabel');
-        var hint  = document.getElementById('scanZoneHint');
-        var icon  = document.getElementById('scanZoneIcon');
-
-        // Valider le format EMPLOYE:matricule:token
-        var parts = rawQR.split(':');
-        if (parts.length !== 3 || parts[0] !== 'EMPLOYE') {
-            // Format invalide
-            zone.className  = 'scan-zone error';
-            label.textContent = 'QR code invalide';
-            hint.textContent  = 'Format non reconnu — utilisez le QR code officiel';
-            icon.innerHTML    = '<i class="fas fa-times-circle"></i>';
-            setTimeout(resetZone, 2500);
+        if (!site) {
+            e.preventDefault();
+            alert('Veuillez sélectionner un site.');
             return;
         }
 
-        // Format OK — afficher "traitement"
-        zone.className  = 'scan-zone waiting';
-        label.textContent = 'Scan reçu — traitement en cours...';
-        hint.textContent  = rawQR.substring(0, 40) + '...';
-        icon.innerHTML    = '<i class="fas fa-spinner fa-spin"></i>';
+        // On envoie le matricule (pas de QR complet en saisie manuelle)
+        document.getElementById('matriculeHidden').value = mat;
+        document.getElementById('qrDataInput').value     = '';
+        document.getElementById('periodeHidden').value   = getSelectedPeriode();
 
-        // Remplir le formulaire et soumettre
-        document.getElementById('qrDataInput').value    = rawQR;
-        document.getElementById('periodeHidden').value  = getSelectedPeriode();
-
-        // Soumettre après 300ms (pour que l'animation soit visible)
-        setTimeout(function() {
-            document.getElementById('scanForm').submit();
-        }, 300);
-    }
-
-    function resetZone() {
-        var zone  = document.getElementById('scanZone');
-        var label = document.getElementById('scanZoneLabel');
-        var hint  = document.getElementById('scanZoneHint');
-        var icon  = document.getElementById('scanZoneIcon');
-        zone.className    = 'scan-zone ready';
-        label.textContent = 'En attente du scanner...';
-        hint.textContent  = 'Branchez le scanner USB et présentez le QR code';
-        icon.innerHTML    = '<i class="fas fa-qrcode"></i>';
-        focusScanInput();
-    }
-
-    // ─── Mode manuel : soumission ────────────────────────────
-    document.getElementById('scanForm').addEventListener('submit', function(e) {
-        if (currentMode === 'manuel') {
-            var mat  = document.getElementById('matriculeInput').value.trim();
-            var site = document.getElementById('site_id').value;
-
-            if (!mat) {
+        if (getSelectedPeriode() === 'garde') {
+            if (!confirm('Vous allez enregistrer une garde de nuit.\nSouhaitez-vous continuer ?')) {
                 e.preventDefault();
-                alert('Veuillez saisir le matricule de l\'employé.');
-                return;
-            }
-            if (!site) {
-                e.preventDefault();
-                alert('Veuillez sélectionner un site.');
-                return;
-            }
-
-            // En mode manuel on envoie le matricule (pas le QR complet)
-            // La vue scanner_view sait gérer les deux
-            document.getElementById('matriculeHidden').value = mat;
-            document.getElementById('qrDataInput').value     = '';
-            document.getElementById('periodeHidden').value   = getSelectedPeriode();
-
-            if (getSelectedPeriode() === 'garde') {
-                if (!confirm('Vous allez enregistrer une garde de nuit.\nSouhaitez-vous continuer ?')) {
-                    e.preventDefault();
-                }
             }
         }
     });
@@ -534,15 +351,6 @@
     document.getElementById('periode_jour').addEventListener('change', syncPeriodeUI);
     document.getElementById('periode_nuit').addEventListener('change', syncPeriodeUI);
 
-    // ─── Garder le focus sur le champ USB si clavier détecté ─
-    document.addEventListener('keydown', function(e) {
-        if (currentMode === 'usb' &&
-            document.activeElement !== usbInput &&
-            !['INPUT','SELECT','TEXTAREA','BUTTON'].includes(document.activeElement.tagName)) {
-            focusScanInput();
-        }
-    });
-
     // ─── Auto-dismiss message Django après 4s ────────────────
     var djangoMsg = document.getElementById('djangoMsg');
     if (djangoMsg) {
@@ -554,8 +362,8 @@
     }
 
     // ─── Init ────────────────────────────────────────────────
-    setMode('usb');
     syncPeriodeUI();
+    document.getElementById('matriculeInput').focus();
 
 })();
 </script>
