@@ -7,7 +7,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
-    CustomUser, DemandeModification, AlerteRH, AutorisationSortie
+    CustomUser, DemandeModification
 )
 import uuid
 
@@ -570,111 +570,6 @@ class ScanAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('employe', 'site', 'pointage')
-
-
-# ============================================================
-# ALERTE RH
-# ============================================================
-
-@admin.register(AlerteRH)
-class AlerteRHAdmin(admin.ModelAdmin):
-    list_display  = ('employe', 'type_badge', 'detail_court', 'timestamp_local', 'traitee')
-    list_filter   = ('type', 'traitee', 'timestamp')
-    search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule', 'detail')
-    readonly_fields = ('employe', 'type', 'detail', 'timestamp', 'traitee_par', 'date_traitement')
-    date_hierarchy = 'timestamp'
-    actions = ['marquer_traitees']
-
-    TYPE_COLORS = {
-        'QR_INVALIDE':          ('#f87171', 'rgba(248,113,113,.12)'),
-        'SITE_NON_AUTORISE':    ('#f87171', 'rgba(248,113,113,.12)'),
-        'HORS_PLAGE':           ('#fbbf24', 'rgba(251,191,36,.12)'),
-        'SCAN_EXCESS':          ('#fbbf24', 'rgba(251,191,36,.12)'),
-        'SCAN_MANQUANT':        ('#fbbf24', 'rgba(251,191,36,.12)'),
-        'DOUBLON':              ('#94a3b8', 'rgba(148,163,184,.12)'),
-        'SORTIE_ANTICIPEE':     ('#4ade80', 'rgba(74,222,128,.12)'),
-        'SORTIE_NON_AUTORISEE': ('#f87171', 'rgba(248,113,113,.12)'),
-    }
-
-    def type_badge(self, obj):
-        color, bg = self.TYPE_COLORS.get(obj.type, ('#94a3b8', 'rgba(148,163,184,.12)'))
-        return mark_safe(
-            f'<span style="background:{bg};color:{color};padding:3px 10px;'
-            f'border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;">'
-            f'{obj.get_type_display()}</span>'
-        )
-    type_badge.short_description = 'Type'
-
-    def detail_court(self, obj):
-        return (obj.detail[:80] + '…') if len(obj.detail) > 80 else obj.detail
-    detail_court.short_description = 'Détail'
-
-    def timestamp_local(self, obj):
-        from django.utils import timezone as tz
-        local = tz.localtime(obj.timestamp)
-        return local.strftime('%d/%m/%Y %H:%M')
-    timestamp_local.short_description = 'Date/Heure'
-
-    @admin.action(description='✅ Marquer comme traitées')
-    def marquer_traitees(self, request, queryset):
-        updated = queryset.update(traitee=True, traitee_par=request.user,
-                                   date_traitement=timezone.now())
-        self.message_user(request, f'✅ {updated} alerte(s) marquée(s) comme traitée(s).')
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('employe')
-
-
-# ============================================================
-# AUTORISATION DE SORTIE ANTICIPÉE
-# ============================================================
-
-@admin.register(AutorisationSortie)
-class AutorisationSortieAdmin(admin.ModelAdmin):
-    list_display  = ('employe', 'periode_display', 'statut_badge',
-                     'date_utilisation_local', 'heure_depart_reel', 'confirme_par')
-    list_filter   = ('utilisee', 'annee', 'mois')
-    search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule')
-    readonly_fields = ('employe', 'mois', 'annee', 'date_utilisation',
-                       'heure_depart_reel', 'pointage', 'confirme_par')
-    ordering = ('-annee', '-mois', 'employe__nom')
-
-    fieldsets = (
-        ('Employé', {'fields': ('employe',)}),
-        ('Période', {'fields': ('mois', 'annee')}),
-        ('Utilisation', {'fields': ('utilisee', 'date_utilisation', 'heure_depart_reel',
-                                    'pointage', 'confirme_par')}),
-        ('Note', {'fields': ('note',)}),
-    )
-
-    def periode_display(self, obj):
-        return f'{obj.mois:02d}/{obj.annee}'
-    periode_display.short_description = 'Mois/Année'
-
-    def statut_badge(self, obj):
-        if obj.utilisee:
-            return mark_safe(
-                '<span style="background:rgba(248,113,113,.12);color:#f87171;'
-                'padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">'
-                '✗ Épuisée</span>'
-            )
-        return mark_safe(
-            '<span style="background:rgba(74,222,128,.12);color:#4ade80;'
-            'padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">'
-            '✓ Disponible</span>'
-        )
-    statut_badge.short_description = 'Statut'
-
-    def date_utilisation_local(self, obj):
-        if not obj.date_utilisation:
-            return '—'
-        from django.utils import timezone as tz
-        local = tz.localtime(obj.date_utilisation)
-        return local.strftime('%d/%m/%Y %H:%M')
-    date_utilisation_local.short_description = 'Date utilisation'
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('employe', 'confirme_par')
 
 
 # ============================================================

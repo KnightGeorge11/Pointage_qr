@@ -233,89 +233,6 @@
                         <div class="scan-zone-label" id="scanZoneLabel">En attente du scanner...</div>
                         <div class="scan-zone-hint" id="scanZoneHint">Branchez le scanner USB et présentez le QR code</div>
                     </div>
-                    <!-- BOUTON TEST — simuler un scan sans scanner physique -->
-                    <div style="margin-top:10px;text-align:center;">
-                        <button type="button"
-                                onclick="document.getElementById('testModal').style.display='flex'"
-                                style="font-size:10px;font-weight:700;text-transform:uppercase;
-                                       letter-spacing:.08em;padding:6px 14px;border-radius:var(--r-xs);
-                                       background:var(--surface);border:1px solid var(--line);
-                                       color:var(--ink-muted);cursor:pointer;display:inline-flex;
-                                       align-items:center;gap:6px;">
-                            <i class="fas fa-flask"></i> Simuler un scan (test)
-                        </button>
-                    </div>
-                </div>
-
-                <!-- MODAL TEST -->
-                <div id="testModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);
-                     z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(2px);">
-                    <div style="background:#fff;border-radius:16px;padding:24px;width:min(500px,92vw);
-                                box-shadow:0 20px 60px rgba(0,0,0,.25);">
-                        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
-                            <div>
-                                <div style="font-size:9px;font-weight:700;text-transform:uppercase;
-                                            letter-spacing:.14em;color:var(--green);margin-bottom:4px;
-                                            display:flex;align-items:center;gap:6px;">
-                                    <span style="width:10px;height:2px;background:var(--green);display:inline-block;border-radius:1px;"></span>
-                                    Mode test uniquement
-                                </div>
-                                <div style="font-size:15px;font-weight:700;color:var(--ink);">Simuler un scan QR</div>
-                                <div style="font-size:12px;color:#6b7280;margin-top:3px;">
-                                    Colle le contenu QR d'un employé pour simuler le scanner USB
-                                </div>
-                            </div>
-                            <button type="button" onclick="document.getElementById('testModal').style.display='none'"
-                                    style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;
-                                           width:30px;height:30px;cursor:pointer;font-size:14px;color:#6b7280;
-                                           display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>
-                        </div>
-
-                        <!-- Format attendu -->
-                        <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);
-                                    padding:10px 12px;margin-bottom:12px;font-size:11px;color:var(--ink-muted);">
-                            <span style="font-weight:700;color:var(--ink);">Format attendu :</span>
-                            <span style="font-family:monospace;"> EMPLOYE:matricule:uuid_token</span>
-                        </div>
-
-                        <textarea id="testQrInput"
-                                  placeholder="EMPLOYE:EMP-042:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                                  style="width:100%;height:80px;font-family:monospace;font-size:12px;
-                                         padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-xs);
-                                         background:var(--surface);resize:none;margin-bottom:12px;
-                                         color:var(--ink);outline:none;"
-                                  onfocus="this.style.borderColor='var(--ink)'"
-                                  onblur="this.style.borderColor='var(--line)'"></textarea>
-
-                        <!-- Raccourci : récupérer depuis la liste -->
-                        <div style="font-size:10px;color:var(--ink-muted);margin-bottom:14px;">
-                            <i class="fas fa-lightbulb" style="color:var(--amber);"></i>
-                            Récupère le QR data d'un employé depuis le terminal :
-                            <code style="background:var(--surface);padding:2px 6px;border-radius:3px;font-size:10px;
-                                         border:1px solid var(--line);display:block;margin-top:5px;word-break:break-all;">
-                                python manage.py shell -c "from pointage.models import Employe; [print(f'EMPLOYE:{e.matricule}:{e.qr_code_token}') for e in Employe.objects.filter(actif=True)[:5]]"
-                            </code>
-                        </div>
-
-                        <div style="display:flex;gap:8px;justify-content:flex-end;">
-                            <button type="button"
-                                    onclick="document.getElementById('testModal').style.display='none'"
-                                    style="padding:8px 18px;border-radius:var(--r-xs);border:1px solid var(--line);
-                                           background:var(--surface);font-family:var(--font-ui);font-size:10px;
-                                           font-weight:700;text-transform:uppercase;letter-spacing:.08em;
-                                           cursor:pointer;color:var(--ink-muted);">
-                                Annuler
-                            </button>
-                            <button type="button" onclick="lancerTestScan()"
-                                    style="padding:8px 18px;border-radius:var(--r-xs);border:none;
-                                           background:var(--ink);color:#fff;font-family:var(--font-ui);
-                                           font-size:10px;font-weight:700;text-transform:uppercase;
-                                           letter-spacing:.08em;cursor:pointer;display:inline-flex;
-                                           align-items:center;gap:6px;">
-                                <i class="fas fa-play"></i> Lancer le scan
-                            </button>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- ═══ MODE MANUEL ═══ -->
@@ -624,26 +541,6 @@
             !['INPUT','SELECT','TEXTAREA','BUTTON'].includes(document.activeElement.tagName)) {
             focusScanInput();
         }
-    });
-
-    // ─── Simulation scan (mode test) ─────────────────────────
-    window.lancerTestScan = function() {
-        var val = document.getElementById('testQrInput').value.trim();
-        if (!val) {
-            document.getElementById('testQrInput').style.borderColor = 'var(--red)';
-            return;
-        }
-        document.getElementById('testModal').style.display = 'none';
-        document.getElementById('testQrInput').value = '';
-        usbInput.value = val;
-        usbInput.dispatchEvent(new Event('input'));
-        setTimeout(function() {
-            usbInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-        }, 50);
-    };
-
-    document.getElementById('testModal').addEventListener('click', function(e) {
-        if (e.target === this) this.style.display = 'none';
     });
 
     // ─── Auto-dismiss message Django après 4s ────────────────

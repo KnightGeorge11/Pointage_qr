@@ -8,7 +8,7 @@
 
 from datetime import datetime, timedelta
 from django.utils import timezone
-from .models import Pointage, Employe, Site, AlerteRH
+from .models import Pointage, Employe, Site
 
 
 # ─── Calcul des retards mensuels ──────────────────────────────────────────────
@@ -71,60 +71,6 @@ def generer_rapport_pointage(debut, fin, site_id=None) -> list:
         })
 
     return donnees
-
-
-# ─── Clôture de journée (à lancer en cron à 23h55) ───────────────────────────
-
-def cloture_journee(date=None) -> dict:
-    """
-    Détecte les scans manquants pour tous les employés actifs à la fin de journée.
-    Crée une AlerteRH pour chaque manquant.
-
-    À appeler via :
-        python manage.py shell -c "from pointage.utils import cloture_journee; cloture_journee()"
-    Ou depuis un management command / tâche Celery Beat.
-    """
-    if date is None:
-        date = timezone.localtime(timezone.now()).date()
-
-    SEQUENCE = [
-        ('matin',      'heure_arrivee', 'Entrée matin'),
-        ('matin',      'heure_depart',  'Sortie matin'),
-        ('apres_midi', 'heure_arrivee', 'Entrée après-midi'),
-        ('apres_midi', 'heure_depart',  'Sortie après-midi'),
-    ]
-
-    alertes_crees = 0
-    employes_verifies = 0
-
-    for employe in Employe.objects.filter(actif=True):
-        employes_verifies += 1
-        manquants = []
-
-        for periode, champ, label in SEQUENCE:
-            pointage = Pointage.objects.filter(
-                employe=employe,
-                date_pointage=date,
-                periode=periode
-            ).first()
-
-            if not pointage or not getattr(pointage, champ):
-                manquants.append(label)
-
-        if manquants:
-            AlerteRH.objects.create(
-                employe=employe,
-                type='SCAN_MANQUANT',
-                detail=f"Scans manquants du {date} : {', '.join(manquants)}",
-                timestamp=timezone.localtime(timezone.now()),
-            )
-            alertes_crees += 1
-
-    return {
-        'date':               str(date),
-        'employes_verifies':  employes_verifies,
-        'alertes_crees':      alertes_crees,
-    }
 
 
 # ─── NOTE : generer_pointages_mensuels supprimée ─────────────────────────────

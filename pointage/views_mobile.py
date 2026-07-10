@@ -82,8 +82,6 @@ class MobileRecordScanAPIView(APIView):
         raw_qr                 = data.get('employee_qr', '').strip()
         site_id                = data.get('site_id')
         mode                   = data.get('mode', 'auto')
-        force_sortie           = bool(data.get('force_sortie', False))
-        confirmer_autorisation = bool(data.get('confirmer_autorisation', False))
         force_new_garde        = bool(data.get('force_new', False))
 
         # Normaliser le mode
@@ -110,8 +108,6 @@ class MobileRecordScanAPIView(APIView):
             qr_token=parsed['token'],
             site_id=int(site_id),
             mode=mode,
-            force_sortie=force_sortie,
-            confirmer_autorisation=confirmer_autorisation,
             force_new_garde=force_new_garde,
         )
 

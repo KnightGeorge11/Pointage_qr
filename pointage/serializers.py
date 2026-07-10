@@ -14,7 +14,6 @@ class SiteSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class EmployeSerializer(serializers.ModelSerializer):
-    sites_details = SiteSerializer(source='sites', many=True, read_only=True)
     poste_details = PosteSerializer(source='poste', read_only=True)
     
     class Meta:
@@ -138,12 +137,6 @@ class ScanSerializer(serializers.ModelSerializer):
         else:
             raise serializers.ValidationError({
                 "site": "Site requis"
-            })
-        
-        # Vérifier que l'employé est affecté au site
-        if site not in employe.sites.all():
-            raise serializers.ValidationError({
-                "site": "Employé non affecté à ce site"
             })
         
         # Obtenir l'heure actuelle

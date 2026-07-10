@@ -681,18 +681,6 @@
                 <i class="fas fa-building"></i><span>Sites</span>
             </a>
         </li>
-        <li>
-            <a href="{% url 'alertes_rh' %}" class="sb-link {% if request.resolver_match.url_name == 'alertes_rh' %}is-active{% endif %}">
-                <i class="fas fa-bell"></i>
-                <span>Alertes RH</span>
-            </a>
-        </li>
-        <li>
-            <a href="{% url 'autorisations_sortie' %}" class="sb-link {% if request.resolver_match.url_name == 'autorisations_sortie' %}is-active{% endif %}">
-                <i class="fas fa-clock"></i>
-                <span>Autorisations sortie</span>
-            </a>
-        </li>
     </ul>
 
     <!-- Déconnexion toujours en bas -->
@@ -783,39 +771,6 @@
     tick();
     setInterval(tick, 1000);
 })();
-</script>
-
-{% block extra_js %}{% endblock %}
-</body>
-</html><script>
-    // Horloge et date
-    (function() {
-        function updateClock() {
-            const now = new Date();
-            const pad = n => String(n).padStart(2, '0'); // Fonction pour ajouter un zéro devant les nombres < 10
-
-            // Met à jour l'heure
-            const clockElement = document.getElementById('topClock');
-            if (clockElement) {
-                clockElement.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-            }
-
-            // Met à jour la date
-            const dateElement = document.getElementById('topDate');
-            if (dateElement) {
-                dateElement.textContent = now.toLocaleDateString('fr-FR', {
-                    weekday: 'short',
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric'
-                });
-            }
-        }
-
-        // Initialisation de l'horloge
-        updateClock();
-        setInterval(updateClock, 1000); // Met à jour toutes les secondes
-    })();
 </script>
 
 {% block extra_js %}{% endblock %}

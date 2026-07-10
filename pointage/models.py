@@ -56,7 +56,6 @@ class Employe(models.Model):
     nom             = models.CharField(max_length=100)
     prenom          = models.CharField(max_length=100)
     matricule       = models.CharField(max_length=50, unique=True)
-    sites           = models.ManyToManyField(Site, related_name='employes')
     qr_code         = models.ImageField(upload_to='qr_codes/', blank=True, null=True)
     qr_code_token   = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     date_creation   = models.DateTimeField(auto_now_add=True)
@@ -377,117 +376,6 @@ class Scan(models.Model):
             models.Index(fields=['employe', 'timestamp']),
             models.Index(fields=['type_scan', 'timestamp']),
         ]
-
-
-# ─── NOUVEAU : Modèle AlerteRH ────────────────────────────────────────────────
-
-class AlerteRH(models.Model):
-    TYPE_ALERTE = [
-        ('QR_INVALIDE',          'QR code invalide'),
-        ('SITE_NON_AUTORISE',    'Site non autorisé'),
-        ('HORS_PLAGE',           'Scan hors plage horaire'),
-        ('SCAN_EXCESS',          'Scan excédentaire (> 4/jour)'),
-        ('SCAN_MANQUANT',        'Scan(s) manquant(s) en fin de journée'),
-        ('DOUBLON',              'Scan dupliqué'),
-        ('SORTIE_ANTICIPEE',     'Sortie anticipée autorisée'),
-        ('SORTIE_NON_AUTORISEE', 'Sortie anticipée non autorisée'),
-    ]
-
-    employe    = models.ForeignKey(
-        Employe, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='alertes'
-    )
-    type       = models.CharField(max_length=30, choices=TYPE_ALERTE, db_index=True)
-    detail     = models.TextField(blank=True)
-    timestamp  = models.DateTimeField()
-    traitee    = models.BooleanField(default=False)
-    traitee_par = models.ForeignKey(
-        'CustomUser', on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='alertes_traitees'
-    )
-    date_traitement = models.DateTimeField(null=True, blank=True)
-
-    def __str__(self):
-        emp = self.employe.get_nom_complet() if self.employe else "Inconnu"
-        return f"[{self.get_type_display()}] {emp} — {self.timestamp.strftime('%d/%m/%Y %H:%M')}"
-
-    class Meta:
-        ordering        = ['-timestamp']
-        verbose_name    = "Alerte RH"
-        verbose_name_plural = "Alertes RH"
-        indexes = [
-            models.Index(fields=['type', 'timestamp']),
-            models.Index(fields=['traitee', 'timestamp']),
-            models.Index(fields=['employe', 'timestamp']),
-        ]
-
-
-class AutorisationSortie(models.Model):
-    """
-    Quota mensuel de sortie anticipée par employé.
-    Chaque employé dispose d'une autorisation d'1h maximum par mois.
-    Une seule utilisation autorisée par mois (fractionnement non autorisé).
-
-    Cycle de vie :
-      - Créé automatiquement lors de la première demande du mois
-        (ou pré-créé par un admin pour le mois en cours)
-      - utilisee = False  → disponible
-      - utilisee = True   → épuisée pour ce mois
-    """
-
-    employe         = models.ForeignKey(
-        Employe, on_delete=models.CASCADE, related_name='autorisations_sortie'
-    )
-    mois            = models.PositiveSmallIntegerField()   # 1-12
-    annee           = models.PositiveSmallIntegerField()
-    utilisee        = models.BooleanField(default=False)
-    date_utilisation = models.DateTimeField(null=True, blank=True)
-    # Heure de départ réelle (heure de scan de sortie anticipée)
-    heure_depart_reel = models.TimeField(null=True, blank=True)
-    # Pointage concerné par la sortie anticipée
-    pointage        = models.ForeignKey(
-        Pointage, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='autorisation_sortie'
-    )
-    # Agent qui a confirmé (réceptionniste / agent de sécurité)
-    confirme_par    = models.ForeignKey(
-        'CustomUser', on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='autorisations_confirmees'
-    )
-    note            = models.TextField(blank=True)
-
-    class Meta:
-        unique_together     = ('employe', 'mois', 'annee')
-        ordering            = ['-annee', '-mois']
-        verbose_name        = "Autorisation de sortie anticipée"
-        verbose_name_plural = "Autorisations de sortie anticipée"
-        indexes = [
-            models.Index(fields=['employe', 'annee', 'mois']),
-        ]
-
-    def __str__(self):
-        statut = "utilisée" if self.utilisee else "disponible"
-        return (
-            f"{self.employe.get_nom_complet()} — "
-            f"{self.mois:02d}/{self.annee} [{statut}]"
-        )
-
-    @classmethod
-    def get_ou_creer_du_mois(cls, employe, date):
-        """
-        Retourne l'autorisation du mois pour cet employé,
-        en la créant si elle n'existe pas encore.
-        """
-        obj, _ = cls.objects.get_or_create(
-            employe=employe,
-            mois=date.month,
-            annee=date.year,
-        )
-        return obj
-
-    @property
-    def disponible(self):
-        return not self.utilisee
 
 
 class CustomUser(AbstractUser):

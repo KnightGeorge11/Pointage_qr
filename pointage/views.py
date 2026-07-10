@@ -18,7 +18,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
-from .models import Employe, Site, Pointage, Scan, Poste, DemandeModification, AlerteRH, AutorisationSortie
+from .models import Employe, Site, Pointage, Scan, Poste, DemandeModification
 from .serializers import (
     EmployeSerializer, SiteSerializer,
     PointageSerializer, PointageDetailSerializer, ScanSerializer
@@ -90,10 +90,6 @@ def dashboard(request):
 
     pointages_recents = today_pointages.select_related('employe', 'site').order_by('-date_creation')[:10]
     demandes_en_attente = DemandeModification.objects.filter(statut='en_attente').count()
-    alertes_non_traitees = AlerteRH.objects.filter(traitee=False).count()
-    autorisations_ce_mois = AutorisationSortie.objects.filter(
-        mois=today.month, annee=today.year
-    ).count()
 
     # Stats journalières (7 jours) en 2 requêtes agrégées
     week_ago = today - timedelta(days=6)
@@ -150,8 +146,6 @@ def dashboard(request):
         'gardes_en_cours':      gardes_en_cours,
         'pointages_recents':    pointages_recents,
         'demandes_en_attente':   demandes_en_attente,
-        'alertes_non_traitees':  alertes_non_traitees,
-        'autorisations_ce_mois': autorisations_ce_mois,
         'aujourdhui':           today,
         'daily_data':    {'presents': presents_aujourdhui, 'absents': total_employes - presents_aujourdhui, 'retards': retards, 'gardes': gardes_en_cours},
         'weekly_data':   {'labels': jours_labels, 'presents': jours_presents, 'absents': jours_absents, 'retards': jours_retards},
@@ -1214,111 +1208,3 @@ def get_charts_data(request):
         'weekly':    {'labels': jours_labels, 'presents': jours_presents, 'retards': jours_retards},
         'evolution': {'labels': semaines_labels, 'taux_presence': semaines_taux},
     })
-
-
-
-
-
-# ---------------------------
-# VUE ALERTES RH
-# ---------------------------
-
-@login_required
-def alertes_rh(request):
-    qs = AlerteRH.objects.select_related('employe', 'traitee_par').order_by('-timestamp')
-
-    type_filter   = request.GET.get('type', '')
-    statut_filter = request.GET.get('statut', '')
-    search        = request.GET.get('search', '')
-
-    if type_filter:
-        qs = qs.filter(type=type_filter)
-    if statut_filter == 'non_traitee':
-        qs = qs.filter(traitee=False)
-    elif statut_filter == 'traitee':
-        qs = qs.filter(traitee=True)
-    if search:
-        qs = qs.filter(
-            Q(employe__nom__icontains=search) |
-            Q(employe__prenom__icontains=search) |
-            Q(employe__matricule__icontains=search) |
-            Q(detail__icontains=search)
-        )
-
-    if request.method == 'POST':
-        alerte_id = request.POST.get('alerte_id')
-        if alerte_id:
-            AlerteRH.objects.filter(pk=alerte_id).update(
-                traitee=True,
-                traitee_par=request.user,
-                date_traitement=timezone.now()
-            )
-            messages.success(request, '✅ Alerte marquée comme traitée.')
-        return redirect(request.get_full_path())
-
-    paginator = Paginator(qs, 25)
-    page      = request.GET.get('page')
-    try:
-        alertes = paginator.page(page)
-    except PageNotAnInteger:
-        alertes = paginator.page(1)
-    except EmptyPage:
-        alertes = paginator.page(paginator.num_pages)
-
-    context = {
-        'alertes':       alertes,
-        'types_alerte':  AlerteRH.TYPE_ALERTE,
-        'filter_type':   type_filter,
-        'filter_statut': statut_filter,
-        'filter_search': search,
-        'total':         qs.count(),
-        'non_traitees':  AlerteRH.objects.filter(traitee=False).count(),
-    }
-    return render(request, 'pointage/alertes_rh.html', context)
-
-
-# ---------------------------
-# VUE AUTORISATIONS SORTIE
-# ---------------------------
-
-@login_required
-def autorisations_sortie_view(request):
-    today = timezone.localtime(timezone.now()).date()
-
-    mois_filter   = int(request.GET.get('mois',  today.month))
-    annee_filter  = int(request.GET.get('annee', today.year))
-    statut_filter = request.GET.get('statut', '')
-    search        = request.GET.get('search', '')
-
-    qs = AutorisationSortie.objects.filter(
-        mois=mois_filter, annee=annee_filter
-    ).select_related('employe', 'confirme_par', 'pointage').order_by('employe__nom')
-
-    if statut_filter == 'disponible':
-        qs = qs.filter(utilisee=False)
-    elif statut_filter == 'epuisee':
-        qs = qs.filter(utilisee=True)
-    if search:
-        qs = qs.filter(
-            Q(employe__nom__icontains=search) |
-            Q(employe__prenom__icontains=search) |
-            Q(employe__matricule__icontains=search)
-        )
-
-    MOIS_FR = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-               'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
-
-    context = {
-        'autorisations':  qs,
-        'mois_filter':    mois_filter,
-        'annee_filter':   annee_filter,
-        'statut_filter':  statut_filter,
-        'filter_search':  search,
-        'mois_label':     MOIS_FR[mois_filter],
-        'total':          qs.count(),
-        'utilisees':      qs.filter(utilisee=True).count(),
-        'disponibles':    qs.filter(utilisee=False).count(),
-        'mois_choices':   [(i, MOIS_FR[i]) for i in range(1, 13)],
-        'annee_choices':  list(range(today.year - 1, today.year + 2)),
-    }
-    return render(request, 'pointage/autorisations_sortie.html', context)

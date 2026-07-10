@@ -18,9 +18,6 @@ from .views import (
     # ✅ API
     scan_api_view, get_statut_journee, get_prochain_scan,
     get_dashboard_stats, get_charts_data, employe_qr_data,
-
-    # ✅ Nouvelles vues RH
-    alertes_rh, autorisations_sortie_view,
 )
 from rest_framework.routers import DefaultRouter
 from .views_mobile import (
@@ -67,10 +64,6 @@ urlpatterns = [
 
     # Scanner
     path('scanner/', scanner_view, name='scanner'),
-
-    # Alertes RH
-    path('alertes/',              alertes_rh,                 name='alertes_rh'),
-    path('autorisations-sortie/', autorisations_sortie_view,  name='autorisations_sortie'),
 
     # API
     path('api/',                                      include(router.urls)),
