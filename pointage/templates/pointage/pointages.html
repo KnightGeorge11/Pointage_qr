@@ -352,13 +352,13 @@ dialog#modalDetail:not([open]) { display: none; }
         <div class="nuit-block">
             <div class="nuit-lbl">Début garde</div>
             <div class="nuit-time">{{ jour.nuit.heure_arrivee|time:"H:i"|default:"—" }}</div>
-            <div class="nuit-site">{{ jour.site.nom }}</div>
+            <div class="nuit-site">{{ jour.nuit.site.nom }}</div>
         </div>
         <div class="nuit-arrow">→</div>
         <div class="nuit-block">
             <div class="nuit-lbl">Fin garde</div>
             <div class="nuit-time">{{ jour.nuit.heure_depart|time:"H:i"|default:"—" }}</div>
-            <div class="nuit-site">{{ jour.site.nom }}</div>
+            <div class="nuit-site">{{ jour.nuit.site.nom }}</div>
         </div>
         {% if jour.nuit.heures_travaillees %}
         <div class="nuit-total">{{ jour.nuit.heures_travaillees|timedelta_format }} travaillées</div>

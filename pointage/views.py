@@ -508,7 +508,7 @@ class PointageListView(LoginRequiredMixin, ListView):
 
         jours_dict = {}
         for pointage in queryset:
-            key = (pointage.employe_id, pointage.date_pointage, pointage.site_id)
+            key = (pointage.employe_id, pointage.date_pointage)
             if key not in jours_dict:
                 jours_dict[key] = {
                     'date': pointage.date_pointage, 'employe': pointage.employe, 'site': pointage.site,
