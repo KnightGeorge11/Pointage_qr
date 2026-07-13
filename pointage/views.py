@@ -286,7 +286,7 @@ class EmployeListView(LoginRequiredMixin, ListView):
     context_object_name = 'employes'
 
     def get_queryset(self):
-        return Employe.objects.filter(actif=True).select_related('poste').prefetch_related('sites').order_by('matricule')
+        return Employe.objects.filter(actif=True).select_related('poste').order_by('matricule')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

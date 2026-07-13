@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.safestring import mark_safe
+from django.utils.html import format_html, escape
 from django.urls import path
 from django.http import HttpResponseRedirect
 from django.contrib import messages
@@ -227,20 +228,20 @@ class DemandeModificationAdmin(admin.ModelAdmin):
             return '—'
         lignes = []
         for cle, valeur in obj.donnees.items():
-            lignes.append(
-                f'<tr>'
-                f'<td style="padding:8px 14px;color:rgba(255,255,255,.45);font-size:11px;'
-                f'text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;'
-                f'border-bottom:1px solid rgba(255,255,255,.06)">{cle}</td>'
-                f'<td style="padding:8px 14px;font-weight:500;color:#e8eaf0;'
-                f'border-bottom:1px solid rgba(255,255,255,.06)">{valeur}</td>'
-                f'</tr>'
-            )
-        return mark_safe(
+            lignes.append(format_html(
+                '<tr>'
+                '<td style="padding:8px 14px;color:rgba(255,255,255,.45);font-size:11px;'
+                'text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;'
+                'border-bottom:1px solid rgba(255,255,255,.06)">{}</td>'
+                '<td style="padding:8px 14px;font-weight:500;color:#e8eaf0;'
+                'border-bottom:1px solid rgba(255,255,255,.06)">{}</td>'
+                '</tr>',
+                cle, valeur
+            ))
+        return format_html(
             '<table style="border-collapse:collapse;width:100%;background:#1c2236;'
-            'border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">'
-            + ''.join(lignes)
-            + '</table>'
+            'border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">{}</table>',
+            mark_safe(''.join(lignes))
         )
     donnees_formatees.short_description = "Données de la demande"
 
@@ -339,10 +340,11 @@ class PosteAdmin(admin.ModelAdmin):
     ordering      = ('nom',)
 
     def couleur_display(self, obj):
-        return mark_safe(
-            f'<span style="display:inline-block;width:20px;height:20px;'
-            f'background-color:{obj.couleur};border:1px solid rgba(255,255,255,.2);'
-            f'border-radius:4px;vertical-align:middle;margin-right:6px"></span>{obj.couleur}'
+        return format_html(
+            '<span style="display:inline-block;width:20px;height:20px;'
+            'background-color:{};border:1px solid rgba(255,255,255,.2);'
+            'border-radius:4px;vertical-align:middle;margin-right:6px"></span>{}',
+            obj.couleur, obj.couleur
         )
     couleur_display.short_description = 'Couleur'
 
@@ -387,23 +389,25 @@ class EmployeAdmin(admin.ModelAdmin):
 
     def qr_code_preview(self, obj):
         if obj.qr_code:
-            return mark_safe(
-                f'<a href="{obj.qr_code.url}" target="_blank">'
-                f'<img src="{obj.qr_code.url}" width="40" height="40" '
-                f'style="border:1px solid rgba(255,255,255,.15);border-radius:4px;">'
-                f'</a>'
+            return format_html(
+                '<a href="{}" target="_blank">'
+                '<img src="{}" width="40" height="40" '
+                'style="border:1px solid rgba(255,255,255,.15);border-radius:4px;">'
+                '</a>',
+                obj.qr_code.url, obj.qr_code.url
             )
         return mark_safe('<span style="color:#f87171;font-size:12px;">Non généré</span>')
     qr_code_preview.short_description = 'QR Code'
 
     def qr_code_display(self, obj):
         if obj.qr_code:
-            return mark_safe(
-                f'<div style="text-align:center;margin:20px 0;">'
-                f'<div style="margin-bottom:12px;font-weight:600;color:#e8eaf0;">QR Code pour le pointage</div>'
-                f'<img src="{obj.qr_code.url}" width="220" height="220" '
-                f'style="border:3px solid #4f8ef7;border-radius:10px;padding:10px;background:white;">'
-                f'</div>'
+            return format_html(
+                '<div style="text-align:center;margin:20px 0;">'
+                '<div style="margin-bottom:12px;font-weight:600;color:#e8eaf0;">QR Code pour le pointage</div>'
+                '<img src="{}" width="220" height="220" '
+                'style="border:3px solid #4f8ef7;border-radius:10px;padding:10px;background:white;">'
+                '</div>',
+                obj.qr_code.url
             )
         return mark_safe(
             '<div style="color:#f87171;padding:14px;background:rgba(248,113,113,.1);'
@@ -413,24 +417,25 @@ class EmployeAdmin(admin.ModelAdmin):
 
     def info_qr_code(self, obj):
         if obj.qr_code:
-            return mark_safe(
-                f'<div style="background:rgba(79,142,247,.08);padding:16px;border-radius:8px;'
-                f'border:1px solid rgba(79,142,247,.2);margin-bottom:14px;">'
-                f'<h4 style="margin-top:0;color:#4f8ef7;font-size:13px;font-weight:600;">'
-                f'Informations du QR Code</h4>'
-                f'<div style="margin-bottom:10px;font-size:12px;color:rgba(232,234,240,.6);">'
-                f'Données encodées :</div>'
-                f'<code style="background:rgba(255,255,255,.07);padding:6px 10px;border-radius:5px;'
-                f'font-size:12px;color:#e8eaf0;display:inline-block;margin-bottom:14px;">'
-                f'EMPLOYE:{obj.matricule}:{obj.qr_code_token}</code>'
-                f'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-                f'<a href="{obj.qr_code.url}" download class="button" style="text-decoration:none;">'
-                f'Télécharger</a>'
-                f'<a href="{obj.qr_code.url}" target="_blank" class="button" style="text-decoration:none;">'
-                f'Ouvrir</a>'
-                f'<button type="submit" name="_generate_qr" value="1" class="button" '
-                f'style="background:#28a745;border-color:#28a745;">Régénérer</button>'
-                f'</div></div>'
+            return format_html(
+                '<div style="background:rgba(79,142,247,.08);padding:16px;border-radius:8px;'
+                'border:1px solid rgba(79,142,247,.2);margin-bottom:14px;">'
+                '<h4 style="margin-top:0;color:#4f8ef7;font-size:13px;font-weight:600;">'
+                'Informations du QR Code</h4>'
+                '<div style="margin-bottom:10px;font-size:12px;color:rgba(232,234,240,.6);">'
+                'Données encodées :</div>'
+                '<code style="background:rgba(255,255,255,.07);padding:6px 10px;border-radius:5px;'
+                'font-size:12px;color:#e8eaf0;display:inline-block;margin-bottom:14px;">'
+                'EMPLOYE:{}:{}</code>'
+                '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+                '<a href="{}" download class="button" style="text-decoration:none;">'
+                'Télécharger</a>'
+                '<a href="{}" target="_blank" class="button" style="text-decoration:none;">'
+                'Ouvrir</a>'
+                '<button type="submit" name="_generate_qr" value="1" class="button" '
+                'style="background:#28a745;border-color:#28a745;">Régénérer</button>'
+                '</div></div>',
+                obj.matricule, obj.qr_code_token, obj.qr_code.url, obj.qr_code.url
             )
         return mark_safe(
             '<div style="background:rgba(251,191,36,.08);padding:14px;border-radius:8px;'
