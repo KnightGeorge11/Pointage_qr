@@ -14,9 +14,8 @@ from .models import Employe, Site, Pointage, Scan
 # ─── Constantes ──────────────────────────────────────────────────────────────
 
 SEUIL_DOUBLON_SECONDES = 120          # 2 minutes entre deux scans identiques
-SEUIL_MIDI = time(12, 30)             # Avant → matin, après → après-midi (premier scan du jour)
-PLAGE_MIN = time(5, 0)                # Heure minimale autorisée
-PLAGE_MAX = time(23, 0)               # Heure maximale autorisée
+PLAGE_MIN = time(5, 0)                # Heure minimale autorisée (mode normal uniquement)
+PLAGE_MAX = time(23, 0)               # Heure maximale autorisée (mode normal uniquement)
 
 NORMAL_SCAN_STEPS = [
     ('matin',      'heure_arrivee', 'entree_matin'),
@@ -73,8 +72,9 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
             'message': f"Site {site_id} introuvable."
         }
 
-    # 3. Vérifier la plage horaire autorisée
-    if not (PLAGE_MIN <= now.time() <= PLAGE_MAX):
+    # 3. Vérifier la plage horaire autorisée (mode normal uniquement —
+    #    une garde de nuit se déroule par définition en dehors de cette plage)
+    if mode != 'garde' and not (PLAGE_MIN <= now.time() <= PLAGE_MAX):
         return {
             'status': 'warning',
             'code': 'HORS_PLAGE',
