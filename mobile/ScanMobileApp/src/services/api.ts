@@ -210,18 +210,14 @@ export const apiService = {
     siteId: number,
     mode: 'day' | 'night' = 'day',
     options: {
-      forceSortie?: boolean;
-      confirmerAutorisation?: boolean;
       forceNew?: boolean;
     } = {}
   ): Promise<any> {
     const response = await api.post('/api/mobile/scan/record/', {
-      employee_qr:            employeeQr,
-      site_id:                siteId,
+      employee_qr: employeeQr,
+      site_id:     siteId,
       mode,
-      force_sortie:           options.forceSortie           ?? false,
-      confirmer_autorisation: options.confirmerAutorisation ?? false,
-      force_new:              options.forceNew              ?? false,
+      force_new:   options.forceNew ?? false,
     });
     return response.data;
   },

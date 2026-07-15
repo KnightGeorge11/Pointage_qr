@@ -10,6 +10,7 @@ import ScanScreen from '../screens/ScanScreen'
 import SiteSelectionScreen from '../screens/SiteSelectionScreen'
 import HistoryScreen from '../screens/HistoryScreen'
 import ConfigScreen from '../screens/ConfigScreen'
+import { colors } from '../theme/colors'
 
 const Stack = createStackNavigator()
 
@@ -19,8 +20,8 @@ const AppNavigator = () => {
       <Stack.Navigator
         initialRouteName="Home"
         screenOptions={{
-          headerStyle: { backgroundColor: '#007AFF' },
-          headerTintColor: '#fff',
+          headerStyle: { backgroundColor: colors.white, shadowOpacity: 0, elevation: 0, borderBottomWidth: 1, borderBottomColor: colors.line },
+          headerTintColor: colors.ink,
           headerTitleStyle: { fontWeight: 'bold' },
         }}
       >
@@ -32,7 +33,11 @@ const AppNavigator = () => {
         <Stack.Screen
           name="Scan"
           component={ScanScreen}
-          options={{ title: 'Scanner' }}
+          options={{
+            title: 'Scanner',
+            headerStyle: { backgroundColor: colors.ink, borderBottomWidth: 0 },
+            headerTintColor: colors.white,
+          }}
         />
         <Stack.Screen
           name="SiteSelectionScreen"

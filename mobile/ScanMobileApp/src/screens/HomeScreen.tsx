@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useAppContext } from '../context/AppContext'
+import { colors, radius } from '../theme/colors'
 
 const HomeScreen = ({ navigation }: any) => {
   const { apiStatus, selectedSite } = useAppContext()
@@ -28,7 +29,7 @@ const HomeScreen = ({ navigation }: any) => {
 
       {/* Status API */}
       <View style={[styles.card, styles.statusCard]}>
-        <View style={[styles.statusDot, { backgroundColor: apiStatus.connected ? '#34C759' : '#FF3B30' }]} />
+        <View style={[styles.statusDot, { backgroundColor: apiStatus.connected ? colors.green : colors.red }]} />
         <Text style={styles.statusText}>
           {apiStatus.connected ? 'Connecté à l\'API' : 'Déconnecté'}
         </Text>
@@ -36,14 +37,14 @@ const HomeScreen = ({ navigation }: any) => {
 
       {/* Site sélectionné */}
       <TouchableOpacity style={[styles.card, styles.siteCard]} onPress={handleSitePress}>
-        <Ionicons name="location-outline" size={22} color="#555" />
+        <Ionicons name="location-outline" size={22} color={colors.inkMuted} />
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.siteLabel}>Site actuel</Text>
           <Text style={styles.siteText}>
             {selectedSite ? selectedSite.nom : 'Aucun site sélectionné'}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#bbb" />
+        <Ionicons name="chevron-forward" size={20} color={colors.inkMuted} />
       </TouchableOpacity>
 
       {/* Horloge */}
@@ -57,13 +58,13 @@ const HomeScreen = ({ navigation }: any) => {
       {/* Actions */}
       <View style={styles.actionsContainer}>
         <TouchableOpacity style={[styles.actionButton, styles.scanButton]} onPress={handleScanPress}>
-          <Ionicons name="qr-code-outline" size={30} color="#fff" />
+          <Ionicons name="qr-code-outline" size={30} color={colors.white} />
           <Text style={styles.actionText}>Scanner</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.actionButton, styles.historyButton]} onPress={handleHistoryPress}>
-          <Ionicons name="reader-outline" size={30} color="#1a1a1a" />
-          <Text style={[styles.actionText, { color: '#1a1a1a' }]}>Historique</Text>
+          <Ionicons name="reader-outline" size={30} color={colors.ink} />
+          <Text style={[styles.actionText, { color: colors.ink }]}>Historique</Text>
         </TouchableOpacity>
       </View>
 
@@ -77,7 +78,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f5f5f7',
+    backgroundColor: colors.surface,
   },
 
   // Cards
@@ -85,8 +86,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 14,
-    backgroundColor: '#fff',
+    borderRadius: radius.lg,
+    backgroundColor: colors.white,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOpacity: 0.05,
@@ -106,13 +107,13 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 14,
     fontWeight: '500',
-    color: '#444',
+    color: colors.inkMuted,
   },
 
   // Site
   siteCard: { justifyContent: 'space-between' },
-  siteLabel: { fontSize: 11, color: '#aaa', fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.5 },
-  siteText: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginTop: 2 },
+  siteLabel: { fontSize: 11, color: colors.inkMuted, fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.5 },
+  siteText: { fontSize: 16, fontWeight: '600', color: colors.ink, marginTop: 2 },
 
   // Horloge
   clockCard: {
@@ -123,12 +124,12 @@ const styles = StyleSheet.create({
   clockText: {
     fontSize: 38,
     fontWeight: '300',
-    color: '#1a1a1a',
+    color: colors.ink,
     letterSpacing: 1,
   },
   clockDate: {
     fontSize: 13,
-    color: '#999',
+    color: colors.inkMuted,
     marginTop: 4,
     textTransform: 'capitalize',
   },
@@ -142,16 +143,16 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     paddingVertical: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scanButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.ink,
   },
   historyButton: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
@@ -160,7 +161,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     marginTop: 10,
-    color: '#fff',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '600',
   },

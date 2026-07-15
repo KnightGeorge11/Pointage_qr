@@ -16,15 +16,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
-import { apiService } from '../services/api'
-import { Site } from '../types/types'
+import { apiService, Site } from '../services/api'
 import { useAppContext } from '../context/AppContext'
+import { colors } from '../theme/colors'
 
 const SiteSelectionScreen = () => {
   const navigation = useNavigation<any>()
 
   // ✅ Hook DOIT être ici
-  const { setSelectedSite: setGlobalSelectedSite } = useAppContext()
+  const { setSelectedSite: setGlobalSelectedSite, setSites: setGlobalSites } = useAppContext()
 
   const [sites, setSites] = useState<Site[]>([])
   const [loading, setLoading] = useState(true)
@@ -57,6 +57,7 @@ const SiteSelectionScreen = () => {
       setConnectionError(null)
       const data = await apiService.getSites()
       setSites(data)
+      setGlobalSites(data)
     } catch (error: any) {
       console.log('Erreur chargement sites:', error)
       setConnectionError(error.message || 'Erreur de connexion')
@@ -104,7 +105,7 @@ const SiteSelectionScreen = () => {
         onPress={() => handleSelectSite(item)}
       >
         <View style={styles.siteInfo}>
-          <Ionicons name="location" size={24} color="#007AFF" />
+          <Ionicons name="location" size={24} color={colors.blue} />
           <View style={styles.siteText}>
             <Text style={styles.siteName}>{item.nom}</Text>
             {item.adresse && (
@@ -114,7 +115,7 @@ const SiteSelectionScreen = () => {
         </View>
 
         {isSelected && (
-          <Ionicons name="checkmark-circle" size={24} color="#007AFF" />
+          <Ionicons name="checkmark-circle" size={24} color={colors.blue} />
         )}
       </TouchableOpacity>
     )
@@ -123,7 +124,7 @@ const SiteSelectionScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={colors.blue} />
         <Text style={styles.status}>Connexion au serveur...</Text>
       </View>
     )
@@ -148,22 +149,22 @@ const SiteSelectionScreen = () => {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  container: { flex: 1, backgroundColor: colors.surface },
   siteItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.line,
   },
-  selectedItem: { backgroundColor: '#E0F7FA' },
+  selectedItem: { backgroundColor: colors.blueDim },
   siteInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   siteText: { marginLeft: 16 },
   siteName: { fontSize: 16, fontWeight: 'bold' },
-  siteAddress: { fontSize: 14, color: '#757575' },
+  siteAddress: { fontSize: 14, color: colors.inkMuted },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  status: { marginTop: 8, fontSize: 16, color: '#757575' },
+  status: { marginTop: 8, fontSize: 16, color: colors.inkMuted },
   list: { padding: 16 },
 })
 

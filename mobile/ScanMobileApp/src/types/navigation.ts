@@ -2,7 +2,7 @@
 
 export type RootStackParamList = {
     Home: undefined
-    SiteSelection: undefined
+    SiteSelectionScreen: undefined
     Scan: undefined
     History: undefined
     Config: undefined

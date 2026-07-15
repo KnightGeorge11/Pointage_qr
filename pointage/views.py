@@ -606,6 +606,8 @@ class PointageDeleteView(LoginRequiredMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
+# ... (début du fichier inchangé jusqu'à export_resume_excel) ...
+
 @login_required
 def export_resume_excel(request):
     """Export résumé par employé entre 2 dates — format tableau par jour"""
@@ -620,27 +622,22 @@ def export_resume_excel(request):
     # --- Détermination des dates (avec fallback) ---
     try:
         if date_debut_str and date_fin_str:
-            # Conversion des dates fournies
             date_debut = datetime.strptime(date_debut_str, '%Y-%m-%d').date()
             date_fin   = datetime.strptime(date_fin_str,   '%Y-%m-%d').date()
         else:
-            # Dates par défaut : premier et dernier pointage existant
             date_debut = Pointage.objects.order_by('date_pointage').values_list('date_pointage', flat=True).first()
             date_fin   = Pointage.objects.order_by('-date_pointage').values_list('date_pointage', flat=True).first()
             if not date_debut or not date_fin:
                 return HttpResponse("Aucun pointage trouvé en base de données.", status=404)
     except ValueError:
-        # En cas de format de date invalide, on prend les dates extrêmes
         date_debut = Pointage.objects.order_by('date_pointage').values_list('date_pointage', flat=True).first()
         date_fin   = Pointage.objects.order_by('-date_pointage').values_list('date_pointage', flat=True).first()
         if not date_debut or not date_fin:
-            # Si vraiment aucun pointage, on utilise la date du jour
             today = timezone.localtime(timezone.now()).date()
             date_debut = date_fin = today
 
     # --- Génération du fichier Excel ---
     try:
-        # Jours ouvrés (lundi–samedi) – on prend tous les jours de la plage
         def work_days(d1, d2):
             days, d = [], d1
             while d <= d2:
@@ -651,7 +648,6 @@ def export_resume_excel(request):
         days = work_days(date_debut, date_fin)
         JOURS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
-        # Requête des pointages
         qs = Pointage.objects.filter(
             date_pointage__gte=date_debut,
             date_pointage__lte=date_fin
@@ -663,27 +659,22 @@ def export_resume_excel(request):
         if site_filter:
             qs = qs.filter(site_id=site_filter)
 
-        # Structure : emp -> date -> {matin, apres_midi, nuit}
         emp_data = defaultdict(lambda: defaultdict(lambda: {'matin': None, 'apres_midi': None, 'nuit': None}))
         emp_info = {}
         for p in qs:
             emp_info[p.employe.id] = (p.employe.id, p.employe.get_nom_complet(), p.employe.matricule)
             emp_data[p.employe.id][p.date_pointage][p.periode] = p
 
-        # Helpers de formatage
-        def fmt_hm(td):
-            if not td:
+        # ✅ Helper formaté utilisant get_duree_formatee()
+        def fmt_duree(pointage):
+            if not pointage or not pointage.heures_travaillees:
                 return '—'
-            total = int(td.total_seconds())
-            if total <= 0:
-                return '—'
-            h, m = divmod(total // 60, 60)
-            return f"{h}h{m:02d}" if m else f"{h}h"
+            return pointage.get_duree_formatee()
 
         def fmt_time(t):
             return t.strftime('%H:%M') if t else '—'
 
-        # Palette de couleurs (identique à l'original)
+        # Palette de couleurs
         BLUE       = '1E3A5F'
         BLUE_LIGHT = 'D6E4F0'
         ORANGE_BG  = 'FEF3C7'
@@ -728,7 +719,6 @@ def export_resume_excel(request):
             if border:
                 c.border = border
 
-        # Création du classeur
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Résumé Pointages"
@@ -753,7 +743,7 @@ def export_resume_excel(request):
            bg=BLUE, fg=WHITE, bold=True, size=13)
         ws.row_dimensions[1].height = 36
 
-        # En-têtes colonnes
+        # En-têtes
         HEADER_ROW = 2
         sc(ws.cell(row=HEADER_ROW, column=COL_EMP), value='Employé',
            bg=BLUE, fg=WHITE, bold=True, size=9, border=b_all(BLUE))
@@ -765,7 +755,6 @@ def export_resume_excel(request):
            bg=DARK, fg=WHITE, bold=True, size=10, border=b_all(DARK))
         ws.row_dimensions[HEADER_ROW].height = 28
 
-        # Paramètres de lignes
         ROWS_PER_EMP = 8
         SUB_H        = [8, 14, 18, 14, 18, 16, 16, 6]
         START_ROW    = 3
@@ -777,7 +766,6 @@ def export_resume_excel(request):
             for i, h in enumerate(SUB_H):
                 ws.row_dimensions[base + i].height = h
 
-            # Cellule nom employé
             ws.merge_cells(start_row=base, start_column=COL_EMP,
                            end_row=base + 6, end_column=COL_EMP)
             sc(ws.cell(row=base, column=COL_EMP),
@@ -827,7 +815,7 @@ def export_resume_excel(request):
                        bg=NIGHT_BG, fg=WHITE, bold=True, size=9,
                        border=b_all(PURPLE_MED))
                     sc(ws.cell(row=base + 5, column=col),
-                       value=f"Durée : {fmt_hm(h_garde)}",
+                       value=f"Durée : {fmt_duree(nuit)}",
                        bg=PURPLE_BG, fg=PURPLE_FG, bold=True, size=8,
                        border=b_all(PURPLE_FG))
                     if terminee:
@@ -877,13 +865,14 @@ def export_resume_excel(request):
                     sc(ws.cell(row=base + 4, column=col),
                        value=f"{arr_s}  →  {dep_s}" if has_data else '—',
                        bg=bg_day, fg=DARK, bold=True, size=9, border=b_all())
+                    # ✅ Utilisation de fmt_duree pour les retards et heures sup
                     sc(ws.cell(row=base + 5, column=col),
-                       value=f"Retard : {fmt_hm(h_ret)}",
+                       value=f"Retard : {matin.get_retard_minutes if matin else 0}min" if h_ret.total_seconds() > 0 else '—',
                        bg=RED_BG if h_ret.total_seconds() > 0 else bg_day,
                        fg=RED_FG if h_ret.total_seconds() > 0 else '999999',
                        size=8, italic=True, border=b_all())
                     sc(ws.cell(row=base + 6, column=col),
-                       value=f"H.sup : {fmt_hm(h_sup)}",
+                       value=f"H.sup : {fmt_duree(Pointage(heures_travaillees=h_sup))}" if h_sup.total_seconds() > 0 else '—',
                        bg=GREEN_BG if h_sup.total_seconds() > 0 else bg_day,
                        fg=GREEN_FG if h_sup.total_seconds() > 0 else '999999',
                        size=8, italic=True, border=b_all())
@@ -894,10 +883,12 @@ def export_resume_excel(request):
             # Colonne TOTAL
             ws.merge_cells(start_row=base, start_column=COL_TOTAL,
                            end_row=base + 6, end_column=COL_TOTAL)
+            
+            # ✅ Utilisation de get_duree_formatee() pour les totaux
             total_lines = [
-                f"Retards :\n{fmt_hm(tot_retard)}",
-                f"\nH. Travaillées :\n{fmt_hm(tot_trav)}",
-                f"\nH. Supp :\n{fmt_hm(tot_sup)}",
+                f"Retards :\n{Pointage(heures_travaillees=tot_retard).get_duree_formatee()}" if tot_retard.total_seconds() > 0 else "Retards :\n0h00",
+                f"\nH. Travaillées :\n{Pointage(heures_travaillees=tot_trav).get_duree_formatee()}",
+                f"\nH. Supp :\n{Pointage(heures_travaillees=tot_sup).get_duree_formatee()}" if tot_sup.total_seconds() > 0 else "\nH. Supp :\n0h00",
             ]
             if tot_gardes > 0:
                 total_lines.append(f"\nGardes :\n{tot_gardes}")
@@ -912,7 +903,6 @@ def export_resume_excel(request):
 
         ws.freeze_panes = f'{get_column_letter(COL_DAYS)}{HEADER_ROW + 1}'
 
-        # --- Création de la réponse HTTP ---
         filename = f"resume_pointages_{date_debut.strftime('%Y%m%d')}_{date_fin.strftime('%Y%m%d')}.xlsx"
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -922,18 +912,9 @@ def export_resume_excel(request):
         return response
 
     except Exception as e:
-        # En cas d'erreur pendant la génération, on retourne une réponse d'erreur
         return HttpResponse(f"Erreur lors de la génération du fichier : {str(e)}", status=500)
 
-    # Sécurité ultime (ne devrait jamais être atteint)
     return HttpResponse("Erreur inattendue : aucun retour explicite.", status=500)
-
-
-    def _format_timedelta(td):
-        if not td:
-            return '-'
-        total_seconds = int(td.total_seconds())
-        return f"{total_seconds // 3600:02d}:{(total_seconds % 3600) // 60:02d}"
 
 
 # ---------------------------

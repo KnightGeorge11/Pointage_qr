@@ -43,7 +43,7 @@ class HomeScreen(tk.Frame):
         self.status_dot.pack(side="left")
         self.status_circle = self.status_dot.create_oval(1, 1, 11, 11, fill=COLORS["success"], outline="")
         self.status_label = tk.Label(status_card, text="Connecté à l'API", bg=COLORS["card"],
-                                      fg="#444444", font=("Segoe UI", 10), anchor="w")
+                                      fg=COLORS["muted"], font=("Segoe UI", 10), anchor="w")
         self.status_label.pack(side="left", padx=(10, 0))
 
         # Carte site sélectionné (cliquable)
@@ -88,13 +88,13 @@ class HomeScreen(tk.Frame):
 
         scan_btn = tk.Button(actions, text="📷\nScanner", bg=COLORS["dark"], fg="white",
                               font=("Segoe UI", 11, "bold"), relief="flat", bd=0, pady=26,
-                              activebackground="#333333", activeforeground="white",
+                              activebackground=COLORS["muted"], activeforeground="white",
                               command=self._on_scan_press, cursor="hand2")
         scan_btn.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
 
         history_btn = tk.Button(actions, text="📋\nHistorique", bg=COLORS["card"], fg=COLORS["dark"],
                                  font=("Segoe UI", 11, "bold"), relief="flat", bd=0, pady=26,
-                                 activebackground="#eeeeee", activeforeground=COLORS["dark"],
+                                 activebackground=COLORS["bg_alt"], activeforeground=COLORS["dark"],
                                  command=lambda: self.app.navigate("HistoryScreen"), cursor="hand2")
         history_btn.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
 

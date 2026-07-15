@@ -8,6 +8,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera'
 import { Ionicons } from '@expo/vector-icons'
 import { useAppContext } from '../context/AppContext'
 import { apiService } from '../services/api'
+import { colors, radius } from '../theme/colors'
 
 export default function ScanScreen() {
   const { selectedSite } = useAppContext()
@@ -22,7 +23,7 @@ export default function ScanScreen() {
   if (!permission)         return <View />
   if (!permission.granted) return (
     <View style={styles.permissionContainer}>
-      <Ionicons name="camera-outline" size={48} color="#ccc" />
+      <Ionicons name="camera-outline" size={48} color={colors.inkMuted} />
       <Text style={styles.permissionText}>Permission caméra requise</Text>
       <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
         <Text style={styles.permissionButtonText}>Autoriser</Text>
@@ -35,49 +36,11 @@ export default function ScanScreen() {
     employeeQr: string,
     siteId: number,
     currentMode: 'day' | 'night',
-    options: { forceSortie?: boolean; confirmerAutorisation?: boolean; forceNew?: boolean } = {}
+    options: { forceNew?: boolean } = {}
   ) => {
     try {
       const result = await apiService.recordScan(employeeQr, siteId, currentMode, options)
 
-      // ── Sortie anticipée : demande de confirmation ──────────────────
-      if (result.status === 'confirm_required' && result.code === 'SORTIE_ANTICIPEE') {
-        setLoading(false)
-        setScanned(false)
-        setHint('Placez le QR code dans le cadre')
-
-        const autoDisponible = result.autorisation_disponible as boolean
-        const confirmLabel   = autoDisponible
-          ? 'Confirmer la sortie'
-          : 'Forcer la sortie (quota épuisé)'
-
-        Alert.alert(
-          '⏰ Sortie anticipée',
-          result.message,
-          [
-            {
-              text: confirmLabel,
-              style: autoDisponible ? 'default' : 'destructive',
-              onPress: () => {
-                setScanned(true)
-                setLoading(true)
-                setHint('Confirmation en cours...')
-                doRecordScan(employeeQr, siteId, currentMode, {
-                  forceSortie: true,
-                  confirmerAutorisation: true,
-                })
-              },
-            },
-            {
-              text: 'Annuler',
-              style: 'cancel',
-            },
-          ]
-        )
-        return
-      }
-
-      // ── Réponse normale ────────────────────────────────────────────
       if (result.status === 'success') {
         Alert.alert('✅ Succès', result.message || 'Pointage enregistré')
       } else {
@@ -184,7 +147,7 @@ export default function ScanScreen() {
           <View style={[styles.corner, styles.cornerBR]} />
           {loading && (
             <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color="#fff" />
+              <ActivityIndicator size="large" color={colors.white} />
             </View>
           )}
         </View>
@@ -197,21 +160,21 @@ export default function ScanScreen() {
               style={[styles.modeOption, mode === 'day' && styles.modeOptionActive]}
               onPress={() => setMode('day')}
             >
-              <Ionicons name="sunny-outline" size={16} color={mode === 'day' ? '#1a1a1a' : 'rgba(255,255,255,0.6)'} />
+              <Ionicons name="sunny-outline" size={16} color={mode === 'day' ? colors.ink : 'rgba(255,255,255,0.6)'} />
               <Text style={[styles.modeOptionText, mode === 'day' && styles.modeOptionTextActive]}>Jour</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.modeOption, mode === 'night' && styles.modeOptionActive]}
+              style={[styles.modeOption, mode === 'night' && styles.modeOptionActiveNight]}
               onPress={() => setMode('night')}
             >
-              <Ionicons name="moon-outline" size={16} color={mode === 'night' ? '#1a1a1a' : 'rgba(255,255,255,0.6)'} />
-              <Text style={[styles.modeOptionText, mode === 'night' && styles.modeOptionTextActive]}>Nuit</Text>
+              <Ionicons name="moon-outline" size={16} color={mode === 'night' ? colors.white : 'rgba(255,255,255,0.6)'} />
+              <Text style={[styles.modeOptionText, mode === 'night' && styles.modeOptionTextActiveNight]}>Nuit</Text>
             </TouchableOpacity>
           </View>
 
           {scanned && !loading && (
             <TouchableOpacity style={styles.rescanButton} onPress={() => { setScanned(false); setHint('Placez le QR code dans le cadre') }}>
-              <Ionicons name="refresh-outline" size={18} color="#fff" />
+              <Ionicons name="refresh-outline" size={18} color={colors.white} />
               <Text style={styles.rescanText}>Scanner à nouveau</Text>
             </TouchableOpacity>
           )}
@@ -229,12 +192,12 @@ const styles = StyleSheet.create({
   camera:    { flex: 1 },
 
   permissionContainer: {
-    flex: 1, backgroundColor: '#f5f5f7',
+    flex: 1, backgroundColor: colors.surface,
     justifyContent: 'center', alignItems: 'center', gap: 16, padding: 40,
   },
-  permissionText:       { fontSize: 16, color: '#888', textAlign: 'center' },
-  permissionButton:     { backgroundColor: '#1a1a1a', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
-  permissionButtonText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  permissionText:       { fontSize: 16, color: colors.inkMuted, textAlign: 'center' },
+  permissionButton:     { backgroundColor: colors.ink, paddingHorizontal: 24, paddingVertical: 12, borderRadius: radius.md },
+  permissionButtonText: { color: colors.white, fontWeight: '600', fontSize: 15 },
 
   siteInfo: {
     position: 'absolute', top: 60, alignSelf: 'center',
@@ -248,7 +211,7 @@ const styles = StyleSheet.create({
     position: 'absolute', top: '28%', alignSelf: 'center',
     width: 240, height: 240, justifyContent: 'center', alignItems: 'center',
   },
-  corner:     { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE, borderColor: '#fff' },
+  corner:     { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE, borderColor: colors.white },
   cornerTL:   { top: 0, left: 0,   borderTopWidth: CORNER_THICKNESS,    borderLeftWidth: CORNER_THICKNESS,  borderTopLeftRadius: 4 },
   cornerTR:   { top: 0, right: 0,  borderTopWidth: CORNER_THICKNESS,    borderRightWidth: CORNER_THICKNESS, borderTopRightRadius: 4 },
   cornerBL:   { bottom: 0, left: 0,  borderBottomWidth: CORNER_THICKNESS, borderLeftWidth: CORNER_THICKNESS,  borderBottomLeftRadius: 4 },
@@ -270,15 +233,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: 30, padding: 4,
   },
-  modeOption:           { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 26, gap: 6 },
-  modeOptionActive:     { backgroundColor: '#fff' },
-  modeOptionText:       { color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '500' },
-  modeOptionTextActive: { color: '#1a1a1a', fontWeight: '600' },
+  modeOption:            { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 26, gap: 6 },
+  modeOptionActive:      { backgroundColor: colors.white },
+  // Nuit : accent ambre distinctif, comme sur la page web (periode_nuit:checked) et l'app desktop
+  modeOptionActiveNight: { backgroundColor: colors.amber },
+  modeOptionText:            { color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '500' },
+  modeOptionTextActive:      { color: colors.ink, fontWeight: '600' },
+  modeOptionTextActiveNight: { color: colors.white, fontWeight: '600' },
 
   rescanButton: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: 'rgba(255,255,255,0.15)', paddingVertical: 10,
     paddingHorizontal: 20, borderRadius: 25,
   },
-  rescanText: { color: '#fff', fontWeight: '500', fontSize: 14 },
+  rescanText: { color: colors.white, fontWeight: '500', fontSize: 14 },
 })

@@ -18,13 +18,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import { apiService, TodayPointage } from '../services/api';
+import { colors } from '../theme/colors';
 
 const REFRESH_INTERVAL_MS = 30_000;
 
 const PERIODE_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-  matin:      { label: 'Matin',      color: '#F59E0B', icon: 'sunny-outline' },
-  apres_midi: { label: 'Après-midi', color: '#3B82F6', icon: 'partly-sunny-outline' },
-  nuit:       { label: 'Nuit',       color: '#7C3AED', icon: 'moon-outline' },
+  matin:      { label: 'Matin',      color: colors.amberText, icon: 'sunny-outline' },
+  apres_midi: { label: 'Après-midi', color: colors.blueText,  icon: 'partly-sunny-outline' },
+  nuit:       { label: 'Nuit',       color: '#7c3aed',        icon: 'moon-outline' },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ function isToday(d: Date): boolean {
 // ── Carte pointage ────────────────────────────────────────────────────────────
 
 const PointageCard = ({ item, showSite }: { item: TodayPointage; showSite: boolean }) => {
-  const cfg = PERIODE_CONFIG[item.periode] ?? { label: item.periode, color: '#888', icon: 'time-outline' };
+  const cfg = PERIODE_CONFIG[item.periode] ?? { label: item.periode, color: colors.inkMuted, icon: 'time-outline' };
   const enCours = !!item.heure_arrivee && !item.heure_depart;
   const parti   = !!item.heure_arrivee && !!item.heure_depart;
 
@@ -64,9 +65,9 @@ const PointageCard = ({ item, showSite }: { item: TodayPointage; showSite: boole
       {/* Ligne 1 : Nom + badge statut */}
       <View style={styles.cardTop}>
         <Text style={styles.empNom} numberOfLines={1}>{item.employe_nom}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: enCours ? '#DCFCE7' : parti ? '#F3F4F6' : '#FEE2E2' }]}>
-          <View style={[styles.statusDot, { backgroundColor: enCours ? '#16A34A' : parti ? '#9CA3AF' : '#EF4444' }]} />
-          <Text style={[styles.statusText, { color: enCours ? '#15803D' : parti ? '#6B7280' : '#DC2626' }]}>
+        <View style={[styles.statusBadge, { backgroundColor: enCours ? colors.greenDim : parti ? colors.surfaceAlt : colors.redDim }]}>
+          <View style={[styles.statusDot, { backgroundColor: enCours ? colors.green : parti ? colors.inkMuted : colors.red }]} />
+          <Text style={[styles.statusText, { color: enCours ? colors.greenText : parti ? colors.inkMuted : colors.redText }]}>
             {enCours ? 'En cours' : parti ? 'Parti' : 'Absent'}
           </Text>
         </View>
@@ -102,13 +103,13 @@ const PointageCard = ({ item, showSite }: { item: TodayPointage; showSite: boole
         <View style={styles.cardBottom}>
           {showSite && item.site ? (
             <View style={styles.siteRow}>
-              <Ionicons name="location-outline" size={12} color="#bbb" />
+              <Ionicons name="location-outline" size={12} color={colors.inkMuted} />
               <Text style={styles.siteName}>{item.site}</Text>
             </View>
           ) : <View />}
           {item.retard && item.retard !== '0:00:00' && (
             <View style={styles.retardRow}>
-              <Ionicons name="alert-circle" size={12} color="#EF4444" />
+              <Ionicons name="alert-circle" size={12} color={colors.red} />
               <Text style={styles.retardText}>Retard</Text>
             </View>
           )}
@@ -121,7 +122,7 @@ const PointageCard = ({ item, showSite }: { item: TodayPointage; showSite: boole
 // ── Écran principal ───────────────────────────────────────────────────────────
 
 const HistoryScreen = ({ navigation }: any) => {
-  const { selectedSite, sites } = useAppContext();
+  const { selectedSite, sites, setSites } = useAppContext();
 
   const [date, setDate]           = useState(new Date());
   const [siteId, setSiteId]       = useState<number | null>(selectedSite?.id ?? null);
@@ -153,6 +154,15 @@ const HistoryScreen = ({ navigation }: any) => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Si la liste globale des sites n'a pas encore été chargée (ex : l'utilisateur
+  // arrive directement sur cet écran sans être passé par la sélection de site),
+  // on la charge nous-mêmes pour que le filtre par site fonctionne quand même.
+  useEffect(() => {
+    if (!sites || sites.length === 0) {
+      apiService.getSites().then(setSites).catch(() => {});
+    }
+  }, []);
 
   // Auto-refresh uniquement si on affiche aujourd'hui
   useEffect(() => {
@@ -202,21 +212,21 @@ const HistoryScreen = ({ navigation }: any) => {
         {/* Navigation date */}
         <View style={styles.dateNav}>
           <TouchableOpacity onPress={prevDay} style={styles.navArrow}>
-            <Ionicons name="chevron-back" size={18} color="#555" />
+            <Ionicons name="chevron-back" size={18} color={colors.inkMuted} />
           </TouchableOpacity>
           <TouchableOpacity onPress={goToday} style={styles.dateBtn}>
             <Text style={styles.dateBtnText}>{getDateLabel(date)}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={nextDay} style={[styles.navArrow, isToday(date) && styles.navArrowDisabled]}>
-            <Ionicons name="chevron-forward" size={18} color={isToday(date) ? '#ccc' : '#555'} />
+            <Ionicons name="chevron-forward" size={18} color={isToday(date) ? colors.line : colors.inkMuted} />
           </TouchableOpacity>
         </View>
 
         {/* Sélecteur de site */}
         <TouchableOpacity style={styles.siteBtn} onPress={() => setShowSitePicker(v => !v)}>
-          <Ionicons name="location-outline" size={13} color="#555" />
+          <Ionicons name="location-outline" size={13} color={colors.inkMuted} />
           <Text style={styles.siteBtnText} numberOfLines={1}>{siteLabel}</Text>
-          <Ionicons name={showSitePicker ? 'chevron-up' : 'chevron-down'} size={13} color="#555" />
+          <Ionicons name={showSitePicker ? 'chevron-up' : 'chevron-down'} size={13} color={colors.inkMuted} />
         </TouchableOpacity>
       </View>
 
@@ -230,7 +240,7 @@ const HistoryScreen = ({ navigation }: any) => {
             <Text style={[styles.sitePickerText, !siteId && styles.sitePickerTextActive]}>
               Tous les sites
             </Text>
-            {!siteId && <Ionicons name="checkmark" size={16} color="#007AFF" />}
+            {!siteId && <Ionicons name="checkmark" size={16} color={colors.blue} />}
           </TouchableOpacity>
           {(sites ?? []).map(s => (
             <TouchableOpacity
@@ -241,7 +251,7 @@ const HistoryScreen = ({ navigation }: any) => {
               <Text style={[styles.sitePickerText, siteId === s.id && styles.sitePickerTextActive]}>
                 {s.nom}
               </Text>
-              {siteId === s.id && <Ionicons name="checkmark" size={16} color="#007AFF" />}
+              {siteId === s.id && <Ionicons name="checkmark" size={16} color={colors.blue} />}
             </TouchableOpacity>
           ))}
         </View>
@@ -255,12 +265,12 @@ const HistoryScreen = ({ navigation }: any) => {
           </Text>
           <Text style={styles.statsDot}>·</Text>
           <View style={styles.statsItem}>
-            <View style={[styles.statusDot, { backgroundColor: '#16A34A' }]} />
+            <View style={[styles.statusDot, { backgroundColor: colors.green }]} />
             <Text style={styles.statsText}>{nbPresents} présent{nbPresents !== 1 ? 's' : ''}</Text>
           </View>
           <Text style={styles.statsDot}>·</Text>
           <View style={styles.statsItem}>
-            <View style={[styles.statusDot, { backgroundColor: '#9CA3AF' }]} />
+            <View style={[styles.statusDot, { backgroundColor: colors.inkMuted }]} />
             <Text style={styles.statsText}>{nbPartis} parti{nbPartis !== 1 ? 's' : ''}</Text>
           </View>
         </View>
@@ -269,11 +279,11 @@ const HistoryScreen = ({ navigation }: any) => {
       {/* Contenu */}
       {loading && !refreshing ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#1a1a1a" />
+          <ActivityIndicator size="large" color={colors.ink} />
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <Ionicons name="alert-circle-outline" size={48} color="#ccc" />
+          <Ionicons name="alert-circle-outline" size={48} color={colors.line} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => fetchData()}>
             <Text style={styles.retryText}>Réessayer</Text>
@@ -281,14 +291,14 @@ const HistoryScreen = ({ navigation }: any) => {
         </View>
       ) : data.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="calendar-outline" size={48} color="#ddd" />
+          <Ionicons name="calendar-outline" size={48} color={colors.line} />
           <Text style={styles.emptyText}>Aucun pointage pour cette journée</Text>
         </View>
       ) : (
         <ScrollView
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1a1a1a" />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
           }
         >
           {data.map(item => (
@@ -305,14 +315,14 @@ export default HistoryScreen;
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container:   { flex: 1, backgroundColor: '#f5f5f7' },
+  container:   { flex: 1, backgroundColor: colors.surface },
 
   header: {
     paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4,
     flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between',
   },
-  title:       { fontSize: 26, fontWeight: '700', color: '#1a1a1a' },
-  refreshHint: { fontSize: 11, color: '#bbb', fontWeight: '400' },
+  title:       { fontSize: 26, fontWeight: '700', color: colors.ink },
+  refreshHint: { fontSize: 11, color: colors.inkMuted, fontWeight: '400' },
 
   // Filtres
   filtersBar: {
@@ -323,34 +333,34 @@ const styles = StyleSheet.create({
   navArrow: { padding: 6 },
   navArrowDisabled: { opacity: 0.3 },
   dateBtn: {
-    backgroundColor: '#fff', borderRadius: 10,
+    backgroundColor: colors.white, borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: 7,
     shadowColor: '#000', shadowOpacity: 0.04, shadowOffset: { width: 0, height: 1 }, shadowRadius: 4, elevation: 1,
   },
-  dateBtnText: { fontSize: 14, fontWeight: '600', color: '#1a1a1a' },
+  dateBtnText: { fontSize: 14, fontWeight: '600', color: colors.ink },
 
   siteBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#fff', borderRadius: 10,
+    backgroundColor: colors.white, borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 7, flex: 1,
     shadowColor: '#000', shadowOpacity: 0.04, shadowOffset: { width: 0, height: 1 }, shadowRadius: 4, elevation: 1,
   },
-  siteBtnText: { flex: 1, fontSize: 13, color: '#555', fontWeight: '500' },
+  siteBtnText: { flex: 1, fontSize: 13, color: colors.inkMuted, fontWeight: '500' },
 
   // Dropdown site
   sitePicker: {
-    marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 12,
+    marginHorizontal: 20, backgroundColor: colors.white, borderRadius: 12,
     shadowColor: '#000', shadowOpacity: 0.08, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 4,
     marginBottom: 4, zIndex: 100,
   },
   sitePickerItem: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 13,
-    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
+    borderBottomWidth: 1, borderBottomColor: colors.lineSoft,
   },
-  sitePickerItemActive: { backgroundColor: '#F0F7FF' },
-  sitePickerText:       { fontSize: 14, color: '#333' },
-  sitePickerTextActive: { color: '#007AFF', fontWeight: '600' },
+  sitePickerItemActive: { backgroundColor: colors.blueDim },
+  sitePickerText:       { fontSize: 14, color: colors.ink },
+  sitePickerTextActive: { color: colors.blue, fontWeight: '600' },
 
   // Stats
   statsRow: {
@@ -358,43 +368,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingBottom: 8,
   },
   statsItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  statsText: { fontSize: 12, color: '#888', fontWeight: '500' },
-  statsDot:  { fontSize: 12, color: '#ccc' },
+  statsText: { fontSize: 12, color: colors.inkMuted, fontWeight: '500' },
+  statsDot:  { fontSize: 12, color: colors.line },
 
   // Contenu
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, padding: 40 },
-  errorText: { fontSize: 14, color: '#EF4444', textAlign: 'center' },
-  emptyText: { fontSize: 14, color: '#bbb', textAlign: 'center' },
-  retryBtn:  { backgroundColor: '#1a1a1a', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
-  retryText: { color: '#fff', fontWeight: '600' },
+  errorText: { fontSize: 14, color: colors.red, textAlign: 'center' },
+  emptyText: { fontSize: 14, color: colors.inkMuted, textAlign: 'center' },
+  retryBtn:  { backgroundColor: colors.ink, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
+  retryText: { color: colors.white, fontWeight: '600' },
   list:      { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 30, gap: 8 },
 
   // Carte
   card: {
-    backgroundColor: '#fff', borderRadius: 14, padding: 14,
+    backgroundColor: colors.white, borderRadius: 14, padding: 14,
     shadowColor: '#000', shadowOpacity: 0.04, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6, elevation: 2,
   },
   cardTop:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
-  empNom:   { fontSize: 15, fontWeight: '700', color: '#1a1a1a', flex: 1, marginRight: 8 },
-  empPoste: { fontSize: 12, color: '#aaa', marginBottom: 8 },
+  empNom:   { fontSize: 15, fontWeight: '700', color: colors.ink, flex: 1, marginRight: 8 },
+  empPoste: { fontSize: 12, color: colors.inkMuted, marginBottom: 8 },
 
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   statusDot:   { width: 7, height: 7, borderRadius: 4 },
   statusText:  { fontSize: 12, fontWeight: '600' },
 
   cardMiddle: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
-  heures:     { fontSize: 17, fontWeight: '700', color: '#1a1a1a' },
-  arrow:      { fontSize: 14, color: '#bbb', fontWeight: '400' },
+  heures:     { fontSize: 17, fontWeight: '700', color: colors.ink },
+  arrow:      { fontSize: 14, color: colors.inkMuted, fontWeight: '400' },
 
   periodeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   periodeText:  { fontSize: 11, fontWeight: '600' },
 
-  gardeBadge: { backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  gardeText:  { fontSize: 11, fontWeight: '600', color: '#D97706' },
+  gardeBadge: { backgroundColor: colors.amberDim, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  gardeText:  { fontSize: 11, fontWeight: '600', color: colors.amberText },
 
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
   siteRow:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  siteName:   { fontSize: 12, color: '#bbb' },
+  siteName:   { fontSize: 12, color: colors.inkMuted },
   retardRow:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  retardText: { fontSize: 12, color: '#EF4444', fontWeight: '600' },
+  retardText: { fontSize: 12, color: colors.red, fontWeight: '600' },
 });

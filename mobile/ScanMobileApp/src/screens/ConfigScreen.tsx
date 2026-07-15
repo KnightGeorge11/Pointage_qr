@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'
 import { useAppContext, ApiStatus } from '../context/AppContext'
-import { apiService, testConnection, setBaseUrl, getCurrentServerUrl } from '../services/api'
+import { testConnection, setBaseUrl, getCurrentServerUrl } from '../services/api'
+import { colors, radius } from '../theme/colors'
 
 const ConfigScreen = () => {
   const { apiStatus, setApiStatus } = useAppContext()
@@ -58,19 +59,19 @@ const ConfigScreen = () => {
       />
 
       <TouchableOpacity style={styles.button} onPress={handleSave} disabled={isSaving}>
-        {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sauvegarder</Text>}
+        {isSaving ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Sauvegarder</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.button, { backgroundColor: '#4CAF50' }]}
+        style={[styles.button, { backgroundColor: colors.green }]}
         onPress={handleTestConnection}
         disabled={isTesting}
       >
-        {isTesting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Tester la connexion</Text>}
+        {isTesting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Tester la connexion</Text>}
       </TouchableOpacity>
 
       {testResult && (
-        <Text style={[styles.resultText, { color: testResult.includes('réussie') ? '#15803D' : '#B91C1C' }]}>
+        <Text style={[styles.resultText, { color: testResult.includes('réussie') ? colors.greenText : colors.redText }]}>
           {testResult}
         </Text>
       )}
@@ -81,16 +82,16 @@ const ConfigScreen = () => {
 export default ConfigScreen
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#f5f5f5' },
-  label: { fontSize: 16, fontWeight: '600', marginTop: 15, marginBottom: 5, color: '#333' },
+  container: { flex: 1, padding: 20, backgroundColor: colors.surface },
+  label: { fontSize: 16, fontWeight: '600', marginTop: 15, marginBottom: 5, color: colors.ink },
   input: {
-    backgroundColor: '#fff', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 15,
-    fontSize: 16, marginBottom: 10, borderWidth: 1, borderColor: '#ccc',
+    backgroundColor: colors.white, borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 15,
+    fontSize: 16, marginBottom: 10, borderWidth: 1, borderColor: colors.line,
   },
   button: {
-    backgroundColor: '#007AFF', borderRadius: 12, paddingVertical: 15,
+    backgroundColor: colors.ink, borderRadius: radius.md, paddingVertical: 15,
     alignItems: 'center', marginTop: 15,
   },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: '600' },
   resultText: { marginTop: 20, fontSize: 16, fontWeight: '500', textAlign: 'center' },
 })

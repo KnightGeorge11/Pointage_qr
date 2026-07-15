@@ -1,5 +1,3 @@
-# pointage/models.py
-
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 import qrcode
@@ -76,7 +74,6 @@ class Employe(models.Model):
             box_size=10,
             border=4,
         )
-        # Format : EMPLOYE:matricule:uuid_token
         data = f"EMPLOYE:{self.matricule}:{self.qr_code_token}"
         qr.add_data(data)
         qr.make(fit=True)
@@ -182,6 +179,7 @@ class Pointage(models.Model):
     employe          = models.ForeignKey(Employe, on_delete=models.CASCADE, related_name='pointages')
     site             = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='pointages')
     date_pointage    = models.DateField()
+    date_depart      = models.DateField(null=True, blank=True)  # ✅ NOUVEAU : date réelle de fin pour les gardes
     periode          = models.CharField(max_length=20, choices=PERIODE_CHOICES)
     type_journee     = models.CharField(max_length=20, choices=TYPE_JOURNEE_CHOICES, default='normal', db_index=True)
 
@@ -202,6 +200,19 @@ class Pointage(models.Model):
     def get_display_name(self) -> str:
         return f"Pointage {self.employe.get_nom_complet()} - {self.date_pointage.strftime('%d/%m/%Y')} ({self.periode})"
 
+    def get_duree_formatee(self) -> str:
+        """Retourne la durée formatée en 'Xj XhXX' ou 'XhXX'"""
+        if not self.heures_travaillees:
+            return "0h00"
+        total_secondes = int(self.heures_travaillees.total_seconds())
+        jours = total_secondes // 86400
+        heures = (total_secondes % 86400) // 3600
+        minutes = (total_secondes % 3600) // 60
+        
+        if jours > 0:
+            return f"{jours}j {heures}h{minutes:02d}"
+        return f"{heures}h{minutes:02d}"
+
     def calculer_retard(self):
         if self.periode == 'nuit':
             self.retard = timedelta(0)
@@ -218,11 +229,6 @@ class Pointage(models.Model):
             ouverture_dt = datetime.combine(self.date_pointage, heure_ouverture)
             retard_brut  = arrivee_dt - ouverture_dt
 
-            # Pour l'après-midi : soustraire la durée de pause autorisée
-            # (intervalle entre fermeture matin et ouverture après-midi du site)
-            # afin de ne pas comptabiliser la pause comme du retard.
-            # Exemple : ouverture AM = 13h30, fermeture matin = 12h00
-            # → pause = 1h30. Si l'employé arrive à 13h45, retard réel = 15 min.
             if self.periode == 'apres_midi':
                 _, fermeture_matin = self.site.get_horaires_pour_periode('matin')
                 if fermeture_matin:
@@ -231,39 +237,66 @@ class Pointage(models.Model):
                     ) - datetime.combine(
                         self.date_pointage, fermeture_matin
                     )
-                    # Sécurité : ne soustraire que si la pause est positive
                     if pause_duree > timedelta(0):
-                        retard_brut = retard_brut  # déjà calculé depuis ouverture AM
+                        retard_brut = retard_brut
 
             self.retard = max(retard_brut, timedelta(0))
         else:
             self.retard = timedelta(0)
 
     def calculer_heures_travaillees(self):
+        """Calcule les heures travaillées en gérant correctement les gardes de nuit qui chevauchent minuit"""
         if not self.heure_arrivee:
             self.heures_travaillees = timedelta(0)
             return
 
+        tz = timezone.get_current_timezone()
+        
         if self.periode == 'nuit':
+            # GARDE DE NUIT
             if self.heure_depart:
-                debut = datetime.combine(self.date_pointage, self.heure_arrivee)
-                fin   = datetime.combine(self.date_pointage, self.heure_depart)
-                tz    = timezone.get_current_timezone()
-                debut = timezone.make_aware(debut, tz)
-                fin   = timezone.make_aware(fin, tz)
-                if fin < debut:
-                    fin += timedelta(days=1)
-                self.heures_travaillees = fin - debut
+                # Date d'arrivée = date_pointage
+                date_arrivee = self.date_pointage
+                
+                # Date de départ = date_depart si renseignée, sinon date_pointage
+                if self.date_depart:
+                    date_depart = self.date_depart
+                else:
+                    # Fallback : si heure_depart < heure_arrivee, c'est le lendemain
+                    date_depart = self.date_pointage
+                    if self.heure_depart < self.heure_arrivee:
+                        date_depart += timedelta(days=1)
+                
+                arrivee = timezone.make_aware(
+                    datetime.combine(date_arrivee, self.heure_arrivee),
+                    tz
+                )
+                depart = timezone.make_aware(
+                    datetime.combine(date_depart, self.heure_depart),
+                    tz
+                )
+                
+                self.heures_travaillees = depart - arrivee
             else:
+                # Pas encore terminé → on calcule jusqu'à maintenant
                 maintenant = timezone.localtime(timezone.now())
-                debut      = datetime.combine(self.date_pointage, self.heure_arrivee)
-                debut      = timezone.make_aware(debut, timezone.get_current_timezone())
-                self.heures_travaillees = maintenant - debut
+                arrivee = timezone.make_aware(
+                    datetime.combine(self.date_pointage, self.heure_arrivee),
+                    tz
+                )
+                self.heures_travaillees = maintenant - arrivee
+                
         else:
+            # PÉRIODE NORMALE (matin / après-midi)
             if self.heure_arrivee and self.heure_depart:
-                tz     = timezone.get_current_timezone()
-                arrivee = timezone.make_aware(datetime.combine(self.date_pointage, self.heure_arrivee), tz)
-                depart  = timezone.make_aware(datetime.combine(self.date_pointage, self.heure_depart),  tz)
+                arrivee = timezone.make_aware(
+                    datetime.combine(self.date_pointage, self.heure_arrivee),
+                    tz
+                )
+                depart = timezone.make_aware(
+                    datetime.combine(self.date_pointage, self.heure_depart),
+                    tz
+                )
                 if depart < arrivee:
                     depart += timedelta(days=1)
                 self.heures_travaillees = depart - arrivee

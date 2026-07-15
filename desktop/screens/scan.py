@@ -50,7 +50,7 @@ class GardeChoiceDialog(tk.Toplevel):
                   relief="flat", pady=8, command=lambda: self._choose("end")).pack(fill="x", pady=3)
         tk.Button(btn_frame, text="Démarrer une nouvelle garde", bg=COLORS["garde"], fg="white",
                   relief="flat", pady=8, command=lambda: self._choose("new")).pack(fill="x", pady=3)
-        tk.Button(btn_frame, text="Annuler", bg="#dddddd", fg=COLORS["dark"],
+        tk.Button(btn_frame, text="Annuler", bg=COLORS["border"], fg=COLORS["dark"],
                   relief="flat", pady=8, command=lambda: self._choose("cancel")).pack(fill="x", pady=3)
 
         self.protocol("WM_DELETE_WINDOW", lambda: self._choose("cancel"))
@@ -99,7 +99,7 @@ class ScanScreen(tk.Frame):
         self.site_info_label.pack(side="left", padx=10)
 
         # ── Bascule source : Webcam / Scanner USB ───────────────────────
-        source_toggle = tk.Frame(top_bar, bg="#222222")
+        source_toggle = tk.Frame(top_bar, bg=COLORS["dark"])
         source_toggle.pack(side="right", padx=10, pady=4)
         self.webcam_btn = tk.Button(source_toggle, text="📷 Webcam", relief="flat", bd=0,
                                      padx=10, pady=5, font=("Segoe UI", 9),
@@ -122,24 +122,24 @@ class ScanScreen(tk.Frame):
         tk.Label(self.usb_panel, text="Scanner USB prêt", bg="black", fg="white",
                  font=("Segoe UI", 14, "bold")).pack()
         tk.Label(self.usb_panel, text="Présentez le badge devant la douchette", bg="black",
-                 fg="#999999", font=("Segoe UI", 10)).pack(pady=(4, 24))
+                 fg=COLORS["muted_light"], font=("Segoe UI", 10)).pack(pady=(4, 24))
         self.usb_var = tk.StringVar()
         self.usb_entry = tk.Entry(self.usb_panel, textvariable=self.usb_var, justify="center",
-                                   font=("Segoe UI", 14), bg="#1a1a1a", fg="white",
+                                   font=("Segoe UI", 14), bg=COLORS["dark"], fg="white",
                                    insertbackground="white", relief="flat", width=30)
         self.usb_entry.pack(ipady=8)
         self.usb_entry.bind("<Return>", self._on_usb_enter)
         tk.Label(self.usb_panel, text="(la saisie manuelle + Entrée fonctionne aussi, pour tester)",
-                 bg="black", fg="#555555", font=("Segoe UI", 8)).pack(pady=(10, 0))
+                 bg="black", fg=COLORS["muted"], font=("Segoe UI", 8)).pack(pady=(10, 0))
 
         self.hint_label = tk.Label(self, text="Placez le QR code dans le cadre", bg="black",
-                                    fg="#cccccc", font=("Segoe UI", 10))
+                                    fg=COLORS["muted_light"], font=("Segoe UI", 10))
         self.hint_label.pack(pady=(0, 6))
 
         bottom = tk.Frame(self, bg="black")
         bottom.pack(pady=(0, 18))
 
-        mode_toggle = tk.Frame(bottom, bg="#222222")
+        mode_toggle = tk.Frame(bottom, bg=COLORS["dark"])
         mode_toggle.pack()
         self.day_btn = tk.Button(mode_toggle, text="☀ Jour", relief="flat", bd=0, padx=18, pady=8,
                                   command=lambda: self._set_mode("day"), cursor="hand2")
@@ -149,7 +149,7 @@ class ScanScreen(tk.Frame):
         self.night_btn.pack(side="left", padx=2, pady=2)
         self._refresh_mode_buttons()
 
-        self.rescan_btn = tk.Button(bottom, text="⟳ Scanner à nouveau", bg="#333333", fg="white",
+        self.rescan_btn = tk.Button(bottom, text="⟳ Scanner à nouveau", bg=COLORS["dark"], fg="white",
                                      relief="flat", padx=16, pady=8, command=self._manual_rescan,
                                      cursor="hand2")
         # Affiché seulement après un scan (comme côté mobile)
@@ -159,10 +159,11 @@ class ScanScreen(tk.Frame):
     def _refresh_mode_buttons(self):
         if self.mode == "day":
             self.day_btn.config(bg="white", fg=COLORS["dark"])
-            self.night_btn.config(bg="#222222", fg="#999999")
+            self.night_btn.config(bg=COLORS["dark"], fg=COLORS["muted_light"])
         else:
-            self.night_btn.config(bg="white", fg=COLORS["dark"])
-            self.day_btn.config(bg="#222222", fg="#999999")
+            # Nuit : accent ambre distinctif, comme sur la page web (periode_nuit:checked)
+            self.night_btn.config(bg=COLORS["warning"], fg="white")
+            self.day_btn.config(bg=COLORS["dark"], fg=COLORS["muted_light"])
 
     def _set_mode(self, mode):
         self.mode = mode
@@ -171,10 +172,10 @@ class ScanScreen(tk.Frame):
     def _refresh_source_buttons(self):
         if self.source == "webcam":
             self.webcam_btn.config(bg="white", fg=COLORS["dark"])
-            self.usb_btn.config(bg="#222222", fg="#999999")
+            self.usb_btn.config(bg=COLORS["dark"], fg=COLORS["muted_light"])
         else:
             self.usb_btn.config(bg="white", fg=COLORS["dark"])
-            self.webcam_btn.config(bg="#222222", fg="#999999")
+            self.webcam_btn.config(bg=COLORS["dark"], fg=COLORS["muted_light"])
 
     def _set_source(self, source):
         if source == self.source:

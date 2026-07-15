@@ -23,9 +23,9 @@ import logging
 REFRESH_INTERVAL_MS = 30_000   # 30 secondes
 
 PERIODE_LABEL = {
-    "matin":      ("Matin",      "#F59E0B", "#FEF3C7"),
-    "apres_midi": ("Après-midi", "#3B82F6", "#DBEAFE"),
-    "nuit":       ("Nuit",       "#7C3AED", "#EDE9FE"),
+    "matin":      ("Matin",      COLORS["warning_text"], COLORS["warning_dim"]),
+    "apres_midi": ("Après-midi", COLORS["primary_text"], COLORS["primary_dim"]),
+    "nuit":       ("Nuit",       "#7c3aed",               "#ede9fe"),
 }
 STATUT_LABEL = {
     "present": ("Présent",   COLORS["success"]),
@@ -306,7 +306,7 @@ class HistoryScreen(tk.Frame):
 
         # ── Couleurs période ───────────────
         periode = p.get("periode", "")
-        p_label, p_fg, p_bg = PERIODE_LABEL.get(periode, (periode, "#888888", "#eeeeee"))
+        p_label, p_fg, p_bg = PERIODE_LABEL.get(periode, (periode, COLORS["muted"], COLORS["bg_alt"]))
 
         # ── Carte ──────────────────────────
         card = tk.Frame(self.list_frame, bg=COLORS["card"], padx=14, pady=10)

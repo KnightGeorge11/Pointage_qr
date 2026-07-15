@@ -41,7 +41,7 @@ class SettingsDialog(tk.Toplevel):
         btn_frame = tk.Frame(self, bg=COLORS["bg"])
         btn_frame.pack(fill="x", padx=20)
 
-        test_btn = tk.Button(btn_frame, text="Tester", command=self._test, bg="#4CAF50", fg="white",
+        test_btn = tk.Button(btn_frame, text="Tester", command=self._test, bg=COLORS["success"], fg="white",
                               relief="flat", padx=10, pady=6)
         test_btn.pack(side="left")
 

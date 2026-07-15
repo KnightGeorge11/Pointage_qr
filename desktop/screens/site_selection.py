@@ -84,7 +84,7 @@ class SiteSelectionScreen(tk.Frame):
 
         for site in sites:
             is_selected = site["id"] == selected_id
-            item_bg = "#E0F7FA" if is_selected else COLORS["card"]
+            item_bg = COLORS["primary_dim"] if is_selected else COLORS["card"]
             item = tk.Frame(self.list_frame, bg=item_bg, padx=16, pady=14, cursor="hand2")
             item.pack(fill="x", pady=4)
 
