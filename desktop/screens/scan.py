@@ -348,32 +348,15 @@ class ScanScreen(tk.Frame):
 
         run_async(self.app, work, on_success=on_success, on_error=on_error)
 
-    def _record_scan(self, employee_qr, site_id, current_mode,
-                     force_new=False, force_sortie=False, confirmer_autorisation=False):
+    def _record_scan(self, employee_qr, site_id, current_mode, force_new=False):
         def work():
             return api_client.record_scan(
                 employee_qr, site_id, current_mode,
-                force_sortie=force_sortie,
-                confirmer_autorisation=confirmer_autorisation,
                 force_new=force_new,
             )
 
         def on_success(result):
             data = result["data"]
-            status = data.get("status")
-
-            # ── Sortie anticipée : demande de confirmation ──────────────
-            if status == "confirm_required" and data.get("code") == "SORTIE_ANTICIPEE":
-                self.loading = False
-                self.scanned = False
-                self._show_sortie_anticipee_dialog(
-                    employee_qr=employee_qr,
-                    site_id=site_id,
-                    current_mode=current_mode,
-                    message=data.get("message", ""),
-                    autorisation_disponible=data.get("autorisation_disponible", False),
-                )
-                return
 
             if result["ok"]:
                 messagebox.showinfo("Succès", data.get("message", "Pointage enregistré"))
@@ -387,31 +370,6 @@ class ScanScreen(tk.Frame):
             self._finish_scan_cycle()
 
         run_async(self.app, work, on_success=on_success, on_error=on_error)
-
-    def _show_sortie_anticipee_dialog(self, employee_qr, site_id, current_mode,
-                                       message, autorisation_disponible):
-        """Dialogue de confirmation de sortie anticipée."""
-        from screens.sortie_anticipee_dialog import SortieAnticipeeDialog
-
-        def on_confirm():
-            self.scanned = True
-            self.loading = True
-            self._record_scan(
-                employee_qr, site_id, current_mode,
-                force_sortie=True,
-                confirmer_autorisation=True,
-            )
-
-        def on_cancel():
-            self._reset_scan_state()
-
-        SortieAnticipeeDialog(
-            self.app,
-            message=message,
-            autorisation_disponible=autorisation_disponible,
-            on_confirm=on_confirm,
-            on_cancel=on_cancel,
-        )
 
     def _reset_scan_state(self):
         self.loading = False

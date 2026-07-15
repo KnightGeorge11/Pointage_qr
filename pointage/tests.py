@@ -1,6 +1,5 @@
 from django.test import TestCase
-from datetime import time
-from .services import parse_qr_data, SEUIL_MIDI
+from .services import parse_qr_data
 
 
 class ParseQRDataTests(TestCase):
@@ -19,8 +18,3 @@ class ParseQRDataTests(TestCase):
         result = parse_qr_data('  EMPLOYE:EMP001:token  ')
         self.assertIsNotNone(result)
         self.assertEqual(result['matricule'], 'EMP001')
-
-
-class ConstantsTests(TestCase):
-    def test_seuil_midi(self):
-        self.assertEqual(SEUIL_MIDI, time(12, 30))

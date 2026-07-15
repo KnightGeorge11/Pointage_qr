@@ -210,7 +210,7 @@ def scanner_view(request):
             messages.error(request, "❌ Veuillez sélectionner un site.")
             return redirect('scanner')
 
-        mode = 'garde' if periode_type == 'nuit' else 'auto'
+        mode = 'garde' if periode_type == 'garde' else 'auto'
 
         result = process_scan(
             matricule=mat,

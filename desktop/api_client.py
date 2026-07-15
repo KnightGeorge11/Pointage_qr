@@ -164,19 +164,15 @@ def check_first_scan(employee_qr: str, site_id: int) -> dict:
 
 
 def record_scan(employee_qr: str, site_id: int, mode: str,
-                force_sortie: bool = False,
-                confirmer_autorisation: bool = False,
                 force_new: bool = False) -> dict:
     try:
         resp = requests.post(
             _url("/api/mobile/scan/record/"),
             json={
-                "employee_qr":            employee_qr,
-                "site_id":                site_id,
-                "mode":                   mode,
-                "force_sortie":           force_sortie,
-                "confirmer_autorisation": confirmer_autorisation,
-                "force_new":              force_new,
+                "employee_qr": employee_qr,
+                "site_id":     site_id,
+                "mode":        mode,
+                "force_new":   force_new,
             },
             timeout=TIMEOUT,
         )
