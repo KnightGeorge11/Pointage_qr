@@ -130,6 +130,25 @@ const SiteSelectionScreen = () => {
     )
   }
 
+  if (connectionError && sites.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <Ionicons name="cloud-offline-outline" size={48} color={colors.inkMuted} />
+          <Text style={styles.errorTitle}>Impossible de contacter le serveur</Text>
+          <Text style={styles.errorDetail}>{connectionError}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => { setLoading(true); loadSites() }}>
+            <Ionicons name="refresh-outline" size={18} color={colors.white} />
+            <Text style={styles.retryText}>Réessayer</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.configButton} onPress={() => navigation.navigate('Config')}>
+            <Text style={styles.configText}>Vérifier l'adresse du serveur</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <FlatList
@@ -163,8 +182,18 @@ const styles = StyleSheet.create({
   siteText: { marginLeft: 16 },
   siteName: { fontSize: 16, fontWeight: 'bold' },
   siteAddress: { fontSize: 14, color: colors.inkMuted },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
   status: { marginTop: 8, fontSize: 16, color: colors.inkMuted },
+  errorTitle: { marginTop: 14, fontSize: 16, fontWeight: '600', color: colors.ink, textAlign: 'center' },
+  errorDetail: { marginTop: 6, fontSize: 13, color: colors.inkMuted, textAlign: 'center' },
+  retryButton: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.ink, paddingHorizontal: 20, paddingVertical: 12,
+    borderRadius: 10, marginTop: 20,
+  },
+  retryText: { color: colors.white, fontWeight: '600', fontSize: 14 },
+  configButton: { marginTop: 14 },
+  configText: { color: colors.blue, fontSize: 14, fontWeight: '500' },
   list: { padding: 16 },
 })
 
