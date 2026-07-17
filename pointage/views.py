@@ -27,7 +27,7 @@ from .forms import EmployeForm, SiteForm, PointageForm, PosteForm
 from .mixins import DemandeRequiredMixin, AdminCodeRequiredMixin, AdminCodeRequiredForGetMixin
 import json
 from decimal import Decimal
-from .services import process_scan, parse_qr_data, get_next_normal_scan_state
+from .services import process_scan, parse_qr_data
 # ---------------------------
 # FONCTIONS UTILITAIRES
 # ---------------------------

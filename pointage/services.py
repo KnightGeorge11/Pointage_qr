@@ -3,12 +3,29 @@
 # SERVICE CENTRAL DE POINTAGE
 # Toutes les vues (web, API, mobile) appellent process_scan().
 # Un seul endroit à maintenir et à tester.
+#
+# Le pointage normal (E1/S1/E2/S2) délègue sa logique métier à la couche
+# domaine pure (domain.py + state_machine.py) via l'adaptateur context.py :
+#
+#   process_scan()
+#       -> collect_day_context()      (lecture DB,   pointage/context.py)
+#       -> DayStateMachine.decide()   (décision pure, pointage/state_machine.py)
+#       -> _apply_scan_decision()     (écriture DB,  ci-dessous)
+#
+# Les gardes de nuit (_process_garde) restent totalement indépendantes de
+# cette logique et ne sont pas concernées par ce flux.
 
+import logging
 from datetime import datetime, time, timedelta
 from django.utils import timezone
 from django.db import transaction
 
 from .models import Employe, Site, Pointage, Scan
+from .domain import ScanDecision, ScanActionType
+from .context import collect_day_context
+from .state_machine import DayStateMachine
+
+logger = logging.getLogger(__name__)
 
 
 # ─── Constantes ──────────────────────────────────────────────────────────────
@@ -16,13 +33,6 @@ from .models import Employe, Site, Pointage, Scan
 SEUIL_DOUBLON_SECONDES = 120          # 2 minutes entre deux scans identiques
 PLAGE_MIN = time(5, 0)                # Heure minimale autorisée (mode normal uniquement)
 PLAGE_MAX = time(23, 0)               # Heure maximale autorisée (mode normal uniquement)
-
-NORMAL_SCAN_STEPS = [
-    ('matin',      'heure_arrivee', 'entree_matin'),
-    ('matin',      'heure_depart',  'sortie_matin'),
-    ('apres_midi', 'heure_arrivee', 'entree_apres_midi'),
-    ('apres_midi', 'heure_depart',  'sortie_apres_midi'),
-]
 
 
 # ─── Fonction principale ──────────────────────────────────────────────────────
@@ -183,73 +193,96 @@ def _process_garde(employe, site, now, force_new=False):
 # ─── Logique pointages normaux (E1 → S1 → E2 → S2) ──────────────────────────
 
 def _process_normal(employe, site, now):
+    """
+    Traite un scan de pointage normal (hors garde de nuit).
+
+    Orchestration pure : cette fonction ne contient elle-même aucune règle
+    métier ni aucun accès direct aux champs de Pointage. Elle relie les
+    trois couches :
+
+    1. collect_day_context()    — lit l'état réel de la journée en base
+                                   (seule fonction autorisée à lire)
+    2. DayStateMachine.decide() — décide, sans effet de bord, si le scan
+                                   est autorisé et quelle action effectuer
+    3. _apply_scan_decision()   — traduit la décision en écriture(s) base
+                                   (seule fonction autorisée à écrire)
+    """
     date_courante = now.date()
-    heure = now.time()
-    return _process_normal_state_machine(
-        employe=employe,
+
+    # lock=True : verrouille les pointages du jour de cet employé pour la
+    # durée de la transaction englobante (ouverte par process_scan), afin
+    # qu'un second scan concurrent ne parte pas d'un état déjà obsolète.
+    context = collect_day_context(
+        employee_id=employe.id,
         site=site,
-        now=now,
-        date_courante=date_courante,
-        heure=heure,
+        date_target=date_courante,
+        current_time=now.time(),
+        lock=True,
     )
 
+    decision = DayStateMachine().decide(context)
 
-# ─── Helpers ─────────────────────────────────────────────────────────────────
+    logger.info(
+        f"[_process_normal] emp={employe.id} site={site.id} "
+        f"time={now.time()} -> {decision}"
+    )
 
-def get_next_normal_scan_state(employe, date_courante, lock=False) -> dict | None:
+    return _apply_scan_decision(decision, employe=employe, site=site, now=now)
+
+
+# ─── Écriture en base suite à une décision ───────────────────────────────────
+
+def _apply_scan_decision(decision: ScanDecision, employe: Employe, site: Site, now) -> dict:
     """
-    Retourne la prochaine etape de pointage normal selon l'ordre obligatoire :
-    entree matin -> sortie matin -> entree apres-midi -> sortie apres-midi.
+    Traduit une ScanDecision (déjà prise, immuable) en écriture(s) base.
 
-    L'heure courante n'intervient jamais dans cette decision.
+    Seule fonction autorisée à effectuer des `save()`, `create()`,
+    `get_or_create()` ou à ouvrir un `transaction.atomic()` pour le
+    pointage normal. Elle ne prend elle-même AUCUNE décision métier :
+    elle exécute fidèlement ce que `DayStateMachine.decide()` a décidé.
+
+    Paramètres
+    ----------
+    decision : ScanDecision
+        Décision retournée par DayStateMachine.decide()
+
+    employe : Employe
+        Employé concerné (déjà validé par process_scan)
+
+    site : Site
+        Site du scan (déjà validé par process_scan)
+
+    now : datetime
+        Horodatage du scan (timezone-aware, heure locale)
+
+    Retour
+    ------
+    dict
+        Réponse standard process_scan : status/code/message/[data]
     """
-    queryset = Pointage.objects
-    if lock:
-        queryset = queryset.select_for_update()
-
-    pointages = {
-        p.periode: p
-        for p in queryset.filter(
-            employe=employe,
-            date_pointage=date_courante,
-            periode__in=['matin', 'apres_midi'],
-            type_journee='normal',
+    # ── Scan refusé : rien à écrire ──────────────────────────────────────
+    if not decision.allowed:
+        logger.info(
+            f"[_apply_scan_decision] Refusé pour emp={employe.id} : "
+            f"{decision.anomaly_code} - {decision.message}"
         )
-    }
+        return {
+            'status': 'warning',
+            'code': decision.anomaly_code.value if decision.anomaly_code else 'REFUSE',
+            'message': decision.message,
+        }
 
-    for periode, champ, type_scan in NORMAL_SCAN_STEPS:
-        pointage = pointages.get(periode)
-        if not pointage or not getattr(pointage, champ):
-            return {
-                'periode': periode,
-                'champ': champ,
-                'type_scan': type_scan,
-            }
+    # ── Scan autorisé : décision -> écriture ─────────────────────────────
+    date_courante = now.date()
+    heure = now.time()
+    periode = decision.period.value      # 'matin' | 'apres_midi'
+    type_scan = decision.action.value    # 'entree_matin', 'sortie_matin', ...
+    is_entry = decision.action in (
+        ScanActionType.MORNING_ENTRY,
+        ScanActionType.AFTERNOON_ENTRY,
+    )
 
-    return None
-
-
-def _process_normal_state_machine(
-    employe,
-    site,
-    now,
-    date_courante,
-    heure,
-):
     with transaction.atomic():
-        prochain = get_next_normal_scan_state(employe, date_courante, lock=True)
-
-        if not prochain:
-            return {
-                'status': 'warning',
-                'code': 'JOURNEE_COMPLETE',
-                'message': "Journee deja complete (4/4 scans enregistres)."
-            }
-
-        periode = prochain['periode']
-        champ = prochain['champ']
-        type_scan = prochain['type_scan']
-
         pointage, created = Pointage.objects.select_for_update().get_or_create(
             employe=employe,
             date_pointage=date_courante,
@@ -257,11 +290,13 @@ def _process_normal_state_machine(
             defaults={'site': site, 'type_journee': 'normal'}
         )
 
-        if not created and pointage.site != site:
-            pointage.site = site
-
-        setattr(pointage, champ, heure)
-        pointage.save()
+        if is_entry:
+            # Le site est fixé à l'entrée de la période et ne change plus
+            # ensuite (règle métier multi-sites : cf. `enregistrer_entree`).
+            pointage.enregistrer_entree(heure, site)
+        else:
+            # Une sortie ne modifie jamais le site : celui de l'entrée fait foi.
+            pointage.enregistrer_sortie(heure)
 
         # Scan et pointage dans la même transaction → cohérence garantie
         scan = Scan.objects.create(
@@ -270,22 +305,24 @@ def _process_normal_state_machine(
             pointage=pointage
         )
 
-    labels = {
-        'entree_matin':        f"Entree matin enregistree a {heure.strftime('%H:%M')}",
-        'sortie_matin':        f"Sortie matin enregistree a {heure.strftime('%H:%M')}",
-        'entree_apres_midi':   f"Entree apres-midi enregistree a {heure.strftime('%H:%M')}",
-        'sortie_apres_midi':   f"Sortie apres-midi enregistree a {heure.strftime('%H:%M')}",
-    }
+    logger.info(
+        f"[_apply_scan_decision] {type_scan} enregistré pour emp={employe.id} "
+        f"à {heure.strftime('%H:%M')} (pointage_créé={created})"
+    )
+
+    # Le message métier principal (decision.message) est complété par
+    # l'avertissement éventuel (decision.warning) — ex. "le matin sera
+    # considéré comme absent" lors d'un premier scan directement l'après-midi.
+    message = decision.message
+    if decision.warning:
+        message = f"{message} {decision.warning}"
 
     return {
         'status': 'success',
         'code': type_scan,
-        'message': labels.get(type_scan, f"Scan enregistre a {heure.strftime('%H:%M')}"),
+        'message': message,
         'data': _build_response_data(scan, pointage, now)
     }
-
-
-
 
 
 def _build_response_data(scan, pointage, now) -> dict:

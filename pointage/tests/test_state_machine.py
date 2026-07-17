@@ -190,7 +190,12 @@ class TestDayStateMachineFromMorningFinished:
         decision = machine.decide(context)
         
         assert decision.allowed is False
-        assert decision.anomaly_code == AnomalyCode.OUTSIDE_HOURS
+        # 13:10 est entre la fin du matin (12:00) et l'ouverture après-midi
+        # (13:30) : c'est la pause déjeuner, pas un dépassement des horaires
+        # globaux du site. Conforme à la règle métier "Pause -> Refuser le
+        # scan" : is_during_break() est prioritaire sur le check de
+        # tolérance d'ouverture après-midi.
+        assert decision.anomaly_code == AnomalyCode.DURING_BREAK
 
 
 class TestDayStateMachineFromAfternoonStarted:
@@ -241,10 +246,13 @@ class TestDayStateMachineFromAfternoonStarted:
         machine = DayStateMachine()
         decision = machine.decide(context)
         
-        # Doit être acceptée car on est dans les heures globales (jusqu'à 17:30 + tolérance 15 min)
-        # 23:59 est hors limites globales
-        assert decision.allowed is False
-        assert decision.anomaly_code == AnomalyCode.OUTSIDE_HOURS
+        # Sortie tardive : toujours autorisée (règle métier), quelle que
+        # soit l'heure. Le filtre global d'heures ne s'applique pas à la
+        # sortie après-midi précisément pour ce genre de cas (garde
+        # prolongée, urgence médicale...).
+        assert decision.allowed is True
+        assert decision.action == ScanActionType.AFTERNOON_EXIT
+        assert decision.warning is not None
 
 
 class TestDayStateMachineFromDayFinished:
@@ -257,7 +265,7 @@ class TestDayStateMachineFromDayFinished:
         
         assert decision.allowed is False
         assert decision.anomaly_code == AnomalyCode.DAY_COMPLETE
-        assert "complet" in decision.message.lower()
+        assert "complète" in decision.message.lower()
 
 
 class TestDayStateMachineScenarios:
@@ -335,7 +343,12 @@ class TestDayStateMachineScenarios:
         assert decision.action == ScanActionType.AFTERNOON_ENTRY
         assert decision.next_state == DayState.AFTERNOON_STARTED
         assert decision.period == PeriodType.AFTERNOON
-        assert "matin sera considéré comme absent" in decision.message
+        # L'avertissement d'absence matin est porté par le champ `warning`,
+        # séparé de `message` par design (cf. ScanDecision) — c'est
+        # `_apply_scan_decision()` côté services.py qui combine les deux
+        # pour l'affichage final à l'utilisateur.
+        assert decision.warning is not None
+        assert "matin sera considéré comme absent" in decision.warning
     
     def test_skip_morning_skip_afternoon_scenario(self, standard_site_schedule):
         """Scénario : entrer matin, puis quitter sans revenir l'après-midi."""

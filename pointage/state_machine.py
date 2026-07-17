@@ -71,27 +71,38 @@ class DayStateMachine:
             f"(site={context.site_id}, emp={context.employee_id})"
         )
         
-        # 1. Vérifier les heures globales
-        if not context.schedule.is_within_global_hours(context.current_time):
-            logger.info(
-                f"[DayStateMachine] Outside global hours: {context.current_time}"
-            )
-            return ScanDecision(
-                allowed=False,
-                message=f"Scan en dehors des heures autorisées "
-                        f"({context.schedule.morning_window.open_time.strftime('%H:%M')}–"
-                        f"{context.schedule.afternoon_window.close_time.strftime('%H:%M')}).",
-                anomaly_code=AnomalyCode.OUTSIDE_HOURS,
-                details={
-                    'current_time': context.current_time.isoformat(),
-                    'morning_open': context.schedule.morning_window.open_time.isoformat(),
-                    'afternoon_close': context.schedule.afternoon_window.close_time.isoformat(),
-                }
-            )
-        
-        # 2. Détecter l'état courant
+        # 1. Détecter l'état courant
         current_state = context.get_current_state()
         logger.debug(f"[DayStateMachine] Current state: {current_state.value}")
+        
+        # 2. Vérifier les heures globales
+        #
+        # Ce filtre ne s'applique PAS à AFTERNOON_STARTED ni à DAY_FINISHED :
+        # - AFTERNOON_STARTED : seule action possible = sortie après-midi.
+        #   Une sortie tardive (heures supplémentaires, urgence médicale...)
+        #   doit TOUJOURS être autorisée (règle métier). C'est
+        #   _decide_from_afternoon_started() qui gère explicitement ce cas
+        #   ("sortie tardive") ; le bloquer ici avant même d'y arriver
+        #   contredirait cette règle.
+        # - DAY_FINISHED : refuse de toute façon systématiquement tout scan,
+        #   peu importe l'heure.
+        if current_state not in (DayState.AFTERNOON_STARTED, DayState.DAY_FINISHED):
+            if not context.schedule.is_within_global_hours(context.current_time):
+                logger.info(
+                    f"[DayStateMachine] Outside global hours: {context.current_time}"
+                )
+                return ScanDecision(
+                    allowed=False,
+                    message=f"Scan en dehors des heures autorisées "
+                            f"({context.schedule.morning_window.open_time.strftime('%H:%M')}–"
+                            f"{context.schedule.afternoon_window.close_time.strftime('%H:%M')}).",
+                    anomaly_code=AnomalyCode.OUTSIDE_HOURS,
+                    details={
+                        'current_time': context.current_time.isoformat(),
+                        'morning_open': context.schedule.morning_window.open_time.isoformat(),
+                        'afternoon_close': context.schedule.afternoon_window.close_time.isoformat(),
+                    }
+                )
         
         # 3. Décider selon l'état
         if current_state == DayState.EMPTY:
@@ -328,7 +339,7 @@ class DayStateMachine:
         logger.info("[DayStateMachine] Day already finished")
         return ScanDecision(
             allowed=False,
-            message="Journée déj�� complète (4/4 scans enregistrés).",
+            message="Journée déjà complète (4/4 scans enregistrés).",
             anomaly_code=AnomalyCode.DAY_COMPLETE,
             details={'state': 'day_finished'}
         )

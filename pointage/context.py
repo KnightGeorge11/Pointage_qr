@@ -102,7 +102,9 @@ def build_site_schedule(site: Site, tolerance_minutes: Optional[int] = None) -> 
     return schedule
 
 
-def _get_morning_pointage(employee_id: int, date_target: date) -> Optional[Pointage]:
+def _get_morning_pointage(
+    employee_id: int, date_target: date, lock: bool = False
+) -> Optional[Pointage]:
     """
     Récupère le pointage matin pour un employé et une date.
     
@@ -114,13 +116,20 @@ def _get_morning_pointage(employee_id: int, date_target: date) -> Optional[Point
     date_target : date
         Date cible
     
+    lock : bool, optional
+        Si True, verrouille la ligne (SELECT ... FOR UPDATE) pour la durée
+        de la transaction englobante. À utiliser uniquement avant une prise
+        de décision qui sera suivie d'une écriture, pour éviter qu'un scan
+        concurrent du même employé ne lise un état obsolète.
+    
     Retour
     ------
     Pointage or None
         Le pointage matin, ou None s'il n'existe pas
     """
+    queryset = Pointage.objects.select_for_update() if lock else Pointage.objects
     try:
-        return Pointage.objects.get(
+        return queryset.get(
             employe_id=employee_id,
             date_pointage=date_target,
             periode='matin',
@@ -130,7 +139,9 @@ def _get_morning_pointage(employee_id: int, date_target: date) -> Optional[Point
         return None
 
 
-def _get_afternoon_pointage(employee_id: int, date_target: date) -> Optional[Pointage]:
+def _get_afternoon_pointage(
+    employee_id: int, date_target: date, lock: bool = False
+) -> Optional[Pointage]:
     """
     Récupère le pointage après-midi pour un employé et une date.
     
@@ -142,13 +153,18 @@ def _get_afternoon_pointage(employee_id: int, date_target: date) -> Optional[Poi
     date_target : date
         Date cible
     
+    lock : bool, optional
+        Si True, verrouille la ligne (SELECT ... FOR UPDATE). Voir
+        `_get_morning_pointage` pour le contexte d'utilisation.
+    
     Retour
     ------
     Pointage or None
         Le pointage après-midi, ou None s'il n'existe pas
     """
+    queryset = Pointage.objects.select_for_update() if lock else Pointage.objects
     try:
-        return Pointage.objects.get(
+        return queryset.get(
             employe_id=employee_id,
             date_pointage=date_target,
             periode='apres_midi',
@@ -162,7 +178,8 @@ def collect_day_context(
     employee_id: int,
     site: Site,
     date_target: Optional[date] = None,
-    current_time: Optional[time] = None
+    current_time: Optional[time] = None,
+    lock: bool = False
 ) -> DayContext:
     """
     Construits un DayContext en lisant la base de données.
@@ -191,6 +208,14 @@ def collect_day_context(
     current_time : time, optional
         Heure courante. Par défaut, maintenant (heure locale)
     
+    lock : bool, optional
+        Si True, verrouille (SELECT ... FOR UPDATE) les pointages du jour
+        pour cet employé le temps de la transaction englobante. À activer
+        quand ce contexte servira de base à une décision suivie d'une
+        écriture (cf. `services._process_normal`), pour empêcher deux scans
+        concurrents du même employé de produire une décision incohérente.
+        Doit être appelé à l'intérieur d'un `transaction.atomic()`.
+    
     Lève
     ----
     ValueError
@@ -210,8 +235,8 @@ def collect_day_context(
     schedule = build_site_schedule(site)
     
     # 4. Récupérer les pointages existants
-    morning_pointage = _get_morning_pointage(employee_id, date_target)
-    afternoon_pointage = _get_afternoon_pointage(employee_id, date_target)
+    morning_pointage = _get_morning_pointage(employee_id, date_target, lock=lock)
+    afternoon_pointage = _get_afternoon_pointage(employee_id, date_target, lock=lock)
     
     # 5. Extraire les flags (scans enregistrés)
     morning_entry = morning_pointage is not None and morning_pointage.heure_arrivee is not None
@@ -246,7 +271,8 @@ def collect_day_context_for_scan(
     employee_id: int,
     site_id: int,
     date_target: Optional[date] = None,
-    current_time: Optional[time] = None
+    current_time: Optional[time] = None,
+    lock: bool = False
 ) -> Tuple[DayContext, Site]:
     """
     Variante qui récupère aussi le Site et retourne un tuple.
@@ -290,7 +316,8 @@ def collect_day_context_for_scan(
         employee_id=employee_id,
         site=site,
         date_target=date_target,
-        current_time=current_time
+        current_time=current_time,
+        lock=lock
     )
     
     return context, site
