@@ -573,7 +573,7 @@ class AnomaliePointage(models.Model):
     )
     cloturee_par     = models.ForeignKey(
         CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='anomalies_cloturees'
+        related_name='anomalies_cloturees', db_constraint=False
     )
     date_cloture     = models.DateTimeField(null=True, blank=True)
     created_at       = models.DateTimeField(auto_now_add=True)
@@ -615,7 +615,7 @@ class AnomalieTraitement(models.Model):
     )
     administrateur  = models.ForeignKey(
         CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='anomalies_traitees'
+        related_name='anomalies_traitees', db_constraint=False
     )
     date_traitement = models.DateTimeField(auto_now_add=True)
     commentaire     = models.TextField(blank=True)
