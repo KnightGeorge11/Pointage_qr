@@ -20,10 +20,11 @@ from datetime import datetime, time, timedelta
 from django.utils import timezone
 from django.db import transaction
 
-from .models import Employe, Site, Pointage, Scan
+from .models import Employe, Site, Pointage, Scan, AnomaliePointage
 from .domain import ScanDecision, ScanActionType
 from .context import collect_day_context
 from .state_machine import DayStateMachine
+from .anomalies import enregistrer_anomalie
 
 logger = logging.getLogger(__name__)
 
@@ -58,14 +59,33 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
 
     now = timezone.localtime(timezone.now())
 
-    # 1. Valider l'employé ET le token UUID (sécurité anti-fraude)
+    # 1. Valider le QR (matricule + token UUID, sécurité anti-fraude) —
+    #    indépendamment du statut actif/inactif de l'employé, pour pouvoir
+    #    distinguer "QR invalide" (personne ne correspond) de "employé
+    #    inactif" (l'employé existe mais son accès est désactivé) : deux
+    #    anomalies de nature différente pour le suivi RH/admin.
     try:
-        employe = Employe.objects.get(
-            matricule=matricule,
-            qr_code_token=qr_token,   # ← vérification UUID obligatoire
-            actif=True
-        )
+        employe = Employe.objects.get(matricule=matricule, qr_code_token=qr_token)
     except Employe.DoesNotExist:
+        enregistrer_anomalie(
+            AnomaliePointage.TYPE_INVALID_QR,
+            message='QR code invalide (matricule/token non reconnu).',
+            matricule_scanne=matricule,
+            date_pointage=now.date(),
+        )
+        return {
+            'status': 'error',
+            'code': 'QR_INVALIDE',
+            'message': 'QR code invalide ou employé inactif.'
+        }
+
+    if not employe.actif:
+        enregistrer_anomalie(
+            AnomaliePointage.TYPE_EMPLOYE_INACTIF,
+            message=f"Tentative de scan par un employé inactif ({employe.matricule}).",
+            employe=employe,
+            date_pointage=now.date(),
+        )
         return {
             'status': 'error',
             'code': 'QR_INVALIDE',
@@ -76,6 +96,12 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
     try:
         site = Site.objects.get(id=site_id)
     except Site.DoesNotExist:
+        enregistrer_anomalie(
+            AnomaliePointage.TYPE_SITE_INVALIDE,
+            message=f"Site {site_id} introuvable.",
+            employe=employe,
+            date_pointage=now.date(),
+        )
         return {
             'status': 'error',
             'code': 'SITE_INVALIDE',
@@ -85,10 +111,18 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
     # 3. Vérifier la plage horaire autorisée (mode normal uniquement —
     #    une garde de nuit se déroule par définition en dehors de cette plage)
     if mode != 'garde' and not (PLAGE_MIN <= now.time() <= PLAGE_MAX):
+        message = (
+            f"Scan en dehors des heures autorisées "
+            f"({PLAGE_MIN.strftime('%Hh%M')}–{PLAGE_MAX.strftime('%Hh%M')})."
+        )
+        enregistrer_anomalie(
+            AnomaliePointage.TYPE_HORS_PLAGE_GLOBALE,
+            message=message, employe=employe, site=site, date_pointage=now.date(),
+        )
         return {
             'status': 'warning',
             'code': 'HORS_PLAGE',
-            'message': f"Scan en dehors des heures autorisées ({PLAGE_MIN.strftime('%Hh%M')}–{PLAGE_MAX.strftime('%Hh%M')})."
+            'message': message
         }
 
     # 4. Anti-doublon temporel (protection contre double-scan accidentel)
@@ -100,10 +134,16 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
     if dernier_scan:
         elapsed = (now - dernier_scan.timestamp).total_seconds()
         restant = max(1, int(SEUIL_DOUBLON_SECONDES - elapsed))
+        message = f"QR déjà scanné. Réessayez dans {restant} seconde(s)."
+        enregistrer_anomalie(
+            AnomaliePointage.TYPE_DUPLICATE_SCAN,
+            message=message, employe=employe, site=site, date_pointage=now.date(),
+            contexte={'dernier_scan_id': dernier_scan.id, 'secondes_ecoulees': elapsed},
+        )
         return {
             'status': 'warning',
             'code': 'DOUBLON',
-            'message': f"QR déjà scanné. Réessayez dans {restant} seconde(s)."
+            'message': message
         }
 
     # 5. Router vers la logique garde ou normale
@@ -260,15 +300,25 @@ def _apply_scan_decision(decision: ScanDecision, employe: Employe, site: Site, n
     dict
         Réponse standard process_scan : status/code/message/[data]
     """
-    # ── Scan refusé : rien à écrire ──────────────────────────────────────
+    # ── Scan refusé : rien à écrire côté pointage, mais l'anomalie est
+    #    tracée pour suivi administratif ─────────────────────────────────
     if not decision.allowed:
+        code = decision.anomaly_code.value if decision.anomaly_code else 'REFUSE'
         logger.info(
             f"[_apply_scan_decision] Refusé pour emp={employe.id} : "
             f"{decision.anomaly_code} - {decision.message}"
         )
+        enregistrer_anomalie(
+            code,
+            message=decision.message,
+            employe=employe,
+            site=site,
+            date_pointage=now.date(),
+            contexte=decision.details,
+        )
         return {
             'status': 'warning',
-            'code': decision.anomaly_code.value if decision.anomaly_code else 'REFUSE',
+            'code': code,
             'message': decision.message,
         }
 

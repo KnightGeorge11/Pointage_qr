@@ -250,6 +250,26 @@
 }
 
 /* =====================================================
+   ANOMALIES OUVERTES BADGE
+   ===================================================== */
+.anomalies-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--red-dim);
+    border: 1px solid rgba(248,113,113,.3);
+    color: var(--red-text);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: var(--r-xs);
+    text-decoration: none;
+}
+.anomalies-badge:hover { color: var(--red-text); opacity: .85; }
+
+/* =====================================================
    LAYOUT GRILLES
    ===================================================== */
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 0; }
@@ -282,6 +302,14 @@
             <i class="fas fa-moon"></i>
             {{ gardes_en_cours }} garde{{ gardes_en_cours|pluralize }} en cours
         </span>
+    </div>
+    {% endif %}
+    {% if anomalies_ouvertes %}
+    <div style="margin-top:10px;">
+        <a href="{% url 'alertes_rh' %}" class="anomalies-badge">
+            <i class="fas fa-triangle-exclamation"></i>
+            {{ anomalies_ouvertes }} anomalie{{ anomalies_ouvertes|pluralize }} ouverte{{ anomalies_ouvertes|pluralize }}
+        </a>
     </div>
     {% endif %}
 </div>

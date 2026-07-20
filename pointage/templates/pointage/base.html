@@ -664,6 +664,11 @@
                 <i class="fas fa-history"></i><span>Historique</span>
             </a>
         </li>
+        <li>
+            <a href="{% url 'alertes_rh' %}" class="sb-link {% if request.resolver_match.url_name == 'alertes_rh' %}is-active{% endif %}">
+                <i class="fas fa-triangle-exclamation"></i><span>Anomalies</span>
+            </a>
+        </li>
 
         <li><div class="sb-section-label">Gestion</div></li>
         <li>

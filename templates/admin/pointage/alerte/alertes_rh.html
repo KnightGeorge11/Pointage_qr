@@ -1,15 +1,15 @@
 {% extends 'pointage/base.html' %}
 {% load static %}
 
-{% block title %}Alertes RH — Pointage QR{% endblock %}
+{% block title %}Anomalies de pointage — Pointage QR{% endblock %}
 
 {% block content %}
 <div class="row mb-3">
-    <div class="col-12 d-flex justify-content-between align-items-center">
+    <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h1 class="display-6">
-            <i class="fas fa-bell"></i> Alertes RH
+            <i class="fas fa-triangle-exclamation"></i> Anomalies de pointage
         </h1>
-        <span class="badge bg-danger fs-6">{{ non_traitees }} non traitée{{ non_traitees|pluralize }}</span>
+        <span class="badge bg-danger fs-6">{{ non_traitees }} ouverte{{ non_traitees|pluralize }}</span>
     </div>
 </div>
 
@@ -30,8 +30,9 @@
                 <label class="form-label fw-semibold">Statut</label>
                 <select name="statut" class="form-select form-select-sm">
                     <option value="">— Tous —</option>
-                    <option value="non_traitee" {% if filter_statut == 'non_traitee' %}selected{% endif %}>Non traitées</option>
-                    <option value="traitee"     {% if filter_statut == 'traitee' %}selected{% endif %}>Traitées</option>
+                    <option value="ouverte"  {% if filter_statut == 'ouverte' %}selected{% endif %}>Ouvertes</option>
+                    <option value="traitee"  {% if filter_statut == 'traitee' %}selected{% endif %}>Traitées</option>
+                    <option value="cloturee" {% if filter_statut == 'cloturee' %}selected{% endif %}>Clôturées</option>
                 </select>
             </div>
             <div class="col-md-4">
@@ -61,71 +62,133 @@
                         <th>Date/Heure</th>
                         <th>Employé</th>
                         <th>Type</th>
-                        <th>Détail</th>
+                        <th>Gravité</th>
+                        <th>Message</th>
                         <th>Statut</th>
                         <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for alerte in alertes %}
-                    <tr class="{% if not alerte.traitee %}table-warning{% endif %}">
+                    <tr class="{% if alerte.statut == 'ouverte' %}table-warning{% endif %}">
                         <td class="text-nowrap">
-                            <small class="text-muted">{{ alerte.timestamp|date:"d/m/Y H:i" }}</small>
+                            <small class="text-muted">{{ alerte.created_at|date:"d/m/Y H:i" }}</small>
                         </td>
                         <td>
                             {% if alerte.employe %}
                                 <strong>{{ alerte.employe.get_nom_complet }}</strong><br>
                                 <small class="text-muted">{{ alerte.employe.matricule }}</small>
+                            {% elif alerte.matricule_scanne %}
+                                <span class="text-muted">Matricule inconnu : {{ alerte.matricule_scanne }}</span>
                             {% else %}
                                 <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if alerte.type == 'SORTIE_ANTICIPEE' %}
-                                <span class="badge bg-success">{{ alerte.get_type_display }}</span>
-                            {% elif alerte.type == 'SORTIE_NON_AUTORISEE' %}
-                                <span class="badge bg-danger">{{ alerte.get_type_display }}</span>
-                            {% elif alerte.type == 'QR_INVALIDE' or alerte.type == 'SITE_NON_AUTORISE' %}
-                                <span class="badge bg-danger">{{ alerte.get_type_display }}</span>
-                            {% elif alerte.type == 'HORS_PLAGE' or alerte.type == 'SCAN_EXCESS' %}
-                                <span class="badge bg-warning text-dark">{{ alerte.get_type_display }}</span>
+                            <span class="badge bg-secondary">{{ alerte.get_type_display }}</span>
+                        </td>
+                        <td>
+                            {% if alerte.gravite == 'critique' %}
+                                <span class="badge bg-danger">🚨 Critique</span>
+                            {% elif alerte.gravite == 'warning' %}
+                                <span class="badge bg-warning text-dark">⚠️ Avertissement</span>
                             {% else %}
-                                <span class="badge bg-secondary">{{ alerte.get_type_display }}</span>
+                                <span class="badge bg-info text-dark">ℹ️ Info</span>
                             {% endif %}
                         </td>
                         <td>
-                            <small>{{ alerte.detail|truncatechars:80 }}</small>
+                            <small>{{ alerte.message|truncatechars:80 }}</small>
                         </td>
                         <td>
-                            {% if alerte.traitee %}
-                                <span class="badge bg-success">✓ Traitée</span>
-                                {% if alerte.traitee_par %}
-                                    <br><small class="text-muted">{{ alerte.traitee_par.username }}</small>
+                            {% if alerte.statut == 'cloturee' %}
+                                <span class="badge bg-success">🔒 Clôturée</span>
+                            {% elif alerte.statut == 'traitee' %}
+                                <span class="badge bg-info text-dark">🟡 Traitée</span>
+                                {% if alerte.traitement.administrateur %}
+                                    <br><small class="text-muted">{{ alerte.traitement.administrateur.username }}</small>
                                 {% endif %}
                             {% else %}
-                                <span class="badge bg-warning text-dark">En attente</span>
+                                <span class="badge bg-danger">🔴 Ouverte</span>
                             {% endif %}
                         </td>
-                        <td>
-                            {% if not alerte.traitee %}
-                            <form method="post">
-                                {% csrf_token %}
-                                <input type="hidden" name="alerte_id" value="{{ alerte.pk }}">
-                                <button type="submit" class="btn btn-sm btn-outline-success"
-                                        title="Marquer comme traitée">
-                                    <i class="fas fa-check"></i>
+                        <td class="text-nowrap">
+                            {% if alerte.statut == 'ouverte' %}
+                                <button type="button" class="btn btn-sm btn-outline-success"
+                                        data-bs-toggle="modal" data-bs-target="#traiter-{{ alerte.pk }}"
+                                        title="Traiter cette anomalie">
+                                    <i class="fas fa-check"></i> Traiter
                                 </button>
-                            </form>
+                            {% elif alerte.statut == 'traitee' %}
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="anomalie_id" value="{{ alerte.pk }}">
+                                    <input type="hidden" name="action" value="cloturer">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary"
+                                            title="Clôturer cette anomalie">
+                                        <i class="fas fa-lock"></i> Clôturer
+                                    </button>
+                                </form>
                             {% else %}
-                                <small class="text-muted">{{ alerte.date_traitement|date:"d/m H:i" }}</small>
+                                <small class="text-muted">{{ alerte.date_cloture|date:"d/m H:i" }}</small>
                             {% endif %}
                         </td>
                     </tr>
+
+                    {% if alerte.statut == 'ouverte' %}
+                    <!-- Modal de traitement -->
+                    <div class="modal fade" id="traiter-{{ alerte.pk }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="anomalie_id" value="{{ alerte.pk }}">
+                                    <input type="hidden" name="action" value="traiter">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Traiter l'anomalie #{{ alerte.pk }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p class="text-muted small">{{ alerte.get_type_display }} — {{ alerte.message }}</p>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">Commentaire</label>
+                                            <textarea name="commentaire" class="form-control" rows="3"
+                                                      placeholder="Explication de la résolution..."></textarea>
+                                        </div>
+                                        <hr>
+                                        <p class="small text-muted mb-2">
+                                            Si une correction de pointage a été effectuée, précisez-la ici (facultatif) :
+                                        </p>
+                                        <div class="row g-2">
+                                            <div class="col-md-4">
+                                                <input type="text" name="champ_corrige" class="form-control form-control-sm"
+                                                       placeholder="Champ (ex: heure_depart)">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <input type="text" name="ancienne_valeur" class="form-control form-control-sm"
+                                                       placeholder="Ancienne valeur">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <input type="text" name="nouvelle_valeur" class="form-control form-control-sm"
+                                                       placeholder="Nouvelle valeur">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-check"></i> Marquer comme traitée
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">
+                        <td colspan="7" class="text-center py-4 text-muted">
                             <i class="fas fa-check-circle fa-2x mb-2 d-block"></i>
-                            Aucune alerte pour ces critères
+                            Aucune anomalie pour ces critères
                         </td>
                     </tr>
                     {% endfor %}

@@ -14,20 +14,22 @@ from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
-from .models import Employe, Site, Pointage, Scan, Poste, DemandeModification
+from .models import Employe, Site, Pointage, Scan, Poste, DemandeModification, AnomaliePointage
 from .serializers import (
     EmployeSerializer, SiteSerializer,
-    PointageSerializer, PointageDetailSerializer, ScanSerializer
+    PointageSerializer, PointageDetailSerializer, ScanSerializer,
+    AnomaliePointageSerializer, AnomaliePointageDetailSerializer,
 )
 from .forms import EmployeForm, SiteForm, PointageForm, PosteForm
 from .mixins import DemandeRequiredMixin, AdminCodeRequiredMixin, AdminCodeRequiredForGetMixin
 import json
 from decimal import Decimal
 from .services import process_scan, parse_qr_data
+from .anomalies import enregistrer_anomalie, marquer_traitee, marquer_cloturee, compter_anomalies_ouvertes
 # ---------------------------
 # FONCTIONS UTILITAIRES
 # ---------------------------
@@ -90,6 +92,7 @@ def dashboard(request):
 
     pointages_recents = today_pointages.select_related('employe', 'site').order_by('-date_creation')[:10]
     demandes_en_attente = DemandeModification.objects.filter(statut='en_attente').count()
+    anomalies_ouvertes = compter_anomalies_ouvertes()
 
     # Stats journalières (7 jours) en 2 requêtes agrégées
     week_ago = today - timedelta(days=6)
@@ -146,6 +149,7 @@ def dashboard(request):
         'gardes_en_cours':      gardes_en_cours,
         'pointages_recents':    pointages_recents,
         'demandes_en_attente':   demandes_en_attente,
+        'anomalies_ouvertes':    anomalies_ouvertes,
         'aujourdhui':           today,
         'daily_data':    {'presents': presents_aujourdhui, 'absents': total_employes - presents_aujourdhui, 'retards': retards, 'gardes': gardes_en_cours},
         'weekly_data':   {'labels': jours_labels, 'presents': jours_presents, 'absents': jours_absents, 'retards': jours_retards},
@@ -606,6 +610,75 @@ class PointageDeleteView(LoginRequiredMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
+# ============================================================
+# ANOMALIES DE POINTAGE (Phase 4)
+# ============================================================
+#
+# Consultation, traitement et clôture des anomalies enregistrées en
+# effet de bord par services.py/anomalies.py. Cette vue ne prend aucune
+# décision métier : elle affiche ce qui a déjà été décidé et délègue le
+# changement de statut aux fonctions de anomalies.py.
+
+@login_required
+def alertes_rh_view(request):
+    if request.method == 'POST':
+        anomalie = get_object_or_404(AnomaliePointage, pk=request.POST.get('anomalie_id'))
+        action = request.POST.get('action')
+        try:
+            if action == 'traiter':
+                commentaire = request.POST.get('commentaire', '').strip()
+                champ    = request.POST.get('champ_corrige', '').strip()
+                ancienne = request.POST.get('ancienne_valeur', '').strip()
+                nouvelle = request.POST.get('nouvelle_valeur', '').strip()
+                corrections = []
+                if champ:
+                    corrections.append({
+                        'champ': champ,
+                        'ancienne_valeur': ancienne,
+                        'nouvelle_valeur': nouvelle,
+                    })
+                marquer_traitee(anomalie, request.user, commentaire=commentaire, corrections=corrections)
+                messages.success(request, f"✅ Anomalie #{anomalie.pk} marquée comme traitée.")
+            elif action == 'cloturer':
+                marquer_cloturee(anomalie, request.user)
+                messages.success(request, f"🔒 Anomalie #{anomalie.pk} clôturée.")
+        except ValueError as e:
+            messages.error(request, f"❌ {e}")
+        return redirect('alertes_rh')
+
+    filter_type   = request.GET.get('type', '')
+    filter_statut = request.GET.get('statut', '')
+    filter_search = request.GET.get('search', '').strip()
+
+    qs = AnomaliePointage.objects.select_related(
+        'employe', 'site', 'traitement', 'traitement__administrateur', 'cloturee_par'
+    )
+    if filter_type:
+        qs = qs.filter(type=filter_type)
+    if filter_statut:
+        qs = qs.filter(statut=filter_statut)
+    if filter_search:
+        qs = qs.filter(
+            Q(employe__nom__icontains=filter_search) |
+            Q(employe__prenom__icontains=filter_search) |
+            Q(employe__matricule__icontains=filter_search) |
+            Q(matricule_scanne__icontains=filter_search)
+        )
+
+    paginator = Paginator(qs, 20)
+    alertes = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'alertes':        alertes,
+        'non_traitees':   AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_OUVERTE).count(),
+        'types_alerte':   AnomaliePointage.TYPE_CHOICES,
+        'filter_type':    filter_type,
+        'filter_statut':  filter_statut,
+        'filter_search':  filter_search,
+    }
+    return render(request, 'admin/pointage/alerte/alertes_rh.html', context)
+
+
 # ... (début du fichier inchangé jusqu'à export_resume_excel) ...
 
 @login_required
@@ -974,6 +1047,56 @@ class PointageViewSet(viewsets.ModelViewSet):
         return Response(data)
 
 
+class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API de consultation et de traitement des anomalies de pointage
+    (Phase 4). Lecture seule sur le ViewSet lui-même — les anomalies
+    sont créées uniquement en effet de bord par le moteur métier
+    (services.py/anomalies.py). Les actions `traiter`/`cloturer`
+    délèguent tout le travail d'écriture à anomalies.py.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        return AnomaliePointageDetailSerializer if self.action == 'retrieve' else AnomaliePointageSerializer
+
+    def get_queryset(self):
+        queryset = AnomaliePointage.objects.select_related(
+            'employe', 'site', 'traitement', 'traitement__administrateur', 'cloturee_par'
+        )
+        params = self.request.query_params
+        if params.get('type'):        queryset = queryset.filter(type=params['type'])
+        if params.get('statut'):      queryset = queryset.filter(statut=params['statut'])
+        if params.get('employe_id'):  queryset = queryset.filter(employe_id=params['employe_id'])
+        if params.get('site_id'):     queryset = queryset.filter(site_id=params['site_id'])
+        return queryset
+
+    @action(detail=True, methods=['post'])
+    def traiter(self, request, pk=None):
+        anomalie = self.get_object()
+        try:
+            marquer_traitee(
+                anomalie,
+                administrateur=request.user,
+                commentaire=request.data.get('commentaire', ''),
+                corrections=request.data.get('corrections'),
+            )
+        except ValueError as e:
+            return Response({'success': False, 'error': str(e)}, status=drf_status.HTTP_400_BAD_REQUEST)
+        anomalie.refresh_from_db()
+        return Response(AnomaliePointageDetailSerializer(anomalie).data)
+
+    @action(detail=True, methods=['post'])
+    def cloturer(self, request, pk=None):
+        anomalie = self.get_object()
+        try:
+            marquer_cloturee(anomalie, administrateur=request.user)
+        except ValueError as e:
+            return Response({'success': False, 'error': str(e)}, status=drf_status.HTTP_400_BAD_REQUEST)
+        anomalie.refresh_from_db()
+        return Response(AnomaliePointageDetailSerializer(anomalie).data)
+
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -1154,6 +1277,7 @@ def get_dashboard_stats(request):
         'absents_aujourdhui':  total_employes - Pointage.objects.filter(date_pointage=today).values('employe').distinct().count(),
         'retards_aujourdhui':  Pointage.objects.filter(date_pointage=today, periode__in=['matin', 'apres_midi'], retard__gt=timedelta(0)).count(),
         'gardes_en_cours':     Pointage.objects.filter(date_pointage=today, periode='nuit', type_journee='garde', heure_depart__isnull=True).count(),
+        'anomalies_ouvertes':  compter_anomalies_ouvertes(),
         'weekly_data':         jours_presents,
         'timestamp':           timezone.localtime(timezone.now()).isoformat(),
     }})

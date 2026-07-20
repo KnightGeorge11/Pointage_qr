@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Employe, Site, Pointage, Scan, Poste
+from .models import Employe, Site, Pointage, Scan, Poste, AnomaliePointage, AnomalieTraitement
 from django.utils import timezone
 from datetime import datetime, timedelta, time
 
@@ -273,3 +273,51 @@ class DashboardDataSerializer(serializers.Serializer):
     weekly_data = serializers.DictField()
     evolution_data = serializers.DictField()
     postes_data = serializers.ListField()
+
+
+# ============================================================
+# ANOMALIES DE POINTAGE (Phase 4)
+# ============================================================
+#
+# En lecture uniquement de bout en bout : les anomalies sont créées par
+# le moteur métier (services.py/anomalies.py), jamais via l'API. Seules
+# les actions dédiées `traiter`/`clôturer` (AnomaliePointageViewSet)
+# permettent de faire évoluer leur statut.
+
+class AnomalieTraitementSerializer(serializers.ModelSerializer):
+    administrateur_nom = serializers.CharField(source='administrateur.username', read_only=True, default=None)
+
+    class Meta:
+        model = AnomalieTraitement
+        fields = [
+            'id', 'administrateur', 'administrateur_nom', 'date_traitement',
+            'commentaire', 'pointage_concerne', 'corrections',
+        ]
+        read_only_fields = fields
+
+
+class AnomaliePointageSerializer(serializers.ModelSerializer):
+    type_display    = serializers.CharField(source='get_type_display', read_only=True)
+    statut_display  = serializers.CharField(source='get_statut_display', read_only=True)
+    gravite         = serializers.CharField(read_only=True)
+    gravite_display = serializers.CharField(source='get_gravite_display', read_only=True)
+    employe_nom_complet = serializers.CharField(source='employe.get_nom_complet', read_only=True, default=None)
+    site_nom        = serializers.CharField(source='site.nom', read_only=True, default=None)
+
+    class Meta:
+        model = AnomaliePointage
+        fields = [
+            'id', 'type', 'type_display', 'gravite', 'gravite_display',
+            'employe', 'employe_nom_complet', 'matricule_scanne',
+            'site', 'site_nom', 'date_pointage', 'message',
+            'statut', 'statut_display', 'cloturee_par', 'date_cloture',
+            'created_at',
+        ]
+        read_only_fields = fields
+
+
+class AnomaliePointageDetailSerializer(AnomaliePointageSerializer):
+    traitement = AnomalieTraitementSerializer(read_only=True)
+
+    class Meta(AnomaliePointageSerializer.Meta):
+        fields = AnomaliePointageSerializer.Meta.fields + ['contexte', 'traitement']

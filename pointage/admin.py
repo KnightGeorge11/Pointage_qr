@@ -6,10 +6,13 @@ from django.http import HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
+import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
-    CustomUser, DemandeModification
+    CustomUser, DemandeModification,
+    AnomaliePointage, AnomalieTraitement,
 )
+from .anomalies import marquer_traitee, marquer_cloturee
 import uuid
 
 
@@ -327,6 +330,139 @@ class DemandeModificationAdmin(admin.ModelAdmin):
                 )
             elif demande.type_action == 'delete':
                 Poste.objects.filter(pk=demande.cible_id).delete()
+
+
+# ============================================================
+# ANOMALIES DE POINTAGE (Phase 4)
+# ============================================================
+#
+# Les anomalies sont créées uniquement en effet de bord du moteur métier
+# (services.py / anomalies.py) — jamais depuis l'admin. L'admin permet de
+# les consulter, les traiter (via le service `marquer_traitee`, qui pose
+# la trace de traitement) et de les clôturer (via `marquer_cloturee`).
+
+class AnomalieTraitementInline(admin.StackedInline):
+    """Affiche/complète la trace de traitement (commentaire, corrections
+    de pointage éventuelles) une fois l'anomalie marquée traitée."""
+    model = AnomalieTraitement
+    can_delete = False
+    extra = 0
+    max_num = 1
+    fields = ('administrateur', 'date_traitement', 'commentaire', 'pointage_concerne', 'corrections')
+    readonly_fields = ('administrateur', 'date_traitement')
+
+
+@admin.register(AnomaliePointage)
+class AnomaliePointageAdmin(admin.ModelAdmin):
+    list_display  = ('type_display', 'employe_ou_matricule', 'gravite_badge', 'statut_badge', 'site', 'date_pointage', 'created_at')
+    list_filter   = ('statut', 'type', 'site')
+    search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule', 'matricule_scanne', 'message')
+    date_hierarchy = 'created_at'
+    inlines       = [AnomalieTraitementInline]
+    actions       = ['marquer_traitees', 'marquer_cloturees']
+    ordering      = ('-created_at',)
+
+    readonly_fields = (
+        'type', 'employe', 'matricule_scanne', 'site', 'date_pointage',
+        'message', 'contexte_formate', 'gravite_badge', 'statut_badge',
+        'cloturee_par', 'date_cloture', 'created_at',
+    )
+
+    fieldsets = (
+        ("Anomalie détectée", {
+            'fields': ('type', 'gravite_badge', 'employe', 'matricule_scanne', 'site', 'date_pointage', 'created_at')
+        }),
+        ("Détails", {'fields': ('message', 'contexte_formate')}),
+        ("Statut", {'fields': ('statut_badge', 'cloturee_par', 'date_cloture')}),
+    )
+
+    def has_add_permission(self, request):
+        # Les anomalies ne sont créées que par le moteur métier (effet de
+        # bord de process_scan()/_apply_scan_decision()), jamais à la main.
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # Traçabilité : une anomalie se clôture, elle ne se supprime jamais.
+        return False
+
+    # ── Colonnes / champs calculés ───────────────────────────────
+
+    def type_display(self, obj):
+        return obj.get_type_display()
+    type_display.short_description = 'Type'
+    type_display.admin_order_field = 'type'
+
+    def employe_ou_matricule(self, obj):
+        if obj.employe:
+            return obj.employe.get_nom_complet()
+        return obj.matricule_scanne or '—'
+    employe_ou_matricule.short_description = 'Employé'
+
+    def gravite_badge(self, obj):
+        styles = {
+            'info':     ('rgba(96,165,250,.12)',  '#60a5fa', 'ℹ️ Info'),
+            'warning':  ('rgba(251,191,36,.12)',  '#fbbf24', '⚠️ Avertissement'),
+            'critique': ('rgba(248,113,113,.12)', '#f87171', '🚨 Critique'),
+        }
+        bg, color, label = styles.get(obj.gravite, ('rgba(255,255,255,.07)', '#e8eaf0', obj.gravite))
+        return mark_safe(
+            f'<span style="background:{bg};color:{color};padding:4px 12px;'
+            f'border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;">'
+            f'{label}</span>'
+        )
+    gravite_badge.short_description = 'Gravité'
+
+    def statut_badge(self, obj):
+        styles = {
+            AnomaliePointage.STATUT_OUVERTE:  ('rgba(248,113,113,.12)', '#f87171', '🔴 Ouverte'),
+            AnomaliePointage.STATUT_TRAITEE:  ('rgba(251,191,36,.12)',  '#fbbf24', '🟡 Traitée'),
+            AnomaliePointage.STATUT_CLOTUREE: ('rgba(74,222,128,.12)',  '#4ade80', '✅ Clôturée'),
+        }
+        bg, color, label = styles.get(obj.statut, ('rgba(255,255,255,.07)', '#e8eaf0', obj.statut))
+        return mark_safe(
+            f'<span style="background:{bg};color:{color};padding:4px 12px;'
+            f'border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;">'
+            f'{label}</span>'
+        )
+    statut_badge.short_description = 'Statut'
+
+    def contexte_formate(self, obj):
+        if not obj.contexte:
+            return '—'
+        return format_html(
+            '<pre style="background:#1c2236;border:1px solid rgba(255,255,255,.07);'
+            'border-radius:8px;padding:12px 14px;font-size:12px;color:#e8eaf0;'
+            'white-space:pre-wrap;">{}</pre>',
+            json.dumps(obj.contexte, indent=2, ensure_ascii=False, default=str)
+        )
+    contexte_formate.short_description = "Contexte (technique)"
+
+    # ── Actions groupées ─────────────────────────────────────────
+
+    @admin.action(description="✅ Marquer les anomalies sélectionnées comme traitées")
+    def marquer_traitees(self, request, queryset):
+        count = 0
+        for anomalie in queryset.exclude(statut=AnomaliePointage.STATUT_CLOTUREE):
+            try:
+                marquer_traitee(
+                    anomalie, request.user,
+                    commentaire="Marquée traitée depuis l'administration."
+                )
+                count += 1
+            except ValueError as e:
+                self.message_user(request, f"❌ Anomalie #{anomalie.pk} : {e}", level=messages.ERROR)
+        self.message_user(request, f"✅ {count} anomalie(s) marquée(s) comme traitée(s).")
+
+    @admin.action(description="🔒 Clôturer les anomalies sélectionnées")
+    def marquer_cloturees(self, request, queryset):
+        count = 0
+        for anomalie in queryset:
+            try:
+                marquer_cloturee(anomalie, request.user)
+                count += 1
+            except ValueError as e:
+                self.message_user(request, f"❌ Anomalie #{anomalie.pk} : {e}", level=messages.ERROR)
+        self.message_user(request, f"🔒 {count} anomalie(s) clôturée(s).")
 
 
 # ============================================================

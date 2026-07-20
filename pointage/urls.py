@@ -18,6 +18,9 @@ from .views import (
     # ✅ API
     scan_api_view, get_statut_journee, get_prochain_scan,
     get_dashboard_stats, get_charts_data, employe_qr_data,
+
+    # ✅ Anomalies (Phase 4)
+    alertes_rh_view,
 )
 from rest_framework.routers import DefaultRouter
 from .views_mobile import (
@@ -32,6 +35,7 @@ router = DefaultRouter()
 router.register(r'employes', views.EmployeViewSet, basename='employe')
 router.register(r'sites',    views.SiteViewSet,    basename='site')
 router.register(r'pointages', views.PointageViewSet, basename='pointage')
+router.register(r'anomalies', views.AnomaliePointageViewSet, basename='anomalie')
 
 urlpatterns = [
     # Dashboard
@@ -64,6 +68,9 @@ urlpatterns = [
 
     # Scanner
     path('scanner/', scanner_view, name='scanner'),
+
+    # Anomalies (Phase 4)
+    path('anomalies/', alertes_rh_view, name='alertes_rh'),
 
     # API
     path('api/',                                      include(router.urls)),

@@ -465,3 +465,172 @@ class DemandeModification(models.Model):
         ordering        = ['-date_creation']
         verbose_name    = "Demande de modification"
         verbose_name_plural = "Demandes de modification"
+
+
+# ============================================================
+# GESTION DES ANOMALIES DE POINTAGE (Phase 4)
+# ============================================================
+#
+# Couche de persistance et de traçabilité posée AU-DESSUS du moteur
+# métier (domain.py / state_machine.py / context.py / services.py),
+# sans jamais le modifier :
+#
+#   - "type" reprend, pour les anomalies venant d'une ScanDecision
+#     refusée, exactement la valeur de domain.AnomalyCode.value
+#     (ex: 'during_break', 'missing_morning_exit'...) ;
+#   - trois types supplémentaires (invalid_qr et duplicate_scan mis à
+#     part, déjà présents dans AnomalyCode) couvrent les refus détectés
+#     en amont de la machine à états, dans process_scan() : QR invalide,
+#     employé inactif, site invalide, hors plage horaire globale.
+#
+# Cette couche ne décide jamais rien : elle enregistre, après coup, ce
+# que le moteur métier a déjà décidé.
+
+class AnomaliePointage(models.Model):
+    """Anomalie détectée lors d'un scan (refus, cas limite, échec de
+    validation), conservée pour suivi et traitement administratif.
+    """
+
+    # Types issus de domain.AnomalyCode (mêmes valeurs, pour rester alignés
+    # avec la couche métier sans avoir à la modifier ni à la réimporter ici)
+    TYPE_INVALID_QR             = 'invalid_qr'
+    TYPE_DUPLICATE_SCAN         = 'duplicate_scan'
+    TYPE_OUTSIDE_HOURS          = 'outside_hours'
+    TYPE_DURING_BREAK           = 'during_break'
+    TYPE_DAY_COMPLETE           = 'day_complete'
+    TYPE_MISSING_MORNING_EXIT   = 'missing_morning_exit'
+    TYPE_TRANSITION_IMPOSSIBLE  = 'transition_impossible'
+    TYPE_INVALID_STATE          = 'invalid_state'
+    # Types propres aux pré-contrôles de process_scan() (n'existent pas
+    # dans AnomalyCode, qui ne concerne que les décisions de la machine
+    # à états) :
+    TYPE_EMPLOYE_INACTIF        = 'employe_inactif'
+    TYPE_SITE_INVALIDE          = 'site_invalide'
+    TYPE_HORS_PLAGE_GLOBALE     = 'hors_plage_globale'
+
+    TYPE_CHOICES = (
+        (TYPE_INVALID_QR,            'QR invalide'),
+        (TYPE_EMPLOYE_INACTIF,       'Employé inactif'),
+        (TYPE_SITE_INVALIDE,         'Site invalide'),
+        (TYPE_HORS_PLAGE_GLOBALE,    'Hors plage horaire globale'),
+        (TYPE_DUPLICATE_SCAN,        'Double scan'),
+        (TYPE_OUTSIDE_HOURS,         'Hors horaires du site'),
+        (TYPE_DURING_BREAK,          'Scan pendant la pause'),
+        (TYPE_DAY_COMPLETE,          'Journée déjà terminée'),
+        (TYPE_MISSING_MORNING_EXIT,  'Sortie matin manquante'),
+        (TYPE_TRANSITION_IMPOSSIBLE, 'Transition impossible'),
+        (TYPE_INVALID_STATE,         'État invalide'),
+    )
+
+    # Gravité dérivée du type — jamais stockée, toujours recalculée.
+    GRAVITE_PAR_TYPE = {
+        TYPE_INVALID_QR:            'critique',
+        TYPE_EMPLOYE_INACTIF:       'critique',
+        TYPE_SITE_INVALIDE:         'critique',
+        TYPE_INVALID_STATE:         'critique',
+        TYPE_HORS_PLAGE_GLOBALE:    'warning',
+        TYPE_OUTSIDE_HOURS:         'warning',
+        TYPE_DURING_BREAK:          'warning',
+        TYPE_MISSING_MORNING_EXIT:  'warning',
+        TYPE_TRANSITION_IMPOSSIBLE: 'warning',
+        TYPE_DAY_COMPLETE:          'info',
+        TYPE_DUPLICATE_SCAN:        'info',
+    }
+    GRAVITE_CHOICES = (
+        ('info',     'Info'),
+        ('warning',  'Avertissement'),
+        ('critique', 'Critique'),
+    )
+
+    STATUT_OUVERTE  = 'ouverte'
+    STATUT_TRAITEE  = 'traitee'
+    STATUT_CLOTUREE = 'cloturee'
+    STATUT_CHOICES = (
+        (STATUT_OUVERTE,  'Ouverte'),
+        (STATUT_TRAITEE,  'Traitée'),
+        (STATUT_CLOTUREE, 'Clôturée'),
+    )
+
+    type             = models.CharField(max_length=30, choices=TYPE_CHOICES)
+    employe          = models.ForeignKey(
+        Employe, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='anomalies'
+    )
+    matricule_scanne = models.CharField(
+        max_length=50, blank=True,
+        help_text="Matricule brut du QR scanné, conservé même si l'employé "
+                   "n'a pas pu être identifié (ex: QR invalide)."
+    )
+    site             = models.ForeignKey(
+        Site, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='anomalies'
+    )
+    date_pointage    = models.DateField(null=True, blank=True)
+    message          = models.TextField()
+    contexte         = models.JSONField(default=dict, blank=True)
+    statut           = models.CharField(
+        max_length=10, choices=STATUT_CHOICES, default=STATUT_OUVERTE
+    )
+    cloturee_par     = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='anomalies_cloturees'
+    )
+    date_cloture     = models.DateTimeField(null=True, blank=True)
+    created_at       = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        qui = self.employe.get_nom_complet() if self.employe else (self.matricule_scanne or '?')
+        return f"{self.get_type_display()} — {qui} ({self.get_statut_display()})"
+
+    @property
+    def gravite(self) -> str:
+        """Gravité dérivée du type — jamais persistée."""
+        return self.GRAVITE_PAR_TYPE.get(self.type, 'info')
+
+    def get_gravite_display(self) -> str:
+        return dict(self.GRAVITE_CHOICES).get(self.gravite, self.gravite)
+
+    class Meta:
+        ordering        = ['-created_at']
+        verbose_name    = "Anomalie de pointage"
+        verbose_name_plural = "Anomalies de pointage"
+        indexes = [
+            models.Index(fields=['statut', 'created_at']),
+            models.Index(fields=['type', 'created_at']),
+            models.Index(fields=['employe', 'date_pointage']),
+        ]
+
+
+class AnomalieTraitement(models.Model):
+    """Trace de traitement d'une anomalie : qui, quand, pourquoi, et — le
+    cas échéant — quelles valeurs de pointage ont été corrigées.
+
+    Une anomalie n'a qu'un seul traitement (OneToOne) : si elle doit être
+    retraitée, elle repasse par le service dédié qui met à jour cet
+    enregistrement plutôt que d'en créer un second, pour garder un
+    historique simple et non ambigu.
+    """
+    anomalie        = models.OneToOneField(
+        AnomaliePointage, on_delete=models.CASCADE, related_name='traitement'
+    )
+    administrateur  = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='anomalies_traitees'
+    )
+    date_traitement = models.DateTimeField(auto_now_add=True)
+    commentaire     = models.TextField(blank=True)
+    pointage_concerne = models.ForeignKey(
+        Pointage, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='corrections_anomalies'
+    )
+    # Liste de corrections effectuées, le cas échéant :
+    # [{'champ': 'heure_arrivee', 'ancienne_valeur': '08:15', 'nouvelle_valeur': '08:00'}, ...]
+    corrections     = models.JSONField(default=list, blank=True)
+
+    def __str__(self):
+        return f"Traitement de {self.anomalie} par {self.administrateur or '—'}"
+
+    class Meta:
+        ordering        = ['-date_traitement']
+        verbose_name    = "Traitement d'anomalie"
+        verbose_name_plural = "Traitements d'anomalies"

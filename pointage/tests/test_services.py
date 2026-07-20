@@ -211,3 +211,122 @@ class TestSiteFixeALEntree(ScanServiceTestCase):
         pam = Pointage.objects.get(employe=self.employe, periode='apres_midi')
         assert pm.site_id == self.site.id
         assert pam.site_id == self.autre_site.id
+
+
+# ============================================================
+# PHASE 4 — anomalies enregistrées en effet de bord
+# ============================================================
+#
+# Chaque scénario de refus déjà couvert plus haut (Phase 3) doit
+# désormais AUSSI créer une AnomaliePointage correspondante, sans que
+# la réponse de process_scan() ne change (mêmes assertions status/code/
+# message que dans les classes ci-dessus).
+
+from pointage.models import AnomaliePointage
+
+
+class TestAnomaliesEnregistreesPourLesRefusDeDecision(ScanServiceTestCase):
+    """Anomalies issues de _apply_scan_decision() (decision.allowed=False)."""
+
+    def test_sortie_matin_oubliee_cree_une_anomalie(self):
+        self._scan(8, 0)
+        self._scan(14, 0)  # refusé : missing_morning_exit
+
+        anomalie = AnomaliePointage.objects.get(employe=self.employe)
+        assert anomalie.type == AnomaliePointage.TYPE_MISSING_MORNING_EXIT
+        assert anomalie.statut == AnomaliePointage.STATUT_OUVERTE
+        assert anomalie.site_id == self.site.id
+        assert anomalie.date_pointage == self.today
+
+    def test_scan_pendant_pause_cree_une_anomalie(self):
+        self._scan(12, 30)
+
+        anomalie = AnomaliePointage.objects.get(employe=self.employe)
+        assert anomalie.type == AnomaliePointage.TYPE_DURING_BREAK
+        assert anomalie.gravite == 'warning'
+
+    def test_journee_terminee_cree_une_anomalie(self):
+        self._scan(8, 0); self._scan(12, 0); self._scan(13, 30); self._scan(17, 30)
+        self._scan(17, 45)
+
+        anomalie = AnomaliePointage.objects.filter(
+            employe=self.employe, type=AnomaliePointage.TYPE_DAY_COMPLETE
+        ).get()
+        assert anomalie.gravite == 'info'
+
+    def test_sortie_tardive_autorisee_ne_cree_aucune_anomalie(self):
+        """Un scan accepté (même avec un avertissement métier) n'est pas
+        une anomalie : seuls les refus (decision.allowed=False) le sont."""
+        self._scan(13, 30)
+        self._scan(18, 30)  # sortie tardive, acceptée
+
+        assert AnomaliePointage.objects.filter(employe=self.employe).count() == 0
+
+    def test_scan_reussi_ne_cree_aucune_anomalie(self):
+        self._scan(8, 0)
+        assert AnomaliePointage.objects.count() == 0
+
+
+class TestAnomaliesEnregistreesPourLesPreControles(ScanServiceTestCase):
+    """Anomalies issues de process_scan() lui-même, avant la machine à états."""
+
+    def test_qr_invalide_cree_une_anomalie_sans_employe_resolu(self):
+        fake_now = _aware(self.today, 9, 0)
+        with patch('pointage.services.timezone.now', return_value=fake_now):
+            result = process_scan(
+                matricule="INCONNU", qr_token="00000000-0000-0000-0000-000000000000",
+                site_id=self.site.id,
+            )
+
+        assert result['status'] == 'error'
+        assert result['code'] == 'QR_INVALIDE'
+
+        anomalie = AnomaliePointage.objects.get(type=AnomaliePointage.TYPE_INVALID_QR)
+        assert anomalie.employe is None
+        assert anomalie.matricule_scanne == "INCONNU"
+        assert anomalie.gravite == 'critique'
+
+    def test_employe_inactif_cree_une_anomalie_distincte_du_qr_invalide(self):
+        employe_inactif = Employe.objects.create(
+            nom="Rasoa", prenom="Marie", matricule="E002", actif=False
+        )
+        fake_now = _aware(self.today, 9, 0)
+        with patch('pointage.services.timezone.now', return_value=fake_now):
+            result = process_scan(
+                matricule=employe_inactif.matricule,
+                qr_token=str(employe_inactif.qr_code_token),
+                site_id=self.site.id,
+            )
+
+        assert result['status'] == 'error'
+
+        anomalie = AnomaliePointage.objects.get(type=AnomaliePointage.TYPE_EMPLOYE_INACTIF)
+        assert anomalie.employe == employe_inactif
+        # Bien une anomalie distincte de QR invalide, même statut HTTP/erreur
+        assert AnomaliePointage.objects.filter(type=AnomaliePointage.TYPE_INVALID_QR).count() == 0
+
+    def test_site_invalide_cree_une_anomalie(self):
+        fake_now = _aware(self.today, 9, 0)
+        with patch('pointage.services.timezone.now', return_value=fake_now):
+            result = process_scan(
+                matricule=self.employe.matricule,
+                qr_token=str(self.employe.qr_code_token),
+                site_id=999999,
+            )
+
+        assert result['status'] == 'error'
+        anomalie = AnomaliePointage.objects.get(type=AnomaliePointage.TYPE_SITE_INVALIDE)
+        assert anomalie.employe == self.employe
+
+    def test_double_scan_cree_une_anomalie_avec_contexte(self):
+        self._scan(8, 0)
+        fake_now = _aware(self.today, 8, 0) + timedelta(seconds=30)
+        with patch('pointage.services.timezone.now', return_value=fake_now):
+            process_scan(
+                matricule=self.employe.matricule,
+                qr_token=str(self.employe.qr_code_token),
+                site_id=self.site.id,
+            )
+
+        anomalie = AnomaliePointage.objects.get(type=AnomaliePointage.TYPE_DUPLICATE_SCAN)
+        assert 'dernier_scan_id' in anomalie.contexte
