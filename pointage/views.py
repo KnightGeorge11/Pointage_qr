@@ -12,16 +12,16 @@ from django.db.models import Q, Sum, Count
 from django.http import JsonResponse
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
 from .models import Employe, Site, Pointage, Scan, Poste, DemandeModification, AnomaliePointage
 from .serializers import (
     EmployeSerializer, SiteSerializer,
-    PointageSerializer, PointageDetailSerializer, ScanSerializer,
+    PointageSerializer, PointageDetailSerializer,
     AnomaliePointageSerializer, AnomaliePointageDetailSerializer,
 )
 from .forms import EmployeForm, SiteForm, PointageForm, PosteForm
@@ -600,10 +600,23 @@ class PointageDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-class PointageDeleteView(LoginRequiredMixin, DeleteView):
+class PointageDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    """Suppression d'un pointage — réservée à l'Admin/RH (is_staff).
+
+    role='user' ne doit jamais pouvoir modifier/créer/supprimer un
+    Pointage directement : seul l'Admin/RH le peut (via cette vue ou
+    PointageAdmin), et le traitement/correction des anomalies reste
+    exclusivement dans l'interface Admin/RH (Phase 4)."""
     model         = Pointage
     template_name = 'pointage/pointage_confirm_delete.html'
     success_url   = reverse_lazy('pointages')
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+    def handle_no_permission(self):
+        messages.error(self.request, "❌ Seul un administrateur peut supprimer un pointage.")
+        return redirect('pointages')
 
     def delete(self, request, *args, **kwargs):
         messages.success(request, "✅ Pointage supprimé avec succès!")
@@ -1014,8 +1027,19 @@ class SiteViewSet(viewsets.ModelViewSet):
 
 
 class PointageViewSet(viewsets.ModelViewSet):
+    """
+    role='user' peut consulter (list/retrieve) mais ne doit jamais
+    pouvoir créer/modifier/supprimer un Pointage directement via l'API :
+    seul l'Admin/RH (is_staff) le peut. Ce n'est pas lié à
+    DemandeModification (qui ne concerne que Employé/Site/Poste) — c'est
+    une restriction directe sur ce ViewSet.
+    """
     queryset           = Pointage.objects.all()
-    permission_classes = [IsAuthenticated]   # ← était AllowAny
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
 
     def get_serializer_class(self):
         return PointageDetailSerializer if self.action == 'retrieve' else PointageSerializer
