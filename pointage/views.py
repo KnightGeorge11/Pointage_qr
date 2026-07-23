@@ -31,6 +31,7 @@ import json
 from decimal import Decimal
 from .services import process_scan, parse_qr_data
 from .anomalies import enregistrer_anomalie, marquer_traitee, marquer_cloturee, compter_anomalies_ouvertes
+
 # ---------------------------
 # FONCTIONS UTILITAIRES
 # ---------------------------
@@ -636,21 +637,40 @@ class PointageDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 @login_required
 def alertes_rh_view(request):
     """
-    Consultation et traitement des anomalies de pointage.
-    Réservé aux administrateurs et RH (is_staff).
+    Consultation des anomalies - accessible à tous les utilisateurs authentifiés.
+    Traitement (POST) - réservé à l'Admin/RH (is_staff).
     """
-    # 🔴 VERIFICATION EXPLICITE DES PERMISSIONS
-    if not request.user.is_staff:
-        messages.error(request, "❌ Accès réservé aux administrateurs et RH.")
-        return redirect('dashboard')
-
+    # ============================================================
+    # LOG DE DIAGNOSTIC - À SUPPRIMER APRÈS VÉRIFICATION
+    # ============================================================
+    print("=" * 80)
+    print("🔴🔴🔴 alertes_rh_view EXÉCUTÉE 🔴🔴🔴")
+    print("=" * 80)
+    print(f"  ➤ Utilisateur : {request.user}")
+    print(f"  ➤ Username    : {request.user.username}")
+    print(f"  ➤ is_staff    : {request.user.is_staff}")
+    print(f"  ➤ role        : {getattr(request.user, 'role', 'NON DÉFINI')}")
+    print(f"  ➤ Méthode     : {request.method}")
+    print(f"  ➤ URL         : {request.path}")
+    print(f"  ➤ GET params  : {dict(request.GET)}")
+    print(f"  ➤ POST data   : {dict(request.POST) if request.method == 'POST' else 'N/A'}")
+    print("=" * 80)
+    # ============================================================
+    
+    # --- TRAITEMENT POST (réservé à l'Admin/RH) ---
     if request.method == 'POST':
+        # Vérification des droits
+        if not request.user.is_staff:
+            messages.error(request, "❌ Seul un administrateur ou RH peut traiter une anomalie.")
+            return redirect('alertes_rh')
+        
         anomalie = get_object_or_404(AnomaliePointage, pk=request.POST.get('anomalie_id'))
         action = request.POST.get('action')
+        
         try:
             if action == 'traiter':
                 commentaire = request.POST.get('commentaire', '').strip()
-                champ    = request.POST.get('champ_corrige', '').strip()
+                champ = request.POST.get('champ_corrige', '').strip()
                 ancienne = request.POST.get('ancienne_valeur', '').strip()
                 nouvelle = request.POST.get('nouvelle_valeur', '').strip()
                 corrections = []
@@ -662,23 +682,27 @@ def alertes_rh_view(request):
                     })
                 marquer_traitee(anomalie, request.user, commentaire=commentaire, corrections=corrections)
                 messages.success(request, f"✅ Anomalie #{anomalie.pk} marquée comme traitée.")
+                
             elif action == 'cloturer':
                 marquer_cloturee(anomalie, request.user)
                 messages.success(request, f"🔒 Anomalie #{anomalie.pk} clôturée.")
+                
         except ValueError as e:
             messages.error(request, f"❌ {e}")
         except PermissionError as e:
             messages.error(request, f"❌ {e}")
+            
         return redirect('alertes_rh')
 
-    # GET - affichage
-    filter_type   = request.GET.get('type', '')
+    # --- CONSULTATION GET (accessible à tous) ---
+    filter_type = request.GET.get('type', '')
     filter_statut = request.GET.get('statut', '')
     filter_search = request.GET.get('search', '').strip()
 
     qs = AnomaliePointage.objects.select_related(
         'employe', 'site', 'traitement', 'traitement__administrateur', 'cloturee_par'
     )
+    
     if filter_type:
         qs = qs.filter(type=filter_type)
     if filter_statut:
@@ -694,18 +718,20 @@ def alertes_rh_view(request):
     paginator = Paginator(qs, 20)
     alertes = paginator.get_page(request.GET.get('page'))
 
+    # Récupérer le nombre d'anomalies ouvertes pour le badge
+    non_traitees = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_OUVERTE).count()
+
     context = {
-        'alertes':        alertes,
-        'non_traitees':   AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_OUVERTE).count(),
-        'types_alerte':   AnomaliePointage.TYPE_CHOICES,
-        'filter_type':    filter_type,
-        'filter_statut':  filter_statut,
-        'filter_search':  filter_search,
+        'alertes': alertes,
+        'non_traitees': non_traitees,
+        'types_alerte': AnomaliePointage.TYPE_CHOICES,
+        'filter_type': filter_type,
+        'filter_statut': filter_statut,
+        'filter_search': filter_search,
+        'user_is_staff': request.user.is_staff,  # Passé au template
     }
     return render(request, 'admin/pointage/alerte/alertes_rh.html', context)
 
-
-# ... (début du fichier inchangé jusqu'à export_resume_excel) ...
 
 @login_required
 def export_resume_excel(request):
@@ -964,7 +990,6 @@ def export_resume_excel(request):
                     sc(ws.cell(row=base + 4, column=col),
                        value=f"{arr_s}  →  {dep_s}" if has_data else '—',
                        bg=bg_day, fg=DARK, bold=True, size=9, border=b_all())
-                    # ✅ Utilisation de fmt_duree pour les retards et heures sup
                     sc(ws.cell(row=base + 5, column=col),
                        value=f"Retard : {matin.get_retard_minutes if matin else 0}min" if h_ret.total_seconds() > 0 else '—',
                        bg=RED_BG if h_ret.total_seconds() > 0 else bg_day,
@@ -983,7 +1008,6 @@ def export_resume_excel(request):
             ws.merge_cells(start_row=base, start_column=COL_TOTAL,
                            end_row=base + 6, end_column=COL_TOTAL)
             
-            # ✅ Utilisation de get_duree_formatee() pour les totaux
             total_lines = [
                 f"Retards :\n{Pointage(heures_travaillees=tot_retard).get_duree_formatee()}" if tot_retard.total_seconds() > 0 else "Retards :\n0h00",
                 f"\nH. Travaillées :\n{Pointage(heures_travaillees=tot_trav).get_duree_formatee()}",
@@ -1030,13 +1054,13 @@ from .serializers import (
 class EmployeViewSet(viewsets.ModelViewSet):
     queryset           = Employe.objects.filter(actif=True)
     serializer_class   = EmployeSerializer
-    permission_classes = [IsAuthenticated]   # ← était AllowAny
+    permission_classes = [IsAuthenticated]
 
 
 class SiteViewSet(viewsets.ModelViewSet):
     queryset           = Site.objects.all()
     serializer_class   = SiteSerializer
-    permission_classes = [IsAuthenticated]   # ← était AllowAny
+    permission_classes = [IsAuthenticated]
 
 
 class PointageViewSet(viewsets.ModelViewSet):
@@ -1087,8 +1111,8 @@ class PointageViewSet(viewsets.ModelViewSet):
 class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
     """
     API de consultation et de traitement des anomalies de pointage.
-    Lecture seule pour tous les utilisateurs authentifiés.
-    Les actions de traitement (traiter/cloturer) sont réservées à l'Admin/RH.
+    - Lecture : accessible à tous les utilisateurs authentifiés
+    - Traitement/Clôture : réservé à l'Admin/RH (is_staff)
     """
     permission_classes = [IsAuthenticated]
 
@@ -1100,18 +1124,37 @@ class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
             'employe', 'site', 'traitement', 'traitement__administrateur', 'cloturee_par'
         )
         params = self.request.query_params
-        if params.get('type'):        queryset = queryset.filter(type=params['type'])
-        if params.get('statut'):      queryset = queryset.filter(statut=params['statut'])
-        if params.get('employe_id'):  queryset = queryset.filter(employe_id=params['employe_id'])
-        if params.get('site_id'):     queryset = queryset.filter(site_id=params['site_id'])
+        if params.get('type'):
+            queryset = queryset.filter(type=params['type'])
+        if params.get('statut'):
+            queryset = queryset.filter(statut=params['statut'])
+        if params.get('employe_id'):
+            queryset = queryset.filter(employe_id=params['employe_id'])
+        if params.get('site_id'):
+            queryset = queryset.filter(site_id=params['site_id'])
         return queryset
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['post'])
     def traiter(self, request, pk=None):
         """
         Traiter une anomalie - Réservé à l'Admin/RH.
         """
-        # 🔴 VERIFICATION EXPLICITE DES PERMISSIONS
+        # ============================================================
+        # LOG DE DIAGNOSTIC - À SUPPRIMER APRÈS VÉRIFICATION
+        # ============================================================
+        print("=" * 80)
+        print("🔵🔵🔵 AnomaliePointageViewSet.traiter EXÉCUTÉE 🔵🔵🔵")
+        print("=" * 80)
+        print(f"  ➤ Utilisateur : {request.user}")
+        print(f"  ➤ Username    : {request.user.username}")
+        print(f"  ➤ is_staff    : {request.user.is_staff}")
+        print(f"  ➤ role        : {getattr(request.user, 'role', 'NON DÉFINI')}")
+        print(f"  ➤ pk          : {pk}")
+        print(f"  ➤ POST data   : {dict(request.data)}")
+        print("=" * 80)
+        # ============================================================
+        
+        # Vérification des droits
         if not request.user.is_staff:
             return Response(
                 {'success': False, 'error': 'Seul un administrateur ou RH peut traiter une anomalie.'},
@@ -1130,15 +1173,30 @@ class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({'success': False, 'error': str(e)}, status=drf_status.HTTP_400_BAD_REQUEST)
         except PermissionError as e:
             return Response({'success': False, 'error': str(e)}, status=drf_status.HTTP_403_FORBIDDEN)
+        
         anomalie.refresh_from_db()
         return Response(AnomaliePointageDetailSerializer(anomalie).data)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['post'])
     def cloturer(self, request, pk=None):
         """
         Clôturer une anomalie - Réservé à l'Admin/RH.
         """
-        # 🔴 VERIFICATION EXPLICITE DES PERMISSIONS
+        # ============================================================
+        # LOG DE DIAGNOSTIC - À SUPPRIMER APRÈS VÉRIFICATION
+        # ============================================================
+        print("=" * 80)
+        print("🟢🟢🟢 AnomaliePointageViewSet.cloturer EXÉCUTÉE 🟢🟢🟢")
+        print("=" * 80)
+        print(f"  ➤ Utilisateur : {request.user}")
+        print(f"  ➤ Username    : {request.user.username}")
+        print(f"  ➤ is_staff    : {request.user.is_staff}")
+        print(f"  ➤ role        : {getattr(request.user, 'role', 'NON DÉFINI')}")
+        print(f"  ➤ pk          : {pk}")
+        print("=" * 80)
+        # ============================================================
+        
+        # Vérification des droits
         if not request.user.is_staff:
             return Response(
                 {'success': False, 'error': 'Seul un administrateur ou RH peut clôturer une anomalie.'},
@@ -1152,6 +1210,7 @@ class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({'success': False, 'error': str(e)}, status=drf_status.HTTP_400_BAD_REQUEST)
         except PermissionError as e:
             return Response({'success': False, 'error': str(e)}, status=drf_status.HTTP_403_FORBIDDEN)
+        
         anomalie.refresh_from_db()
         return Response(AnomaliePointageDetailSerializer(anomalie).data)
 

@@ -4,10 +4,6 @@
 {% block title %}Anomalies de pointage — Pointage QR{% endblock %}
 
 {% block content %}
-<!-- ============================================================ -->
-<!-- 🔴🔴🔴 TEMPLATE alertes_rh.html EXÉCUTÉ 🔴🔴🔴 -->
-<!-- Si vous voyez ce commentaire, le template modifié est utilisé -->
-<!-- ============================================================ -->
 <div class="row mb-3">
     <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h1 class="display-6">
@@ -117,29 +113,40 @@
                         </td>
                         <td class="text-nowrap">
                             {% if alerte.statut == 'ouverte' %}
-                                <button type="button" class="btn btn-sm btn-outline-success btn-traiter-anomalie"
-                                        data-anomalie-id="{{ alerte.pk }}"
-                                        title="Traiter cette anomalie">
-                                    <i class="fas fa-check"></i> Traiter
-                                </button>
-                            {% elif alerte.statut == 'traitee' %}
-                                <form method="post" class="d-inline">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="anomalie_id" value="{{ alerte.pk }}">
-                                    <input type="hidden" name="action" value="cloturer">
-                                    <button type="submit" class="btn btn-sm btn-outline-primary"
-                                            title="Clôturer cette anomalie">
-                                        <i class="fas fa-lock"></i> Clôturer
+                                {% if user_is_staff %}
+                                    <!-- Bouton Traiter - visible uniquement pour Admin/RH -->
+                                    <button type="button" class="btn btn-sm btn-outline-success"
+                                            data-bs-toggle="modal" data-bs-target="#traiter-{{ alerte.pk }}"
+                                            title="Traiter cette anomalie">
+                                        <i class="fas fa-check"></i> Traiter
                                     </button>
-                                </form>
+                                {% else %}
+                                    <!-- Message pour les utilisateurs normaux -->
+                                    <span class="text-muted small">Consultation uniquement</span>
+                                {% endif %}
+                            {% elif alerte.statut == 'traitee' %}
+                                {% if user_is_staff %}
+                                    <!-- Bouton Clôturer - visible uniquement pour Admin/RH -->
+                                    <form method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="anomalie_id" value="{{ alerte.pk }}">
+                                        <input type="hidden" name="action" value="cloturer">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary"
+                                                title="Clôturer cette anomalie">
+                                            <i class="fas fa-lock"></i> Clôturer
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span class="text-muted small">Consultation uniquement</span>
+                                {% endif %}
                             {% else %}
                                 <small class="text-muted">{{ alerte.date_cloture|date:"d/m H:i" }}</small>
                             {% endif %}
                         </td>
                     </tr>
 
-                    {% if alerte.statut == 'ouverte' %}
-                    <!-- Modal de traitement -->
+                    <!-- Modal de traitement - uniquement pour Admin/RH -->
+                    {% if alerte.statut == 'ouverte' and user_is_staff %}
                     <div class="modal fade" id="traiter-{{ alerte.pk }}" tabindex="-1">
                         <div class="modal-dialog">
                             <div class="modal-content">
@@ -223,111 +230,4 @@
 </nav>
 {% endif %}
 
-{% endblock %}
-
-{% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Nettoyer le backdrop si le modal est fermé manuellement ou par erreur
-    document.addEventListener('hidden.bs.modal', function(event) {
-        // Supprimer tous les backdrops restants
-        document.querySelectorAll('.modal-backdrop').forEach(function(backdrop) {
-            backdrop.remove();
-        });
-        // Restaurer l'état du body
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-    });
-
-    // Gestion des modals avec AJAX pour éviter le blocage
-    document.querySelectorAll('.btn-traiter-anomalie').forEach(function(btn) {
-        btn.addEventListener('click', function(e) {
-            const anomalieId = this.dataset.anomalieId;
-            const modal = document.getElementById('traiter-' + anomalieId);
-            if (!modal) return;
-
-            const modalInstance = new bootstrap.Modal(modal);
-            modalInstance.show();
-
-            // Gérer la soumission du formulaire via AJAX
-            const form = modal.querySelector('form');
-            // Supprimer les anciens écouteurs pour éviter les doublons
-            form.removeEventListener('submit', form._submitHandler);
-            
-            form._submitHandler = function(e) {
-                e.preventDefault();
-
-                const formData = new FormData(this);
-                const url = window.location.href;
-
-                // Désactiver le bouton pendant le traitement
-                const submitBtn = this.querySelector('button[type="submit"]');
-                const originalText = submitBtn.innerHTML;
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement...';
-
-                // Supprimer les anciens messages d'erreur
-                form.querySelectorAll('.alert-danger').forEach(function(el) {
-                    el.remove();
-                });
-
-                fetch(url, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(function(response) {
-                    // Fermer le modal
-                    modalInstance.hide();
-                    // Nettoyer le backdrop
-                    document.querySelectorAll('.modal-backdrop').forEach(function(b) {
-                        b.remove();
-                    });
-                    document.body.classList.remove('modal-open');
-                    document.body.style.overflow = '';
-                    document.body.style.paddingRight = '';
-                    // Recharger la page pour refléter les changements
-                    window.location.reload();
-                })
-                .catch(function(error) {
-                    console.error('Erreur:', error);
-                    // Réactiver le bouton
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalText;
-                    // Afficher une erreur
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'alert alert-danger mt-3';
-                    errorDiv.textContent = 'Erreur lors du traitement. Veuillez réessayer.';
-                    form.querySelector('.modal-body').appendChild(errorDiv);
-                });
-            };
-            
-            form.addEventListener('submit', form._submitHandler);
-        });
-    });
-
-    // Gestion du clic sur l'overlay bloquant (backdrop)
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('modal-backdrop')) {
-            // Forcer la fermeture de tous les modals
-            document.querySelectorAll('.modal.show').forEach(function(modal) {
-                const modalInstance = bootstrap.Modal.getInstance(modal);
-                if (modalInstance) {
-                    modalInstance.hide();
-                }
-            });
-            // Nettoyer le backdrop
-            document.querySelectorAll('.modal-backdrop').forEach(function(el) {
-                el.remove();
-            });
-            document.body.classList.remove('modal-open');
-            document.body.style.overflow = '';
-            document.body.style.paddingRight = '';
-        }
-    });
-});
-</script>
 {% endblock %}

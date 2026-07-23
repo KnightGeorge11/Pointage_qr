@@ -2,21 +2,6 @@
 #
 # COUCHE DE PERSISTANCE DES ANOMALIES (Phase 4)
 # ================================================
-#
-# Cette couche est posée AU-DESSUS du moteur métier de la Phase 3
-# (domain.py / state_machine.py / context.py / services.py) et ne le
-# modifie jamais. Elle se contente d'enregistrer, après coup, ce que
-# le moteur a déjà décidé.
-#
-# Deux points d'appel, tous deux dans services.py :
-#   1. process_scan()        — pré-contrôles (QR invalide, employé
-#                               inactif, site invalide, hors plage
-#                               globale, doublon), AVANT la machine à états
-#   2. _apply_scan_decision() — quand decision.allowed est False
-#
-# Ce module ne prend AUCUNE décision métier : il transforme un événement
-# déjà survenu en ligne de base persistée, consultable et traitable par
-# un administrateur.
 
 import logging
 from typing import Optional
@@ -46,39 +31,6 @@ def enregistrer_anomalie(
     Ne lève jamais d'exception métier : l'enregistrement d'une anomalie
     ne doit jamais empêcher process_scan() de répondre à l'utilisateur.
     En cas d'échec d'écriture, l'erreur est journalisée puis ravalée.
-
-    Paramètres
-    ----------
-    type_anomalie : str
-        Une des valeurs de AnomaliePointage.TYPE_CHOICES.
-
-    message : str
-        Message déjà produit par le moteur métier (decision.message /
-        message de refus de process_scan), affiché tel quel à l'admin.
-
-    employe : Employe, optional
-        Employé concerné, si identifié.
-
-    matricule_scanne : str, optional
-        Matricule brut du QR scanné (utile quand `employe` est None,
-        ex: QR invalide).
-
-    site : Site, optional
-        Site du scan, si connu.
-
-    date_pointage : date, optional
-        Date métier concernée (peut différer de la date de création si
-        pertinent un jour ; aujourd'hui toujours la date du scan).
-
-    contexte : dict, optional
-        Détails supplémentaires (ex: `decision.details`) conservés pour
-        analyse ultérieure.
-
-    Retour
-    ------
-    AnomaliePointage
-        L'anomalie créée (ou une instance non sauvegardée si l'écriture
-        a échoué — ne jamais compter dessus pour une logique métier).
     """
     try:
         anomalie = AnomaliePointage.objects.create(
@@ -121,28 +73,6 @@ def marquer_traitee(
     """
     Marque une anomalie comme traitée et conserve la trace du traitement.
 
-    Paramètres
-    ----------
-    anomalie : AnomaliePointage
-        L'anomalie à traiter.
-
-    administrateur : CustomUser
-        L'utilisateur effectuant le traitement.
-
-    commentaire : str, optional
-        Explication de la résolution.
-
-    corrections : list[dict], optional
-        Liste de corrections effectuées, ex :
-        [{'champ': 'heure_depart', 'ancienne_valeur': None, 'nouvelle_valeur': '12:05'}]
-
-    pointage_concerne : Pointage, optional
-        Le pointage corrigé, si une correction de pointage a été réalisée.
-
-    Retour
-    ------
-    AnomalieTraitement
-
     Lève
     ----
     PermissionError
@@ -150,7 +80,7 @@ def marquer_traitee(
     ValueError
         Si l'anomalie est déjà clôturée.
     """
-    # 🔴 VERIFICATION EXPLICITE DES PERMISSIONS
+    # Vérification des permissions - Seul l'Admin/RH peut traiter une anomalie
     if not administrateur.is_staff:
         raise PermissionError("Seul un administrateur ou RH peut traiter une anomalie.")
 
@@ -188,7 +118,7 @@ def marquer_cloturee(anomalie: AnomaliePointage, administrateur: CustomUser) -> 
     ValueError
         Si l'anomalie n'a pas encore été traitée (statut != 'traitee').
     """
-    # 🔴 VERIFICATION EXPLICITE DES PERMISSIONS
+    # Vérification des permissions - Seul l'Admin/RH peut clôturer une anomalie
     if not administrateur.is_staff:
         raise PermissionError("Seul un administrateur ou RH peut clôturer une anomalie.")
 
