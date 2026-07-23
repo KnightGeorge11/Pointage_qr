@@ -666,14 +666,11 @@
         </li>
         ...
         </li>
-        {% if request.user.is_staff %}
         <li>
             <a href="{% url 'alertes_rh' %}" class="sb-link {% if request.resolver_match.url_name == 'alertes_rh' %}is-active{% endif %}">
                 <i class="fas fa-triangle-exclamation"></i><span>Anomalies</span>
             </a>
         </li>
-        {% endif %}
-        <li><div class="sb-section-label">Gestion</div></li>
 ...
             <a href="{% url 'employes' %}" class="sb-link {% if request.resolver_match.url_name == 'employes' %}is-active{% endif %}">
                 <i class="fas fa-users"></i><span>Employés</span>
