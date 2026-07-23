@@ -113,8 +113,8 @@
                         </td>
                         <td class="text-nowrap">
                             {% if alerte.statut == 'ouverte' %}
-                                <button type="button" class="btn btn-sm btn-outline-success"
-                                        data-bs-toggle="modal" data-bs-target="#traiter-{{ alerte.pk }}"
+                                <button type="button" class="btn btn-sm btn-outline-success btn-traiter-anomalie"
+                                        data-anomalie-id="{{ alerte.pk }}"
                                         title="Traiter cette anomalie">
                                     <i class="fas fa-check"></i> Traiter
                                 </button>
@@ -219,4 +219,111 @@
 </nav>
 {% endif %}
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Nettoyer le backdrop si le modal est fermé manuellement ou par erreur
+    document.addEventListener('hidden.bs.modal', function(event) {
+        // Supprimer tous les backdrops restants
+        document.querySelectorAll('.modal-backdrop').forEach(function(backdrop) {
+            backdrop.remove();
+        });
+        // Restaurer l'état du body
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    });
+
+    // Gestion des modals avec AJAX pour éviter le blocage
+    document.querySelectorAll('.btn-traiter-anomalie').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            const anomalieId = this.dataset.anomalieId;
+            const modal = document.getElementById('traiter-' + anomalieId);
+            if (!modal) return;
+
+            const modalInstance = new bootstrap.Modal(modal);
+            modalInstance.show();
+
+            // Gérer la soumission du formulaire via AJAX
+            const form = modal.querySelector('form');
+            // Supprimer les anciens écouteurs pour éviter les doublons
+            form.removeEventListener('submit', form._submitHandler);
+            
+            form._submitHandler = function(e) {
+                e.preventDefault();
+
+                const formData = new FormData(this);
+                const url = window.location.href;
+
+                // Désactiver le bouton pendant le traitement
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement...';
+
+                // Supprimer les anciens messages d'erreur
+                form.querySelectorAll('.alert-danger').forEach(function(el) {
+                    el.remove();
+                });
+
+                fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(function(response) {
+                    // Fermer le modal
+                    modalInstance.hide();
+                    // Nettoyer le backdrop
+                    document.querySelectorAll('.modal-backdrop').forEach(function(b) {
+                        b.remove();
+                    });
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                    // Recharger la page pour refléter les changements
+                    window.location.reload();
+                })
+                .catch(function(error) {
+                    console.error('Erreur:', error);
+                    // Réactiver le bouton
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                    // Afficher une erreur
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'alert alert-danger mt-3';
+                    errorDiv.textContent = 'Erreur lors du traitement. Veuillez réessayer.';
+                    form.querySelector('.modal-body').appendChild(errorDiv);
+                });
+            };
+            
+            form.addEventListener('submit', form._submitHandler);
+        });
+    });
+
+    // Gestion du clic sur l'overlay bloquant (backdrop)
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal-backdrop')) {
+            // Forcer la fermeture de tous les modals
+            document.querySelectorAll('.modal.show').forEach(function(modal) {
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            });
+            // Nettoyer le backdrop
+            document.querySelectorAll('.modal-backdrop').forEach(function(el) {
+                el.remove();
+            });
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        }
+    });
+});
+</script>
 {% endblock %}

@@ -14,6 +14,7 @@ from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from rest_framework import viewsets, status
+from rest_framework import status as drf_status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
@@ -953,7 +954,7 @@ def export_resume_excel(request):
                        bg=bg_day, fg=DARK, bold=True, size=9, border=b_all())
                     # ✅ Utilisation de fmt_duree pour les retards et heures sup
                     sc(ws.cell(row=base + 5, column=col),
-                       value=f"Retard : {matin.get_retard_minutes if matin else 0}min" if h_ret.total_seconds() > 0 else '—',
+                       value=f"Retard : {int(h_ret.total_seconds() // 60)}min" if h_ret.total_seconds() > 0 else '—',
                        bg=RED_BG if h_ret.total_seconds() > 0 else bg_day,
                        fg=RED_FG if h_ret.total_seconds() > 0 else '999999',
                        size=8, italic=True, border=b_all())
@@ -1007,12 +1008,6 @@ def export_resume_excel(request):
 # API VIEWSETS
 # ---------------------------
 
-from rest_framework import viewsets
-from .serializers import (
-    EmployeSerializer, SiteSerializer,
-    PointageSerializer, PointageDetailSerializer
-)
-
 
 class EmployeViewSet(viewsets.ModelViewSet):
     queryset           = Employe.objects.filter(actif=True)
@@ -1055,9 +1050,12 @@ class PointageViewSet(viewsets.ModelViewSet):
         if params.get('type_journee'): queryset = queryset.filter(type_journee=params['type_journee'])
         return queryset
 
-    @api_view(['GET'])
+    @action(detail=False, methods=['get'])
     def statistiques(self, request):
-        from datetime import timedelta
+        """Statistiques du jour — consommé par le polling auto-refresh du
+        dashboard (fetch('/api/pointages/statistiques/'), dashboard.html).
+        Doit être une @action DRF (pas @api_view) pour que le routeur
+        génère effectivement l'URL /api/pointages/statistiques/."""
         today          = timezone.localtime(timezone.now()).date()
         total_employes = Employe.objects.filter(actif=True).count()
         data = {
@@ -1077,9 +1075,15 @@ class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
     (Phase 4). Lecture seule sur le ViewSet lui-même — les anomalies
     sont créées uniquement en effet de bord par le moteur métier
     (services.py/anomalies.py). Les actions `traiter`/`cloturer`
-    délèguent tout le travail d'écriture à anomalies.py.
+    délèguent tout le travail d'écriture à anomalies.py, et sont
+    réservées à l'Admin/RH (is_staff) : le traitement et la clôture
+    d'une anomalie restent exclusivement une capacité Admin/RH, jamais
+    accessible à role='user'.
     """
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        if self.action in ('traiter', 'cloturer'):
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
 
     def get_serializer_class(self):
         return AnomaliePointageDetailSerializer if self.action == 'retrieve' else AnomaliePointageSerializer
@@ -1120,11 +1124,6 @@ class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
         anomalie.refresh_from_db()
         return Response(AnomaliePointageDetailSerializer(anomalie).data)
 
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import status as drf_status
 
 class ScanAPIView(APIView):
     """Endpoint API web (authentification session requise)."""
@@ -1167,11 +1166,9 @@ class ScanAPIView(APIView):
 # FONCTIONS API SUPPLÉMENTAIRES
 # ---------------------------
 
-from rest_framework.decorators import api_view, permission_classes as pc
-
 
 @api_view(['POST'])
-@pc([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def scan_api_view(request):
     """Vue fonctionnelle équivalente à ScanAPIView — garde pour compatibilité URL."""
     raw_qr  = request.data.get('qr_data', '').strip()
@@ -1245,6 +1242,11 @@ def get_statut_journee(request, employe_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_prochain_scan(request, employe_id):
+    """
+    Endpoint purement informatif (aide UI) — la décision finale reste
+    toujours dans process_scan()/DayStateMachine. Ce endpoint ne doit
+    donc jamais suggérer un scan que le moteur refuserait réellement.
+    """
     try:
         employe = Employe.objects.get(id=employe_id, actif=True)
         today   = timezone.localtime(timezone.now()).date()
@@ -1254,21 +1256,34 @@ def get_prochain_scan(request, employe_id):
         if Pointage.objects.filter(employe=employe, date_pointage=today, periode='nuit', type_journee='garde', heure_arrivee__isnull=True).exists():
             return Response({'prochain_scan': 'debut_garde', 'type': 'garde',    'message': 'Début de garde attendu'})
 
+        pointage_matin = Pointage.objects.filter(employe=employe, date_pointage=today, periode='matin').first()
+        pointage_am    = Pointage.objects.filter(employe=employe, date_pointage=today, periode='apres_midi').first()
+
+        # Priorité absolue, quelle que soit l'heure actuelle : si le matin
+        # a été entamé (heure_arrivee) mais pas terminé (heure_depart
+        # manquante), c'est la sortie matin qui est attendue — jamais une
+        # entrée après-midi, que le moteur refuserait (missing_morning_exit).
+        if pointage_matin and pointage_matin.heure_arrivee and not pointage_matin.heure_depart:
+            return Response({'prochain_scan': 'sortie_matin', 'type': 'pointage', 'periode': 'matin', 'message': "Sortie matin attendue"})
+
+        # Même logique pour l'après-midi : entamé mais pas terminé -> sortie attendue.
+        if pointage_am and pointage_am.heure_arrivee and not pointage_am.heure_depart:
+            return Response({'prochain_scan': 'sortie_apres_midi', 'type': 'pointage', 'periode': 'apres_midi', 'message': "Sortie après-midi attendue"})
+
+        # Ni le matin ni l'après-midi ne sont "entamés et incomplets" :
+        # on se base sur l'heure actuelle pour indiquer la prochaine
+        # étape logique.
         maintenant = timezone.localtime(timezone.now()).time()
-        periode    = 'apres_midi' if maintenant >= time(12, 0) else 'matin'
-        pointage   = Pointage.objects.filter(employe=employe, date_pointage=today, periode=periode).first()
 
-        if not pointage or not pointage.heure_arrivee:
-            return Response({'prochain_scan': f'entree_{periode}', 'type': 'pointage', 'periode': periode, 'message': f"Entrée {periode} attendue"})
-        if not pointage.heure_depart:
-            return Response({'prochain_scan': f'sortie_{periode}', 'type': 'pointage', 'periode': periode, 'message': f"Sortie {periode} attendue"})
+        if maintenant < time(12, 0):
+            if not pointage_matin or not pointage_matin.heure_arrivee:
+                return Response({'prochain_scan': 'entree_matin', 'type': 'pointage', 'periode': 'matin', 'message': "Entrée matin attendue"})
 
-        if periode == 'matin' and maintenant >= time(12, 0):
-            pa = Pointage.objects.filter(employe=employe, date_pointage=today, periode='apres_midi').first()
-            if not pa or not pa.heure_arrivee:
-                return Response({'prochain_scan': 'entree_apres_midi', 'type': 'pointage', 'periode': 'apres_midi', 'message': "Entrée après-midi attendue"})
-            if not pa.heure_depart:
-                return Response({'prochain_scan': 'sortie_apres_midi', 'type': 'pointage', 'periode': 'apres_midi', 'message': "Sortie après-midi attendue"})
+        if not pointage_am or not pointage_am.heure_arrivee:
+            message = "Entrée après-midi attendue"
+            if not pointage_matin or not pointage_matin.heure_arrivee:
+                message += " (matin non pointé)"
+            return Response({'prochain_scan': 'entree_apres_midi', 'type': 'pointage', 'periode': 'apres_midi', 'message': message})
 
         return Response({'prochain_scan': None, 'type': 'complet', 'message': "Tous les pointages pour aujourd'hui sont terminés"})
     except Employe.DoesNotExist:

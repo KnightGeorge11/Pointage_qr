@@ -145,9 +145,15 @@ def marquer_traitee(
 
     Lève
     ----
+    PermissionError
+        Si l'utilisateur n'est pas Admin/RH (is_staff).
     ValueError
         Si l'anomalie est déjà clôturée.
     """
+    # Vérification des permissions - Seul l'Admin/RH peut traiter une anomalie
+    if not administrateur.is_staff:
+        raise PermissionError("Seul un administrateur ou RH peut traiter une anomalie.")
+
     if anomalie.statut == AnomaliePointage.STATUT_CLOTUREE:
         raise ValueError("Impossible de retraiter une anomalie déjà clôturée.")
 
@@ -177,10 +183,15 @@ def marquer_cloturee(anomalie: AnomaliePointage, administrateur: CustomUser) -> 
 
     Lève
     ----
+    PermissionError
+        Si l'utilisateur n'est pas Admin/RH (is_staff).
     ValueError
-        Si l'anomalie n'a pas encore été traitée (on ne clôture jamais
-        une anomalie ouverte sans trace de traitement).
+        Si l'anomalie n'a pas encore été traitée (statut != 'traitee').
     """
+    # Vérification des permissions - Seul l'Admin/RH peut clôturer une anomalie
+    if not administrateur.is_staff:
+        raise PermissionError("Seul un administrateur ou RH peut clôturer une anomalie.")
+
     if anomalie.statut == AnomaliePointage.STATUT_OUVERTE:
         raise ValueError("Impossible de clôturer une anomalie qui n'a pas été traitée.")
     if anomalie.statut == AnomaliePointage.STATUT_CLOTUREE:

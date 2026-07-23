@@ -664,14 +664,21 @@
                 <i class="fas fa-history"></i><span>Historique</span>
             </a>
         </li>
+        ...
+        <li>
+            <a href="{% url 'pointages' %}" class="sb-link {% if request.resolver_match.url_name == 'pointages' %}is-active{% endif %}">
+                <i class="fas fa-history"></i><span>Historique</span>
+            </a>
+        </li>
+        {% if request.user.is_staff %}
         <li>
             <a href="{% url 'alertes_rh' %}" class="sb-link {% if request.resolver_match.url_name == 'alertes_rh' %}is-active{% endif %}">
                 <i class="fas fa-triangle-exclamation"></i><span>Anomalies</span>
             </a>
         </li>
-
+        {% endif %}
         <li><div class="sb-section-label">Gestion</div></li>
-        <li>
+...
             <a href="{% url 'employes' %}" class="sb-link {% if request.resolver_match.url_name == 'employes' %}is-active{% endif %}">
                 <i class="fas fa-users"></i><span>Employés</span>
             </a>
