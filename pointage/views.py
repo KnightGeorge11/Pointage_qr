@@ -12,9 +12,9 @@ from django.db.models import Q, Sum, Count
 from django.http import JsonResponse
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from rest_framework import viewsets, status
-from rest_framework import status as drf_status
+from rest_framework import viewsets, status as drf_status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
@@ -635,6 +635,15 @@ class PointageDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
 @login_required
 def alertes_rh_view(request):
+    """
+    Consultation et traitement des anomalies de pointage.
+    Réservé aux administrateurs et RH (is_staff).
+    """
+    # 🔴 VERIFICATION EXPLICITE DES PERMISSIONS
+    if not request.user.is_staff:
+        messages.error(request, "❌ Accès réservé aux administrateurs et RH.")
+        return redirect('dashboard')
+
     if request.method == 'POST':
         anomalie = get_object_or_404(AnomaliePointage, pk=request.POST.get('anomalie_id'))
         action = request.POST.get('action')
@@ -658,8 +667,11 @@ def alertes_rh_view(request):
                 messages.success(request, f"🔒 Anomalie #{anomalie.pk} clôturée.")
         except ValueError as e:
             messages.error(request, f"❌ {e}")
+        except PermissionError as e:
+            messages.error(request, f"❌ {e}")
         return redirect('alertes_rh')
 
+    # GET - affichage
     filter_type   = request.GET.get('type', '')
     filter_statut = request.GET.get('statut', '')
     filter_search = request.GET.get('search', '').strip()
@@ -954,7 +966,7 @@ def export_resume_excel(request):
                        bg=bg_day, fg=DARK, bold=True, size=9, border=b_all())
                     # ✅ Utilisation de fmt_duree pour les retards et heures sup
                     sc(ws.cell(row=base + 5, column=col),
-                       value=f"Retard : {int(h_ret.total_seconds() // 60)}min" if h_ret.total_seconds() > 0 else '—',
+                       value=f"Retard : {matin.get_retard_minutes if matin else 0}min" if h_ret.total_seconds() > 0 else '—',
                        bg=RED_BG if h_ret.total_seconds() > 0 else bg_day,
                        fg=RED_FG if h_ret.total_seconds() > 0 else '999999',
                        size=8, italic=True, border=b_all())
@@ -1008,6 +1020,12 @@ def export_resume_excel(request):
 # API VIEWSETS
 # ---------------------------
 
+from rest_framework import viewsets
+from .serializers import (
+    EmployeSerializer, SiteSerializer,
+    PointageSerializer, PointageDetailSerializer
+)
+
 
 class EmployeViewSet(viewsets.ModelViewSet):
     queryset           = Employe.objects.filter(actif=True)
@@ -1050,12 +1068,9 @@ class PointageViewSet(viewsets.ModelViewSet):
         if params.get('type_journee'): queryset = queryset.filter(type_journee=params['type_journee'])
         return queryset
 
-    @action(detail=False, methods=['get'])
+    @api_view(['GET'])
     def statistiques(self, request):
-        """Statistiques du jour — consommé par le polling auto-refresh du
-        dashboard (fetch('/api/pointages/statistiques/'), dashboard.html).
-        Doit être une @action DRF (pas @api_view) pour que le routeur
-        génère effectivement l'URL /api/pointages/statistiques/."""
+        from datetime import timedelta
         today          = timezone.localtime(timezone.now()).date()
         total_employes = Employe.objects.filter(actif=True).count()
         data = {
@@ -1071,19 +1086,11 @@ class PointageViewSet(viewsets.ModelViewSet):
 
 class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    API de consultation et de traitement des anomalies de pointage
-    (Phase 4). Lecture seule sur le ViewSet lui-même — les anomalies
-    sont créées uniquement en effet de bord par le moteur métier
-    (services.py/anomalies.py). Les actions `traiter`/`cloturer`
-    délèguent tout le travail d'écriture à anomalies.py, et sont
-    réservées à l'Admin/RH (is_staff) : le traitement et la clôture
-    d'une anomalie restent exclusivement une capacité Admin/RH, jamais
-    accessible à role='user'.
+    API de consultation et de traitement des anomalies de pointage.
+    Lecture seule pour tous les utilisateurs authentifiés.
+    Les actions de traitement (traiter/cloturer) sont réservées à l'Admin/RH.
     """
-    def get_permissions(self):
-        if self.action in ('traiter', 'cloturer'):
-            return [IsAdminUser()]
-        return [IsAuthenticated()]
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         return AnomaliePointageDetailSerializer if self.action == 'retrieve' else AnomaliePointageSerializer
@@ -1099,8 +1106,18 @@ class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
         if params.get('site_id'):     queryset = queryset.filter(site_id=params['site_id'])
         return queryset
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
     def traiter(self, request, pk=None):
+        """
+        Traiter une anomalie - Réservé à l'Admin/RH.
+        """
+        # 🔴 VERIFICATION EXPLICITE DES PERMISSIONS
+        if not request.user.is_staff:
+            return Response(
+                {'success': False, 'error': 'Seul un administrateur ou RH peut traiter une anomalie.'},
+                status=drf_status.HTTP_403_FORBIDDEN
+            )
+        
         anomalie = self.get_object()
         try:
             marquer_traitee(
@@ -1111,19 +1128,38 @@ class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
             )
         except ValueError as e:
             return Response({'success': False, 'error': str(e)}, status=drf_status.HTTP_400_BAD_REQUEST)
+        except PermissionError as e:
+            return Response({'success': False, 'error': str(e)}, status=drf_status.HTTP_403_FORBIDDEN)
         anomalie.refresh_from_db()
         return Response(AnomaliePointageDetailSerializer(anomalie).data)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
     def cloturer(self, request, pk=None):
+        """
+        Clôturer une anomalie - Réservé à l'Admin/RH.
+        """
+        # 🔴 VERIFICATION EXPLICITE DES PERMISSIONS
+        if not request.user.is_staff:
+            return Response(
+                {'success': False, 'error': 'Seul un administrateur ou RH peut clôturer une anomalie.'},
+                status=drf_status.HTTP_403_FORBIDDEN
+            )
+        
         anomalie = self.get_object()
         try:
             marquer_cloturee(anomalie, administrateur=request.user)
         except ValueError as e:
             return Response({'success': False, 'error': str(e)}, status=drf_status.HTTP_400_BAD_REQUEST)
+        except PermissionError as e:
+            return Response({'success': False, 'error': str(e)}, status=drf_status.HTTP_403_FORBIDDEN)
         anomalie.refresh_from_db()
         return Response(AnomaliePointageDetailSerializer(anomalie).data)
 
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework import status as drf_status
 
 class ScanAPIView(APIView):
     """Endpoint API web (authentification session requise)."""
@@ -1166,9 +1202,11 @@ class ScanAPIView(APIView):
 # FONCTIONS API SUPPLÉMENTAIRES
 # ---------------------------
 
+from rest_framework.decorators import api_view, permission_classes as pc
+
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@pc([IsAuthenticated])
 def scan_api_view(request):
     """Vue fonctionnelle équivalente à ScanAPIView — garde pour compatibilité URL."""
     raw_qr  = request.data.get('qr_data', '').strip()
@@ -1242,11 +1280,6 @@ def get_statut_journee(request, employe_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_prochain_scan(request, employe_id):
-    """
-    Endpoint purement informatif (aide UI) — la décision finale reste
-    toujours dans process_scan()/DayStateMachine. Ce endpoint ne doit
-    donc jamais suggérer un scan que le moteur refuserait réellement.
-    """
     try:
         employe = Employe.objects.get(id=employe_id, actif=True)
         today   = timezone.localtime(timezone.now()).date()
@@ -1256,34 +1289,21 @@ def get_prochain_scan(request, employe_id):
         if Pointage.objects.filter(employe=employe, date_pointage=today, periode='nuit', type_journee='garde', heure_arrivee__isnull=True).exists():
             return Response({'prochain_scan': 'debut_garde', 'type': 'garde',    'message': 'Début de garde attendu'})
 
-        pointage_matin = Pointage.objects.filter(employe=employe, date_pointage=today, periode='matin').first()
-        pointage_am    = Pointage.objects.filter(employe=employe, date_pointage=today, periode='apres_midi').first()
-
-        # Priorité absolue, quelle que soit l'heure actuelle : si le matin
-        # a été entamé (heure_arrivee) mais pas terminé (heure_depart
-        # manquante), c'est la sortie matin qui est attendue — jamais une
-        # entrée après-midi, que le moteur refuserait (missing_morning_exit).
-        if pointage_matin and pointage_matin.heure_arrivee and not pointage_matin.heure_depart:
-            return Response({'prochain_scan': 'sortie_matin', 'type': 'pointage', 'periode': 'matin', 'message': "Sortie matin attendue"})
-
-        # Même logique pour l'après-midi : entamé mais pas terminé -> sortie attendue.
-        if pointage_am and pointage_am.heure_arrivee and not pointage_am.heure_depart:
-            return Response({'prochain_scan': 'sortie_apres_midi', 'type': 'pointage', 'periode': 'apres_midi', 'message': "Sortie après-midi attendue"})
-
-        # Ni le matin ni l'après-midi ne sont "entamés et incomplets" :
-        # on se base sur l'heure actuelle pour indiquer la prochaine
-        # étape logique.
         maintenant = timezone.localtime(timezone.now()).time()
+        periode    = 'apres_midi' if maintenant >= time(12, 0) else 'matin'
+        pointage   = Pointage.objects.filter(employe=employe, date_pointage=today, periode=periode).first()
 
-        if maintenant < time(12, 0):
-            if not pointage_matin or not pointage_matin.heure_arrivee:
-                return Response({'prochain_scan': 'entree_matin', 'type': 'pointage', 'periode': 'matin', 'message': "Entrée matin attendue"})
+        if not pointage or not pointage.heure_arrivee:
+            return Response({'prochain_scan': f'entree_{periode}', 'type': 'pointage', 'periode': periode, 'message': f"Entrée {periode} attendue"})
+        if not pointage.heure_depart:
+            return Response({'prochain_scan': f'sortie_{periode}', 'type': 'pointage', 'periode': periode, 'message': f"Sortie {periode} attendue"})
 
-        if not pointage_am or not pointage_am.heure_arrivee:
-            message = "Entrée après-midi attendue"
-            if not pointage_matin or not pointage_matin.heure_arrivee:
-                message += " (matin non pointé)"
-            return Response({'prochain_scan': 'entree_apres_midi', 'type': 'pointage', 'periode': 'apres_midi', 'message': message})
+        if periode == 'matin' and maintenant >= time(12, 0):
+            pa = Pointage.objects.filter(employe=employe, date_pointage=today, periode='apres_midi').first()
+            if not pa or not pa.heure_arrivee:
+                return Response({'prochain_scan': 'entree_apres_midi', 'type': 'pointage', 'periode': 'apres_midi', 'message': "Entrée après-midi attendue"})
+            if not pa.heure_depart:
+                return Response({'prochain_scan': 'sortie_apres_midi', 'type': 'pointage', 'periode': 'apres_midi', 'message': "Sortie après-midi attendue"})
 
         return Response({'prochain_scan': None, 'type': 'complet', 'message': "Tous les pointages pour aujourd'hui sont terminés"})
     except Employe.DoesNotExist:
