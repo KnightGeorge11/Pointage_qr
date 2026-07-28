@@ -1,0 +1,153 @@
+{% extends 'pointage/base.html' %}
+
+{% block title %}Anomalie #{{ anomalie.pk }} — Pointage QR{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-12">
+        <a href="{% url 'alertes_rh' %}" class="btn btn-sm btn-outline-secondary mb-2">← Retour à la liste</a>
+        <h1 class="display-6">Anomalie #{{ anomalie.pk }}</h1>
+    </div>
+</div>
+
+<!-- Bloc anomalie -->
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>{{ anomalie.get_type_display }}</strong>
+        {% if anomalie.statut == 'cloturee' %}
+            <span class="badge bg-success">🔒 Clôturée</span>
+        {% elif anomalie.statut == 'traitee' %}
+            <span class="badge bg-info text-dark">🟡 Traitée</span>
+        {% else %}
+            <span class="badge bg-danger">🔴 Ouverte</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p class="mb-1"><strong>Employé :</strong>
+                    {% if anomalie.employe %}{{ anomalie.employe.get_nom_complet }} ({{ anomalie.employe.matricule }})
+                    {% else %}Matricule scanné : {{ anomalie.matricule_scanne|default:"—" }}{% endif %}
+                </p>
+                <p class="mb-1"><strong>Site :</strong> {{ anomalie.site|default:"—" }}</p>
+                <p class="mb-1"><strong>Date :</strong> {{ anomalie.date_pointage|date:"d/m/Y"|default:"—" }}</p>
+            </div>
+            <div class="col-md-6">
+                <p class="mb-1"><strong>Gravité :</strong>
+                    {% if anomalie.gravite == 'critique' %}<span class="badge bg-danger">🚨 Critique</span>
+                    {% elif anomalie.gravite == 'warning' %}<span class="badge bg-warning text-dark">⚠️ Avertissement</span>
+                    {% else %}<span class="badge bg-info text-dark">ℹ️ Info</span>{% endif %}
+                </p>
+                <p class="mb-1"><strong>Détectée le :</strong> {{ anomalie.created_at|date:"d/m/Y H:i" }}</p>
+            </div>
+        </div>
+        <hr>
+        <p class="mb-0">{{ anomalie.message }}</p>
+    </div>
+</div>
+
+<!-- Pointage concerné -->
+<div class="card mb-3">
+    <div class="card-header"><strong>Pointage concerné</strong></div>
+    <div class="card-body">
+        {% if pointage %}
+        <table class="table table-sm mb-0">
+            <tr><th>Période</th><td>{{ pointage.get_periode_display }}</td></tr>
+            <tr><th>Site</th><td>{{ pointage.site|default:"—" }}</td></tr>
+            <tr><th>Heure d'arrivée</th><td>{{ pointage.heure_arrivee|default:"—" }}</td></tr>
+            <tr><th>Heure de départ</th><td>{{ pointage.heure_depart|default:"—" }}</td></tr>
+            <tr><th>Statut</th><td>{{ pointage.get_statut_display }}</td></tr>
+        </table>
+        {% else %}
+        <p class="text-muted mb-0">Aucun pointage existant identifié pour cette anomalie. Le choix "Corriger le pointage" en créera un nouveau si vous le validez.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if anomalie.traitement %}
+<!-- Traitement déjà enregistré -->
+<div class="card mb-3">
+    <div class="card-header"><strong>Traitement</strong></div>
+    <div class="card-body">
+        <p class="mb-1"><strong>Action :</strong> {{ anomalie.traitement.get_type_action_display|default:"Non spécifié" }}</p>
+        <p class="mb-1"><strong>Par :</strong> {{ anomalie.traitement.administrateur|default:"—" }} le {{ anomalie.traitement.date_traitement|date:"d/m/Y H:i" }}</p>
+        <p class="mb-1"><strong>Commentaire :</strong> {{ anomalie.traitement.commentaire }}</p>
+        {% if anomalie.traitement.corrections %}
+        <table class="table table-sm mt-2">
+            <thead><tr><th>Champ</th><th>Ancienne valeur</th><th>Nouvelle valeur</th></tr></thead>
+            <tbody>
+                {% for c in anomalie.traitement.corrections %}
+                <tr><td>{{ c.champ }}</td><td>{{ c.ancienne_valeur|default:"—" }}</td><td>{{ c.nouvelle_valeur|default:"—" }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Formulaire de traitement -->
+<div class="card">
+    <div class="card-header"><strong>Traitement</strong></div>
+    <div class="card-body">
+        {% if cloturee %}
+            <p class="text-muted mb-0">🔒 Cette anomalie est clôturée et ne peut plus être modifiée.</p>
+        {% else %}
+        <form method="post" id="form-traitement">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Action</label>
+                <div class="form-check">
+                    <input class="form-check-input action-radio" type="radio" name="type_action" id="action-correction" value="correction" {% if anomalie.statut == 'ouverte' %}checked{% endif %}>
+                    <label class="form-check-label" for="action-correction">Corriger le pointage</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input action-radio" type="radio" name="type_action" id="action-justification" value="justification">
+                    <label class="form-check-label" for="action-justification">Justifier l'anomalie (pointage inchangé)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input action-radio" type="radio" name="type_action" id="action-rejet" value="rejet">
+                    <label class="form-check-label" for="action-rejet">Rejeter l'anomalie (pointage inchangé)</label>
+                </div>
+            </div>
+
+            <div id="champs-correction">
+                <p class="text-muted small">Champ à corriger :</p>
+                {% for field in form %}
+                <div class="mb-2 row">
+                    <label class="col-sm-3 col-form-label">{{ field.label }}</label>
+                    <div class="col-sm-9">{{ field }}</div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="mb-3">
+                <label for="id_commentaire" class="form-label fw-semibold">Commentaire obligatoire</label>
+                <textarea name="commentaire" id="id_commentaire" class="form-control" rows="3" required placeholder="Expliquez la décision..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-success">✅ Traiter l'anomalie</button>
+
+            {% if anomalie.statut == 'traitee' %}
+            <button type="submit" name="type_action" value="cloturer" class="btn btn-primary" formnovalidate>🔒 Clôturer l'anomalie</button>
+            {% endif %}
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var champsCorrection = document.getElementById('champs-correction');
+    var radios = document.querySelectorAll('.action-radio');
+    function refresh() {
+        var selected = document.querySelector('.action-radio:checked');
+        if (!champsCorrection) return;
+        champsCorrection.style.display = (selected && selected.value === 'correction') ? 'block' : 'none';
+    }
+    radios.forEach(function (r) { r.addEventListener('change', refresh); });
+    refresh();
+});
+</script>
+{% endblock %}
