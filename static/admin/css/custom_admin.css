@@ -1,52 +1,115 @@
 /* =====================================================
-   ADMIN CUSTOM - UNIQUEMENT STYLES
-   Conservation de la sidebar Jazzmin originale
+   ADMIN CUSTOM - STYLE COMPLET DE L'INTERFACE UTILISATEUR
+   Cohérent à 100% avec l'UI principal
    ===================================================== */
 
 /* ──────────────────────────────────────────────────────
-   SIDEBAR JAZZMIN CONSERVÉE - STYLE MODERNISÉ
+   VARIABLES (cohérentes avec l'UI)
    ────────────────────────────────────────────────────── */
 
-/* Sidebar - Bleu foncé cohérent avec l'UI */
+:root {
+    /* Couleurs principales */
+    --admin-primary: #0F172A;
+    --admin-secondary: #2563EB;
+    --admin-success: #22C55E;
+    --admin-warning: #F59E0B;
+    --admin-danger: #EF4444;
+    --admin-info: #3B82F6;
+    
+    /* Neutres */
+    --admin-bg: #F8FAFC;
+    --admin-card-bg: #FFFFFF;
+    --admin-border: #E2E8F0;
+    --admin-text: #0F172A;
+    --admin-text-secondary: #334155;
+    --admin-text-muted: #64748B;
+    --admin-text-light: #94A3B8;
+    
+    /* Ombres (cohérentes avec l'UI) */
+    --admin-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --admin-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08);
+    --admin-shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08);
+    --admin-shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.08);
+    
+    /* Rayons (cohérents avec l'UI) */
+    --admin-radius-sm: 6px;
+    --admin-radius-md: 10px;
+    --admin-radius-lg: 14px;
+    --admin-radius-xl: 18px;
+    --admin-radius-full: 9999px;
+    
+    /* Polices */
+    --admin-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    
+    /* Transitions (cohérentes avec l'UI) */
+    --admin-transition-fast: 150ms ease;
+    --admin-transition-base: 200ms ease;
+    --admin-transition-slow: 250ms ease;
+}
+
+/* ──────────────────────────────────────────────────────
+   BASE
+   ────────────────────────────────────────────────────── */
+
+body {
+    font-family: var(--admin-font) !important;
+    background: var(--admin-bg) !important;
+    color: var(--admin-text) !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ──────────────────────────────────────────────────────
+   SIDEBAR (Bleu foncé comme l'UI)
+   ────────────────────────────────────────────────────── */
+
 .sidebar {
-    background: #0F172A !important;
+    background: var(--admin-primary) !important;
     border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+    transition: width var(--admin-transition-base) !important;
 }
 
 /* Logo */
 .brand-link {
-    background: #0F172A !important;
+    background: var(--admin-primary) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
     padding: 16px 20px !important;
+    transition: all var(--admin-transition-base) !important;
 }
 
 .brand-link .brand-text {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--admin-font) !important;
     font-weight: 700 !important;
     color: #fff !important;
     letter-spacing: -0.01em !important;
+    font-size: 15px !important;
 }
 
 .brand-link .brand-image {
-    border-radius: 6px !important;
-    background: #2563EB !important;
+    border-radius: var(--admin-radius-sm) !important;
+    background: var(--admin-secondary) !important;
     padding: 6px !important;
+    transition: transform var(--admin-transition-base) !important;
+}
+
+.brand-link:hover .brand-image {
+    transform: scale(1.05) !important;
 }
 
 /* Navigation */
 .nav-sidebar .nav-item {
     margin: 2px 8px !important;
-    border-radius: 6px !important;
+    border-radius: var(--admin-radius-sm) !important;
 }
 
 .nav-sidebar .nav-link {
     color: rgba(255, 255, 255, 0.5) !important;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--admin-font) !important;
     font-weight: 500 !important;
     font-size: 13px !important;
     padding: 10px 14px !important;
-    border-radius: 6px !important;
-    transition: all 200ms ease !important;
+    border-radius: var(--admin-radius-sm) !important;
+    transition: all var(--admin-transition-fast) !important;
 }
 
 .nav-sidebar .nav-link:hover {
@@ -59,18 +122,38 @@
     background: rgba(37, 99, 235, 0.15) !important;
 }
 
+.nav-sidebar .nav-link.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 24px;
+    background: var(--admin-secondary);
+    border-radius: 0 3px 3px 0;
+    animation: barSlideIn var(--admin-transition-slow) ease-out both;
+}
+
+@keyframes barSlideIn {
+    from { height: 0; opacity: 0; }
+    to { height: 24px; opacity: 1; }
+}
+
 .nav-sidebar .nav-link.active i {
-    color: #2563EB !important;
+    color: var(--admin-secondary) !important;
 }
 
 .nav-sidebar .nav-link i {
     font-size: 16px !important;
+    width: 20px !important;
+    text-align: center !important;
 }
 
-/* Sous-menus - Jazzmin original */
+/* Sous-menus */
 .nav-sidebar .nav-treeview {
     background: rgba(255, 255, 255, 0.03) !important;
-    border-radius: 6px !important;
+    border-radius: var(--admin-radius-sm) !important;
     margin: 4px 0 !important;
     padding: 4px 0 !important;
 }
@@ -86,39 +169,45 @@
 
 /* Badges dans la sidebar */
 .nav-sidebar .nav-link .badge {
-    background: #2563EB !important;
+    background: var(--admin-secondary) !important;
     color: #fff !important;
     font-size: 10px !important;
     font-weight: 600 !important;
     padding: 2px 10px !important;
-    border-radius: 9999px !important;
+    border-radius: var(--admin-radius-full) !important;
 }
 
 /* ──────────────────────────────────────────────────────
-   TOPBAR / HEADER
+   TOPBAR / HEADER (comme l'UI)
    ────────────────────────────────────────────────────── */
 
 .main-header {
     background: rgba(255, 255, 255, 0.8) !important;
     backdrop-filter: blur(12px) !important;
     -webkit-backdrop-filter: blur(12px) !important;
-    border-bottom: 1px solid #E2E8F0 !important;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+    border-bottom: 1px solid var(--admin-border) !important;
+    box-shadow: var(--admin-shadow-sm) !important;
 }
 
 .main-header .navbar {
     padding: 0 20px !important;
+    min-height: 60px !important;
 }
 
 .navbar-nav .nav-link {
-    border-radius: 6px !important;
-    transition: all 200ms ease !important;
-    color: #64748B !important;
+    border-radius: var(--admin-radius-sm) !important;
+    transition: all var(--admin-transition-fast) !important;
+    color: var(--admin-text-muted) !important;
+    padding: 8px 12px !important;
 }
 
 .navbar-nav .nav-link:hover {
-    background: #F8FAFC !important;
-    color: #0F172A !important;
+    background: var(--admin-bg) !important;
+    color: var(--admin-text) !important;
+}
+
+.navbar-nav .nav-link i {
+    font-size: 16px !important;
 }
 
 /* ──────────────────────────────────────────────────────
@@ -126,36 +215,54 @@
    ────────────────────────────────────────────────────── */
 
 .content-wrapper {
-    background: #F8FAFC !important;
+    background: var(--admin-bg) !important;
+}
+
+.content-header {
+    padding: 16px 20px !important;
+}
+
+.content-header h1 {
+    font-family: var(--admin-font) !important;
+    font-weight: 700 !important;
+    font-size: 24px !important;
+    color: var(--admin-text) !important;
+    letter-spacing: -0.02em !important;
 }
 
 /* ──────────────────────────────────────────────────────
-   CARTES
+   CARTES (comme l'UI)
    ────────────────────────────────────────────────────── */
 
 .card {
-    border: 1px solid #E2E8F0 !important;
-    border-radius: 14px !important;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
-    transition: all 200ms ease !important;
-    background: #FFFFFF !important;
+    border: 1px solid var(--admin-border) !important;
+    border-radius: var(--admin-radius-lg) !important;
+    box-shadow: var(--admin-shadow-sm) !important;
+    transition: all var(--admin-transition-base) !important;
+    background: var(--admin-card-bg) !important;
 }
 
 .card:hover {
-    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08) !important;
+    box-shadow: var(--admin-shadow-md) !important;
+    transform: translateY(-2px) !important;
 }
 
 .card-header {
     background: transparent !important;
-    border-bottom: 1px solid #E2E8F0 !important;
+    border-bottom: 1px solid var(--admin-border) !important;
     padding: 16px 20px !important;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--admin-font) !important;
 }
 
 .card-header .card-title {
     font-weight: 600 !important;
     font-size: 14px !important;
-    color: #0F172A !important;
+    color: var(--admin-text) !important;
+}
+
+.card-header .card-title i {
+    color: var(--admin-secondary) !important;
+    margin-right: 8px !important;
 }
 
 .card-body {
@@ -163,70 +270,82 @@
 }
 
 .card-footer {
-    background: #F8FAFC !important;
-    border-top: 1px solid #E2E8F0 !important;
+    background: var(--admin-bg) !important;
+    border-top: 1px solid var(--admin-border) !important;
     padding: 12px 20px !important;
 }
 
 /* ──────────────────────────────────────────────────────
-   TABLEAUX
+   TABLEAUX (comme l'UI)
    ────────────────────────────────────────────────────── */
 
 .table {
     border-collapse: separate !important;
     border-spacing: 0 !important;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--admin-font) !important;
+    font-size: 13px !important;
 }
 
 .table thead th {
-    background: #F8FAFC !important;
-    color: #64748B !important;
+    background: var(--admin-bg) !important;
+    color: var(--admin-text-muted) !important;
     font-size: 10px !important;
     font-weight: 600 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.08em !important;
-    border-bottom: 1px solid #E2E8F0 !important;
+    border-bottom: 1px solid var(--admin-border) !important;
     padding: 10px 14px !important;
     border-top: none !important;
 }
 
 .table tbody td {
     padding: 10px 14px !important;
-    border-bottom: 1px solid #E2E8F0 !important;
+    border-bottom: 1px solid var(--admin-border) !important;
     vertical-align: middle !important;
-    color: #0F172A !important;
+    color: var(--admin-text-secondary) !important;
 }
 
 .table tbody tr {
-    transition: background 200ms ease !important;
+    transition: background var(--admin-transition-fast) !important;
 }
 
 .table tbody tr:hover {
-    background: #F8FAFC !important;
+    background: var(--admin-bg) !important;
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none !important;
 }
 
 /* ──────────────────────────────────────────────────────
-   BOUTONS
+   BOUTONS (comme l'UI)
    ────────────────────────────────────────────────────── */
 
 .btn {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--admin-font) !important;
     font-weight: 600 !important;
     font-size: 12px !important;
-    border-radius: 6px !important;
+    border-radius: var(--admin-radius-sm) !important;
     padding: 8px 20px !important;
-    transition: all 200ms ease !important;
+    transition: all var(--admin-transition-fast) !important;
+    border: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
 }
 
 .btn:hover {
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08) !important;
+    box-shadow: var(--admin-shadow-md) !important;
+}
+
+.btn:active {
+    transform: translateY(0) !important;
 }
 
 .btn-primary {
-    background: #2563EB !important;
+    background: var(--admin-secondary) !important;
     color: #fff !important;
-    border: none !important;
 }
 
 .btn-primary:hover {
@@ -234,9 +353,8 @@
 }
 
 .btn-success {
-    background: #22C55E !important;
+    background: var(--admin-success) !important;
     color: #fff !important;
-    border: none !important;
 }
 
 .btn-success:hover {
@@ -244,9 +362,8 @@
 }
 
 .btn-danger {
-    background: #EF4444 !important;
+    background: var(--admin-danger) !important;
     color: #fff !important;
-    border: none !important;
 }
 
 .btn-danger:hover {
@@ -254,9 +371,8 @@
 }
 
 .btn-warning {
-    background: #F59E0B !important;
+    background: var(--admin-warning) !important;
     color: #fff !important;
-    border: none !important;
 }
 
 .btn-warning:hover {
@@ -264,39 +380,54 @@
 }
 
 .btn-info {
-    background: #3B82F6 !important;
+    background: var(--admin-info) !important;
     color: #fff !important;
-    border: none !important;
 }
 
 .btn-info:hover {
     background: #2563EB !important;
 }
 
+.btn-outline-primary {
+    background: transparent !important;
+    color: var(--admin-secondary) !important;
+    border: 1px solid var(--admin-secondary) !important;
+}
+
+.btn-outline-primary:hover {
+    background: var(--admin-secondary) !important;
+    color: #fff !important;
+}
+
 .btn-outline-secondary {
     background: transparent !important;
-    color: #64748B !important;
-    border: 1px solid #E2E8F0 !important;
+    color: var(--admin-text-muted) !important;
+    border: 1px solid var(--admin-border) !important;
 }
 
 .btn-outline-secondary:hover {
-    background: #F8FAFC !important;
-    color: #0F172A !important;
-    border-color: #94A3B8 !important;
+    background: var(--admin-bg) !important;
+    color: var(--admin-text) !important;
+    border-color: var(--admin-text-light) !important;
 }
 
 /* ──────────────────────────────────────────────────────
-   BADGES
+   BADGES (comme l'UI)
    ────────────────────────────────────────────────────── */
 
 .badge {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--admin-font) !important;
     font-weight: 600 !important;
     font-size: 10px !important;
     padding: 4px 12px !important;
-    border-radius: 9999px !important;
+    border-radius: var(--admin-radius-full) !important;
     text-transform: uppercase !important;
     letter-spacing: 0.04em !important;
+    transition: all var(--admin-transition-fast) !important;
+}
+
+.badge:hover {
+    transform: scale(1.05) !important;
 }
 
 .badge-success {
@@ -320,44 +451,55 @@
 }
 
 .badge-primary {
-    background: #2563EB !important;
+    background: var(--admin-secondary) !important;
     color: #fff !important;
 }
 
 .badge-secondary {
-    background: #F8FAFC !important;
-    color: #64748B !important;
+    background: var(--admin-bg) !important;
+    color: var(--admin-text-muted) !important;
 }
 
 /* ──────────────────────────────────────────────────────
-   FORMULAIRES
+   FORMULAIRES (comme l'UI)
    ────────────────────────────────────────────────────── */
 
 .form-control, .form-select {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--admin-font) !important;
     font-size: 13px !important;
-    border-radius: 6px !important;
-    border: 1px solid #E2E8F0 !important;
+    border-radius: var(--admin-radius-sm) !important;
+    border: 1px solid var(--admin-border) !important;
     padding: 8px 14px !important;
-    transition: all 200ms ease !important;
-    background: #FFFFFF !important;
-    color: #0F172A !important;
+    transition: all var(--admin-transition-fast) !important;
+    background: var(--admin-card-bg) !important;
+    color: var(--admin-text) !important;
 }
 
 .form-control:focus, .form-select:focus {
-    border-color: #2563EB !important;
+    border-color: var(--admin-secondary) !important;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
     outline: none !important;
+    background: var(--admin-card-bg) !important;
+}
+
+.form-control::placeholder {
+    color: var(--admin-text-light) !important;
+    font-weight: 400 !important;
 }
 
 .form-label {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--admin-font) !important;
     font-size: 11px !important;
     font-weight: 600 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.06em !important;
-    color: #64748B !important;
+    color: var(--admin-text-muted) !important;
     margin-bottom: 4px !important;
+}
+
+/* Groupes de champs */
+.field-box {
+    margin-bottom: 16px !important;
 }
 
 /* Messages d'erreur */
@@ -368,7 +510,7 @@
 }
 
 .errorlist li {
-    color: #EF4444 !important;
+    color: var(--admin-danger) !important;
     font-size: 12px !important;
     font-weight: 500 !important;
     display: flex !important;
@@ -384,7 +526,7 @@
     width: 16px !important;
     height: 16px !important;
     border-radius: 50% !important;
-    background: #EF4444 !important;
+    background: var(--admin-danger) !important;
     color: #fff !important;
     font-size: 9px !important;
     font-weight: 700 !important;
@@ -392,7 +534,7 @@
 }
 
 /* ──────────────────────────────────────────────────────
-   PAGINATION
+   PAGINATION (comme l'UI)
    ────────────────────────────────────────────────────── */
 
 .pagination {
@@ -400,114 +542,296 @@
 }
 
 .pagination .page-link {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--admin-font) !important;
     font-size: 12px !important;
     font-weight: 500 !important;
-    border: 1px solid #E2E8F0 !important;
-    border-radius: 6px !important;
-    color: #64748B !important;
+    border: 1px solid var(--admin-border) !important;
+    border-radius: var(--admin-radius-sm) !important;
+    color: var(--admin-text-muted) !important;
     padding: 6px 14px !important;
-    transition: all 200ms ease !important;
+    transition: all var(--admin-transition-fast) !important;
+    min-width: 36px !important;
+    text-align: center !important;
 }
 
 .pagination .page-link:hover {
-    background: #F8FAFC !important;
-    color: #0F172A !important;
+    background: var(--admin-bg) !important;
+    color: var(--admin-text) !important;
+    border-color: var(--admin-text-light) !important;
 }
 
 .pagination .page-item.active .page-link {
-    background: #2563EB !important;
-    border-color: #2563EB !important;
+    background: var(--admin-secondary) !important;
+    border-color: var(--admin-secondary) !important;
     color: #fff !important;
 }
 
+.pagination .page-item.disabled .page-link {
+    opacity: 0.4 !important;
+}
+
 /* ──────────────────────────────────────────────────────
-   MESSAGES / TOASTS
+   MESSAGES / TOASTS (comme l'UI)
    ────────────────────────────────────────────────────── */
 
 .alert {
     border: none !important;
-    border-radius: 10px !important;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    border-radius: var(--admin-radius-md) !important;
+    font-family: var(--admin-font) !important;
     font-weight: 500 !important;
     padding: 14px 18px !important;
-    box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.08) !important;
+    box-shadow: var(--admin-shadow-md) !important;
     animation: slideInRight 300ms ease-out both !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
 }
 
 @keyframes slideInRight {
-    from { transform: translateX(20px); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
+    from { transform: translateX(20px) scale(0.96); opacity: 0; }
+    to { transform: translateX(0) scale(1); opacity: 1; }
 }
 
 .alert-success {
     background: #F0FDF4 !important;
     color: #15803D !important;
-    border-left: 4px solid #22C55E !important;
+    border-left: 4px solid var(--admin-success) !important;
 }
 
 .alert-danger {
     background: #FEF2F2 !important;
     color: #B91C1C !important;
-    border-left: 4px solid #EF4444 !important;
+    border-left: 4px solid var(--admin-danger) !important;
 }
 
 .alert-warning {
     background: #FFFBEB !important;
     color: #B45309 !important;
-    border-left: 4px solid #F59E0B !important;
+    border-left: 4px solid var(--admin-warning) !important;
 }
 
 .alert-info {
     background: #EFF6FF !important;
     color: #1D4ED8 !important;
-    border-left: 4px solid #3B82F6 !important;
+    border-left: 4px solid var(--admin-info) !important;
+}
+
+.alert i {
+    font-size: 18px !important;
+    flex-shrink: 0 !important;
 }
 
 /* ──────────────────────────────────────────────────────
-   DASHBOARD - CARTES DE STATS
+   DASHBOARD - CARTES DE STATS (comme l'UI)
    ────────────────────────────────────────────────────── */
 
 .small-box {
-    border-radius: 14px !important;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
-    transition: all 200ms ease !important;
+    border-radius: var(--admin-radius-lg) !important;
+    box-shadow: var(--admin-shadow-sm) !important;
+    transition: all var(--admin-transition-base) !important;
     overflow: hidden !important;
 }
 
 .small-box:hover {
     transform: translateY(-4px) !important;
-    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08) !important;
+    box-shadow: var(--admin-shadow-md) !important;
 }
 
 .small-box .inner {
     padding: 16px 20px !important;
 }
 
+.small-box .inner h3 {
+    font-family: var(--admin-font) !important;
+    font-weight: 700 !important;
+    font-size: 32px !important;
+    color: #fff !important;
+    margin: 0 0 4px 0 !important;
+    line-height: 1.1 !important;
+}
+
+.small-box .inner p {
+    font-family: var(--admin-font) !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    margin: 0 !important;
+}
+
 .small-box .icon {
     font-size: 48px !important;
     opacity: 0.15 !important;
     color: #fff !important;
+    transition: all var(--admin-transition-base) !important;
+}
+
+.small-box:hover .icon {
+    transform: scale(1.1) !important;
+    opacity: 0.2 !important;
 }
 
 .small-box .small-box-footer {
     background: rgba(0, 0, 0, 0.1) !important;
     padding: 8px 20px !important;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--admin-font) !important;
     font-weight: 600 !important;
     font-size: 12px !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    transition: all var(--admin-transition-fast) !important;
 }
 
-.small-box.bg-primary { background: #2563EB !important; }
-.small-box.bg-success { background: #22C55E !important; }
-.small-box.bg-warning { background: #F59E0B !important; }
-.small-box.bg-danger { background: #EF4444 !important; }
-.small-box.bg-info { background: #3B82F6 !important; }
+.small-box .small-box-footer:hover {
+    background: rgba(0, 0, 0, 0.15) !important;
+    color: #fff !important;
+}
+
+.small-box.bg-primary { background: var(--admin-secondary) !important; }
+.small-box.bg-success { background: var(--admin-success) !important; }
+.small-box.bg-warning { background: var(--admin-warning) !important; }
+.small-box.bg-danger { background: var(--admin-danger) !important; }
+.small-box.bg-info { background: var(--admin-info) !important; }
 
 /* ──────────────────────────────────────────────────────
-   MICRO-INTERACTIONS
+   FILTRES ET RECHERCHE
    ────────────────────────────────────────────────────── */
 
+#changelist-filter {
+    border: 1px solid var(--admin-border) !important;
+    border-radius: var(--admin-radius-lg) !important;
+    background: var(--admin-card-bg) !important;
+    box-shadow: var(--admin-shadow-sm) !important;
+    padding: 16px !important;
+}
+
+#changelist-filter h3 {
+    font-family: var(--admin-font) !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    color: var(--admin-text-muted) !important;
+    padding: 8px 0 !important;
+    border-bottom: 1px solid var(--admin-border) !important;
+}
+
+#changelist-filter ul {
+    list-style: none !important;
+    padding: 0 !important;
+}
+
+#changelist-filter ul li {
+    padding: 4px 0 !important;
+}
+
+#changelist-filter ul li a {
+    font-family: var(--admin-font) !important;
+    font-size: 12px !important;
+    color: var(--admin-text-muted) !important;
+    transition: all var(--admin-transition-fast) !important;
+    text-decoration: none !important;
+}
+
+#changelist-filter ul li a:hover {
+    color: var(--admin-secondary) !important;
+}
+
+#changelist-filter ul li.selected a {
+    color: var(--admin-secondary) !important;
+    font-weight: 600 !important;
+}
+
+/* ──────────────────────────────────────────────────────
+   ACTIONS EN MASSE
+   ────────────────────────────────────────────────────── */
+
+.action-counter {
+    font-weight: 600 !important;
+    color: var(--admin-secondary) !important;
+}
+
+/* ──────────────────────────────────────────────────────
+   MODALES (comme l'UI)
+   ────────────────────────────────────────────────────── */
+
+.modal-content {
+    border: none !important;
+    border-radius: var(--admin-radius-xl) !important;
+    box-shadow: var(--admin-shadow-xl) !important;
+    overflow: hidden !important;
+}
+
+.modal-header {
+    background: var(--admin-primary) !important;
+    color: #fff !important;
+    border-bottom: none !important;
+    padding: 20px 24px !important;
+}
+
+.modal-header .modal-title {
+    font-family: var(--admin-font) !important;
+    font-weight: 700 !important;
+    font-size: 16px !important;
+}
+
+.modal-header .btn-close {
+    filter: brightness(0) invert(1) !important;
+    opacity: 0.5 !important;
+    transition: opacity var(--admin-transition-fast) !important;
+}
+
+.modal-header .btn-close:hover {
+    opacity: 1 !important;
+}
+
+.modal-body {
+    padding: 24px !important;
+}
+
+.modal-footer {
+    background: var(--admin-bg) !important;
+    border-top: 1px solid var(--admin-border) !important;
+    padding: 16px 24px !important;
+}
+
+/* ──────────────────────────────────────────────────────
+   FORMULAIRES DE CONNEXION (comme l'UI)
+   ────────────────────────────────────────────────────── */
+
+.login-box {
+    background: var(--admin-card-bg) !important;
+    border-radius: var(--admin-radius-xl) !important;
+    box-shadow: var(--admin-shadow-xl) !important;
+    border: 1px solid var(--admin-border) !important;
+    overflow: hidden !important;
+}
+
+.login-box .login-logo {
+    background: var(--admin-primary) !important;
+    padding: 32px 36px 28px !important;
+}
+
+.login-box .login-logo .brand-text {
+    font-family: var(--admin-font) !important;
+    font-weight: 700 !important;
+    color: #fff !important;
+    font-size: 20px !important;
+}
+
+.login-box .login-logo .brand-image {
+    border-radius: var(--admin-radius-sm) !important;
+    background: var(--admin-secondary) !important;
+    padding: 8px !important;
+}
+
+.login-box .login-card-body {
+    padding: 32px 36px 28px !important;
+}
+
+/* ──────────────────────────────────────────────────────
+   MICRO-INTERACTIONS (comme l'UI)
+   ────────────────────────────────────────────────────── */
+
+/* Cards */
 .card {
     transition: transform 200ms ease, box-shadow 200ms ease !important;
 }
@@ -516,8 +840,32 @@
     transform: translateY(-2px) !important;
 }
 
+/* Buttons */
 .btn {
     transition: transform 150ms ease, box-shadow 150ms ease !important;
+}
+
+.btn:hover {
+    transform: translateY(-1px) !important;
+}
+
+/* Badges */
+.badge {
+    transition: transform 150ms ease !important;
+}
+
+.badge:hover {
+    transform: scale(1.05) !important;
+}
+
+/* Table rows */
+.table tbody tr {
+    transition: background 150ms ease !important;
+}
+
+/* Sidebar links */
+.nav-sidebar .nav-link {
+    transition: color 150ms ease, background 150ms ease !important;
 }
 
 /* ──────────────────────────────────────────────────────
@@ -542,6 +890,28 @@
     .small-box .icon {
         font-size: 32px !important;
     }
+    
+    .content-header h1 {
+        font-size: 20px !important;
+    }
+    
+    .login-box .login-card-body {
+        padding: 24px 22px 20px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .content-header h1 {
+        font-size: 18px !important;
+    }
+    
+    .card-header {
+        padding: 12px 16px !important;
+    }
+    
+    .card-body {
+        padding: 12px !important;
+    }
 }
 
 /* ──────────────────────────────────────────────────────
@@ -553,6 +923,7 @@
     *::before,
     *::after {
         animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
         transition-duration: 1ms !important;
     }
 }
