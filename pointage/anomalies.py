@@ -1,8 +1,3 @@
-# pointage/anomalies.py
-#
-# COUCHE DE PERSISTANCE DES ANOMALIES (Phase 4)
-# ================================================
-
 import logging
 from typing import Optional
 
@@ -88,13 +83,10 @@ def marquer_traitee(
         raise ValueError("Impossible de retraiter une anomalie déjà clôturée.")
 
     with transaction.atomic():
-        # ============================================================
+        # ================================================================
         # AJOUT : type_action est un champ requis (NOT NULL)
         # Nous utilisons 'traitee' comme valeur par défaut
-        # ============================================================
-        type_action = 'traitee'
-        # ============================================================
-        
+        # ================================================================
         traitement, created = AnomalieTraitement.objects.update_or_create(
             anomalie=anomalie,
             defaults={
@@ -102,7 +94,7 @@ def marquer_traitee(
                 'commentaire': commentaire,
                 'corrections': corrections or [],
                 'pointage_concerne': pointage_concerne,
-                'type_action': type_action,  # <-- AJOUT : champ requis
+                'type_action': 'traitee',  # <--- CHAMP AJOUTÉ ICI
             }
         )
         anomalie.statut = AnomaliePointage.STATUT_TRAITEE

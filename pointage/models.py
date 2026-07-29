@@ -611,7 +611,7 @@ class AnomalieTraitement(models.Model):
     historique simple et non ambigu.
     """
     # ================================================================
-    # AJOUT : TYPE D'ACTION (champ requis par la base de données)
+    # TYPE D'ACTION (champ requis par la base de données)
     # ================================================================
     TYPE_ACTION_CHOICES = [
         ('traitee', 'Traitée'),
@@ -622,7 +622,7 @@ class AnomalieTraitement(models.Model):
     type_action = models.CharField(
         max_length=20,
         choices=TYPE_ACTION_CHOICES,
-        default='traitee',  # Valeur par défaut pour éviter les erreurs
+        default='traitee',
         verbose_name="Type d'action"
     )
     # ================================================================
