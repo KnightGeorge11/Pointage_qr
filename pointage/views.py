@@ -715,20 +715,144 @@ def alertes_rh_view(request):
             Q(matricule_scanne__icontains=filter_search)
         )
 
+    # ================================================================
+    # AJOUT : Calcul des statistiques pour les mini-stats
+    # ================================================================
+    # Total des anomalies (toutes)
+    total_alertes = qs.count()
+    
+    # Compteurs par statut (sur l'ensemble, pas seulement la page filtrée)
+    ouvertes = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_OUVERTE).count()
+    traitees = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_TRAITEE).count()
+    cloturees = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_CLOTUREE).count()
+    non_traitees = ouvertes  # pour le badge de l'en-tête
+    # ================================================================
+
     paginator = Paginator(qs, 20)
     alertes = paginator.get_page(request.GET.get('page'))
 
-    # Récupérer le nombre d'anomalies ouvertes pour le badge
-    non_traitees = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_OUVERTE).count()
-
     context = {
         'alertes': alertes,
-        'non_traitees': non_traitees,
+        'non_traitees': non_traitees,  # Badge d'en-tête
+        'ouvertes': ouvertes,          # Mini-stat "Ouvertes"
+        'traitees': traitees,          # Mini-stat "Traitées"
+        'cloturees': cloturees,        # Mini-stat "Clôturées"
+        'total_alertes': total_alertes, # Mini-stat "Total"
         'types_alerte': AnomaliePointage.TYPE_CHOICES,
         'filter_type': filter_type,
         'filter_statut': filter_statut,
         'filter_search': filter_search,
-        'user_is_staff': request.user.is_staff,  # Passé au template
+        'user_is_staff': request.user.is_staff,
+    }
+    return render(request, 'admin/pointage/alerte/alertes_rh.html', context)@login_required
+def alertes_rh_view(request):
+    """
+    Consultation des anomalies - accessible à tous les utilisateurs authentifiés.
+    Traitement (POST) - réservé à l'Admin/RH (is_staff).
+    """
+    # ============================================================
+    # LOG DE DIAGNOSTIC - À SUPPRIMER APRÈS VÉRIFICATION
+    # ============================================================
+    print("=" * 80)
+    print("🔴🔴🔴 alertes_rh_view EXÉCUTÉE 🔴🔴🔴")
+    print("=" * 80)
+    print(f"  ➤ Utilisateur : {request.user}")
+    print(f"  ➤ Username    : {request.user.username}")
+    print(f"  ➤ is_staff    : {request.user.is_staff}")
+    print(f"  ➤ role        : {getattr(request.user, 'role', 'NON DÉFINI')}")
+    print(f"  ➤ Méthode     : {request.method}")
+    print(f"  ➤ URL         : {request.path}")
+    print(f"  ➤ GET params  : {dict(request.GET)}")
+    print(f"  ➤ POST data   : {dict(request.POST) if request.method == 'POST' else 'N/A'}")
+    print("=" * 80)
+    # ============================================================
+    
+    # --- TRAITEMENT POST (réservé à l'Admin/RH) ---
+    if request.method == 'POST':
+        # Vérification des droits
+        if not request.user.is_staff:
+            messages.error(request, "❌ Seul un administrateur ou RH peut traiter une anomalie.")
+            return redirect('alertes_rh')
+        
+        anomalie = get_object_or_404(AnomaliePointage, pk=request.POST.get('anomalie_id'))
+        action = request.POST.get('action')
+        
+        try:
+            if action == 'traiter':
+                commentaire = request.POST.get('commentaire', '').strip()
+                champ = request.POST.get('champ_corrige', '').strip()
+                ancienne = request.POST.get('ancienne_valeur', '').strip()
+                nouvelle = request.POST.get('nouvelle_valeur', '').strip()
+                corrections = []
+                if champ:
+                    corrections.append({
+                        'champ': champ,
+                        'ancienne_valeur': ancienne,
+                        'nouvelle_valeur': nouvelle,
+                    })
+                marquer_traitee(anomalie, request.user, commentaire=commentaire, corrections=corrections)
+                messages.success(request, f"✅ Anomalie #{anomalie.pk} marquée comme traitée.")
+                
+            elif action == 'cloturer':
+                marquer_cloturee(anomalie, request.user)
+                messages.success(request, f"🔒 Anomalie #{anomalie.pk} clôturée.")
+                
+        except ValueError as e:
+            messages.error(request, f"❌ {e}")
+        except PermissionError as e:
+            messages.error(request, f"❌ {e}")
+            
+        return redirect('alertes_rh')
+
+    # --- CONSULTATION GET (accessible à tous) ---
+    filter_type = request.GET.get('type', '')
+    filter_statut = request.GET.get('statut', '')
+    filter_search = request.GET.get('search', '').strip()
+
+    qs = AnomaliePointage.objects.select_related(
+        'employe', 'site', 'traitement', 'traitement__administrateur', 'cloturee_par'
+    )
+    
+    if filter_type:
+        qs = qs.filter(type=filter_type)
+    if filter_statut:
+        qs = qs.filter(statut=filter_statut)
+    if filter_search:
+        qs = qs.filter(
+            Q(employe__nom__icontains=filter_search) |
+            Q(employe__prenom__icontains=filter_search) |
+            Q(employe__matricule__icontains=filter_search) |
+            Q(matricule_scanne__icontains=filter_search)
+        )
+
+    # ================================================================
+    # AJOUT : Calcul des statistiques pour les mini-stats
+    # ================================================================
+    # Total des anomalies (toutes)
+    total_alertes = qs.count()
+    
+    # Compteurs par statut (sur l'ensemble, pas seulement la page filtrée)
+    ouvertes = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_OUVERTE).count()
+    traitees = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_TRAITEE).count()
+    cloturees = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_CLOTUREE).count()
+    non_traitees = ouvertes  # pour le badge de l'en-tête
+    # ================================================================
+
+    paginator = Paginator(qs, 20)
+    alertes = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'alertes': alertes,
+        'non_traitees': non_traitees,  # Badge d'en-tête
+        'ouvertes': ouvertes,          # Mini-stat "Ouvertes"
+        'traitees': traitees,          # Mini-stat "Traitées"
+        'cloturees': cloturees,        # Mini-stat "Clôturées"
+        'total_alertes': total_alertes, # Mini-stat "Total"
+        'types_alerte': AnomaliePointage.TYPE_CHOICES,
+        'filter_type': filter_type,
+        'filter_statut': filter_statut,
+        'filter_search': filter_search,
+        'user_is_staff': request.user.is_staff,
     }
     return render(request, 'admin/pointage/alerte/alertes_rh.html', context)
 

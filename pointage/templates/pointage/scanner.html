@@ -855,31 +855,6 @@
         </div>
 
         <div class="scanner-card-body">
-
-            <!-- Messages Django -->
-            {% if messages %}
-                {% for message in messages %}
-                <div class="scan-feedback 
-                    {% if 'success' in message.tags %}success
-                    {% elif 'warning' in message.tags %}warning
-                    {% elif 'error' in message.tags %}error
-                    {% else %}info{% endif %}" id="djangoMsg">
-                    <div class="scan-feedback-icon">
-                        {% if 'success' in message.tags %}<i class="fas fa-check"></i>
-                        {% elif 'warning' in message.tags %}<i class="fas fa-exclamation-triangle"></i>
-                        {% elif 'error' in message.tags %}<i class="fas fa-times"></i>
-                        {% else %}<i class="fas fa-info"></i>{% endif %}
-                    </div>
-                    <div class="scan-feedback-content">
-                        <div class="scan-feedback-title">{{ message }}</div>
-                        {% if message.extra_tags %}
-                        <div class="scan-feedback-sub">{{ message.extra_tags }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-            {% endif %}
-
             <form method="post" id="scanForm">
                 {% csrf_token %}
 
