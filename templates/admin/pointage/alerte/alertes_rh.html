@@ -922,6 +922,11 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="anomalie_id" value="{{ alerte.pk }}">
                                 <input type="hidden" name="action" value="traiter">
+                                
+                                <!-- ===== CHAMP AJOUTÉ ===== -->
+                                <input type="hidden" name="type_action" value="traitee">
+                                <!-- ========================= -->
+                                
                                 <div class="modal-header">
                                     <h5 class="modal-title">
                                         <i class="fas fa-check-circle" style="margin-right:8px;"></i>
@@ -930,6 +935,7 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
                                 <div class="modal-body">
+                                    <!-- ... contenu existant ... -->
                                     <div style="background:var(--bg-surface);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;">
                                         <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:4px;">
                                             {{ alerte.get_type_display }}
@@ -949,8 +955,8 @@
                                             <i class="fas fa-comment"></i> Commentaire
                                         </label>
                                         <textarea name="commentaire" id="commentaire-{{ alerte.pk }}"
-                                                  class="filter-group-input" rows="3"
-                                                  placeholder="Explication de la résolution..."></textarea>
+                                                class="filter-group-input" rows="3"
+                                                placeholder="Explication de la résolution..."></textarea>
                                     </div>
 
                                     <hr style="border-color:var(--border-light);margin:16px 0;">
@@ -962,15 +968,15 @@
                                     <div class="row g-2">
                                         <div class="col-md-4">
                                             <input type="text" name="champ_corrige" class="filter-group-input"
-                                                   placeholder="Champ (ex: heure_depart)" style="font-size:12px;">
+                                                placeholder="Champ (ex: heure_depart)" style="font-size:12px;">
                                         </div>
                                         <div class="col-md-4">
                                             <input type="text" name="ancienne_valeur" class="filter-group-input"
-                                                   placeholder="Ancienne valeur" style="font-size:12px;">
+                                                placeholder="Ancienne valeur" style="font-size:12px;">
                                         </div>
                                         <div class="col-md-4">
                                             <input type="text" name="nouvelle_valeur" class="filter-group-input"
-                                                   placeholder="Nouvelle valeur" style="font-size:12px;">
+                                                placeholder="Nouvelle valeur" style="font-size:12px;">
                                         </div>
                                     </div>
                                 </div>
