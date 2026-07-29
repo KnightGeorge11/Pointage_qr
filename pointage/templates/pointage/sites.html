@@ -200,8 +200,8 @@
 .actions-group {
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 4px;
+    justify-content: center;
 }
 
 .actions-group .btn {
@@ -239,19 +239,6 @@
     background: var(--red-50);
     border-color: var(--red-500);
     color: var(--red-600);
-    transform: translateY(-1px);
-}
-
-.actions-group .btn-view {
-    background: transparent;
-    border: 1px solid var(--border-light);
-    color: var(--text-muted);
-}
-
-.actions-group .btn-view:hover {
-    background: var(--blue-50);
-    border-color: var(--blue-500);
-    color: var(--blue-600);
     transform: translateY(-1px);
 }
 
@@ -354,7 +341,6 @@
         font-size: 11px;
     }
 
-    /* Masquer les colonnes secondaires sur petit écran */
     .site-table thead th:nth-child(2),
     .site-table tbody td:nth-child(2) {
         display: none;
@@ -438,7 +424,7 @@
                     <th style="min-width:180px;">Adresse</th>
                     <th style="min-width:160px;">Horaires matin</th>
                     <th style="min-width:160px;">Horaires après-midi</th>
-                    <th style="text-align:center;min-width:100px;">Actions</th>
+                    <th style="text-align:center;min-width:80px;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -477,11 +463,9 @@
                             <a href="{% url 'site_update' site.pk %}" class="btn btn-edit" title="Modifier">
                                 <i class="fas fa-pen"></i>
                             </a>
-                            <a href="{% url 'site_delete' site.pk %}" class="btn btn-delete" title="Supprimer">
+                            <!-- Suppression via la vue update avec paramètre -->
+                            <a href="{% url 'site_update' site.pk %}?delete=true" class="btn btn-delete" title="Supprimer">
                                 <i class="fas fa-trash"></i>
-                            </a>
-                            <a href="{% url 'site_detail' site.pk %}" class="btn btn-view" title="Voir">
-                                <i class="fas fa-eye"></i>
                             </a>
                         </div>
                     </td>
@@ -516,7 +500,7 @@
             <ul class="pagination mb-0">
                 {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
                         <i class="fas fa-chevron-left"></i>
                     </a>
                 </li>
@@ -531,16 +515,14 @@
                     <li class="page-item active"><span class="page-link">{{ num }}</span></li>
                     {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
-                            {{ num }}
-                        </a>
+                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
                     </li>
                     {% endif %}
                 {% endfor %}
 
                 {% if page_obj.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">
                         <i class="fas fa-chevron-right"></i>
                     </a>
                 </li>
@@ -561,39 +543,14 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 
-    // ─── Confirmation de suppression ──────────────────────────
+    // ─── Confirmation de suppression ──
     document.querySelectorAll('.btn-delete').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
-            const siteName = this.closest('tr').querySelector('.site-name')?.textContent?.trim() || 'ce site';
-            if (!confirm('Êtes-vous sûr de vouloir supprimer le site "' + siteName + '" ?\n\nCette action est irréversible et supprimera tous les pointages associés.')) {
+            const row = this.closest('tr');
+            const siteName = row?.querySelector('.site-name')?.textContent?.trim() || 'ce site';
+            if (!confirm('Êtes-vous sûr de vouloir supprimer le site "' + siteName + '" ?\n\nCette action est irréversible.')) {
                 e.preventDefault();
             }
-        });
-    });
-
-    // ─── Raccourci clavier ────────────────────────────────────
-    document.addEventListener('keydown', function(e) {
-        // Ctrl + N pour Nouveau site
-        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-            e.preventDefault();
-            const createBtn = document.querySelector('a[href*="site_create"]');
-            if (createBtn) createBtn.click();
-        }
-        // Ctrl + P pour Imprimer
-        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
-            // Laisser le comportement natif
-        }
-    });
-
-    // ─── Survol des horaires pour afficher plus d'info ────────
-    document.querySelectorAll('.schedule-badge').forEach(function(badge) {
-        badge.addEventListener('mouseenter', function() {
-            this.style.transform = 'scale(1.05)';
-            this.style.boxShadow = 'var(--shadow-sm)';
-        });
-        badge.addEventListener('mouseleave', function() {
-            this.style.transform = 'scale(1)';
-            this.style.boxShadow = 'none';
         });
     });
 

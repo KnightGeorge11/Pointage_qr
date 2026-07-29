@@ -46,44 +46,7 @@
     flex-wrap: wrap;
 }
 
-/* ── Filtres ── */
-.filter-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
-    padding: 16px 20px;
-    background: var(--bg-white);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-}
-
-.filter-bar .form-control,
-.filter-bar .form-select {
-    width: auto;
-    min-width: 160px;
-}
-
-.filter-bar .form-control {
-    min-width: 200px;
-}
-
-.filter-bar .btn {
-    white-space: nowrap;
-}
-
-.filter-bar .filter-label {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-right: 4px;
-}
-
-/* ── Stats rapides ── */
+/* ── Stats mini ── */
 .stats-mini {
     display: flex;
     align-items: center;
@@ -297,6 +260,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    justify-content: center;
 }
 
 .actions-group .btn {
@@ -334,19 +298,6 @@
     background: var(--red-50);
     border-color: var(--red-500);
     color: var(--red-600);
-    transform: translateY(-1px);
-}
-
-.actions-group .btn-view {
-    background: transparent;
-    border: 1px solid var(--border-light);
-    color: var(--text-muted);
-}
-
-.actions-group .btn-view:hover {
-    background: var(--blue-50);
-    border-color: var(--blue-500);
-    color: var(--blue-600);
     transform: translateY(-1px);
 }
 
@@ -413,22 +364,6 @@
         flex: 1;
         justify-content: center;
     }
-
-    .filter-bar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .filter-bar .form-control,
-    .filter-bar .form-select {
-        width: 100%;
-        min-width: unset;
-    }
-
-    .filter-bar .btn {
-        width: 100%;
-        justify-content: center;
-    }
 }
 
 @media (max-width: 768px) {
@@ -464,6 +399,11 @@
         font-size: 10px;
         padding: 2px 10px;
     }
+
+    .employe-table thead th:nth-child(3),
+    .employe-table tbody td:nth-child(3) {
+        display: none;
+    }
 }
 
 @media (max-width: 480px) {
@@ -475,8 +415,8 @@
         font-size: 16px;
     }
 
-    .employe-table thead th:nth-child(3),
-    .employe-table tbody td:nth-child(3) {
+    .employe-table thead th:nth-child(4),
+    .employe-table tbody td:nth-child(4) {
         display: none;
     }
 }
@@ -524,28 +464,6 @@
     </span>
 </div>
 
-<!-- ===== FILTRES ===== -->
-<div class="filter-bar">
-    <div style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap;">
-        <span class="filter-label"><i class="fas fa-filter"></i> Filtres</span>
-        <input type="text" class="form-control" id="searchInput" placeholder="Rechercher un employé..." style="min-width:200px;">
-        <select class="form-select" id="statusFilter" style="min-width:140px;">
-            <option value="">Tous les statuts</option>
-            <option value="actif">Actifs</option>
-            <option value="inactif">Inactifs</option>
-        </select>
-        <select class="form-select" id="posteFilter" style="min-width:160px;">
-            <option value="">Tous les postes</option>
-            {% for poste in postes %}
-            <option value="{{ poste.id }}">{{ poste.nom }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <button class="btn btn-outline-secondary" id="resetFilters">
-        <i class="fas fa-undo"></i> Réinitialiser
-    </button>
-</div>
-
 <!-- ===== TABLEAU ===== -->
 <div class="table-container">
     <div class="table-wrapper">
@@ -558,12 +476,12 @@
                     <th style="min-width:120px;">Poste</th>
                     <th>QR Code</th>
                     <th>Statut</th>
-                    <th style="text-align:center;min-width:120px;">Actions</th>
+                    <th style="text-align:center;min-width:80px;">Actions</th>
                 </tr>
             </thead>
             <tbody id="employeTableBody">
                 {% for employe in employes %}
-                <tr data-statut="{% if employe.actif %}actif{% else %}inactif{% endif %}" data-poste="{{ employe.poste.id|default:'' }}">
+                <tr>
                     <td>
                         <span class="employe-matricule">#{{ employe.matricule }}</span>
                     </td>
@@ -613,15 +531,12 @@
                         </span>
                     </td>
                     <td>
-                        <div class="actions-group" style="justify-content:center;">
+                        <div class="actions-group">
                             <a href="{% url 'employe_update' employe.pk %}" class="btn btn-edit" title="Modifier">
                                 <i class="fas fa-pen"></i>
                             </a>
                             <a href="{% url 'employe_delete' employe.pk %}" class="btn btn-delete" title="Supprimer">
                                 <i class="fas fa-trash"></i>
-                            </a>
-                            <a href="{% url 'employe_detail' employe.pk %}" class="btn btn-view" title="Voir">
-                                <i class="fas fa-eye"></i>
                             </a>
                         </div>
                     </td>
@@ -656,7 +571,7 @@
             <ul class="pagination mb-0">
                 {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.poste %}&poste={{ request.GET.poste }}{% endif %}">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
                         <i class="fas fa-chevron-left"></i>
                     </a>
                 </li>
@@ -671,16 +586,14 @@
                     <li class="page-item active"><span class="page-link">{{ num }}</span></li>
                     {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.poste %}&poste={{ request.GET.poste }}{% endif %}">
-                            {{ num }}
-                        </a>
+                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
                     </li>
                     {% endif %}
                 {% endfor %}
 
                 {% if page_obj.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.poste %}&poste={{ request.GET.poste }}{% endif %}">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">
                         <i class="fas fa-chevron-right"></i>
                     </a>
                 </li>
@@ -701,101 +614,13 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 
-    const searchInput = document.getElementById('searchInput');
-    const statusFilter = document.getElementById('statusFilter');
-    const posteFilter = document.getElementById('posteFilter');
-    const resetBtn = document.getElementById('resetFilters');
-    const tableBody = document.getElementById('employeTableBody');
-    const rows = tableBody ? tableBody.querySelectorAll('tr[data-statut]') : [];
-
-    // Ne pas exécuter le filtrage si on n'a pas de lignes
-    if (!rows.length) return;
-
-    function filterTable() {
-        const searchTerm = searchInput.value.toLowerCase().trim();
-        const statusValue = statusFilter.value;
-        const posteValue = posteFilter.value;
-
-        let visibleCount = 0;
-
-        rows.forEach(function(row) {
-            const text = row.textContent.toLowerCase();
-            const statut = row.getAttribute('data-statut');
-            const poste = row.getAttribute('data-poste');
-
-            let show = true;
-
-            // Recherche textuelle
-            if (searchTerm && !text.includes(searchTerm)) {
-                show = false;
-            }
-
-            // Filtre statut
-            if (show && statusValue && statut !== statusValue) {
-                show = false;
-            }
-
-            // Filtre poste
-            if (show && posteValue && poste !== posteValue) {
-                show = false;
-            }
-
-            row.style.display = show ? '' : 'none';
-
-            if (show) visibleCount++;
-        });
-
-        // Mise à jour du compteur
-        const totalCount = document.querySelector('.pagination-info');
-        if (totalCount) {
-            const total = rows.length;
-            totalCount.innerHTML = 'Affichage de <strong>' + visibleCount + '</strong> employé' + (visibleCount > 1 ? 's' : '') +
-                ' sur <strong>' + total + '</strong>';
-        }
-    }
-
-    // Événements
-    searchInput.addEventListener('input', filterTable);
-    statusFilter.addEventListener('change', filterTable);
-    posteFilter.addEventListener('change', filterTable);
-
-    // Réinitialisation
-    resetBtn.addEventListener('click', function() {
-        searchInput.value = '';
-        statusFilter.value = '';
-        posteFilter.value = '';
-        filterTable();
-    });
-
-    // ── Lien "Voir QR" avec preview (optionnel) ──
-    document.querySelectorAll('.qr-action').forEach(function(link) {
-        if (!link.classList.contains('disabled')) {
-            link.addEventListener('mouseenter', function(e) {
-                // Simple effet de surbrillance
-                this.style.boxShadow = 'var(--shadow-md)';
-            });
-            link.addEventListener('mouseleave', function(e) {
-                this.style.boxShadow = 'none';
-            });
-        }
-    });
-
-    // ── Confirmation de suppression ──
+    // ─── Confirmation de suppression ──
     document.querySelectorAll('.btn-delete').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
             if (!confirm('Êtes-vous sûr de vouloir supprimer cet employé ? Cette action est irréversible.')) {
                 e.preventDefault();
             }
         });
-    });
-
-    // ── Raccourci clavier Ctrl+F pour focus recherche ──
-    document.addEventListener('keydown', function(e) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-            e.preventDefault();
-            searchInput.focus();
-            searchInput.select();
-        }
     });
 
 });
