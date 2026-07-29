@@ -88,13 +88,23 @@ def marquer_traitee(
         raise ValueError("Impossible de retraiter une anomalie déjà clôturée.")
 
     with transaction.atomic():
-        traitement, _ = AnomalieTraitement.objects.update_or_create(
+        # ============================================================
+        # AJOUT : Définir une valeur par défaut pour type_action
+        # ============================================================
+        # type_action est un champ requis (NOT NULL) dans le modèle.
+        # Nous utilisons 'traitee' comme valeur par défaut.
+        type_action = 'traitee'
+        # ============================================================
+        
+        # Utiliser update_or_create avec le champ type_action
+        traitement, created = AnomalieTraitement.objects.update_or_create(
             anomalie=anomalie,
             defaults={
                 'administrateur': administrateur,
                 'commentaire': commentaire,
                 'corrections': corrections or [],
                 'pointage_concerne': pointage_concerne,
+                'type_action': type_action,  # <-- AJOUT : champ requis
             }
         )
         anomalie.statut = AnomaliePointage.STATUT_TRAITEE
