@@ -159,10 +159,9 @@ JAZZMIN_SETTINGS = {
         "pointage.DemandeModification": "fas fa-pen-to-square",
     },
     
-    # ── Liens du menu ──
+    # ── Liens du menu supérieur ──
     "topmenu_links": [
         {"name": "App Web", "url": "/", "new_window": False},
-        {"name": "Dashboard", "url": "admin:index", "permissions": ["auth.view_user"]},
     ],
     
     "usermenu_links": [
@@ -170,10 +169,17 @@ JAZZMIN_SETTINGS = {
     ],
     
     # ── Organisation de la sidebar ──
-    "show_sidebar": True,              # ← IMPORTANT : Garder la sidebar
-    "navigation_expanded": True,       # ← IMPORTANT : Garder la navigation
-    "hide_apps": [],                   # ← Ne pas cacher d'apps
-    "hide_models": [],                 # ← Ne pas cacher de modèles
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    
+    # ── Cacher les modèles inutiles ──
+    "hide_models": [
+        "authtoken.token",
+        "authtoken.tokenproxy",
+    ],
+    
+    "hide_apps": [],
+    
     "order_with_respect_to": [
         "auth",
         "pointage",
@@ -184,19 +190,9 @@ JAZZMIN_SETTINGS = {
     
     "dark_mode_theme": None,
     
-    "custom_links": {
-        "pointage": [{
-            "name": "Tableau de bord",
-            "url": "admin:index",
-            "icon": "fas fa-chart-line",
-            "permissions": ["auth.view_user"]
-        }]
-    },
-    
     "search_model": "pointage.Employe",
     "user_avatar": None,
 }
-
 # ============================================================
 # JAZZMIN UI TWEAKS — Version Premium
 # ============================================================
