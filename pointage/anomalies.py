@@ -89,14 +89,12 @@ def marquer_traitee(
 
     with transaction.atomic():
         # ============================================================
-        # AJOUT : Définir une valeur par défaut pour type_action
+        # AJOUT : type_action est un champ requis (NOT NULL)
+        # Nous utilisons 'traitee' comme valeur par défaut
         # ============================================================
-        # type_action est un champ requis (NOT NULL) dans le modèle.
-        # Nous utilisons 'traitee' comme valeur par défaut.
         type_action = 'traitee'
         # ============================================================
         
-        # Utiliser update_or_create avec le champ type_action
         traitement, created = AnomalieTraitement.objects.update_or_create(
             anomalie=anomalie,
             defaults={

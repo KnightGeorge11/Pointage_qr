@@ -610,6 +610,22 @@ class AnomalieTraitement(models.Model):
     enregistrement plutôt que d'en créer un second, pour garder un
     historique simple et non ambigu.
     """
+    # ================================================================
+    # AJOUT : TYPE D'ACTION (champ requis par la base de données)
+    # ================================================================
+    TYPE_ACTION_CHOICES = [
+        ('traitee', 'Traitée'),
+        ('cloturee', 'Clôturée'),
+        ('ignoree', 'Ignorée'),
+        ('corrigee', 'Corrigée'),
+    ]
+    type_action = models.CharField(
+        max_length=20,
+        choices=TYPE_ACTION_CHOICES,
+        default='traitee',  # Valeur par défaut pour éviter les erreurs
+        verbose_name="Type d'action"
+    )
+    # ================================================================
     anomalie        = models.OneToOneField(
         AnomaliePointage, on_delete=models.CASCADE, related_name='traitement'
     )
