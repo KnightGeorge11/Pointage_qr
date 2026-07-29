@@ -163,38 +163,49 @@ LOGOUT_REDIRECT_URL = '/login/'
 # CONFIGURATION JAZZMIN
 # ============================================================
 JAZZMIN_SETTINGS = {
-    "site_title":    "Pointage Admin",
-    "site_header":   "Pointage",
-    "site_brand":    "Pointage QR",
-    "welcome_sign":  "Bienvenue dans l'administration",
-    "copyright":     "Pointage QR © 2026",
-    "theme":         "flatly",
-    "dark_mode_theme": None,
-    "icons": {
-        "auth":                         "fas fa-users-cog",
-        "auth.customuser":              "fas fa-user",
-        "auth.Group":                   "fas fa-users",
-        "pointage.Employe":             "fas fa-id-badge",
-        "pointage.Pointage":            "fas fa-clock",
-        "pointage.Site":                "fas fa-map-marker-alt",
-        "pointage.Scan":                "fas fa-qrcode",
-        "pointage.Poste":               "fas fa-briefcase",
-        "pointage.DemandeModification": "fas fa-inbox",
+    # Sidebar
+    "sidebar_navigation": {
+        "display": "sidebar",
+        "collapse": True,
+        "enable_sidebar_search": True,
     },
-    "topmenu_links": [
-        {"name": "App Web", "url": "/", "new_window": False},
-    ],
-    "usermenu_links": [
-        {"name": "App Web", "url": "/", "icon": "fas fa-home"},
-    ],
-    "show_sidebar":        True,
+    
+    # Icônes
+    "icons": {
+        "auth": "fas fa-lock",
+        "auth.user": "fas fa-user",
+        "auth.Group": "fas fa-users",
+        "pointage.Employe": "fas fa-user",
+        "pointage.Pointage": "fas fa-clock",
+        "pointage.Site": "fas fa-building",
+        "pointage.Poste": "fas fa-briefcase",
+        "pointage.Scan": "fas fa-qrcode",
+        "pointage.AnomaliePointage": "fas fa-triangle-exclamation",
+        "pointage.DemandeModification": "fas fa-pen-to-square",
+    },
+    
+    # Thème
+    "theme": "default",
+    
+    # UI Customization
+    "show_sidebar": True,
     "navigation_expanded": True,
-    "order_with_respect_to": [
-        "auth",
-        "pointage",
-    ],
-    "default_icon_parents":  "fas fa-folder",
-    "default_icon_children": "fas fa-circle",
+    "hide_apps": [],
+    "hide_models": [],
+    
+    # Personnalisation
+    "site_title": "Pointage QR",
+    "site_header": "Pointage QR",
+    "site_brand": "Pointage QR",
+    "site_logo": None,
+    "login_logo": None,
+    "login_logo_dark": None,
+    "site_logo_classes": "img-circle",
+    "site_icon": None,
+    "welcome_sign": "Bienvenue dans l'administration",
+    "copyright": "Pointage QR © 2025",
+    "search_model": "pointage.Employe",
+    "user_avatar": None,
 }
 
 JAZZMIN_UI_TWEAKS = {
