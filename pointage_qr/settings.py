@@ -1,4 +1,4 @@
-# settings.py — version corrigée complète
+# settings.py — version corrigée
 
 import os
 import sys
@@ -13,22 +13,6 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 ADMIN_SECRET_CODE = config('ADMIN_SECRET_CODE', default='1811')
 
 # ── Hosts / réseau ───────────────────────────────────────────────────────────
-#
-# Le serveur tourne sur un réseau local dont l'IP peut changer (attribution
-# DHCP). Pour ne JAMAIS avoir à modifier ce fichier quand l'IP change,
-# toute la configuration réseau se fait via le fichier .env
-# (variable DJANGO_ALLOWED_HOSTS, liste separee par des virgules).
-#
-# Solution recommandee pour une IP qui ne bouge plus du tout :
-#   1) Reserver une IP fixe pour la VM sur le routeur (bail DHCP statique),
-#      OU configurer une IP statique dans Netplan sur la VM Ubuntu.
-#   2) Installer avahi-daemon sur la VM (sudo apt install avahi-daemon)
-#      pour pouvoir joindre le serveur via pointageqr.local quelle que
-#      soit son IP - c'est la valeur ajoutee par defaut ci-dessous.
-#   3) Mettre a jour .env UNE SEULE FOIS avec la ou les IP/hostnames actuels.
-#      Voir NETWORK_SETUP.md a la racine du projet pour le detail.
-#
-# 'testserver' est necessaire pour django.test.Client (tests unitaires).
 ALLOWED_HOSTS = config(
     'DJANGO_ALLOWED_HOSTS',
     default='localhost,127.0.0.1,pointageqr.local,testserver',
@@ -60,17 +44,11 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# CORS_ALLOWED_ORIGINS : mêmes IP/hostnames que ALLOWED_HOSTS, mais avec
-# schéma + port. Configurable via .env (CORS_EXTRA_ORIGINS) sans jamais
-# toucher au code. Les origines pour localhost/hostname mDNS sont incluses
-# par défaut.
 CORS_ALLOWED_ORIGINS = config(
     'CORS_EXTRA_ORIGINS',
     default='http://localhost:8000,http://127.0.0.1:8000,http://pointageqr.local:8000',
     cast=Csv(),
 )
-# En développement (DEBUG=True), on autorise toutes les origines locales
-# pour ne pas bloquer les tests depuis un téléphone/PC dont l'IP change.
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 CORS_ALLOW_HEADERS = [
@@ -78,9 +56,6 @@ CORS_ALLOW_HEADERS = [
     'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with',
 ]
 
-# CSRF_TRUSTED_ORIGINS : requis par Django dès qu'on soumet un formulaire
-# (ex. connexion admin) depuis une origine autre que celle servie en local.
-# Même logique : dérivé de CORS_ALLOWED_ORIGINS, configurable via .env.
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
     default=','.join(CORS_ALLOWED_ORIGINS),
@@ -117,7 +92,9 @@ DATABASES = {
         'PORT': config('DB_PORT', default='5432'),
     }
 }
+
 AUTH_USER_MODEL = 'pointage.CustomUser'
+
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -143,25 +120,22 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
-    # Par défaut : session pour l'app web, token pour l'app mobile
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication',
     ],
-    # Par défaut : authentifié requis — les exceptions déclarent AllowAny explicitement
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
 }
 
-LOGIN_URL          = '/login/'
+LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 
 # ============================================================
-# CONFIGURATION JAZZMIN — VERSION PREMIUM
-# Cohérente avec l'interface utilisateur modernisée
+# CONFIGURATION JAZZMIN — Version Premium
 # ============================================================
 JAZZMIN_SETTINGS = {
     # ── Identité ──
@@ -195,24 +169,21 @@ JAZZMIN_SETTINGS = {
         {"name": "App Web", "url": "/", "icon": "fas fa-home"},
     ],
     
-    # ── Organisation ──
-    "show_sidebar": True,
-    "navigation_expanded": True,
-    "hide_apps": [],
-    "hide_models": [],
+    # ── Organisation de la sidebar ──
+    "show_sidebar": True,              # ← IMPORTANT : Garder la sidebar
+    "navigation_expanded": True,       # ← IMPORTANT : Garder la navigation
+    "hide_apps": [],                   # ← Ne pas cacher d'apps
+    "hide_models": [],                 # ← Ne pas cacher de modèles
     "order_with_respect_to": [
         "auth",
         "pointage",
     ],
     
-    # ── Personnalisation ──
     "default_icon_parents": "fas fa-folder",
     "default_icon_children": "fas fa-circle",
     
-    # ── Thème sombre (optionnel) ──
-    "dark_mode_theme": None,  # Mettre "darkly" pour activer le mode sombre
+    "dark_mode_theme": None,
     
-    # ── Personnalisation avancée ──
     "custom_links": {
         "pointage": [{
             "name": "Tableau de bord",
@@ -222,10 +193,7 @@ JAZZMIN_SETTINGS = {
         }]
     },
     
-    # ── Recherche ──
     "search_model": "pointage.Employe",
-    
-    # ── Avatar ──
     "user_avatar": None,
 }
 
@@ -239,34 +207,34 @@ JAZZMIN_UI_TWEAKS = {
     "body_small_text": False,
     "brand_small_text": False,
     
-    # ── Couleurs principales (cohérentes avec l'UI) ──
-    "brand_colour": "navbar-dark",  # Sidebar foncée
-    "accent": "accent-primary",     # Accent bleu
+    # ── Couleurs ──
+    "brand_colour": "navbar-dark",     # Sidebar foncée
+    "accent": "accent-primary",        # Accent bleu
     
     # ── Navbar ──
-    "navbar": "navbar-white navbar-light",  # Navbar claire avec bordure
-    "no_navbar_border": False,              # Garder la bordure pour la séparation
+    "navbar": "navbar-white navbar-light",
+    "no_navbar_border": False,
     "navbar_fixed": True,
     
     # ── Layout ──
     "layout_boxed": False,
     "footer_fixed": False,
     
-    # ── Sidebar (bleu foncé, cohérent avec l'UI) ──
+    # ── Sidebar (bleu foncé cohérent avec l'UI) ──
     "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-primary",  # Sidebar bleu foncé
+    "sidebar": "sidebar-dark-primary",     # ← Bleu foncé
     "sidebar_nav_small_text": False,
-    "sidebar_disable_expand": False,
+    "sidebar_disable_expand": False,       # ← IMPORTANT : Ne pas désactiver
     "sidebar_nav_child_indent": True,
     "sidebar_nav_compact_style": False,
     "sidebar_nav_legacy_style": False,
-    "sidebar_nav_flat_style": True,     # Style plat moderne
+    "sidebar_nav_flat_style": True,
     
     # ── Thème ──
-    "theme": "flatly",                  # Thème Bootstrap moderne
-    "dark_mode_theme": None,            # Désactivé pour rester cohérent
+    "theme": "flatly",
+    "dark_mode_theme": None,
     
-    # ── Boutons (outline pour rester élégant) ──
+    # ── Boutons ──
     "button_classes": {
         "primary": "btn-primary",
         "secondary": "btn-outline-secondary",

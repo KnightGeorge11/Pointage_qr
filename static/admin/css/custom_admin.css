@@ -1,88 +1,52 @@
 /* =====================================================
-   ADMIN CUSTOM - Version Premium SaaS
-   Cohérent avec l'interface utilisateur
+   ADMIN CUSTOM - UNIQUEMENT STYLES
+   Conservation de la sidebar Jazzmin originale
    ===================================================== */
 
-:root {
-    /* ── Couleurs principales ── */
-    --admin-primary: #0F172A;
-    --admin-secondary: #2563EB;
-    --admin-success: #22C55E;
-    --admin-warning: #F59E0B;
-    --admin-danger: #EF4444;
-    --admin-info: #3B82F6;
-    
-    /* ── Neutres ── */
-    --admin-bg: #F8FAFC;
-    --admin-card-bg: #FFFFFF;
-    --admin-border: #E2E8F0;
-    --admin-text: #0F172A;
-    --admin-text-secondary: #64748B;
-    --admin-text-muted: #94A3B8;
-    
-    /* ── Ombres ── */
-    --admin-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
-    --admin-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08);
-    --admin-shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08);
-    
-    /* ── Rayons ── */
-    --admin-radius-sm: 6px;
-    --admin-radius-md: 10px;
-    --admin-radius-lg: 14px;
-    --admin-radius-xl: 18px;
-    --admin-radius-full: 9999px;
-    
-    /* ── Polices ── */
-    --admin-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    
-    /* ── Transitions ── */
-    --admin-transition: 200ms ease;
-}
-
 /* ──────────────────────────────────────────────────────
-   SIDEBAR
+   SIDEBAR JAZZMIN CONSERVÉE - STYLE MODERNISÉ
    ────────────────────────────────────────────────────── */
 
-/* Sidebar principale */
+/* Sidebar - Bleu foncé cohérent avec l'UI */
 .sidebar {
-    background: var(--admin-primary) !important;
+    background: #0F172A !important;
     border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
 /* Logo */
 .brand-link {
-    background: var(--admin-primary) !important;
+    background: #0F172A !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
     padding: 16px 20px !important;
 }
 
 .brand-link .brand-text {
-    font-family: var(--admin-font) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     font-weight: 700 !important;
     color: #fff !important;
     letter-spacing: -0.01em !important;
 }
 
 .brand-link .brand-image {
-    border-radius: var(--admin-radius-sm) !important;
-    background: var(--admin-secondary) !important;
+    border-radius: 6px !important;
+    background: #2563EB !important;
     padding: 6px !important;
 }
 
 /* Navigation */
 .nav-sidebar .nav-item {
     margin: 2px 8px !important;
-    border-radius: var(--admin-radius-sm) !important;
+    border-radius: 6px !important;
 }
 
 .nav-sidebar .nav-link {
     color: rgba(255, 255, 255, 0.5) !important;
-    font-family: var(--admin-font) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     font-weight: 500 !important;
     font-size: 13px !important;
     padding: 10px 14px !important;
-    border-radius: var(--admin-radius-sm) !important;
-    transition: all var(--admin-transition) !important;
+    border-radius: 6px !important;
+    transition: all 200ms ease !important;
 }
 
 .nav-sidebar .nav-link:hover {
@@ -96,13 +60,17 @@
 }
 
 .nav-sidebar .nav-link.active i {
-    color: var(--admin-secondary) !important;
+    color: #2563EB !important;
 }
 
-/* Sous-menus */
+.nav-sidebar .nav-link i {
+    font-size: 16px !important;
+}
+
+/* Sous-menus - Jazzmin original */
 .nav-sidebar .nav-treeview {
     background: rgba(255, 255, 255, 0.03) !important;
-    border-radius: var(--admin-radius-sm) !important;
+    border-radius: 6px !important;
     margin: 4px 0 !important;
     padding: 4px 0 !important;
 }
@@ -118,12 +86,12 @@
 
 /* Badges dans la sidebar */
 .nav-sidebar .nav-link .badge {
-    background: var(--admin-secondary) !important;
+    background: #2563EB !important;
     color: #fff !important;
     font-size: 10px !important;
     font-weight: 600 !important;
     padding: 2px 10px !important;
-    border-radius: var(--admin-radius-full) !important;
+    border-radius: 9999px !important;
 }
 
 /* ──────────────────────────────────────────────────────
@@ -134,24 +102,23 @@
     background: rgba(255, 255, 255, 0.8) !important;
     backdrop-filter: blur(12px) !important;
     -webkit-backdrop-filter: blur(12px) !important;
-    border-bottom: 1px solid var(--admin-border) !important;
-    box-shadow: var(--admin-shadow-sm) !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
 }
 
 .main-header .navbar {
     padding: 0 20px !important;
 }
 
-/* Boutons du topbar */
 .navbar-nav .nav-link {
-    border-radius: var(--admin-radius-sm) !important;
-    transition: all var(--admin-transition) !important;
-    color: var(--admin-text-secondary) !important;
+    border-radius: 6px !important;
+    transition: all 200ms ease !important;
+    color: #64748B !important;
 }
 
 .navbar-nav .nav-link:hover {
-    background: var(--admin-bg) !important;
-    color: var(--admin-text) !important;
+    background: #F8FAFC !important;
+    color: #0F172A !important;
 }
 
 /* ──────────────────────────────────────────────────────
@@ -159,7 +126,7 @@
    ────────────────────────────────────────────────────── */
 
 .content-wrapper {
-    background: var(--admin-bg) !important;
+    background: #F8FAFC !important;
 }
 
 /* ──────────────────────────────────────────────────────
@@ -167,28 +134,28 @@
    ────────────────────────────────────────────────────── */
 
 .card {
-    border: 1px solid var(--admin-border) !important;
-    border-radius: var(--admin-radius-lg) !important;
-    box-shadow: var(--admin-shadow-sm) !important;
-    transition: all var(--admin-transition) !important;
-    background: var(--admin-card-bg) !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+    transition: all 200ms ease !important;
+    background: #FFFFFF !important;
 }
 
 .card:hover {
-    box-shadow: var(--admin-shadow-md) !important;
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08) !important;
 }
 
 .card-header {
     background: transparent !important;
-    border-bottom: 1px solid var(--admin-border) !important;
+    border-bottom: 1px solid #E2E8F0 !important;
     padding: 16px 20px !important;
-    font-family: var(--admin-font) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 .card-header .card-title {
     font-weight: 600 !important;
     font-size: 14px !important;
-    color: var(--admin-text) !important;
+    color: #0F172A !important;
 }
 
 .card-body {
@@ -196,8 +163,8 @@
 }
 
 .card-footer {
-    background: var(--admin-bg) !important;
-    border-top: 1px solid var(--admin-border) !important;
+    background: #F8FAFC !important;
+    border-top: 1px solid #E2E8F0 !important;
     padding: 12px 20px !important;
 }
 
@@ -208,34 +175,34 @@
 .table {
     border-collapse: separate !important;
     border-spacing: 0 !important;
-    font-family: var(--admin-font) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 .table thead th {
-    background: var(--admin-bg) !important;
-    color: var(--admin-text-secondary) !important;
+    background: #F8FAFC !important;
+    color: #64748B !important;
     font-size: 10px !important;
     font-weight: 600 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.08em !important;
-    border-bottom: 1px solid var(--admin-border) !important;
+    border-bottom: 1px solid #E2E8F0 !important;
     padding: 10px 14px !important;
     border-top: none !important;
 }
 
 .table tbody td {
     padding: 10px 14px !important;
-    border-bottom: 1px solid var(--admin-border) !important;
+    border-bottom: 1px solid #E2E8F0 !important;
     vertical-align: middle !important;
-    color: var(--admin-text) !important;
+    color: #0F172A !important;
 }
 
 .table tbody tr {
-    transition: background var(--admin-transition) !important;
+    transition: background 200ms ease !important;
 }
 
 .table tbody tr:hover {
-    background: var(--admin-bg) !important;
+    background: #F8FAFC !important;
 }
 
 /* ──────────────────────────────────────────────────────
@@ -243,23 +210,23 @@
    ────────────────────────────────────────────────────── */
 
 .btn {
-    font-family: var(--admin-font) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     font-weight: 600 !important;
     font-size: 12px !important;
-    border-radius: var(--admin-radius-sm) !important;
+    border-radius: 6px !important;
     padding: 8px 20px !important;
-    transition: all var(--admin-transition) !important;
-    border: none !important;
+    transition: all 200ms ease !important;
 }
 
 .btn:hover {
     transform: translateY(-1px) !important;
-    box-shadow: var(--admin-shadow-md) !important;
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08) !important;
 }
 
 .btn-primary {
-    background: var(--admin-secondary) !important;
+    background: #2563EB !important;
     color: #fff !important;
+    border: none !important;
 }
 
 .btn-primary:hover {
@@ -267,8 +234,9 @@
 }
 
 .btn-success {
-    background: var(--admin-success) !important;
+    background: #22C55E !important;
     color: #fff !important;
+    border: none !important;
 }
 
 .btn-success:hover {
@@ -276,8 +244,9 @@
 }
 
 .btn-danger {
-    background: var(--admin-danger) !important;
+    background: #EF4444 !important;
     color: #fff !important;
+    border: none !important;
 }
 
 .btn-danger:hover {
@@ -285,8 +254,9 @@
 }
 
 .btn-warning {
-    background: var(--admin-warning) !important;
+    background: #F59E0B !important;
     color: #fff !important;
+    border: none !important;
 }
 
 .btn-warning:hover {
@@ -294,23 +264,25 @@
 }
 
 .btn-info {
-    background: var(--admin-info) !important;
+    background: #3B82F6 !important;
     color: #fff !important;
+    border: none !important;
 }
 
 .btn-info:hover {
     background: #2563EB !important;
 }
 
-.btn-default {
-    background: var(--admin-bg) !important;
-    color: var(--admin-text-secondary) !important;
-    border: 1px solid var(--admin-border) !important;
+.btn-outline-secondary {
+    background: transparent !important;
+    color: #64748B !important;
+    border: 1px solid #E2E8F0 !important;
 }
 
-.btn-default:hover {
-    background: var(--admin-border) !important;
-    color: var(--admin-text) !important;
+.btn-outline-secondary:hover {
+    background: #F8FAFC !important;
+    color: #0F172A !important;
+    border-color: #94A3B8 !important;
 }
 
 /* ──────────────────────────────────────────────────────
@@ -318,11 +290,11 @@
    ────────────────────────────────────────────────────── */
 
 .badge {
-    font-family: var(--admin-font) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     font-weight: 600 !important;
     font-size: 10px !important;
     padding: 4px 12px !important;
-    border-radius: var(--admin-radius-full) !important;
+    border-radius: 9999px !important;
     text-transform: uppercase !important;
     letter-spacing: 0.04em !important;
 }
@@ -348,13 +320,13 @@
 }
 
 .badge-primary {
-    background: var(--admin-secondary) !important;
+    background: #2563EB !important;
     color: #fff !important;
 }
 
 .badge-secondary {
-    background: var(--admin-bg) !important;
-    color: var(--admin-text-secondary) !important;
+    background: #F8FAFC !important;
+    color: #64748B !important;
 }
 
 /* ──────────────────────────────────────────────────────
@@ -362,35 +334,30 @@
    ────────────────────────────────────────────────────── */
 
 .form-control, .form-select {
-    font-family: var(--admin-font) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     font-size: 13px !important;
-    border-radius: var(--admin-radius-sm) !important;
-    border: 1px solid var(--admin-border) !important;
+    border-radius: 6px !important;
+    border: 1px solid #E2E8F0 !important;
     padding: 8px 14px !important;
-    transition: all var(--admin-transition) !important;
-    background: var(--admin-card-bg) !important;
-    color: var(--admin-text) !important;
+    transition: all 200ms ease !important;
+    background: #FFFFFF !important;
+    color: #0F172A !important;
 }
 
 .form-control:focus, .form-select:focus {
-    border-color: var(--admin-secondary) !important;
+    border-color: #2563EB !important;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
     outline: none !important;
 }
 
 .form-label {
-    font-family: var(--admin-font) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     font-size: 11px !important;
     font-weight: 600 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.06em !important;
-    color: var(--admin-text-secondary) !important;
+    color: #64748B !important;
     margin-bottom: 4px !important;
-}
-
-/* Groupes de champs */
-.field-box {
-    margin-bottom: 16px !important;
 }
 
 /* Messages d'erreur */
@@ -401,7 +368,7 @@
 }
 
 .errorlist li {
-    color: var(--admin-danger) !important;
+    color: #EF4444 !important;
     font-size: 12px !important;
     font-weight: 500 !important;
     display: flex !important;
@@ -417,7 +384,7 @@
     width: 16px !important;
     height: 16px !important;
     border-radius: 50% !important;
-    background: var(--admin-danger) !important;
+    background: #EF4444 !important;
     color: #fff !important;
     font-size: 9px !important;
     font-weight: 700 !important;
@@ -433,24 +400,24 @@
 }
 
 .pagination .page-link {
-    font-family: var(--admin-font) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     font-size: 12px !important;
     font-weight: 500 !important;
-    border: 1px solid var(--admin-border) !important;
-    border-radius: var(--admin-radius-sm) !important;
-    color: var(--admin-text-secondary) !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 6px !important;
+    color: #64748B !important;
     padding: 6px 14px !important;
-    transition: all var(--admin-transition) !important;
+    transition: all 200ms ease !important;
 }
 
 .pagination .page-link:hover {
-    background: var(--admin-bg) !important;
-    color: var(--admin-text) !important;
+    background: #F8FAFC !important;
+    color: #0F172A !important;
 }
 
 .pagination .page-item.active .page-link {
-    background: var(--admin-secondary) !important;
-    border-color: var(--admin-secondary) !important;
+    background: #2563EB !important;
+    border-color: #2563EB !important;
     color: #fff !important;
 }
 
@@ -460,11 +427,11 @@
 
 .alert {
     border: none !important;
-    border-radius: var(--admin-radius-md) !important;
-    font-family: var(--admin-font) !important;
+    border-radius: 10px !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     font-weight: 500 !important;
     padding: 14px 18px !important;
-    box-shadow: var(--admin-shadow-md) !important;
+    box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.08) !important;
     animation: slideInRight 300ms ease-out both !important;
 }
 
@@ -476,42 +443,41 @@
 .alert-success {
     background: #F0FDF4 !important;
     color: #15803D !important;
-    border-left: 4px solid var(--admin-success) !important;
+    border-left: 4px solid #22C55E !important;
 }
 
 .alert-danger {
     background: #FEF2F2 !important;
     color: #B91C1C !important;
-    border-left: 4px solid var(--admin-danger) !important;
+    border-left: 4px solid #EF4444 !important;
 }
 
 .alert-warning {
     background: #FFFBEB !important;
     color: #B45309 !important;
-    border-left: 4px solid var(--admin-warning) !important;
+    border-left: 4px solid #F59E0B !important;
 }
 
 .alert-info {
     background: #EFF6FF !important;
     color: #1D4ED8 !important;
-    border-left: 4px solid var(--admin-info) !important;
+    border-left: 4px solid #3B82F6 !important;
 }
 
 /* ──────────────────────────────────────────────────────
-   DASHBOARD
+   DASHBOARD - CARTES DE STATS
    ────────────────────────────────────────────────────── */
 
-/* Cartes de stats */
 .small-box {
-    border-radius: var(--admin-radius-lg) !important;
-    box-shadow: var(--admin-shadow-sm) !important;
-    transition: all var(--admin-transition) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+    transition: all 200ms ease !important;
     overflow: hidden !important;
 }
 
 .small-box:hover {
     transform: translateY(-4px) !important;
-    box-shadow: var(--admin-shadow-md) !important;
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08) !important;
 }
 
 .small-box .inner {
@@ -527,22 +493,21 @@
 .small-box .small-box-footer {
     background: rgba(0, 0, 0, 0.1) !important;
     padding: 8px 20px !important;
-    font-family: var(--admin-font) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     font-weight: 600 !important;
     font-size: 12px !important;
 }
 
-.small-box.bg-primary { background: var(--admin-secondary) !important; }
-.small-box.bg-success { background: var(--admin-success) !important; }
-.small-box.bg-warning { background: var(--admin-warning) !important; }
-.small-box.bg-danger { background: var(--admin-danger) !important; }
-.small-box.bg-info { background: var(--admin-info) !important; }
+.small-box.bg-primary { background: #2563EB !important; }
+.small-box.bg-success { background: #22C55E !important; }
+.small-box.bg-warning { background: #F59E0B !important; }
+.small-box.bg-danger { background: #EF4444 !important; }
+.small-box.bg-info { background: #3B82F6 !important; }
 
 /* ──────────────────────────────────────────────────────
    MICRO-INTERACTIONS
    ────────────────────────────────────────────────────── */
 
-/* Hover sur les cartes */
 .card {
     transition: transform 200ms ease, box-shadow 200ms ease !important;
 }
@@ -551,18 +516,8 @@
     transform: translateY(-2px) !important;
 }
 
-/* Hover sur les boutons */
 .btn {
     transition: transform 150ms ease, box-shadow 150ms ease !important;
-}
-
-/* Animation des badges de statut */
-.badge[class*="badge-"] {
-    transition: transform 150ms ease !important;
-}
-
-.badge[class*="badge-"]:hover {
-    transform: scale(1.05) !important;
 }
 
 /* ──────────────────────────────────────────────────────
