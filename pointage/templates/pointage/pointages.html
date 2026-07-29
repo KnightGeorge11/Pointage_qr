@@ -1068,11 +1068,6 @@ dialog#modalDetail:not([open]) {
 <!-- ===== CARTES ===== -->
 <div class="cards-grid">
 {% for jour in jours %}
-
-{% with color_idx=jour.employe.id|stringformat:"d" %}
-{% with colors="2563EB,22C55E,F59E0B,EF4444,8B5CF6,EC4899,14B8A6,6366F1" %}
-{% with color_list=colors.split|slice:color_idx|last %}
-
 <div class="pointage-card {% if jour.nuit and jour.nuit.type_journee == 'garde' %}is-garde{% endif %}">
 
     <!-- En-tête -->
@@ -1249,8 +1244,6 @@ dialog#modalDetail:not([open]) {
     </div>
 
 </div>
-{% endwith %}{% endwith %}
-
 {% empty %}
 <div class="empty-state">
     <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
