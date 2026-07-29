@@ -5,69 +5,116 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connexion — Pointage QR</title>
 
+    <!-- Google Fonts - Inter (moderne, utilisé par Stripe/GitHub) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     {% load static %}
 
     <style>
+    /* =====================================================
+       LOGIN — Version Premium SaaS
+       Palette : Bleu profond (#0F172A) + Bleu vif (#2563EB)
+       ===================================================== */
+
     :root {
-        --ink:         #0b0e17;
-        --ink-soft:    #1c2235;
-        --ink-muted:   #374163;
-        --surface:     #f2f4f8;
-        --surface-alt: #e8eaf0;
-        --white:       #ffffff;
-        --line:        #dde1ec;
-        --line-soft:   #eceef5;
-        --green:       #00c27a;
-        --green-dim:   #e4f9f1;
-        --green-text:  #007a4d;
-        --red:         #e8344a;
-        --red-dim:     #fdeaed;
-        --red-text:    #b01f32;
-        --font-ui:     'Syne', sans-serif;
-        --font-mono:   'DM Mono', monospace;
-        --r-xs: 4px; --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 18px;
-        --shadow-2: 0 3px 10px rgba(11,14,23,.09);
-        --shadow-3: 0 8px 28px rgba(11,14,23,.13);
+        /* ── Base ── */
+        --bg-primary:       #0F172A;
+        --bg-surface:       #F8FAFC;
+        --bg-white:         #FFFFFF;
+        --bg-hover:         #F1F5F9;
+        --bg-muted:         #E2E8F0;
+
+        /* ── Texte ── */
+        --text-primary:     #0F172A;
+        --text-secondary:   #334155;
+        --text-muted:       #64748B;
+        --text-light:       #94A3B8;
+        --text-white:       #FFFFFF;
+
+        /* ── Bleu (Primaire) ── */
+        --blue-50:          #EFF6FF;
+        --blue-100:         #DBEAFE;
+        --blue-500:         #3B82F6;
+        --blue-600:         #2563EB;
+        --blue-700:         #1D4ED8;
+
+        /* ── Vert (Succès) ── */
+        --green-50:         #F0FDF4;
+        --green-500:        #22C55E;
+        --green-600:        #16A34A;
+
+        /* ── Rouge (Erreur) ── */
+        --red-50:           #FEF2F2;
+        --red-500:          #EF4444;
+        --red-600:          #DC2626;
+
+        /* ── Bordures & Ombres ── */
+        --border-light:     #E2E8F0;
+        --shadow-sm:        0 1px 2px rgba(15, 23, 42, 0.05);
+        --shadow-md:        0 4px 6px -1px rgba(15, 23, 42, 0.08);
+        --shadow-lg:        0 10px 15px -3px rgba(15, 23, 42, 0.08);
+        --shadow-xl:        0 20px 25px -5px rgba(15, 23, 42, 0.08);
+
+        /* ── Rayons ── */
+        --radius-sm:        6px;
+        --radius-md:        10px;
+        --radius-lg:        14px;
+        --radius-xl:        18px;
+        --radius-full:      9999px;
+
+        /* ── Transitions ── */
+        --transition-fast:  150ms ease;
+        --transition-base:  200ms ease;
+        --transition-slow:  250ms ease;
     }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
 
     body {
-        font-family: var(--font-ui);
-        background: var(--ink);
-        color: var(--ink);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
         min-height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
         -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
         position: relative;
         overflow: hidden;
     }
 
-    /* Fond décoratif */
+    /* ── Fond décoratif ── */
     body::before {
         content: '';
         position: fixed;
-        right: -120px; top: -120px;
-        width: 480px; height: 480px;
+        right: -100px;
+        top: -100px;
+        width: 500px;
+        height: 500px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(0,194,122,.07) 0%, transparent 65%);
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, transparent 65%);
         pointer-events: none;
     }
 
     body::after {
         content: '';
         position: fixed;
-        left: -80px; bottom: -80px;
-        width: 360px; height: 360px;
+        left: -80px;
+        bottom: -80px;
+        width: 400px;
+        height: 400px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(41,98,255,.05) 0%, transparent 65%);
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.05) 0%, transparent 65%);
         pointer-events: none;
     }
 
@@ -78,20 +125,26 @@
         padding: 16px;
         position: relative;
         z-index: 1;
+        animation: loginFade var(--transition-slow) ease-out both;
+    }
+
+    @keyframes loginFade {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
     .login-card {
-        background: var(--white);
-        border-radius: var(--r-xl);
+        background: var(--bg-white);
+        border-radius: var(--radius-xl);
         overflow: hidden;
-        box-shadow: var(--shadow-3);
-        border: 1px solid rgba(255,255,255,.06);
+        box-shadow: var(--shadow-xl);
+        border: 1px solid rgba(255, 255, 255, 0.06);
     }
 
-    /* ── Header de la carte ── */
+    /* ── En-tête de la carte ── */
     .lc-header {
-        background: var(--ink);
-        padding: 28px 32px 26px;
+        background: var(--bg-primary);
+        padding: 32px 36px 28px;
         position: relative;
         overflow: hidden;
     }
@@ -99,128 +152,156 @@
     .lc-header::after {
         content: '';
         position: absolute;
-        right: -40px; top: -40px;
-        width: 160px; height: 160px;
+        right: -40px;
+        top: -40px;
+        width: 180px;
+        height: 180px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(0,194,122,.1) 0%, transparent 65%);
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, transparent 65%);
         pointer-events: none;
     }
 
     .lc-logo {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 20px;
+        gap: 14px;
+        margin-bottom: 24px;
+        position: relative;
+        z-index: 1;
     }
 
     .lc-logo-icon {
-        width: 38px; height: 38px;
-        border-radius: var(--r-sm);
-        background: var(--green);
-        display: flex; align-items: center; justify-content: center;
-        color: var(--ink);
-        font-size: 16px;
+        width: 44px;
+        height: 44px;
+        border-radius: var(--radius-sm);
+        background: var(--blue-600);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 18px;
         flex-shrink: 0;
+        transition: transform var(--transition-base);
+    }
+
+    .lc-logo:hover .lc-logo-icon {
+        transform: scale(1.05);
     }
 
     .lc-logo-text {
-        font-size: 14px;
+        font-size: 16px;
         font-weight: 700;
         color: #fff;
-        letter-spacing: -.01em;
+        letter-spacing: -0.01em;
+        line-height: 1.2;
     }
 
     .lc-logo-sub {
         font-size: 10px;
-        color: rgba(255,255,255,.35);
+        color: rgba(255, 255, 255, 0.35);
         font-weight: 500;
-        letter-spacing: .04em;
-        margin-top: 1px;
+        letter-spacing: 0.04em;
     }
 
     .lc-eyebrow {
-        font-size: 9px;
-        font-weight: 700;
-        letter-spacing: .18em;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: var(--green);
+        color: var(--blue-500);
         margin-bottom: 6px;
         display: flex;
         align-items: center;
-        gap: 7px;
+        gap: 8px;
+        position: relative;
+        z-index: 1;
     }
 
     .lc-eyebrow::before {
         content: '';
-        width: 14px; height: 2px;
-        background: var(--green);
+        width: 16px;
+        height: 2px;
+        background: var(--blue-500);
         border-radius: 1px;
-        display: inline-block;
     }
 
     .lc-title {
-        font-size: 1.5rem;
+        font-size: 26px;
         font-weight: 700;
         color: #fff;
-        letter-spacing: -.03em;
+        letter-spacing: -0.02em;
         line-height: 1.15;
+        position: relative;
+        z-index: 1;
     }
 
     .lc-sub {
-        font-size: 12px;
-        color: rgba(255,255,255,.38);
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.4);
         font-weight: 500;
-        margin-top: 5px;
+        margin-top: 6px;
+        position: relative;
+        z-index: 1;
     }
 
     /* ── Corps du formulaire ── */
     .lc-body {
-        padding: 28px 32px 32px;
-        background: var(--white);
+        padding: 32px 36px 28px;
+        background: var(--bg-white);
     }
 
-    /* Erreur globale */
+    /* ── Erreur globale ── */
     .lc-error {
-        background: var(--red-dim);
-        border: 1px solid rgba(232,52,74,.2);
-        border-radius: var(--r-md);
-        padding: 11px 14px;
+        background: var(--red-50);
+        border: 1px solid rgba(239, 68, 68, 0.15);
+        border-radius: var(--radius-md);
+        padding: 12px 16px;
         margin-bottom: 20px;
         display: flex;
-        align-items: center;
-        gap: 9px;
+        align-items: flex-start;
+        gap: 10px;
+        animation: errorSlide var(--transition-slow) ease-out both;
+    }
+
+    @keyframes errorSlide {
+        from { transform: translateX(-10px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
     }
 
     .lc-error-icon {
-        width: 26px; height: 26px;
-        border-radius: var(--r-xs);
-        background: var(--red);
-        display: flex; align-items: center; justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--red-500);
+        display: flex;
+        align-items: center;
+        justify-content: center;
         color: #fff;
-        font-size: 11px;
+        font-size: 12px;
         flex-shrink: 0;
+        margin-top: 1px;
     }
 
     .lc-error-text {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--red-text);
-        line-height: 1.4;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--red-600);
+        line-height: 1.5;
     }
 
-    /* Champs */
+    /* ── Champs ── */
     .field {
-        margin-bottom: 16px;
+        margin-bottom: 18px;
     }
 
     .field-lbl {
         display: block;
-        font-size: 9px;
-        font-weight: 700;
+        font-size: 10px;
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: .14em;
-        color: var(--ink-muted);
-        margin-bottom: 6px;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        margin-bottom: 5px;
     }
 
     .field-wrap {
@@ -229,56 +310,69 @@
 
     .field-icon {
         position: absolute;
-        left: 11px;
+        left: 12px;
         top: 50%;
         transform: translateY(-50%);
-        color: var(--ink-muted);
-        font-size: 13px;
+        color: var(--text-muted);
+        font-size: 14px;
         pointer-events: none;
+        transition: color var(--transition-fast);
     }
 
     .field-input {
         width: 100%;
-        background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: var(--r-xs);
-        padding: 10px 12px 10px 36px;
-        font-family: var(--font-ui);
-        font-size: 13px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        padding: 10px 14px 10px 40px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
         font-weight: 500;
-        color: var(--ink);
+        color: var(--text-primary);
         appearance: none;
         outline: none;
+        transition: all var(--transition-fast);
     }
 
     .field-input:focus {
-        border-color: var(--ink);
-        background: var(--white);
-        box-shadow: 0 0 0 3px rgba(11,14,23,.08);
+        border-color: var(--blue-500);
+        background: var(--bg-white);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .field-input:focus + .field-icon,
+    .field-input:focus ~ .field-icon {
+        color: var(--blue-500);
     }
 
     .field-input.has-error {
-        border-color: var(--red);
-        background: var(--red-dim);
+        border-color: var(--red-500);
+        background: var(--red-50);
     }
 
     .field-input.has-error:focus {
-        box-shadow: 0 0 0 3px rgba(232,52,74,.1);
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
     }
 
-    /* Django insère des <ul class="errorlist"> pour les erreurs par champ */
+    .field-input::placeholder {
+        color: var(--text-light);
+        font-weight: 400;
+    }
+
+    /* ── Django errorlist ── */
     .errorlist {
         list-style: none;
         margin-top: 5px;
+        padding: 0;
     }
 
     .errorlist li {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--red-text);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--red-600);
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 6px;
     }
 
     .errorlist li::before {
@@ -286,92 +380,195 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 14px; height: 14px;
+        width: 16px;
+        height: 16px;
         border-radius: 50%;
-        background: var(--red);
+        background: var(--red-500);
         color: #fff;
         font-size: 9px;
         font-weight: 700;
         flex-shrink: 0;
     }
 
-    /* Séparateur */
+    /* ── Séparateur ── */
     .lc-sep {
         height: 1px;
-        background: var(--line-soft);
-        margin: 20px 0;
+        background: var(--border-light);
+        margin: 22px 0 18px;
     }
 
-    /* Bouton principal */
+    /* ── Bouton de connexion ── */
     .btn-login {
         width: 100%;
-        background: var(--ink);
-        color: rgba(255,255,255,.88);
+        background: var(--blue-600);
+        color: #fff;
         border: none;
-        border-radius: var(--r-xs);
-        padding: 12px;
-        font-family: var(--font-ui);
-        font-size: 11px;
-        font-weight: 700;
+        border-radius: var(--radius-sm);
+        padding: 13px;
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: .12em;
+        letter-spacing: 0.08em;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        margin-bottom: 14px;
+        gap: 10px;
+        transition: all var(--transition-fast);
+        margin-bottom: 16px;
+        position: relative;
+        overflow: hidden;
     }
 
     .btn-login:hover {
-        background: var(--ink-soft);
-        color: #fff;
+        background: var(--blue-700);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
     }
 
-    /* Lien mot de passe oublié */
+    .btn-login:active {
+        transform: translateY(0);
+    }
+
+    .btn-login i {
+        font-size: 15px;
+    }
+
+    /* ── Lien mot de passe oublié ── */
     .lc-forgot {
         text-align: center;
     }
 
     .lc-forgot a {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--ink-muted);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-muted);
         text-decoration: none;
-        letter-spacing: .02em;
+        transition: color var(--transition-fast);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
     }
 
     .lc-forgot a:hover {
-        color: var(--ink);
+        color: var(--blue-600);
     }
 
-    /* Pied de carte */
+    .lc-forgot a i {
+        font-size: 11px;
+    }
+
+    /* ── Pied de carte ── */
     .lc-foot {
-        background: var(--surface);
-        border-top: 1px solid var(--line);
-        padding: 12px 32px;
+        background: var(--bg-surface);
+        border-top: 1px solid var(--border-light);
+        padding: 14px 36px;
         display: flex;
         align-items: center;
-        gap: 7px;
+        gap: 10px;
     }
 
     .lc-foot-dot {
-        width: 6px; height: 6px;
+        width: 7px;
+        height: 7px;
         border-radius: 50%;
-        background: var(--green);
+        background: var(--green-500);
         flex-shrink: 0;
+        animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.8); }
     }
 
     .lc-foot-text {
-        font-family: var(--font-mono);
-        font-size: 10px;
-        color: var(--ink-muted);
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-muted);
+        letter-spacing: 0.02em;
+    }
+
+    .lc-foot-text i {
+        font-size: 11px;
+        margin-right: 4px;
+        color: var(--text-light);
     }
 
     /* ── Responsive ── */
     @media (max-width: 480px) {
-        .lc-header, .lc-body { padding-left: 22px; padding-right: 22px; }
-        .lc-foot { padding-left: 22px; padding-right: 22px; }
+        .lc-header {
+            padding: 24px 22px 20px;
+        }
+
+        .lc-body {
+            padding: 24px 22px 20px;
+        }
+
+        .lc-foot {
+            padding: 12px 22px;
+        }
+
+        .lc-title {
+            font-size: 22px;
+        }
+
+        .lc-logo-icon {
+            width: 38px;
+            height: 38px;
+            font-size: 15px;
+        }
+
+        .lc-logo-text {
+            font-size: 14px;
+        }
+
+        .field-input {
+            font-size: 13px;
+            padding: 9px 12px 9px 36px;
+        }
+
+        .btn-login {
+            font-size: 11px;
+            padding: 11px;
+        }
+
+        .lc-foot-text {
+            font-size: 10px;
+        }
+    }
+
+    @media (max-width: 360px) {
+        .lc-header {
+            padding: 18px 16px 16px;
+        }
+
+        .lc-body {
+            padding: 18px 16px 16px;
+        }
+
+        .lc-foot {
+            padding: 10px 16px;
+        }
+
+        .lc-title {
+            font-size: 20px;
+        }
+
+        .lc-logo {
+            gap: 10px;
+        }
+
+        .lc-logo-icon {
+            width: 34px;
+            height: 34px;
+            font-size: 13px;
+        }
+
+        .lc-logo-text {
+            font-size: 13px;
+        }
     }
     </style>
 </head>
@@ -380,7 +577,7 @@
 <div class="login-wrap">
     <div class="login-card">
 
-        <!-- Header -->
+        <!-- ===== EN-TÊTE ===== -->
         <div class="lc-header">
             <div class="lc-logo">
                 <div class="lc-logo-icon"><i class="fas fa-qrcode"></i></div>
@@ -394,9 +591,10 @@
             <div class="lc-sub">Entrez vos identifiants pour accéder au tableau de bord</div>
         </div>
 
-        <!-- Body -->
+        <!-- ===== CORPS ===== -->
         <div class="lc-body">
 
+            <!-- Erreur globale -->
             {% if error %}
             <div class="lc-error">
                 <div class="lc-error-icon"><i class="fas fa-times"></i></div>
@@ -410,9 +608,11 @@
 
                 <!-- Nom d'utilisateur -->
                 <div class="field">
-                    <label class="field-lbl" for="id_username">Nom d'utilisateur</label>
+                    <label class="field-lbl" for="id_username">
+                        <i class="fas fa-user" style="font-size:10px;margin-right:4px;"></i>
+                        Nom d'utilisateur
+                    </label>
                     <div class="field-wrap">
-                        <i class="fas fa-user field-icon"></i>
                         <input
                             type="text"
                             id="id_username"
@@ -423,14 +623,18 @@
                             autocomplete="username"
                             autofocus
                         >
+                        <i class="fas fa-user field-icon"></i>
                     </div>
+                    {{ form.username.errors }}
                 </div>
 
                 <!-- Mot de passe -->
                 <div class="field">
-                    <label class="field-lbl" for="id_password">Mot de passe</label>
+                    <label class="field-lbl" for="id_password">
+                        <i class="fas fa-lock" style="font-size:10px;margin-right:4px;"></i>
+                        Mot de passe
+                    </label>
                     <div class="field-wrap">
-                        <i class="fas fa-lock field-icon"></i>
                         <input
                             type="password"
                             id="id_password"
@@ -439,7 +643,9 @@
                             placeholder="••••••••"
                             autocomplete="current-password"
                         >
+                        <i class="fas fa-lock field-icon"></i>
                     </div>
+                    {{ form.password.errors }}
                 </div>
 
                 <div class="lc-sep"></div>
@@ -453,17 +659,20 @@
 
             <div class="lc-forgot">
                 <a href="{% url 'password_reset' %}">
-                    <i class="fas fa-key" style="font-size:9px;margin-right:4px;opacity:.6;"></i>
+                    <i class="fas fa-key"></i>
                     Mot de passe oublié ?
                 </a>
             </div>
 
         </div>
 
-        <!-- Pied -->
+        <!-- ===== PIED ===== -->
         <div class="lc-foot">
             <div class="lc-foot-dot"></div>
-            <div class="lc-foot-text">Système sécurisé — accès restreint au personnel autorisé</div>
+            <div class="lc-foot-text">
+                <i class="fas fa-shield-alt"></i>
+                Système sécurisé — accès restreint au personnel autorisé
+            </div>
         </div>
 
     </div>
