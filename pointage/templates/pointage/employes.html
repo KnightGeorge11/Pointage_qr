@@ -1,92 +1,803 @@
 {% extends 'pointage/base.html' %}
+{% load static %}
 
 {% block title %}Gestion des employés - Pointage QR{% endblock %}
+{% block page_title %}Employés{% endblock %}
+
+{% block extra_css %}
+<style>
+/* =====================================================
+   EMPLOYÉS — Version Premium SaaS
+   ===================================================== */
+
+/* ── En-tête ── */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.page-header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.page-header-left h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.page-header-left h1 i {
+    color: var(--blue-500);
+    margin-right: 8px;
+}
+
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* ── Filtres ── */
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.filter-bar .form-control,
+.filter-bar .form-select {
+    width: auto;
+    min-width: 160px;
+}
+
+.filter-bar .form-control {
+    min-width: 200px;
+}
+
+.filter-bar .btn {
+    white-space: nowrap;
+}
+
+.filter-bar .filter-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-right: 4px;
+}
+
+/* ── Stats rapides ── */
+.stats-mini {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 0;
+}
+
+.stats-mini-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.stats-mini-item .count {
+    font-weight: 700;
+    color: var(--text-primary);
+    background: var(--bg-surface);
+    padding: 0 10px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    line-height: 22px;
+}
+
+.stats-mini-item .count.active {
+    background: var(--green-50);
+    color: var(--green-700);
+}
+
+.stats-mini-item .count.inactive {
+    background: var(--red-50);
+    color: var(--red-600);
+}
+
+/* ── Tableau ── */
+.table-container {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition-base);
+}
+
+.table-container:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.employe-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.employe-table thead {
+    background: var(--bg-surface);
+}
+
+.employe-table thead th {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.employe-table tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+    color: var(--text-secondary);
+}
+
+.employe-table tbody tr {
+    transition: background var(--transition-fast);
+}
+
+.employe-table tbody tr:hover {
+    background: var(--bg-surface);
+}
+
+.employe-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ── Cellules spécifiques ── */
+.employe-matricule {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: 'Inter', monospace;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+}
+
+.employe-nom {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.employe-email {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.employe-email i {
+    font-size: 11px;
+    margin-right: 4px;
+    color: var(--text-light);
+}
+
+/* ── Badge poste ── */
+.poste-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.poste-badge .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.poste-badge.undefined {
+    background: var(--bg-hover);
+    color: var(--text-muted);
+}
+
+.poste-badge.undefined .dot {
+    background: var(--text-light);
+}
+
+/* ── QR Code action ── */
+.qr-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-fast);
+    background: var(--bg-white);
+}
+
+.qr-action:hover {
+    background: var(--blue-50);
+    border-color: var(--blue-500);
+    color: var(--blue-600);
+}
+
+.qr-action i {
+    font-size: 14px;
+}
+
+.qr-action.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ── Statut ── */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 12px;
+    border-radius: var(--radius-full);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.status-badge i {
+    font-size: 6px;
+}
+
+.status-badge.active {
+    background: var(--green-50);
+    color: var(--green-700);
+}
+
+.status-badge.inactive {
+    background: var(--red-50);
+    color: var(--red-600);
+}
+
+/* ── Actions ── */
+.actions-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.actions-group .btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    transition: all var(--transition-fast);
+}
+
+.actions-group .btn-edit {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    color: var(--text-muted);
+}
+
+.actions-group .btn-edit:hover {
+    background: var(--amber-50);
+    border-color: var(--amber-500);
+    color: var(--amber-600);
+    transform: translateY(-1px);
+}
+
+.actions-group .btn-delete {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    color: var(--text-muted);
+}
+
+.actions-group .btn-delete:hover {
+    background: var(--red-50);
+    border-color: var(--red-500);
+    color: var(--red-600);
+    transform: translateY(-1px);
+}
+
+.actions-group .btn-view {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    color: var(--text-muted);
+}
+
+.actions-group .btn-view:hover {
+    background: var(--blue-50);
+    border-color: var(--blue-500);
+    color: var(--blue-600);
+    transform: translateY(-1px);
+}
+
+/* ── Empty state ── */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-state i {
+    font-size: 48px;
+    color: var(--border-light);
+    margin-bottom: 16px;
+    display: block;
+}
+
+.empty-state h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.empty-state p {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+}
+
+/* ── Pagination ── */
+.pagination-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-surface);
+}
+
+.pagination-info {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.pagination-info strong {
+    color: var(--text-primary);
+}
+
+/* ── Responsive ── */
+@media (max-width: 992px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .page-header-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .page-header-actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-bar .form-control,
+    .filter-bar .form-select {
+        width: 100%;
+        min-width: unset;
+    }
+
+    .filter-bar .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .page-header-left h1 {
+        font-size: 20px;
+    }
+
+    .stats-mini {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .stats-mini-item {
+        font-size: 12px;
+    }
+
+    .employe-table {
+        font-size: 12px;
+    }
+
+    .employe-table thead th,
+    .employe-table tbody td {
+        padding: 8px 12px;
+    }
+
+    .actions-group .btn {
+        width: 28px;
+        height: 28px;
+        font-size: 11px;
+    }
+
+    .poste-badge {
+        font-size: 10px;
+        padding: 2px 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-header-left h1 {
+        font-size: 18px;
+    }
+
+    .page-header-left h1 i {
+        font-size: 16px;
+    }
+
+    .employe-table thead th:nth-child(3),
+    .employe-table tbody td:nth-child(3) {
+        display: none;
+    }
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-12 mb-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <h1 class="display-5">
-                <i class="fas fa-users"></i> Gestion des employés
-            </h1>
-            <a href="{% url 'employe_create' %}" class="btn btn-success">
-                <i class="fas fa-user-plus"></i> Nouvel employé
-            </a>
-        </div>
+
+<!-- ===== EN-TÊTE ===== -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>
+            <i class="fas fa-users"></i>
+            Gestion des employés
+        </h1>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'employe_create' %}" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i>
+            Nouvel employé
+        </a>
+        <button class="btn btn-outline-secondary" onclick="window.print()">
+            <i class="fas fa-print"></i>
+            Imprimer
+        </button>
     </div>
 </div>
 
-<!-- Liste des employés -->
-<div class="row">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Matricule</th>
-                                <th>Nom & Prénom</th>
-                                <th style="min-width: 120px;">Poste</th>
-                                <th>QR Code</th>
-                                <th>Statut</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for employe in employes %}
-                            <tr>
-                                <td><strong>{{ employe.matricule }}</strong></td>
-                                <td>{{ employe.prenom }} {{ employe.nom }}</td>
-                                <td>
-                                    {% if employe.poste %}
-                                        <span class="badge" style="background-color: {{ employe.poste.couleur|default:'#4361ee' }}">
-                                            {{ employe.poste.nom }}
-                                        </span>
-                                    {% else %}
-                                        <span class="badge bg-warning">Non défini</span>
-                                    {% endif %}
-                                </td>
-                                </td>
-                                <td>
-                                    {% if employe.qr_code %}
-                                        <a href="{{ employe.qr_code.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-qrcode"></i> Voir QR
-                                        </a>
-                                    {% else %}
-                                        <span class="text-muted">Non généré</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if employe.actif %}
-                                        <span class="badge bg-success">Actif</span>
-                                    {% else %}
-                                        <span class="badge bg-danger">Inactif</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <a href="{% url 'employe_update' employe.pk %}" class="btn btn-sm btn-warning">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a href="{% url 'employe_delete' employe.pk %}" class="btn btn-sm btn-danger">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="7" class="text-center text-muted">
-                                    Aucun employé enregistré
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
+<!-- ===== STATS MINI ===== -->
+<div class="stats-mini">
+    <span class="stats-mini-item">
+        <i class="fas fa-users" style="color:var(--text-light);"></i>
+        Total
+        <span class="count">{{ employes|length }}</span>
+    </span>
+    <span class="stats-mini-item">
+        <i class="fas fa-user-check" style="color:var(--green-500);"></i>
+        Actifs
+        <span class="count active">{{ employes_actifs|default:employes|length }}</span>
+    </span>
+    <span class="stats-mini-item">
+        <i class="fas fa-user-slash" style="color:var(--red-500);"></i>
+        Inactifs
+        <span class="count inactive">{{ employes_inactifs|default:0 }}</span>
+    </span>
 </div>
+
+<!-- ===== FILTRES ===== -->
+<div class="filter-bar">
+    <div style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap;">
+        <span class="filter-label"><i class="fas fa-filter"></i> Filtres</span>
+        <input type="text" class="form-control" id="searchInput" placeholder="Rechercher un employé..." style="min-width:200px;">
+        <select class="form-select" id="statusFilter" style="min-width:140px;">
+            <option value="">Tous les statuts</option>
+            <option value="actif">Actifs</option>
+            <option value="inactif">Inactifs</option>
+        </select>
+        <select class="form-select" id="posteFilter" style="min-width:160px;">
+            <option value="">Tous les postes</option>
+            {% for poste in postes %}
+            <option value="{{ poste.id }}">{{ poste.nom }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button class="btn btn-outline-secondary" id="resetFilters">
+        <i class="fas fa-undo"></i> Réinitialiser
+    </button>
+</div>
+
+<!-- ===== TABLEAU ===== -->
+<div class="table-container">
+    <div class="table-wrapper">
+        <table class="employe-table" id="employeTable">
+            <thead>
+                <tr>
+                    <th>Matricule</th>
+                    <th>Nom & Prénom</th>
+                    <th>Email</th>
+                    <th style="min-width:120px;">Poste</th>
+                    <th>QR Code</th>
+                    <th>Statut</th>
+                    <th style="text-align:center;min-width:120px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="employeTableBody">
+                {% for employe in employes %}
+                <tr data-statut="{% if employe.actif %}actif{% else %}inactif{% endif %}" data-poste="{{ employe.poste.id|default:'' }}">
+                    <td>
+                        <span class="employe-matricule">#{{ employe.matricule }}</span>
+                    </td>
+                    <td>
+                        <span class="employe-nom">{{ employe.prenom }} {{ employe.nom }}</span>
+                    </td>
+                    <td>
+                        {% if employe.email %}
+                        <span class="employe-email">
+                            <i class="fas fa-envelope"></i>
+                            {{ employe.email }}
+                        </span>
+                        {% else %}
+                        <span style="color:var(--text-light);font-size:12px;">Non renseigné</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if employe.poste %}
+                        <span class="poste-badge" style="background:{{ employe.poste.couleur|default:'#EFF6FF' }}20;color:{{ employe.poste.couleur|default:'#2563EB' }};">
+                            <span class="dot" style="background:{{ employe.poste.couleur|default:'#2563EB' }};"></span>
+                            {{ employe.poste.nom }}
+                        </span>
+                        {% else %}
+                        <span class="poste-badge undefined">
+                            <span class="dot"></span>
+                            Non défini
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if employe.qr_code %}
+                        <a href="{{ employe.qr_code.url }}" target="_blank" class="qr-action">
+                            <i class="fas fa-qrcode"></i>
+                            Voir QR
+                        </a>
+                        {% else %}
+                        <span class="qr-action disabled">
+                            <i class="fas fa-qrcode"></i>
+                            Non généré
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="status-badge {% if employe.actif %}active{% else %}inactive{% endif %}">
+                            <i class="fas fa-circle"></i>
+                            {% if employe.actif %}Actif{% else %}Inactif{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="actions-group" style="justify-content:center;">
+                            <a href="{% url 'employe_update' employe.pk %}" class="btn btn-edit" title="Modifier">
+                                <i class="fas fa-pen"></i>
+                            </a>
+                            <a href="{% url 'employe_delete' employe.pk %}" class="btn btn-delete" title="Supprimer">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                            <a href="{% url 'employe_detail' employe.pk %}" class="btn btn-view" title="Voir">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            <i class="fas fa-users-slash"></i>
+                            <h3>Aucun employé enregistré</h3>
+                            <p>Commencez par ajouter votre premier employé.</p>
+                            <a href="{% url 'employe_create' %}" class="btn btn-primary">
+                                <i class="fas fa-user-plus"></i>
+                                Ajouter un employé
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===== PAGINATION ===== -->
+    {% if is_paginated %}
+    <div class="pagination-wrapper">
+        <div class="pagination-info">
+            Affichage de <strong>{{ page_obj.start_index }}</strong> à <strong>{{ page_obj.end_index }}</strong>
+            sur <strong>{{ paginator.count }}</strong> employés
+        </div>
+        <nav aria-label="Pagination">
+            <ul class="pagination mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.poste %}&poste={{ request.GET.poste }}{% endif %}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.poste %}&poste={{ request.GET.poste }}{% endif %}">
+                            {{ num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.poste %}&poste={{ request.GET.poste }}{% endif %}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const posteFilter = document.getElementById('posteFilter');
+    const resetBtn = document.getElementById('resetFilters');
+    const tableBody = document.getElementById('employeTableBody');
+    const rows = tableBody ? tableBody.querySelectorAll('tr[data-statut]') : [];
+
+    // Ne pas exécuter le filtrage si on n'a pas de lignes
+    if (!rows.length) return;
+
+    function filterTable() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        const statusValue = statusFilter.value;
+        const posteValue = posteFilter.value;
+
+        let visibleCount = 0;
+
+        rows.forEach(function(row) {
+            const text = row.textContent.toLowerCase();
+            const statut = row.getAttribute('data-statut');
+            const poste = row.getAttribute('data-poste');
+
+            let show = true;
+
+            // Recherche textuelle
+            if (searchTerm && !text.includes(searchTerm)) {
+                show = false;
+            }
+
+            // Filtre statut
+            if (show && statusValue && statut !== statusValue) {
+                show = false;
+            }
+
+            // Filtre poste
+            if (show && posteValue && poste !== posteValue) {
+                show = false;
+            }
+
+            row.style.display = show ? '' : 'none';
+
+            if (show) visibleCount++;
+        });
+
+        // Mise à jour du compteur
+        const totalCount = document.querySelector('.pagination-info');
+        if (totalCount) {
+            const total = rows.length;
+            totalCount.innerHTML = 'Affichage de <strong>' + visibleCount + '</strong> employé' + (visibleCount > 1 ? 's' : '') +
+                ' sur <strong>' + total + '</strong>';
+        }
+    }
+
+    // Événements
+    searchInput.addEventListener('input', filterTable);
+    statusFilter.addEventListener('change', filterTable);
+    posteFilter.addEventListener('change', filterTable);
+
+    // Réinitialisation
+    resetBtn.addEventListener('click', function() {
+        searchInput.value = '';
+        statusFilter.value = '';
+        posteFilter.value = '';
+        filterTable();
+    });
+
+    // ── Lien "Voir QR" avec preview (optionnel) ──
+    document.querySelectorAll('.qr-action').forEach(function(link) {
+        if (!link.classList.contains('disabled')) {
+            link.addEventListener('mouseenter', function(e) {
+                // Simple effet de surbrillance
+                this.style.boxShadow = 'var(--shadow-md)';
+            });
+            link.addEventListener('mouseleave', function(e) {
+                this.style.boxShadow = 'none';
+            });
+        }
+    });
+
+    // ── Confirmation de suppression ──
+    document.querySelectorAll('.btn-delete').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            if (!confirm('Êtes-vous sûr de vouloir supprimer cet employé ? Cette action est irréversible.')) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    // ── Raccourci clavier Ctrl+F pour focus recherche ──
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            searchInput.focus();
+            searchInput.select();
+        }
+    });
+
+});
+</script>
 {% endblock %}

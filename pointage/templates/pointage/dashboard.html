@@ -2,368 +2,661 @@
 {% load static %}
 
 {% block title %}Dashboard — Pointage QR{% endblock %}
-{% block page_title %}Dashboard{% endblock %}
+{% block page_title %}Tableau de bord{% endblock %}
 
 {% block extra_css %}
 <style>
 /* =====================================================
-   DASHBOARD — styles alignés sur le design system
+   DASHBOARD — Version Premium SaaS
    ===================================================== */
 
-/* Page header local */
-.dash-head {
-    margin-bottom: 20px;
+/* ── En-tête ── */
+.dash-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 28px;
 }
 
-.dash-head-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--ink);
-    letter-spacing: -.03em;
+.dash-header-left {
+    flex: 1;
+    min-width: 200px;
+}
+
+.dash-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
     line-height: 1.2;
-    margin-bottom: 3px;
+    margin-bottom: 4px;
 }
 
-.dash-head-sub {
-    font-size: 12px;
+.dash-subtitle {
+    font-size: 14px;
     font-weight: 500;
-    color: var(--ink-muted);
+    color: var(--text-muted);
 }
 
-/* =====================================================
-   STAT TILES — même style que l'historique
-   ===================================================== */
+.dash-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* ── Badges de statut ── */
+.dash-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+}
+
+.dash-status-badge i {
+    font-size: 14px;
+}
+
+.dash-status-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.badge-gardes {
+    background: var(--amber-50);
+    color: var(--amber-600);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.badge-gardes:hover {
+    background: var(--amber-50);
+    color: var(--amber-600);
+}
+
+.badge-anomalies {
+    background: var(--red-50);
+    color: var(--red-600);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.badge-anomalies:hover {
+    background: var(--red-50);
+    color: var(--red-600);
+}
+
+/* ── Statistiques ── */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 10px;
-    margin-bottom: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
 }
 
-.stat-tile {
-    background: var(--white);
-    border: 1px solid var(--line);
-    border-radius: var(--r-lg);
-    padding: 18px 18px 18px 22px;
+.stat-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    transition: all var(--transition-base);
     position: relative;
     overflow: hidden;
 }
 
-.stat-tile::before {
+.stat-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.stat-card::after {
     content: '';
     position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 3px;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
 }
 
-.st-ink::before    { background: var(--ink); }
-.st-blue::before   { background: var(--blue); }
-.st-amber::before  { background: var(--amber); }
-.st-red::before    { background: var(--red); }
-.st-green::before  { background: var(--green); }
+.stat-card.blue::after { background: var(--blue-500); }
+.stat-card.green::after { background: var(--green-500); }
+.stat-card.amber::after { background: var(--amber-500); }
+.stat-card.red::after { background: var(--red-500); }
+.stat-card.ink::after { background: var(--text-primary); }
 
-.stat-tile-icon {
-    width: 36px; height: 36px;
-    border-radius: var(--r-xs);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px;
-    margin-bottom: 12px;
-}
-
-.st-ink  .stat-tile-icon { background: rgba(11,14,23,.08);   color: var(--ink); }
-.st-blue .stat-tile-icon { background: var(--blue-dim);       color: var(--blue-text); }
-.st-amber .stat-tile-icon{ background: var(--amber-dim);      color: var(--amber-text); }
-.st-red  .stat-tile-icon { background: var(--red-dim);        color: var(--red-text); }
-.st-green .stat-tile-icon{ background: var(--green-dim);      color: var(--green-text); }
-
-.stat-tile-val {
-    font-family: var(--font-mono);
-    font-size: 2.25rem;
-    font-weight: 500;
-    color: var(--ink);
-    line-height: 1;
-    margin-bottom: 4px;
-}
-
-.stat-tile-lbl {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .13em;
-    color: var(--ink-muted);
-}
-
-/* =====================================================
-   DASHBOARD CARDS
-   ===================================================== */
-.dash-card {
-    background: var(--white);
-    border: 1px solid var(--line);
-    border-radius: var(--r-lg);
-    overflow: hidden;
-    margin-bottom: 14px;
-}
-
-.dash-card-head {
-    background: var(--ink);
-    color: var(--white);
-    padding: 13px 18px;
+.stat-card-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    margin-bottom: 12px;
 }
 
-.dash-card-title {
-    font-size: 12px;
+.stat-card-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.stat-card.blue .stat-card-icon {
+    background: var(--blue-50);
+    color: var(--blue-600);
+}
+
+.stat-card.green .stat-card-icon {
+    background: var(--green-50);
+    color: var(--green-600);
+}
+
+.stat-card.amber .stat-card-icon {
+    background: var(--amber-50);
+    color: var(--amber-600);
+}
+
+.stat-card.red .stat-card-icon {
+    background: var(--red-50);
+    color: var(--red-600);
+}
+
+.stat-card.ink .stat-card-icon {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.stat-card-trend {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: var(--radius-full);
+}
+
+.stat-card-trend.up {
+    background: var(--green-50);
+    color: var(--green-600);
+}
+
+.stat-card-trend.down {
+    background: var(--red-50);
+    color: var(--red-600);
+}
+
+.stat-card-value {
+    font-size: 32px;
     font-weight: 700;
-    letter-spacing: .04em;
-    color: var(--white);
+    color: var(--text-primary);
+    line-height: 1.1;
+    margin-bottom: 4px;
+    font-feature-settings: "tnum";
+}
+
+.stat-card-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+}
+
+/* ── Grille des graphiques ── */
+.charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.chart-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: all var(--transition-base);
+}
+
+.chart-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.chart-card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.chart-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 8px;
     margin: 0;
 }
 
-.dash-card-title i { color: var(--green); font-size: 13px; }
-
-.dash-card-title-meta {
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,.35);
+.chart-card-title i {
+    color: var(--blue-500);
+    font-size: 15px;
 }
 
-.dash-card-body {
-    padding: 20px;
-}
-
-.dash-card-foot {
-    background: var(--surface);
-    border-top: 1px solid var(--line);
-    padding: 10px 18px;
+.chart-card-meta {
     font-size: 11px;
     font-weight: 500;
-    color: var(--ink-muted);
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    color: var(--text-muted);
 }
 
-.dash-card-foot i { color: var(--ink-muted); font-size: 10px; }
-
-/* Chart containers */
-.chart-wrap {
+.chart-container {
+    padding: 20px;
     position: relative;
     min-height: 280px;
-    padding: 16px;
 }
 
-.chart-wrap-tall { min-height: 320px; }
+.chart-container.tall {
+    min-height: 320px;
+}
 
-/* =====================================================
-   TABLE (derniers pointages)
-   ===================================================== */
+.chart-container canvas {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 280px;
+}
+
+.chart-container.tall canvas {
+    max-height: 320px;
+}
+
+.chart-card-footer {
+    padding: 12px 20px;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-light);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chart-card-footer i {
+    font-size: 13px;
+    color: var(--text-light);
+}
+
+/* ── Pleine largeur ── */
+.chart-full {
+    margin-bottom: 20px;
+}
+
+/* ── Tableau des derniers pointages ── */
+.table-wrapper {
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.table-wrapper::-webkit-scrollbar {
+    width: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+    background: var(--bg-surface);
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+    background: var(--border-light);
+    border-radius: 2px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: var(--text-light);
+}
+
 .dash-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 12.5px;
+    font-size: 13px;
+}
+
+.dash-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .dash-table thead th {
-    background: var(--surface);
-    font-size: 9px;
-    font-weight: 700;
+    background: var(--bg-surface);
+    font-size: 10px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: .12em;
-    color: var(--ink-muted);
-    padding: 8px 14px;
-    border-bottom: 1px solid var(--line);
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-light);
     text-align: left;
 }
 
 .dash-table tbody td {
-    padding: 9px 14px;
-    border-bottom: 1px solid var(--line-soft);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-light);
     vertical-align: middle;
-    color: var(--ink);
+    color: var(--text-secondary);
 }
 
-.dash-table tbody tr:last-child td { border-bottom: none; }
-.dash-table tbody tr:hover td { background: var(--surface); }
+.dash-table tbody tr:last-child td {
+    border-bottom: none;
+}
 
-.dash-table a {
-    color: var(--ink);
+.dash-table tbody tr {
+    transition: background var(--transition-fast);
+}
+
+.dash-table tbody tr:hover {
+    background: var(--bg-surface);
+}
+
+.dash-table .employee-link {
+    color: var(--text-primary);
     text-decoration: none;
-    font-weight: 700;
+    font-weight: 600;
+    transition: color var(--transition-fast);
 }
 
-.dash-table a:hover { color: var(--blue-text); }
+.dash-table .employee-link:hover {
+    color: var(--blue-600);
+}
 
 .dash-table .mono {
-    font-family: var(--font-mono);
+    font-family: 'Inter', monospace;
     font-size: 12px;
     font-weight: 500;
+    color: var(--text-muted);
 }
 
-/* Status chip inline */
-.s-chip {
-    display: inline-block;
+.dash-table .site-name {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* ── Status chips ── */
+.status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 12px;
+    border-radius: var(--radius-full);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.status-chip i {
     font-size: 8px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    padding: 2px 7px;
-    border-radius: 100px;
 }
 
-.s-chip-green  { background: var(--green-dim);  color: var(--green-text); }
-.s-chip-amber  { background: var(--amber-dim);  color: var(--amber-text); }
-.s-chip-red    { background: var(--red-dim);    color: var(--red-text); }
-.s-chip-grey   { background: var(--surface);    color: var(--ink-muted); border: 1px solid var(--line); }
+.status-chip.present {
+    background: var(--green-50);
+    color: var(--green-700);
+}
 
-/* =====================================================
-   REFRESH BUTTON
-   ===================================================== */
-.refresh-row {
+.status-chip.retard {
+    background: var(--amber-50);
+    color: var(--amber-600);
+}
+
+.status-chip.absent {
+    background: var(--red-50);
+    color: var(--red-600);
+}
+
+.status-chip.garde {
+    background: var(--blue-50);
+    color: var(--blue-700);
+}
+
+.status-chip.default {
+    background: var(--bg-hover);
+    color: var(--text-muted);
+}
+
+/* ── Actions ── */
+.dash-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px 0 8px;
+}
+
+.dash-actions .btn {
+    font-size: 12px;
+}
+
+/* ── Empty state ── */
+.empty-state {
     text-align: center;
-    padding: 10px 0 4px;
+    padding: 40px 20px;
+    color: var(--text-muted);
 }
 
-/* =====================================================
-   GARDE EN COURS BADGE
-   ===================================================== */
-.gardes-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--amber-dim);
-    border: 1px solid rgba(245,166,35,.3);
-    color: var(--amber-text);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    padding: 5px 12px;
-    border-radius: var(--r-xs);
+.empty-state i {
+    font-size: 36px;
+    color: var(--border-light);
+    margin-bottom: 12px;
+    display: block;
 }
 
-/* =====================================================
-   ANOMALIES OUVERTES BADGE
-   ===================================================== */
-.anomalies-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--red-dim);
-    border: 1px solid rgba(248,113,113,.3);
-    color: var(--red-text);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    padding: 5px 12px;
-    border-radius: var(--r-xs);
-    text-decoration: none;
-}
-.anomalies-badge:hover { color: var(--red-text); opacity: .85; }
-
-/* =====================================================
-   LAYOUT GRILLES
-   ===================================================== */
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 0; }
-.one-col { margin-bottom: 0; }
-
-/* =====================================================
-   RESPONSIVE
-   ===================================================== */
-@media (max-width: 900px) {
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    .two-col { grid-template-columns: 1fr; }
+.empty-state p {
+    font-size: 13px;
+    margin: 0;
 }
 
-@media (max-width: 560px) {
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-    .stat-tile-val { font-size: 1.75rem; }
+/* ── Responsive ── */
+@media (max-width: 1200px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 992px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .dash-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .dash-title {
+        font-size: 24px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .stat-card {
+        padding: 16px 18px;
+    }
+
+    .stat-card-value {
+        font-size: 26px;
+    }
+
+    .chart-container {
+        padding: 12px;
+        min-height: 220px;
+    }
+
+    .chart-container.tall {
+        min-height: 260px;
+    }
+
+    .dash-table {
+        font-size: 12px;
+    }
+
+    .dash-table thead th,
+    .dash-table tbody td {
+        padding: 8px 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .stat-card {
+        padding: 12px 14px;
+    }
+
+    .stat-card-value {
+        font-size: 20px;
+    }
+
+    .stat-card-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+
+    .stat-card-label {
+        font-size: 10px;
+    }
+
+    .dash-header-right .dash-status-badge {
+        font-size: 10px;
+        padding: 4px 12px;
+    }
+
+    .dash-title {
+        font-size: 20px;
+    }
+
+    .dash-subtitle {
+        font-size: 12px;
+    }
 }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<!-- ===== HEAD ===== -->
-<div class="dash-head">
-    <div class="dash-head-title">Tableau de bord</div>
-    <div class="dash-head-sub">Vue d'ensemble des pointages — {{ aujourdhui|date:"l d F Y" }}</div>
-    {% if gardes_en_cours %}
-    <div style="margin-top:10px;">
-        <span class="gardes-badge">
+<!-- ===== EN-TÊTE ===== -->
+<div class="dash-header">
+    <div class="dash-header-left">
+        <h1 class="dash-title">Tableau de bord</h1>
+        <p class="dash-subtitle">
+            <i class="fas fa-calendar-alt" style="margin-right:6px;color:var(--text-light);"></i>
+            {{ aujourdhui|date:"l d F Y" }}
+        </p>
+    </div>
+    <div class="dash-header-right">
+        {% if gardes_en_cours %}
+        <a href="#" class="dash-status-badge badge-gardes">
             <i class="fas fa-moon"></i>
             {{ gardes_en_cours }} garde{{ gardes_en_cours|pluralize }} en cours
-        </span>
-    </div>
-    {% endif %}
-    {% if anomalies_ouvertes %}
-    <div style="margin-top:10px;">
-        <a href="{% url 'alertes_rh' %}" class="anomalies-badge">
+        </a>
+        {% endif %}
+        {% if anomalies_ouvertes %}
+        <a href="{% url 'alertes_rh' %}" class="dash-status-badge badge-anomalies">
             <i class="fas fa-triangle-exclamation"></i>
             {{ anomalies_ouvertes }} anomalie{{ anomalies_ouvertes|pluralize }} ouverte{{ anomalies_ouvertes|pluralize }}
         </a>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
 
-<!-- ===== STAT TILES ===== -->
+<!-- ===== STATISTIQUES ===== -->
 <div class="stats-grid">
-    <div class="stat-tile st-ink">
-        <div class="stat-tile-icon"><i class="fas fa-users"></i></div>
-        <div class="stat-tile-val">{{ total_employes }}</div>
-        <div class="stat-tile-lbl">Employés total</div>
+    <div class="stat-card ink">
+        <div class="stat-card-top">
+            <div class="stat-card-icon"><i class="fas fa-users"></i></div>
+        </div>
+        <div class="stat-card-value">{{ total_employes }}</div>
+        <div class="stat-card-label">Employés total</div>
     </div>
-    <div class="stat-tile st-blue">
-        <div class="stat-tile-icon"><i class="fas fa-user-check"></i></div>
-        <div class="stat-tile-val">{{ presents_aujourdhui }}</div>
-        <div class="stat-tile-lbl">Présents aujourd'hui</div>
+
+    <div class="stat-card green">
+        <div class="stat-card-top">
+            <div class="stat-card-icon"><i class="fas fa-user-check"></i></div>
+            {% if taux_presence %}
+            <span class="stat-card-trend up">
+                <i class="fas fa-arrow-up"></i> {{ taux_presence }}%
+            </span>
+            {% endif %}
+        </div>
+        <div class="stat-card-value">{{ presents_aujourdhui }}</div>
+        <div class="stat-card-label">Présents aujourd'hui</div>
     </div>
-    <div class="stat-tile st-amber">
-        <div class="stat-tile-icon"><i class="fas fa-clock"></i></div>
-        <div class="stat-tile-val">{{ retards_aujourdhui }}</div>
-        <div class="stat-tile-lbl">Retards aujourd'hui</div>
+
+    <div class="stat-card amber">
+        <div class="stat-card-top">
+            <div class="stat-card-icon"><i class="fas fa-clock"></i></div>
+        </div>
+        <div class="stat-card-value">{{ retards_aujourdhui }}</div>
+        <div class="stat-card-label">Retards aujourd'hui</div>
     </div>
-    <div class="stat-tile st-red">
-        <div class="stat-tile-icon"><i class="fas fa-user-times"></i></div>
-        <div class="stat-tile-val">{{ absents_aujourdhui }}</div>
-        <div class="stat-tile-lbl">Absents aujourd'hui</div>
+
+    <div class="stat-card red">
+        <div class="stat-card-top">
+            <div class="stat-card-icon"><i class="fas fa-user-times"></i></div>
+        </div>
+        <div class="stat-card-value">{{ absents_aujourdhui }}</div>
+        <div class="stat-card-label">Absents aujourd'hui</div>
     </div>
 </div>
 
-<!-- ===== LIGNE 1 : Journalier + Hebdo ===== -->
-<div class="two-col" style="margin-bottom:14px;">
+<!-- ===== GRAPHIQUES ===== -->
+<div class="charts-grid">
 
-    <div class="dash-card">
-        <div class="dash-card-head">
-            <div class="dash-card-title"><i class="fas fa-chart-pie"></i> Pointage journalier</div>
-            <span class="dash-card-title-meta">{{ aujourdhui|date:"d/m/Y" }}</span>
+    <!-- Journalier -->
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <div class="chart-card-title">
+                <i class="fas fa-chart-pie"></i>
+                Pointage journalier
+            </div>
+            <span class="chart-card-meta">{{ aujourdhui|date:"d/m/Y" }}</span>
         </div>
-        <div class="chart-wrap">
+        <div class="chart-container">
             <canvas id="dailyChart"></canvas>
         </div>
-        <div class="dash-card-foot">
+        <div class="chart-card-footer">
             <i class="fas fa-info-circle"></i>
             Total {{ total_employes }} · Présents {{ presents_aujourdhui }} · Retards {{ retards_aujourdhui }} · Absents {{ absents_aujourdhui }}
         </div>
     </div>
 
-    <div class="dash-card">
-        <div class="dash-card-head">
-            <div class="dash-card-title"><i class="fas fa-chart-bar"></i> Semaine en cours</div>
-            <span class="dash-card-title-meta">7 derniers jours</span>
+    <!-- Hebdomadaire -->
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <div class="chart-card-title">
+                <i class="fas fa-chart-bar"></i>
+                Semaine en cours
+            </div>
+            <span class="chart-card-meta">7 derniers jours</span>
         </div>
-        <div class="chart-wrap">
+        <div class="chart-container">
             <canvas id="weeklyChart"></canvas>
         </div>
-        <div class="dash-card-foot">
+        <div class="chart-card-footer">
             <i class="fas fa-info-circle"></i>
             Présences et retards sur la semaine glissante
         </div>
@@ -371,42 +664,54 @@
 
 </div>
 
-<!-- ===== LIGNE 2 : Évolution ===== -->
-<div class="dash-card one-col" style="margin-bottom:14px;">
-    <div class="dash-card-head">
-        <div class="dash-card-title"><i class="fas fa-chart-line"></i> Évolution hebdomadaire</div>
-        <span class="dash-card-title-meta">4 dernières semaines</span>
+<!-- ===== ÉVOLUTION HEBDOMADAIRE ===== -->
+<div class="chart-card chart-full">
+    <div class="chart-card-header">
+        <div class="chart-card-title">
+            <i class="fas fa-chart-line"></i>
+            Évolution hebdomadaire
+        </div>
+        <span class="chart-card-meta">4 dernières semaines</span>
     </div>
-    <div class="chart-wrap chart-wrap-tall">
+    <div class="chart-container tall">
         <canvas id="weekEvolutionChart"></canvas>
     </div>
-    <div class="dash-card-foot">
+    <div class="chart-card-footer">
         <i class="fas fa-info-circle"></i>
         Taux de présence et de ponctualité — tendance mensuelle
     </div>
 </div>
 
-<!-- ===== LIGNE 3 : Postes + Derniers pointages ===== -->
+<!-- ===== POSTES + DERNIERS POINTAGES ===== -->
 {% if postes_data %}
-<div class="two-col" style="margin-bottom:14px;">
+<div class="charts-grid" style="margin-bottom:0;">
 
-    <div class="dash-card">
-        <div class="dash-card-head">
-            <div class="dash-card-title"><i class="fas fa-chart-pie"></i> Répartition par poste</div>
+    <!-- Répartition par poste -->
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <div class="chart-card-title">
+                <i class="fas fa-briefcase"></i>
+                Répartition par poste
+            </div>
+            <span class="chart-card-meta">{{ postes_data|length }} postes</span>
         </div>
-        <div class="chart-wrap">
+        <div class="chart-container">
             <canvas id="postesChart"></canvas>
         </div>
     </div>
 
-    <div class="dash-card">
-        <div class="dash-card-head">
-            <div class="dash-card-title"><i class="fas fa-history"></i> Derniers pointages</div>
-            <a href="{% url 'pointages' %}" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.5);text-decoration:none;">
-                Voir tout <i class="fas fa-arrow-right"></i>
+    <!-- Derniers pointages -->
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <div class="chart-card-title">
+                <i class="fas fa-clock-rotate-left"></i>
+                Derniers pointages
+            </div>
+            <a href="{% url 'pointages' %}" class="chart-card-meta" style="text-decoration:none;color:var(--blue-600);">
+                Voir tout <i class="fas fa-arrow-right" style="font-size:10px;"></i>
             </a>
         </div>
-        <div style="max-height:320px;overflow-y:auto;">
+        <div class="table-wrapper">
             <table class="dash-table">
                 <thead>
                     <tr>
@@ -421,25 +726,30 @@
                     <tr>
                         <td class="mono">{{ pointage.date_pointage|date:"d/m" }}</td>
                         <td>
-                            <a href="{% url 'pointage_detail' pointage.pk %}">
+                            <a href="{% url 'pointage_detail' pointage.pk %}" class="employee-link">
                                 {{ pointage.employe.prenom|first }}. {{ pointage.employe.nom }}
                             </a>
                         </td>
-                        <td style="color:var(--ink-muted);font-size:11px;">{{ pointage.site.nom|truncatechars:12 }}</td>
+                        <td class="site-name">{{ pointage.site.nom|truncatechars:15 }}</td>
                         <td>
-                            <span class="s-chip
-                                {% if pointage.statut == 'present' %}s-chip-green
-                                {% elif pointage.statut == 'retard'  %}s-chip-amber
-                                {% elif pointage.statut == 'absent'  %}s-chip-red
-                                {% else %}s-chip-grey{% endif %}">
+                            <span class="status-chip
+                                {% if pointage.statut == 'present' %}present
+                                {% elif pointage.statut == 'retard' %}retard
+                                {% elif pointage.statut == 'absent' %}absent
+                                {% elif pointage.statut == 'garde' %}garde
+                                {% else %}default{% endif %}">
+                                <i class="fas fa-circle"></i>
                                 {{ pointage.get_statut_display }}
                             </span>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" style="text-align:center;padding:28px;color:var(--ink-muted);font-size:12px;">
-                            Aucun pointage enregistré aujourd'hui
+                        <td colspan="4">
+                            <div class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <p>Aucun pointage enregistré aujourd'hui</p>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -451,11 +761,14 @@
 </div>
 {% endif %}
 
-<!-- ===== REFRESH ===== -->
-<div class="refresh-row">
-    <button id="refreshBtn" class="btn btn-secondary">
-        <i class="fas fa-sync-alt"></i> Actualiser les graphiques
+<!-- ===== ACTIONS ===== -->
+<div class="dash-actions">
+    <button id="refreshBtn" class="btn btn-outline-secondary">
+        <i class="fas fa-sync-alt"></i> Actualiser
     </button>
+    <a href="{% url 'scanner' %}" class="btn btn-primary">
+        <i class="fas fa-qrcode"></i> Scanner un QR
+    </a>
 </div>
 
 {% endblock %}
@@ -464,33 +777,37 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    /* -------------------------------------------------------
-       PALETTE — alignée sur le design system base.html
-    ------------------------------------------------------- */
-    const C = {
-        ink:     '#0b0e17',
-        blue:    '#2962ff',
-        green:   '#00c27a',
-        amber:   '#f5a623',
-        red:     '#e8344a',
-        muted:   '#374163',
-        line:    '#dde1ec',
-        blueDim: 'rgba(41,98,255,.12)',
-        inkDim:  'rgba(11,14,23,.08)',
+    /* =====================================================
+       PALETTE — alignée sur le design system
+    ===================================================== */
+    const colors = {
+        blue: '#2563EB',
+        blueDim: 'rgba(37, 99, 235, 0.1)',
+        green: '#22C55E',
+        greenDim: 'rgba(34, 197, 94, 0.1)',
+        amber: '#F59E0B',
+        amberDim: 'rgba(245, 158, 11, 0.1)',
+        red: '#EF4444',
+        redDim: 'rgba(239, 68, 68, 0.1)',
+        ink: '#0F172A',
+        inkDim: 'rgba(15, 23, 42, 0.08)',
+        muted: '#64748B',
+        border: '#E2E8F0',
+        white: '#FFFFFF',
     };
 
-    /* -------------------------------------------------------
-       OPTIONS COMMUNES
-    ------------------------------------------------------- */
-    const font = "'Syne', sans-serif";
+    const font = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 
+    /* ── Options communes ── */
     const tooltipDefaults = {
-        backgroundColor: C.ink,
-        titleFont:  { size: 12, family: font, weight: '700' },
-        bodyFont:   { size: 11, family: font },
+        backgroundColor: colors.ink,
+        titleFont: { size: 12, family: font, weight: '700' },
+        bodyFont: { size: 11, family: font },
         padding: 10,
         cornerRadius: 6,
         displayColors: true,
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
     };
 
     const legendDefaults = {
@@ -500,23 +817,23 @@ document.addEventListener('DOMContentLoaded', function () {
             font: { size: 11, family: font, weight: '600' },
             usePointStyle: true,
             pointStyle: 'circle',
-            color: C.muted,
+            color: colors.muted,
         }
     };
 
     const axisDefaults = {
         border: { display: false },
-        grid: { color: C.line, drawTicks: false },
+        grid: { color: colors.border, drawTicks: false },
         ticks: {
             font: { size: 10, family: font, weight: '600' },
-            color: C.muted,
+            color: colors.muted,
             padding: 6,
         }
     };
 
-    /* -------------------------------------------------------
+    /* =====================================================
        1. DOUGHNUT JOURNALIER
-    ------------------------------------------------------- */
+    ===================================================== */
     new Chart(document.getElementById('dailyChart'), {
         type: 'doughnut',
         data: {
@@ -528,24 +845,29 @@ document.addEventListener('DOMContentLoaded', function () {
                     {{ daily_data.retards }},
                     {{ daily_data.gardes }}
                 ],
-                backgroundColor: [C.blue, C.red, C.amber, C.ink],
+                backgroundColor: [colors.blue, colors.red, colors.amber, colors.ink],
                 borderWidth: 0,
+                hoverOffset: 8,
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            cutout: '68%',
+            cutout: '70%',
             plugins: {
                 legend: legendDefaults,
                 tooltip: tooltipDefaults,
+            },
+            animation: {
+                animateRotate: true,
+                duration: 600,
             }
         }
     });
 
-    /* -------------------------------------------------------
+    /* =====================================================
        2. BARRES HEBDOMADAIRES
-    ------------------------------------------------------- */
+    ===================================================== */
     new Chart(document.getElementById('weeklyChart'), {
         type: 'bar',
         data: {
@@ -554,40 +876,49 @@ document.addEventListener('DOMContentLoaded', function () {
                 {
                     label: 'Présents',
                     data: {{ weekly_data.presents|safe }},
-                    backgroundColor: C.blue,
-                    borderRadius: 3,
+                    backgroundColor: colors.blue,
+                    borderRadius: 4,
                     borderSkipped: false,
+                    barPercentage: 0.7,
                 },
                 {
                     label: 'Absents',
                     data: {{ weekly_data.absents|safe }},
-                    backgroundColor: C.red,
-                    borderRadius: 3,
+                    backgroundColor: colors.red,
+                    borderRadius: 4,
                     borderSkipped: false,
+                    barPercentage: 0.7,
                 },
                 {
                     label: 'Retards',
                     data: {{ weekly_data.retards|safe }},
-                    backgroundColor: C.amber,
-                    borderRadius: 3,
+                    backgroundColor: colors.amber,
+                    borderRadius: 4,
                     borderSkipped: false,
+                    barPercentage: 0.7,
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            plugins: { legend: legendDefaults, tooltip: tooltipDefaults },
+            plugins: {
+                legend: legendDefaults,
+                tooltip: tooltipDefaults,
+            },
             scales: {
                 y: { ...axisDefaults, beginAtZero: true },
                 x: { ...axisDefaults, grid: { display: false } }
+            },
+            animation: {
+                duration: 500,
             }
         }
     });
 
-    /* -------------------------------------------------------
+    /* =====================================================
        3. LIGNE ÉVOLUTION
-    ------------------------------------------------------- */
+    ===================================================== */
     new Chart(document.getElementById('weekEvolutionChart'), {
         type: 'line',
         data: {
@@ -596,29 +927,29 @@ document.addEventListener('DOMContentLoaded', function () {
                 {
                     label: 'Taux de présence',
                     data: {{ evolution_data.taux_presence|safe }},
-                    borderColor: C.ink,
-                    backgroundColor: C.inkDim,
-                    borderWidth: 2,
+                    borderColor: colors.ink,
+                    backgroundColor: colors.inkDim,
+                    borderWidth: 2.5,
                     fill: true,
-                    tension: 0.35,
+                    tension: 0.4,
                     pointRadius: 4,
-                    pointHoverRadius: 6,
-                    pointBackgroundColor: C.ink,
-                    pointBorderColor: '#fff',
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: colors.ink,
+                    pointBorderColor: colors.white,
                     pointBorderWidth: 2,
                 },
                 {
                     label: 'Taux de ponctualité',
                     data: {{ evolution_data.taux_punctualite|safe }},
-                    borderColor: C.blue,
-                    backgroundColor: C.blueDim,
-                    borderWidth: 2,
+                    borderColor: colors.blue,
+                    backgroundColor: colors.blueDim,
+                    borderWidth: 2.5,
                     fill: true,
-                    tension: 0.35,
+                    tension: 0.4,
                     pointRadius: 4,
-                    pointHoverRadius: 6,
-                    pointBackgroundColor: C.blue,
-                    pointBorderColor: '#fff',
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: colors.blue,
+                    pointBorderColor: colors.white,
                     pointBorderWidth: 2,
                 }
             ]
@@ -626,73 +957,134 @@ document.addEventListener('DOMContentLoaded', function () {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: legendDefaults, tooltip: tooltipDefaults },
+            plugins: {
+                legend: legendDefaults,
+                tooltip: tooltipDefaults,
+            },
             scales: {
                 y: {
                     ...axisDefaults,
                     beginAtZero: false,
-                    min: 0, max: 100,
+                    min: 0,
+                    max: 100,
                     ticks: {
                         ...axisDefaults.ticks,
-                        callback: v => v + '%'
+                        callback: function(value) { return value + '%'; }
                     }
                 },
                 x: { ...axisDefaults, grid: { display: false } }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+            animation: {
+                duration: 600,
             }
         }
     });
 
-    /* -------------------------------------------------------
-       4. CAMEMBERT POSTES (si données)
-    ------------------------------------------------------- */
+    /* =====================================================
+       4. CAMEMBERT POSTES
+    ===================================================== */
     {% if postes_data %}
+    const posteColors = [
+        colors.ink,
+        colors.blue,
+        colors.green,
+        colors.amber,
+        colors.red,
+        '#8B5CF6',
+        '#EC4899',
+        '#14B8A6',
+    ];
+
     new Chart(document.getElementById('postesChart'), {
         type: 'pie',
         data: {
             labels: [{% for p in postes_data %}"{{ p.nom }}",{% endfor %}],
             datasets: [{
                 data: [{% for p in postes_data %}{{ p.count }},{% endfor %}],
-                backgroundColor: [C.ink, C.blue, C.green, C.amber, C.red, C.muted],
+                backgroundColor: posteColors.slice(0, {{ postes_data|length }}),
                 borderWidth: 0,
+                hoverOffset: 8,
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            plugins: { legend: legendDefaults, tooltip: tooltipDefaults }
+            plugins: {
+                legend: legendDefaults,
+                tooltip: tooltipDefaults,
+            },
+            animation: {
+                animateRotate: true,
+                duration: 600,
+            }
         }
     });
     {% endif %}
 
-    /* -------------------------------------------------------
+    /* =====================================================
        REFRESH BUTTON
-    ------------------------------------------------------- */
-    document.getElementById('refreshBtn').addEventListener('click', function () {
-        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualisation…';
-        this.disabled = true;
-        setTimeout(() => window.location.reload(), 800);
-    });
+    ===================================================== */
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            const icon = this.querySelector('i');
+            icon.className = 'fas fa-spinner fa-spin';
+            this.disabled = true;
 
-    /* -------------------------------------------------------
-       AUTO-REFRESH (toutes les 60 s si données changées)
-    ------------------------------------------------------- */
-    let autoTimer = setInterval(function () {
+            setTimeout(function() {
+                window.location.reload();
+            }, 600);
+        });
+    }
+
+    /* =====================================================
+       AUTO-REFRESH (check toutes les 60s)
+    ===================================================== */
+    let autoTimer = setInterval(function() {
         fetch('/api/pointages/statistiques/')
-            .then(r => r.json())
-            .then(d => {
-                if (d.presents_aujourdhui !== {{ presents_aujourdhui }}) {
+            .then(function(r) {
+                if (!r.ok) throw new Error('Network error');
+                return r.json();
+            })
+            .then(function(data) {
+                const currentPresents = {{ presents_aujourdhui }};
+                if (data.presents_aujourdhui !== undefined && data.presents_aujourdhui !== currentPresents) {
                     clearInterval(autoTimer);
                     window.location.reload();
                 }
             })
-            .catch(() => {});
+            .catch(function() {
+                // Silently fail, don't spam console
+            });
     }, 60000);
 
-    document.addEventListener('visibilitychange', function () {
+    /* =====================================================
+       PAUSE AUTO-REFRESH en arrière-plan
+    ===================================================== */
+    document.addEventListener('visibilitychange', function() {
         if (document.hidden) {
             clearInterval(autoTimer);
         } else {
-            window.location.reload();
+            // Reprendre le check quand l'onglet redevient visible
+            autoTimer = setInterval(function() {
+                fetch('/api/pointages/statistiques/')
+                    .then(function(r) {
+                        if (!r.ok) throw new Error('Network error');
+                        return r.json();
+                    })
+                    .then(function(data) {
+                        const currentPresents = {{ presents_aujourdhui }};
+                        if (data.presents_aujourdhui !== undefined && data.presents_aujourdhui !== currentPresents) {
+                            clearInterval(autoTimer);
+                            window.location.reload();
+                        }
+                    })
+                    .catch(function() {});
+            }, 60000);
         }
     });
 

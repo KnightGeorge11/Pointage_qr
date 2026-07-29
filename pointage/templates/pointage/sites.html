@@ -1,68 +1,602 @@
 {% extends 'pointage/base.html' %}
+{% load static %}
 
 {% block title %}Gestion des sites - Pointage QR{% endblock %}
+{% block page_title %}Sites{% endblock %}
+
+{% block extra_css %}
+<style>
+/* =====================================================
+   SITES — Version Premium SaaS
+   ===================================================== */
+
+/* ── En-tête ── */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.page-header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.page-header-left h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.page-header-left h1 i {
+    color: var(--blue-500);
+    margin-right: 8px;
+}
+
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* ── Stats mini ── */
+.stats-mini {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 0;
+}
+
+.stats-mini-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.stats-mini-item .count {
+    font-weight: 700;
+    color: var(--text-primary);
+    background: var(--bg-surface);
+    padding: 0 10px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    line-height: 22px;
+}
+
+/* ── Tableau ── */
+.table-container {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition-base);
+}
+
+.table-container:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.site-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.site-table thead {
+    background: var(--bg-surface);
+}
+
+.site-table thead th {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.site-table thead th:last-child {
+    text-align: center;
+}
+
+.site-table tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+    color: var(--text-secondary);
+}
+
+.site-table tbody tr {
+    transition: background var(--transition-fast);
+}
+
+.site-table tbody tr:hover {
+    background: var(--bg-surface);
+}
+
+.site-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ── Cellules spécifiques ── */
+.site-name {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.site-name i {
+    color: var(--blue-500);
+    margin-right: 8px;
+    font-size: 14px;
+}
+
+.site-address {
+    font-size: 12px;
+    color: var(--text-muted);
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.site-address i {
+    font-size: 11px;
+    margin-right: 4px;
+    color: var(--text-light);
+}
+
+/* ── Horaires ── */
+.schedule-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-light);
+    white-space: nowrap;
+}
+
+.schedule-badge i {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.schedule-badge .time {
+    font-family: 'Inter', monospace;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.schedule-badge .separator {
+    color: var(--text-light);
+    margin: 0 2px;
+}
+
+/* ── Actions ── */
+.actions-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.actions-group .btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    transition: all var(--transition-fast);
+}
+
+.actions-group .btn-edit {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    color: var(--text-muted);
+}
+
+.actions-group .btn-edit:hover {
+    background: var(--amber-50);
+    border-color: var(--amber-500);
+    color: var(--amber-600);
+    transform: translateY(-1px);
+}
+
+.actions-group .btn-delete {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    color: var(--text-muted);
+}
+
+.actions-group .btn-delete:hover {
+    background: var(--red-50);
+    border-color: var(--red-500);
+    color: var(--red-600);
+    transform: translateY(-1px);
+}
+
+.actions-group .btn-view {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    color: var(--text-muted);
+}
+
+.actions-group .btn-view:hover {
+    background: var(--blue-50);
+    border-color: var(--blue-500);
+    color: var(--blue-600);
+    transform: translateY(-1px);
+}
+
+/* ── Empty state ── */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-state i {
+    font-size: 48px;
+    color: var(--border-light);
+    margin-bottom: 16px;
+    display: block;
+}
+
+.empty-state h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.empty-state p {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+}
+
+/* ── Pagination ── */
+.pagination-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-surface);
+}
+
+.pagination-info {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.pagination-info strong {
+    color: var(--text-primary);
+}
+
+/* ── Responsive ── */
+@media (max-width: 992px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .page-header-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .page-header-actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .page-header-left h1 {
+        font-size: 20px;
+    }
+
+    .stats-mini {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .stats-mini-item {
+        font-size: 12px;
+    }
+
+    .site-table {
+        font-size: 12px;
+    }
+
+    .site-table thead th,
+    .site-table tbody td {
+        padding: 8px 12px;
+    }
+
+    .schedule-badge {
+        font-size: 10px;
+        padding: 2px 10px;
+    }
+
+    .actions-group .btn {
+        width: 28px;
+        height: 28px;
+        font-size: 11px;
+    }
+
+    /* Masquer les colonnes secondaires sur petit écran */
+    .site-table thead th:nth-child(2),
+    .site-table tbody td:nth-child(2) {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-header-left h1 {
+        font-size: 18px;
+    }
+
+    .page-header-left h1 i {
+        font-size: 16px;
+    }
+
+    .site-table thead th:nth-child(3),
+    .site-table tbody td:nth-child(3) {
+        display: none;
+    }
+
+    .site-table thead th:nth-child(4),
+    .site-table tbody td:nth-child(4) {
+        display: none;
+    }
+
+    .schedule-badge {
+        font-size: 9px;
+        padding: 2px 8px;
+    }
+
+    .site-table thead th:last-child {
+        min-width: 80px;
+    }
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-12 mb-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <h1 class="display-5">
-                <i class="fas fa-building"></i> Gestion des sites
-            </h1>
-            <a href="{% url 'site_create' %}" class="btn btn-success">
-                <i class="fas fa-plus"></i> Nouveau site
-            </a>
-        </div>
+
+<!-- ===== EN-TÊTE ===== -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>
+            <i class="fas fa-building"></i>
+            Gestion des sites
+        </h1>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'site_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i>
+            Nouveau site
+        </a>
+        <button class="btn btn-outline-secondary" onclick="window.print()">
+            <i class="fas fa-print"></i>
+            Imprimer
+        </button>
     </div>
 </div>
 
-<!-- Liste des sites -->
-<div class="row">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Nom</th>
-                                <th>Adresse</th>
-                                <th>Horaires matin</th>
-                                <th>Horaires après-midi</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for site in sites %}
-                            <tr>
-                                <td><strong>{{ site.nom }}</strong></td>
-                                <td>{{ site.adresse|truncatechars:50 }}</td>
-                                <td>
-                                    {{ site.heure_ouverture_matin|time:"H:i" }} - {{ site.heure_fermeture_matin|time:"H:i" }}
-                                </td>
-                                <td>
-                                    {{ site.heure_ouverture_apres_midi|time:"H:i" }} - {{ site.heure_fermeture_apres_midi|time:"H:i" }}
-                                </td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <a href="{% url 'site_update' site.pk %}" class="btn btn-sm btn-warning">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="6" class="text-center text-muted">
-                                    Aucun site enregistré
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
+<!-- ===== STATS MINI ===== -->
+<div class="stats-mini">
+    <span class="stats-mini-item">
+        <i class="fas fa-building" style="color:var(--text-light);"></i>
+        Total
+        <span class="count">{{ sites|length }}</span>
+    </span>
+    <span class="stats-mini-item">
+        <i class="fas fa-clock" style="color:var(--blue-500);"></i>
+        Horaires configurés
+        <span class="count">{{ sites_configures|default:sites|length }}</span>
+    </span>
 </div>
+
+<!-- ===== TABLEAU ===== -->
+<div class="table-container">
+    <div class="table-wrapper">
+        <table class="site-table" id="siteTable">
+            <thead>
+                <tr>
+                    <th style="min-width:160px;">Nom</th>
+                    <th style="min-width:180px;">Adresse</th>
+                    <th style="min-width:160px;">Horaires matin</th>
+                    <th style="min-width:160px;">Horaires après-midi</th>
+                    <th style="text-align:center;min-width:100px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for site in sites %}
+                <tr>
+                    <td>
+                        <span class="site-name">
+                            <i class="fas fa-location-dot"></i>
+                            {{ site.nom }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="site-address">
+                            <i class="fas fa-map-pin"></i>
+                            {{ site.adresse|truncatechars:50|default:"Adresse non renseignée" }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="schedule-badge">
+                            <i class="fas fa-sun"></i>
+                            <span class="time">{{ site.heure_ouverture_matin|time:"H:i" }}</span>
+                            <span class="separator">→</span>
+                            <span class="time">{{ site.heure_fermeture_matin|time:"H:i" }}</span>
+                        </span>
+                    </td>
+                    <td>
+                        <span class="schedule-badge">
+                            <i class="fas fa-moon"></i>
+                            <span class="time">{{ site.heure_ouverture_apres_midi|time:"H:i" }}</span>
+                            <span class="separator">→</span>
+                            <span class="time">{{ site.heure_fermeture_apres_midi|time:"H:i" }}</span>
+                        </span>
+                    </td>
+                    <td>
+                        <div class="actions-group">
+                            <a href="{% url 'site_update' site.pk %}" class="btn btn-edit" title="Modifier">
+                                <i class="fas fa-pen"></i>
+                            </a>
+                            <a href="{% url 'site_delete' site.pk %}" class="btn btn-delete" title="Supprimer">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                            <a href="{% url 'site_detail' site.pk %}" class="btn btn-view" title="Voir">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <i class="fas fa-building-circle-xmark"></i>
+                            <h3>Aucun site enregistré</h3>
+                            <p>Commencez par ajouter votre premier site de pointage.</p>
+                            <a href="{% url 'site_create' %}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i>
+                                Ajouter un site
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===== PAGINATION ===== -->
+    {% if is_paginated %}
+    <div class="pagination-wrapper">
+        <div class="pagination-info">
+            Affichage de <strong>{{ page_obj.start_index }}</strong> à <strong>{{ page_obj.end_index }}</strong>
+            sur <strong>{{ paginator.count }}</strong> sites
+        </div>
+        <nav aria-label="Pagination">
+            <ul class="pagination mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                            {{ num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ─── Confirmation de suppression ──────────────────────────
+    document.querySelectorAll('.btn-delete').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            const siteName = this.closest('tr').querySelector('.site-name')?.textContent?.trim() || 'ce site';
+            if (!confirm('Êtes-vous sûr de vouloir supprimer le site "' + siteName + '" ?\n\nCette action est irréversible et supprimera tous les pointages associés.')) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    // ─── Raccourci clavier ────────────────────────────────────
+    document.addEventListener('keydown', function(e) {
+        // Ctrl + N pour Nouveau site
+        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+            e.preventDefault();
+            const createBtn = document.querySelector('a[href*="site_create"]');
+            if (createBtn) createBtn.click();
+        }
+        // Ctrl + P pour Imprimer
+        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+            // Laisser le comportement natif
+        }
+    });
+
+    // ─── Survol des horaires pour afficher plus d'info ────────
+    document.querySelectorAll('.schedule-badge').forEach(function(badge) {
+        badge.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.05)';
+            this.style.boxShadow = 'var(--shadow-sm)';
+        });
+        badge.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+            this.style.boxShadow = 'none';
+        });
+    });
+
+});
+</script>
 {% endblock %}
