@@ -160,81 +160,119 @@ LOGOUT_REDIRECT_URL = '/login/'
 
 
 # ============================================================
-# CONFIGURATION JAZZMIN
+# CONFIGURATION JAZZMIN — VERSION PREMIUM
+# Cohérente avec l'interface utilisateur modernisée
 # ============================================================
 JAZZMIN_SETTINGS = {
-    # Sidebar
-    "sidebar_navigation": {
-        "display": "sidebar",
-        "collapse": True,
-        "enable_sidebar_search": True,
-    },
+    # ── Identité ──
+    "site_title": "Pointage Admin",
+    "site_header": "Pointage QR",
+    "site_brand": "Pointage QR",
+    "welcome_sign": "Bienvenue dans l'administration",
+    "copyright": "Pointage QR © 2026",
     
-    # Icônes
+    # ── Icônes modernes ──
     "icons": {
         "auth": "fas fa-lock",
         "auth.user": "fas fa-user",
         "auth.Group": "fas fa-users",
-        "pointage.Employe": "fas fa-user",
+        "pointage.Employe": "fas fa-id-badge",
         "pointage.Pointage": "fas fa-clock",
         "pointage.Site": "fas fa-building",
-        "pointage.Poste": "fas fa-briefcase",
         "pointage.Scan": "fas fa-qrcode",
+        "pointage.Poste": "fas fa-briefcase",
         "pointage.AnomaliePointage": "fas fa-triangle-exclamation",
         "pointage.DemandeModification": "fas fa-pen-to-square",
     },
     
-    # Thème
-    "theme": "default",
+    # ── Liens du menu ──
+    "topmenu_links": [
+        {"name": "App Web", "url": "/", "new_window": False},
+        {"name": "Dashboard", "url": "admin:index", "permissions": ["auth.view_user"]},
+    ],
     
-    # UI Customization
+    "usermenu_links": [
+        {"name": "App Web", "url": "/", "icon": "fas fa-home"},
+    ],
+    
+    # ── Organisation ──
     "show_sidebar": True,
     "navigation_expanded": True,
     "hide_apps": [],
     "hide_models": [],
+    "order_with_respect_to": [
+        "auth",
+        "pointage",
+    ],
     
-    # Personnalisation
-    "site_title": "Pointage QR",
-    "site_header": "Pointage QR",
-    "site_brand": "Pointage QR",
-    "site_logo": None,
-    "login_logo": None,
-    "login_logo_dark": None,
-    "site_logo_classes": "img-circle",
-    "site_icon": None,
-    "welcome_sign": "Bienvenue dans l'administration",
-    "copyright": "Pointage QR © 2025",
+    # ── Personnalisation ──
+    "default_icon_parents": "fas fa-folder",
+    "default_icon_children": "fas fa-circle",
+    
+    # ── Thème sombre (optionnel) ──
+    "dark_mode_theme": None,  # Mettre "darkly" pour activer le mode sombre
+    
+    # ── Personnalisation avancée ──
+    "custom_links": {
+        "pointage": [{
+            "name": "Tableau de bord",
+            "url": "admin:index",
+            "icon": "fas fa-chart-line",
+            "permissions": ["auth.view_user"]
+        }]
+    },
+    
+    # ── Recherche ──
     "search_model": "pointage.Employe",
+    
+    # ── Avatar ──
     "user_avatar": None,
 }
 
+# ============================================================
+# JAZZMIN UI TWEAKS — Version Premium
+# ============================================================
 JAZZMIN_UI_TWEAKS = {
-    "navbar_small_text":          False,
-    "footer_small_text":          False,
-    "body_small_text":            False,
-    "brand_small_text":           False,
-    "brand_colour":               "navbar-light",
-    "accent":                     "accent-primary",
-    "navbar":                     "navbar-light navbar-white",  # ← navbar claire
-    "no_navbar_border":           True,
-    "navbar_fixed":               True,
-    "layout_boxed":               False,
-    "footer_fixed":               False,
-    "sidebar_fixed":              True,
-    "sidebar":                    "sidebar-light-primary", # ← sidebar claire
-    "sidebar_nav_small_text":     False,
-    "sidebar_disable_expand":     False,
-    "sidebar_nav_child_indent":   True,
-    "sidebar_nav_compact_style":  False,
-    "sidebar_nav_legacy_style":   False,
-    "sidebar_nav_flat_style":     True,   # ← style plat, plus moderne
-    "theme":                      "flatly",
-    "dark_mode_theme":            None,
+    # ── Tailles ──
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    
+    # ── Couleurs principales (cohérentes avec l'UI) ──
+    "brand_colour": "navbar-dark",  # Sidebar foncée
+    "accent": "accent-primary",     # Accent bleu
+    
+    # ── Navbar ──
+    "navbar": "navbar-white navbar-light",  # Navbar claire avec bordure
+    "no_navbar_border": False,              # Garder la bordure pour la séparation
+    "navbar_fixed": True,
+    
+    # ── Layout ──
+    "layout_boxed": False,
+    "footer_fixed": False,
+    
+    # ── Sidebar (bleu foncé, cohérent avec l'UI) ──
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-primary",  # Sidebar bleu foncé
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": True,     # Style plat moderne
+    
+    # ── Thème ──
+    "theme": "flatly",                  # Thème Bootstrap moderne
+    "dark_mode_theme": None,            # Désactivé pour rester cohérent
+    
+    # ── Boutons (outline pour rester élégant) ──
     "button_classes": {
-    "primary":   "btn-outline-primary",
-    "secondary": "btn-outline-secondary",
-    "info":      "btn-outline-info",
-    "warning":   "btn-outline-warning",
-    "danger":    "btn-outline-danger",
-    "success":   "btn-outline-success", }
+        "primary": "btn-primary",
+        "secondary": "btn-outline-secondary",
+        "info": "btn-outline-info",
+        "warning": "btn-outline-warning",
+        "danger": "btn-outline-danger",
+        "success": "btn-success",
+    },
 }
