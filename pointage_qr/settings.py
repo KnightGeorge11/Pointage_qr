@@ -149,7 +149,7 @@ JAZZMIN_SETTINGS = {
     "welcome_sign": "Bienvenue dans l'administration",
     "copyright": "Pointage QR © 2026",
     
-    # ── Icônes modernes (version unique) ──
+    # ── Icônes modernes (UN SEUL DICTIONNAIRE) ──
     "icons": {
         "auth": "fas fa-lock",
         "auth.user": "fas fa-user",
@@ -184,7 +184,7 @@ JAZZMIN_SETTINGS = {
     
     "hide_apps": [],
     
-    # ── Ordre d'affichage ──
+    # ── Ordre d'affichage (UN SEUL) ──
     "order_with_respect_to": [
         "auth",
         "pointage",
@@ -200,24 +200,6 @@ JAZZMIN_SETTINGS = {
     
     # ── Dashboard personnalisé ──
     "dashboard": "admin/index.html",
-    
-    # ── LIENS SUPPLÉMENTAIRES DANS LA SIDEBAR ──
-    "custom_links": {
-        "pointage": [
-            {
-                "name": "📋 Historique des pointages",
-                "url": "admin:pointage_pointage_changelist",
-                "icon": "fas fa-clock-rotate-left",
-                "permissions": ["pointage.view_pointage"]
-            },
-            {
-                "name": "⚠️ Anomalies",
-                "url": "admin:pointage_anomaliepointage_changelist",
-                "icon": "fas fa-triangle-exclamation",
-                "permissions": ["pointage.view_anomaliepointage"]
-            },
-        ],
-    },
 }
 
 # ============================================================
