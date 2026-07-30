@@ -22,65 +22,192 @@ from datetime import timedelta, datetime
 
 
 # ============================================================
-    # FILTRES PERSONNALISÉS
-    # ============================================================
-    def get_list_filter(self, request):
-        return [
-            'statut',
-            'periode',
-            'site',
-            'date_pointage',
-            'type_journee',
-        ]
-    
-    # ============================================================
-    # CHANGELIST VIEW AVEC CONTEXTE
-    # ============================================================
-    def changelist_view(self, request, extra_context=None):
-        # Récupérer le queryset filtré
-        cl = self.get_changelist_instance(request)
-        queryset = cl.get_queryset(request)
-        
-        # Appliquer les filtres avancés
-        if request.GET.get('date_debut'):
-            try:
-                from datetime import datetime
-                date_debut = datetime.strptime(request.GET['date_debut'], '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__gte=date_debut)
-            except ValueError:
-                pass
-        
-        if request.GET.get('date_fin'):
-            try:
-                from datetime import datetime
-                date_fin = datetime.strptime(request.GET['date_fin'], '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__lte=date_fin)
-            except ValueError:
-                pass
-        
-        if request.GET.get('retard_min'):
-            try:
-                from datetime import timedelta
-                retard_min = int(request.GET['retard_min'])
-                queryset = queryset.filter(retard__gte=timedelta(minutes=retard_min))
-            except ValueError:
-                pass
-        
-        # Calcul des statistiques
-        total = queryset.count()
-        presents = queryset.filter(statut='present').count()
-        retards = queryset.filter(statut='retard').count()
-        absents = queryset.filter(statut='absent').count()
-        
-        extra_context = extra_context or {}
-        extra_context.update({
-            'total': total,
-            'presents_count': presents,
-            'retards_count': retards,
-            'absents_count': absents,
-        })
-        
-        return super().changelist_view(request, extra_context=extra_context)
+# CUSTOM USER
+# ============================================================
+
+@admin.register(CustomUser)
+class CustomUserAdmin(UserAdmin):
+    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_staff')
+    list_filter = ('role', 'is_active', 'is_staff')
+    search_fields = ('username', 'email', 'first_name', 'last_name')
+    ordering = ('username',)
+
+    fieldsets = UserAdmin.fieldsets + (
+        ('Rôle & Permissions', {'fields': ('role',)}),
+    )
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        ('Rôle & Permissions', {'fields': ('role',)}),
+    )
+
+    def save_model(self, request, obj, form, change):
+        if obj.role == 'admin':
+            obj.is_staff = True
+        else:
+            obj.is_staff = False
+            obj.is_superuser = False
+        super().save_model(request, obj, form, change)
+
+
+# ============================================================
+# POSTE
+# ============================================================
+
+@admin.register(Poste)
+class PosteAdmin(admin.ModelAdmin):
+    list_display = ('nom', 'description', 'couleur_display')
+    search_fields = ('nom', 'description')
+    ordering = ('nom',)
+
+    def couleur_display(self, obj):
+        return format_html(
+            '<span style="display:inline-block;width:20px;height:20px;'
+            'background-color:{};border:1px solid rgba(255,255,255,.2);'
+            'border-radius:4px;vertical-align:middle;margin-right:6px"></span>{}',
+            obj.couleur, obj.couleur
+        )
+    couleur_display.short_description = 'Couleur'
+
+
+# ============================================================
+# SITE
+# ============================================================
+
+@admin.register(Site)
+class SiteAdmin(admin.ModelAdmin):
+    list_display = ('nom', 'adresse', 'heure_ouverture_matin', 'heure_fermeture_matin')
+    search_fields = ('nom', 'adresse')
+
+
+# ============================================================
+# EMPLOYÉ
+# ============================================================
+
+@admin.register(Employe)
+class EmployeAdmin(admin.ModelAdmin):
+    list_display = ('matricule', 'nom', 'prenom', 'get_poste', 'actif', 'qr_code_preview', 'date_creation')
+    list_filter = ('poste', 'actif', 'date_creation')
+    search_fields = ('nom', 'prenom', 'matricule', 'poste__nom')
+    readonly_fields = ('qr_code_token', 'date_creation', 'qr_code_display', 'info_qr_code')
+    ordering = ('matricule',)
+    actions = ['regenerer_qr_codes', 'activer_employes', 'desactiver_employes']
+
+    fieldsets = (
+        ('Informations personnelles', {
+            'fields': ('nom', 'prenom', 'matricule', 'poste', 'actif')
+        }),
+        ('QR Code', {
+            'fields': ('info_qr_code', 'qr_code_display', 'qr_code_token'),
+            'classes': ('wide',),
+            'description': "Gestion du QR code de l'employé"
+        }),
+        ('Dates', {
+            'fields': ('date_creation',),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def qr_code_preview(self, obj):
+        if obj.qr_code:
+            return format_html(
+                '<a href="{}" target="_blank">'
+                '<img src="{}" width="40" height="40" '
+                'style="border:1px solid rgba(255,255,255,.15);border-radius:4px;">'
+                '</a>',
+                obj.qr_code.url, obj.qr_code.url
+            )
+        return mark_safe('<span style="color:#f87171;font-size:12px;">Non généré</span>')
+    qr_code_preview.short_description = 'QR Code'
+
+    def qr_code_display(self, obj):
+        if obj.qr_code:
+            return format_html(
+                '<div style="text-align:center;margin:20px 0;">'
+                '<div style="margin-bottom:12px;font-weight:600;color:#e8eaf0;">QR Code pour le pointage</div>'
+                '<img src="{}" width="220" height="220" '
+                'style="border:3px solid #4f8ef7;border-radius:10px;padding:10px;background:white;">'
+                '</div>',
+                obj.qr_code.url
+            )
+        return mark_safe(
+            '<div style="color:#f87171;padding:14px;background:rgba(248,113,113,.1);'
+            'border-radius:8px;text-align:center;">Le QR Code n\'a pas encore été généré.</div>'
+        )
+    qr_code_display.short_description = 'Visualisation du QR Code'
+
+    def info_qr_code(self, obj):
+        if obj.qr_code:
+            return format_html(
+                '<div style="background:rgba(79,142,247,.08);padding:16px;border-radius:8px;'
+                'border:1px solid rgba(79,142,247,.2);margin-bottom:14px;">'
+                '<h4 style="margin-top:0;color:#4f8ef7;font-size:13px;font-weight:600;">'
+                'Informations du QR Code</h4>'
+                '<div style="margin-bottom:10px;font-size:12px;color:rgba(232,234,240,.6);">'
+                'Données encodées :</div>'
+                '<code style="background:rgba(255,255,255,.07);padding:6px 10px;border-radius:5px;'
+                'font-size:12px;color:#e8eaf0;display:inline-block;margin-bottom:14px;">'
+                'EMPLOYE:{}:{}</code>'
+                '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+                '<a href="{}" download class="button" style="text-decoration:none;">'
+                'Télécharger</a>'
+                '<a href="{}" target="_blank" class="button" style="text-decoration:none;">'
+                'Ouvrir</a>'
+                '<button type="submit" name="_generate_qr" value="1" class="button" '
+                'style="background:#28a745;border-color:#28a745;">Régénérer</button>'
+                '</div></div>',
+                obj.matricule, obj.qr_code_token, obj.qr_code.url, obj.qr_code.url
+            )
+        return mark_safe(
+            '<div style="background:rgba(251,191,36,.08);padding:14px;border-radius:8px;'
+            'border:1px solid rgba(251,191,36,.2);margin-bottom:14px;">'
+            '<h4 style="margin-top:0;color:#fbbf24;font-size:13px;font-weight:600;">QR Code non généré</h4>'
+            '<p style="margin-bottom:12px;font-size:13px;color:rgba(232,234,240,.6);">'
+            "Le QR code n'a pas encore été généré pour cet employé.</p>"
+            '<button type="submit" name="_generate_qr" value="1" class="button" '
+            'style="background:#4f8ef7;border-color:#4f8ef7;color:white;">Générer QR Code</button>'
+            '</div>'
+        )
+    info_qr_code.short_description = 'Actions QR Code'
+
+    def get_poste(self, obj):
+        return obj.poste.nom if obj.poste else "Non défini"
+    get_poste.short_description = 'Poste'
+
+    def response_change(self, request, obj):
+        if "_generate_qr" in request.POST:
+            obj.qr_code_token = uuid.uuid4()
+            obj.generer_qr_code()
+            obj.save()
+            self.message_user(request, "✅ QR code régénéré avec succès !", messages.SUCCESS)
+            return HttpResponseRedirect(".")
+        return super().response_change(request, obj)
+
+    def regenerer_qr_codes(self, request, queryset):
+        count = 0
+        for employe in queryset:
+            employe.qr_code_token = uuid.uuid4()
+            employe.generer_qr_code()
+            employe.save()
+            count += 1
+        self.message_user(request, f"✅ {count} QR code(s) régénéré(s).", messages.SUCCESS)
+    regenerer_qr_codes.short_description = "🔄 Régénérer les QR codes sélectionnés"
+
+    def activer_employes(self, request, queryset):
+        updated = queryset.update(actif=True)
+        self.message_user(request, f"✅ {updated} employé(s) activé(s).", messages.SUCCESS)
+    activer_employes.short_description = "✅ Activer les employés sélectionnés"
+
+    def desactiver_employes(self, request, queryset):
+        updated = queryset.update(actif=False)
+        self.message_user(request, f"⛔ {updated} employé(s) désactivé(s).", messages.SUCCESS)
+    desactiver_employes.short_description = "⛔ Désactiver les employés sélectionnés"
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('poste')
+
+    class Media:
+        css = {
+            'all': ('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',)
+        }
 
 
 # ============================================================
@@ -314,32 +441,51 @@ class PointageAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# LE RESTE DU CODE (inchangé)
+# SCAN
 # ============================================================
 
-# ... (tous les autres admin restent identiques) ...
+@admin.register(Scan)
+class ScanAdmin(admin.ModelAdmin):
+    list_display = ('employe', 'site', 'timestamp_local', 'type_scan_display', 'get_pointage_info')
+    list_filter = ('type_scan', 'site', 'timestamp')
+    search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule')
+    readonly_fields = ('timestamp', 'timestamp_local_display')
+    date_hierarchy = 'timestamp'
 
-@admin.register(CustomUser)
-class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_staff')
-    list_filter = ('role', 'is_active', 'is_staff')
-    search_fields = ('username', 'email', 'first_name', 'last_name')
-    ordering = ('username',)
+    def timestamp_local(self, obj):
+        return obj.get_timestamp_local().strftime('%d/%m/%Y %H:%M:%S')
+    timestamp_local.short_description = 'Heure locale'
 
-    fieldsets = UserAdmin.fieldsets + (
-        ('Rôle & Permissions', {'fields': ('role',)}),
-    )
-    add_fieldsets = UserAdmin.add_fieldsets + (
-        ('Rôle & Permissions', {'fields': ('role',)}),
-    )
+    def timestamp_local_display(self, obj):
+        return obj.get_timestamp_local().strftime('%d/%m/%Y %H:%M:%S')
+    timestamp_local_display.short_description = 'Heure locale'
 
-    def save_model(self, request, obj, form, change):
-        if obj.role == 'admin':
-            obj.is_staff = True
-        else:
-            obj.is_staff = False
-            obj.is_superuser = False
-        super().save_model(request, obj, form, change)
+    def get_pointage_info(self, obj):
+        if obj.pointage:
+            return f"{obj.pointage.get_periode_display()} - {obj.pointage.date_pointage}"
+        return "-"
+    get_pointage_info.short_description = 'Pointage associé'
+
+    def type_scan_display(self, obj):
+        colors = {
+            'entree_matin': '#4f8ef7',
+            'sortie_matin': '#4ade80',
+            'entree_apres_midi': '#fbbf24',
+            'sortie_apres_midi': '#22d3ee',
+            'debut_garde': '#a78bfa',
+            'fin_garde': '#94a3b8',
+        }
+        color = colors.get(obj.type_scan, '#94a3b8')
+        return mark_safe(
+            f'<span style="background:rgba(255,255,255,.07);color:{color};'
+            f'padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;'
+            f'letter-spacing:.05em;border:1px solid {color}40">'
+            f'{obj.get_type_scan_display()}</span>'
+        )
+    type_scan_display.short_description = 'Type de scan'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('employe', 'site', 'pointage')
 
 
 # ============================================================
@@ -729,216 +875,6 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
             except ValueError as e:
                 self.message_user(request, f"❌ Anomalie #{anomalie.pk} : {e}", level=messages.ERROR)
         self.message_user(request, f"🔒 {count} anomalie(s) clôturée(s).")
-
-
-# ============================================================
-# POSTE
-# ============================================================
-
-@admin.register(Poste)
-class PosteAdmin(admin.ModelAdmin):
-    list_display = ('nom', 'description', 'couleur_display')
-    search_fields = ('nom', 'description')
-    ordering = ('nom',)
-
-    def couleur_display(self, obj):
-        return format_html(
-            '<span style="display:inline-block;width:20px;height:20px;'
-            'background-color:{};border:1px solid rgba(255,255,255,.2);'
-            'border-radius:4px;vertical-align:middle;margin-right:6px"></span>{}',
-            obj.couleur, obj.couleur
-        )
-    couleur_display.short_description = 'Couleur'
-
-
-# ============================================================
-# SITE
-# ============================================================
-
-@admin.register(Site)
-class SiteAdmin(admin.ModelAdmin):
-    list_display = ('nom', 'adresse', 'heure_ouverture_matin', 'heure_fermeture_matin')
-    search_fields = ('nom', 'adresse')
-
-
-# ============================================================
-# EMPLOYÉ
-# ============================================================
-
-@admin.register(Employe)
-class EmployeAdmin(admin.ModelAdmin):
-    list_display = ('matricule', 'nom', 'prenom', 'get_poste', 'actif', 'qr_code_preview', 'date_creation')
-    list_filter = ('poste', 'actif', 'date_creation')
-    search_fields = ('nom', 'prenom', 'matricule', 'poste__nom')
-    readonly_fields = ('qr_code_token', 'date_creation', 'qr_code_display', 'info_qr_code')
-    ordering = ('matricule',)
-    actions = ['regenerer_qr_codes', 'activer_employes', 'desactiver_employes']
-
-    fieldsets = (
-        ('Informations personnelles', {
-            'fields': ('nom', 'prenom', 'matricule', 'poste', 'actif')
-        }),
-        ('QR Code', {
-            'fields': ('info_qr_code', 'qr_code_display', 'qr_code_token'),
-            'classes': ('wide',),
-            'description': "Gestion du QR code de l'employé"
-        }),
-        ('Dates', {
-            'fields': ('date_creation',),
-            'classes': ('collapse',),
-        }),
-    )
-
-    def qr_code_preview(self, obj):
-        if obj.qr_code:
-            return format_html(
-                '<a href="{}" target="_blank">'
-                '<img src="{}" width="40" height="40" '
-                'style="border:1px solid rgba(255,255,255,.15);border-radius:4px;">'
-                '</a>',
-                obj.qr_code.url, obj.qr_code.url
-            )
-        return mark_safe('<span style="color:#f87171;font-size:12px;">Non généré</span>')
-    qr_code_preview.short_description = 'QR Code'
-
-    def qr_code_display(self, obj):
-        if obj.qr_code:
-            return format_html(
-                '<div style="text-align:center;margin:20px 0;">'
-                '<div style="margin-bottom:12px;font-weight:600;color:#e8eaf0;">QR Code pour le pointage</div>'
-                '<img src="{}" width="220" height="220" '
-                'style="border:3px solid #4f8ef7;border-radius:10px;padding:10px;background:white;">'
-                '</div>',
-                obj.qr_code.url
-            )
-        return mark_safe(
-            '<div style="color:#f87171;padding:14px;background:rgba(248,113,113,.1);'
-            'border-radius:8px;text-align:center;">Le QR Code n\'a pas encore été généré.</div>'
-        )
-    qr_code_display.short_description = 'Visualisation du QR Code'
-
-    def info_qr_code(self, obj):
-        if obj.qr_code:
-            return format_html(
-                '<div style="background:rgba(79,142,247,.08);padding:16px;border-radius:8px;'
-                'border:1px solid rgba(79,142,247,.2);margin-bottom:14px;">'
-                '<h4 style="margin-top:0;color:#4f8ef7;font-size:13px;font-weight:600;">'
-                'Informations du QR Code</h4>'
-                '<div style="margin-bottom:10px;font-size:12px;color:rgba(232,234,240,.6);">'
-                'Données encodées :</div>'
-                '<code style="background:rgba(255,255,255,.07);padding:6px 10px;border-radius:5px;'
-                'font-size:12px;color:#e8eaf0;display:inline-block;margin-bottom:14px;">'
-                'EMPLOYE:{}:{}</code>'
-                '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-                '<a href="{}" download class="button" style="text-decoration:none;">'
-                'Télécharger</a>'
-                '<a href="{}" target="_blank" class="button" style="text-decoration:none;">'
-                'Ouvrir</a>'
-                '<button type="submit" name="_generate_qr" value="1" class="button" '
-                'style="background:#28a745;border-color:#28a745;">Régénérer</button>'
-                '</div></div>',
-                obj.matricule, obj.qr_code_token, obj.qr_code.url, obj.qr_code.url
-            )
-        return mark_safe(
-            '<div style="background:rgba(251,191,36,.08);padding:14px;border-radius:8px;'
-            'border:1px solid rgba(251,191,36,.2);margin-bottom:14px;">'
-            '<h4 style="margin-top:0;color:#fbbf24;font-size:13px;font-weight:600;">QR Code non généré</h4>'
-            '<p style="margin-bottom:12px;font-size:13px;color:rgba(232,234,240,.6);">'
-            "Le QR code n'a pas encore été généré pour cet employé.</p>"
-            '<button type="submit" name="_generate_qr" value="1" class="button" '
-            'style="background:#4f8ef7;border-color:#4f8ef7;color:white;">Générer QR Code</button>'
-            '</div>'
-        )
-    info_qr_code.short_description = 'Actions QR Code'
-
-    def get_poste(self, obj):
-        return obj.poste.nom if obj.poste else "Non défini"
-    get_poste.short_description = 'Poste'
-
-    def response_change(self, request, obj):
-        if "_generate_qr" in request.POST:
-            obj.qr_code_token = uuid.uuid4()
-            obj.generer_qr_code()
-            obj.save()
-            self.message_user(request, "✅ QR code régénéré avec succès !", messages.SUCCESS)
-            return HttpResponseRedirect(".")
-        return super().response_change(request, obj)
-
-    def regenerer_qr_codes(self, request, queryset):
-        count = 0
-        for employe in queryset:
-            employe.qr_code_token = uuid.uuid4()
-            employe.generer_qr_code()
-            employe.save()
-            count += 1
-        self.message_user(request, f"✅ {count} QR code(s) régénéré(s).", messages.SUCCESS)
-    regenerer_qr_codes.short_description = "🔄 Régénérer les QR codes sélectionnés"
-
-    def activer_employes(self, request, queryset):
-        updated = queryset.update(actif=True)
-        self.message_user(request, f"✅ {updated} employé(s) activé(s).", messages.SUCCESS)
-    activer_employes.short_description = "✅ Activer les employés sélectionnés"
-
-    def desactiver_employes(self, request, queryset):
-        updated = queryset.update(actif=False)
-        self.message_user(request, f"⛔ {updated} employé(s) désactivé(s).", messages.SUCCESS)
-    desactiver_employes.short_description = "⛔ Désactiver les employés sélectionnés"
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('poste')
-
-    class Media:
-        css = {
-            'all': ('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',)
-        }
-
-
-# ============================================================
-# SCAN
-# ============================================================
-
-@admin.register(Scan)
-class ScanAdmin(admin.ModelAdmin):
-    list_display = ('employe', 'site', 'timestamp_local', 'type_scan_display', 'get_pointage_info')
-    list_filter = ('type_scan', 'site', 'timestamp')
-    search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule')
-    readonly_fields = ('timestamp', 'timestamp_local_display')
-    date_hierarchy = 'timestamp'
-
-    def timestamp_local(self, obj):
-        return obj.get_timestamp_local().strftime('%d/%m/%Y %H:%M:%S')
-    timestamp_local.short_description = 'Heure locale'
-
-    def timestamp_local_display(self, obj):
-        return obj.get_timestamp_local().strftime('%d/%m/%Y %H:%M:%S')
-    timestamp_local_display.short_description = 'Heure locale'
-
-    def get_pointage_info(self, obj):
-        if obj.pointage:
-            return f"{obj.pointage.get_periode_display()} - {obj.pointage.date_pointage}"
-        return "-"
-    get_pointage_info.short_description = 'Pointage associé'
-
-    def type_scan_display(self, obj):
-        colors = {
-            'entree_matin': '#4f8ef7',
-            'sortie_matin': '#4ade80',
-            'entree_apres_midi': '#fbbf24',
-            'sortie_apres_midi': '#22d3ee',
-            'debut_garde': '#a78bfa',
-            'fin_garde': '#94a3b8',
-        }
-        color = colors.get(obj.type_scan, '#94a3b8')
-        return mark_safe(
-            f'<span style="background:rgba(255,255,255,.07);color:{color};'
-            f'padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;'
-            f'letter-spacing:.05em;border:1px solid {color}40">'
-            f'{obj.get_type_scan_display()}</span>'
-        )
-    type_scan_display.short_description = 'Type de scan'
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('employe', 'site', 'pointage')
 
 
 # ============================================================
