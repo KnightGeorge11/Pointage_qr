@@ -149,13 +149,13 @@ JAZZMIN_SETTINGS = {
     "welcome_sign": "Bienvenue dans l'administration",
     "copyright": "Pointage QR © 2026",
     
-    # ── Icônes modernes ──
+    # ── Icônes modernes (version unique) ──
     "icons": {
         "auth": "fas fa-lock",
         "auth.user": "fas fa-user",
         "auth.Group": "fas fa-users",
-        "pointage.Employe": "fas fa-id-badge",
-        "pointage.Pointage": "fas fa-clock",
+        "pointage.Employe": "fas fa-users",
+        "pointage.Pointage": "fas fa-clock-rotate-left",
         "pointage.Site": "fas fa-building",
         "pointage.Scan": "fas fa-qrcode",
         "pointage.Poste": "fas fa-briefcase",
@@ -184,6 +184,7 @@ JAZZMIN_SETTINGS = {
     
     "hide_apps": [],
     
+    # ── Ordre d'affichage ──
     "order_with_respect_to": [
         "auth",
         "pointage",
@@ -197,10 +198,26 @@ JAZZMIN_SETTINGS = {
     "search_model": "pointage.Employe",
     "user_avatar": None,
     
-    # ============================================================
-    # DASHBOARD PERSONNALISÉ - CHEMIN CORRIGÉ
-    # ============================================================
+    # ── Dashboard personnalisé ──
     "dashboard": "admin/index.html",
+    
+    # ── LIENS SUPPLÉMENTAIRES DANS LA SIDEBAR ──
+    "custom_links": {
+        "pointage": [
+            {
+                "name": "📋 Historique des pointages",
+                "url": "admin:pointage_pointage_changelist",
+                "icon": "fas fa-clock-rotate-left",
+                "permissions": ["pointage.view_pointage"]
+            },
+            {
+                "name": "⚠️ Anomalies",
+                "url": "admin:pointage_anomaliepointage_changelist",
+                "icon": "fas fa-triangle-exclamation",
+                "permissions": ["pointage.view_anomaliepointage"]
+            },
+        ],
+    },
 }
 
 # ============================================================
