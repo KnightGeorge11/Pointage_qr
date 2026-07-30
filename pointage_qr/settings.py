@@ -139,7 +139,7 @@ LOGOUT_REDIRECT_URL = '/login/'
 
 
 # ============================================================
-# CONFIGURATION JAZZMIN — Version Premium
+# CONFIGURATION JAZZMIN — Version Premium avec Navigation
 # ============================================================
 JAZZMIN_SETTINGS = {
     # ── Identité ──
@@ -149,7 +149,7 @@ JAZZMIN_SETTINGS = {
     "welcome_sign": "Bienvenue dans l'administration",
     "copyright": "Pointage QR © 2026",
     
-    # ── Icônes modernes (UN SEUL DICTIONNAIRE) ──
+    # ── Icônes ──
     "icons": {
         "auth": "fas fa-lock",
         "auth.user": "fas fa-user",
@@ -184,7 +184,6 @@ JAZZMIN_SETTINGS = {
     
     "hide_apps": [],
     
-    # ── Ordre d'affichage (UN SEUL) ──
     "order_with_respect_to": [
         "auth",
         "pointage",
@@ -200,6 +199,148 @@ JAZZMIN_SETTINGS = {
     
     # ── Dashboard personnalisé ──
     "dashboard": "admin/index.html",
+    
+    # ============================================================
+    # MENU PERSONNALISÉ DE LA SIDEBAR (Navigation complète)
+    # ============================================================
+    "navigation": [
+        {
+            "name": "📊 Tableau de bord",
+            "icon": "fas fa-chart-line",
+            "url": "admin:index",
+            "permissions": ["auth.view_user"],
+        },
+        {
+            "name": "👥 Employés",
+            "icon": "fas fa-users",
+            "children": [
+                {
+                    "name": "Tous les employés",
+                    "icon": "fas fa-list",
+                    "url": "admin:pointage_employe_changelist",
+                },
+                {
+                    "name": "✅ Actifs",
+                    "icon": "fas fa-user-check",
+                    "url": "admin:pointage_employe_changelist?actif__exact=1",
+                },
+                {
+                    "name": "⛔ Inactifs",
+                    "icon": "fas fa-user-slash",
+                    "url": "admin:pointage_employe_changelist?actif__exact=0",
+                },
+                {
+                    "name": "➕ Ajouter un employé",
+                    "icon": "fas fa-user-plus",
+                    "url": "admin:pointage_employe_add",
+                },
+            ],
+        },
+        {
+            "name": "📋 Pointages",
+            "icon": "fas fa-clock",
+            "children": [
+                {
+                    "name": "Tous les pointages",
+                    "icon": "fas fa-list",
+                    "url": "admin:pointage_pointage_changelist",
+                },
+                {
+                    "name": "✅ Présents",
+                    "icon": "fas fa-check-circle",
+                    "url": "admin:pointage_pointage_changelist?statut__exact=present",
+                },
+                {
+                    "name": "⚠️ Retards",
+                    "icon": "fas fa-clock",
+                    "url": "admin:pointage_pointage_changelist?statut__exact=retard",
+                },
+                {
+                    "name": "❌ Absents",
+                    "icon": "fas fa-times-circle",
+                    "url": "admin:pointage_pointage_changelist?statut__exact=absent",
+                },
+                {
+                    "name": "🌙 Gardes de nuit",
+                    "icon": "fas fa-moon",
+                    "url": "admin:pointage_pointage_changelist?periode__exact=nuit",
+                },
+            ],
+        },
+        {
+            "name": "⚠️ Anomalies",
+            "icon": "fas fa-triangle-exclamation",
+            "children": [
+                {
+                    "name": "🔴 Ouvertes",
+                    "icon": "fas fa-circle-exclamation",
+                    "url": "admin:pointage_anomaliepointage_changelist?statut__exact=ouverte",
+                },
+                {
+                    "name": "🟡 Traitées",
+                    "icon": "fas fa-check",
+                    "url": "admin:pointage_anomaliepointage_changelist?statut__exact=traitee",
+                },
+                {
+                    "name": "✅ Clôturées",
+                    "icon": "fas fa-check-double",
+                    "url": "admin:pointage_anomaliepointage_changelist?statut__exact=cloturee",
+                },
+                {
+                    "name": "Toutes les anomalies",
+                    "icon": "fas fa-list",
+                    "url": "admin:pointage_anomaliepointage_changelist",
+                },
+            ],
+        },
+        {
+            "name": "🏢 Sites",
+            "icon": "fas fa-building",
+            "children": [
+                {
+                    "name": "Tous les sites",
+                    "icon": "fas fa-list",
+                    "url": "admin:pointage_site_changelist",
+                },
+                {
+                    "name": "➕ Ajouter un site",
+                    "icon": "fas fa-plus-circle",
+                    "url": "admin:pointage_site_add",
+                },
+            ],
+        },
+        {
+            "name": "💼 Postes",
+            "icon": "fas fa-briefcase",
+            "children": [
+                {
+                    "name": "Tous les postes",
+                    "icon": "fas fa-list",
+                    "url": "admin:pointage_poste_changelist",
+                },
+                {
+                    "name": "➕ Ajouter un poste",
+                    "icon": "fas fa-plus-circle",
+                    "url": "admin:pointage_poste_add",
+                },
+            ],
+        },
+        {
+            "name": "📱 Scans",
+            "icon": "fas fa-qrcode",
+            "url": "admin:pointage_scan_changelist",
+        },
+        {
+            "name": "📦 Demandes",
+            "icon": "fas fa-inbox",
+            "url": "admin:pointage_demandemodification_changelist",
+        },
+        {
+            "name": "🔐 Utilisateurs",
+            "icon": "fas fa-user-cog",
+            "url": "admin:auth_user_changelist",
+        },
+    ],
 }
 
 # ============================================================
