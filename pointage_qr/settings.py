@@ -78,7 +78,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'pointage.context_processors.dashboard_context',  # ← AJOUTÉ
+                'pointage.context_processors.dashboard_context',
             ],
         },
     },
@@ -200,7 +200,7 @@ JAZZMIN_SETTINGS = {
     # ============================================================
     # DASHBOARD PERSONNALISÉ - CHEMIN CORRIGÉ
     # ============================================================
-    "dashboard": "admin/dashboard.html",  # ← CHEMIN CORRECT
+    "dashboard": "admin/dashboard.html",
 }
 
 # ============================================================
