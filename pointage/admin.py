@@ -394,6 +394,12 @@ class PointageAdmin(admin.ModelAdmin):
         if request.GET.get('periode'):
             queryset = queryset.filter(periode=request.GET['periode'])
         
+        if request.GET.get('site'):
+            try:
+                queryset = queryset.filter(site_id=request.GET['site'])
+            except ValueError:
+                pass
+        
         if request.GET.get('retard_min'):
             try:
                 retard_min = int(request.GET['retard_min'])
@@ -417,6 +423,11 @@ class PointageAdmin(admin.ModelAdmin):
             if p.heures_travaillees:
                 total_heures += p.heures_travaillees
         
+        # ============================================================
+        # RÉCUPÉRER LA LISTE DES SITES POUR LE TEMPLATE
+        # ============================================================
+        sites_list = Site.objects.all().order_by('nom')
+        
         extra_context = extra_context or {}
         extra_context.update({
             'total': total,
@@ -427,6 +438,7 @@ class PointageAdmin(admin.ModelAdmin):
             'total_heures': self._format_timedelta(total_heures),
             'employes_count': queryset.values('employe').distinct().count(),
             'total_employes': Employe.objects.filter(actif=True).count(),
+            'sites_list': sites_list,  # ← AJOUTÉ
         })
         
         return super().changelist_view(request, extra_context=extra_context)

@@ -156,7 +156,7 @@
             color: #B91C1C;
         }
 
-        /* ── Filtres avancés (intégrés avec Jazzmin) ── */
+        /* ── Filtres avancés ── */
         .filter-advanced {
             background: #F8FAFC;
             border-radius: 10px;
@@ -245,7 +245,7 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- FILTRES AVANCÉS (intégrés avec Jazzmin) -->
+    <!-- FILTRES AVANCÉS (DYNAMIQUES) -->
     <!-- ============================================================ -->
     <div class="filter-advanced">
         <form method="get" id="advancedFilterForm">
@@ -274,33 +274,33 @@
                     <label>Date fin</label>
                     <input type="date" name="date_fin" value="{{ request.GET.date_fin|default:'' }}">
                 </div>
-                <!-- Statut (filtre Jazzmin) -->
+                <!-- Statut -->
                 <div class="filter-group">
                     <label>Statut</label>
-                    <select name="statut__exact">
+                    <select name="statut">
                         <option value="">Tous</option>
-                        <option value="present" {% if request.GET.statut__exact == 'present' %}selected{% endif %}>Présent</option>
-                        <option value="absent" {% if request.GET.statut__exact == 'absent' %}selected{% endif %}>Absent</option>
-                        <option value="retard" {% if request.GET.statut__exact == 'retard' %}selected{% endif %}>Retard</option>
+                        <option value="present" {% if request.GET.statut == 'present' %}selected{% endif %}>Présent</option>
+                        <option value="absent" {% if request.GET.statut == 'absent' %}selected{% endif %}>Absent</option>
+                        <option value="retard" {% if request.GET.statut == 'retard' %}selected{% endif %}>Retard</option>
                     </select>
                 </div>
                 <!-- Période -->
                 <div class="filter-group">
                     <label>Période</label>
-                    <select name="periode__exact">
+                    <select name="periode">
                         <option value="">Toutes</option>
-                        <option value="matin" {% if request.GET.periode__exact == 'matin' %}selected{% endif %}>Matin</option>
-                        <option value="apres_midi" {% if request.GET.periode__exact == 'apres_midi' %}selected{% endif %}>Après-midi</option>
-                        <option value="nuit" {% if request.GET.periode__exact == 'nuit' %}selected{% endif %}>Nuit</option>
+                        <option value="matin" {% if request.GET.periode == 'matin' %}selected{% endif %}>Matin</option>
+                        <option value="apres_midi" {% if request.GET.periode == 'apres_midi' %}selected{% endif %}>Après-midi</option>
+                        <option value="nuit" {% if request.GET.periode == 'nuit' %}selected{% endif %}>Nuit</option>
                     </select>
                 </div>
-                <!-- Site (filtre Jazzmin) -->
+                <!-- Site (DYNAMIQUE) -->
                 <div class="filter-group">
                     <label>Site</label>
-                    <select name="site__id__exact">
+                    <select name="site">
                         <option value="">Tous</option>
-                        {% for site in cl.list_filter|get_filters:"site" %}
-                            <option value="{{ site.id }}" {% if request.GET.site__id__exact == site.id|stringformat:"s" %}selected{% endif %}>
+                        {% for site in sites_list %}
+                            <option value="{{ site.id }}" {% if request.GET.site == site.id|stringformat:"s" %}selected{% endif %}>
                                 {{ site.nom }}
                             </option>
                         {% endfor %}
