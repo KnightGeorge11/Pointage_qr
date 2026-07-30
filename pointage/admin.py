@@ -22,6 +22,68 @@ from datetime import timedelta, datetime
 
 
 # ============================================================
+    # FILTRES PERSONNALISÉS
+    # ============================================================
+    def get_list_filter(self, request):
+        return [
+            'statut',
+            'periode',
+            'site',
+            'date_pointage',
+            'type_journee',
+        ]
+    
+    # ============================================================
+    # CHANGELIST VIEW AVEC CONTEXTE
+    # ============================================================
+    def changelist_view(self, request, extra_context=None):
+        # Récupérer le queryset filtré
+        cl = self.get_changelist_instance(request)
+        queryset = cl.get_queryset(request)
+        
+        # Appliquer les filtres avancés
+        if request.GET.get('date_debut'):
+            try:
+                from datetime import datetime
+                date_debut = datetime.strptime(request.GET['date_debut'], '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__gte=date_debut)
+            except ValueError:
+                pass
+        
+        if request.GET.get('date_fin'):
+            try:
+                from datetime import datetime
+                date_fin = datetime.strptime(request.GET['date_fin'], '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__lte=date_fin)
+            except ValueError:
+                pass
+        
+        if request.GET.get('retard_min'):
+            try:
+                from datetime import timedelta
+                retard_min = int(request.GET['retard_min'])
+                queryset = queryset.filter(retard__gte=timedelta(minutes=retard_min))
+            except ValueError:
+                pass
+        
+        # Calcul des statistiques
+        total = queryset.count()
+        presents = queryset.filter(statut='present').count()
+        retards = queryset.filter(statut='retard').count()
+        absents = queryset.filter(statut='absent').count()
+        
+        extra_context = extra_context or {}
+        extra_context.update({
+            'total': total,
+            'presents_count': presents,
+            'retards_count': retards,
+            'absents_count': absents,
+        })
+        
+        return super().changelist_view(request, extra_context=extra_context)
+
+
+# ============================================================
 # POINTAGE - VERSION AMÉLIORÉE AVEC CHANGELIST PERSONNALISÉE
 # ============================================================
 
