@@ -200,7 +200,7 @@ JAZZMIN_SETTINGS = {
     # ============================================================
     # DASHBOARD PERSONNALISÉ - CHEMIN CORRIGÉ
     # ============================================================
-    "dashboard": "admin/dashboard.html",
+    "dashboard": "admin/index.html",
 }
 
 # ============================================================

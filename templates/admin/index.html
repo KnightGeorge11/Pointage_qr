@@ -1,0 +1,198 @@
+{% extends "admin/base_site.html" %}
+{% load static i18n %}
+
+{% block title %}Tableau de bord | Administration{% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div style="padding: 20px;">
+
+    <!-- EN-TÊTE -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body" style="padding: 20px 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                        <div>
+                            <h4 style="font-weight: 700; color: #0F172A; margin: 0;">
+                                <i class="fas fa-chart-line" style="color: #2563EB; margin-right: 10px;"></i>
+                                Tableau de bord
+                            </h4>
+                            <p style="color: #64748B; margin: 4px 0 0 0; font-size: 13px;">
+                                <i class="fas fa-calendar-alt" style="margin-right: 6px;"></i>
+                                {% now "l d F Y" %} · {{ total_employes|default:"0" }} employés
+                            </p>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-primary btn-sm" onclick="window.location.reload();">
+                                <i class="fas fa-sync-alt"></i> Actualiser
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CARTES DE STATISTIQUES -->
+    <div class="row" style="margin-top: 20px;">
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-primary" style="border-radius: 14px; background: #2563EB !important;">
+                <div class="inner" style="padding: 16px 20px;">
+                    <h3 style="font-size: 32px; color: #fff; margin: 0;">{{ total_employes|default:"0" }}</h3>
+                    <p style="color: rgba(255,255,255,0.8); margin: 0;">Employés total</p>
+                </div>
+                <div class="icon" style="position: absolute; right: 15px; top: 15px; font-size: 48px; opacity: 0.15; color: #fff;">
+                    <i class="fas fa-users"></i>
+                </div>
+                <a href="{% url 'admin:pointage_employe_changelist' %}" class="small-box-footer" style="background: rgba(0,0,0,0.1); padding: 8px 20px; display: block; color: rgba(255,255,255,0.8); text-decoration: none;">
+                    Voir <i class="fas fa-arrow-circle-right"></i>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-success" style="border-radius: 14px; background: #22C55E !important;">
+                <div class="inner" style="padding: 16px 20px;">
+                    <h3 style="font-size: 32px; color: #fff; margin: 0;">{{ presents_aujourdhui|default:"0" }}</h3>
+                    <p style="color: rgba(255,255,255,0.8); margin: 0;">Présents aujourd'hui</p>
+                </div>
+                <div class="icon" style="position: absolute; right: 15px; top: 15px; font-size: 48px; opacity: 0.15; color: #fff;">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <a href="{% url 'admin:pointage_pointage_changelist' %}?date_pointage__exact={% now 'Y-m-d' %}" class="small-box-footer" style="background: rgba(0,0,0,0.1); padding: 8px 20px; display: block; color: rgba(255,255,255,0.8); text-decoration: none;">
+                    Voir <i class="fas fa-arrow-circle-right"></i>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-warning" style="border-radius: 14px; background: #F59E0B !important;">
+                <div class="inner" style="padding: 16px 20px;">
+                    <h3 style="font-size: 32px; color: #fff; margin: 0;">{{ anomalies_ouvertes|default:"0" }}</h3>
+                    <p style="color: rgba(255,255,255,0.8); margin: 0;">Anomalies ouvertes</p>
+                </div>
+                <div class="icon" style="position: absolute; right: 15px; top: 15px; font-size: 48px; opacity: 0.15; color: #fff;">
+                    <i class="fas fa-triangle-exclamation"></i>
+                </div>
+                <a href="{% url 'admin:pointage_anomaliepointage_changelist' %}?statut__exact=ouverte" class="small-box-footer" style="background: rgba(0,0,0,0.1); padding: 8px 20px; display: block; color: rgba(255,255,255,0.8); text-decoration: none;">
+                    Voir <i class="fas fa-arrow-circle-right"></i>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-info" style="border-radius: 14px; background: #3B82F6 !important;">
+                <div class="inner" style="padding: 16px 20px;">
+                    <h3 style="font-size: 32px; color: #fff; margin: 0;">{{ gardes_en_cours|default:"0" }}</h3>
+                    <p style="color: rgba(255,255,255,0.8); margin: 0;">Gardes en cours</p>
+                </div>
+                <div class="icon" style="position: absolute; right: 15px; top: 15px; font-size: 48px; opacity: 0.15; color: #fff;">
+                    <i class="fas fa-moon"></i>
+                </div>
+                <a href="{% url 'admin:pointage_pointage_changelist' %}?periode__exact=nuit&type_journee__exact=garde" class="small-box-footer" style="background: rgba(0,0,0,0.1); padding: 8px 20px; display: block; color: rgba(255,255,255,0.8); text-decoration: none;">
+                    Voir <i class="fas fa-arrow-circle-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- GRAPHIQUE -->
+    <div class="row" style="margin-top: 20px;">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header" style="background: transparent; border-bottom: 1px solid #E2E8F0; padding: 16px 20px;">
+                    <h3 class="card-title" style="font-weight: 600; font-size: 14px; color: #0F172A;">
+                        <i class="fas fa-chart-bar" style="color: #2563EB; margin-right: 8px;"></i>
+                        Pointages de la semaine
+                    </h3>
+                </div>
+                <div class="card-body" style="padding: 20px;">
+                    <canvas id="weeklyChart" style="height: 250px; width: 100%;"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ACTIVITÉ RÉCENTE -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header" style="background: transparent; border-bottom: 1px solid #E2E8F0; padding: 16px 20px;">
+                    <h3 class="card-title" style="font-weight: 600; font-size: 14px; color: #0F172A;">
+                        <i class="fas fa-clock" style="color: #2563EB; margin-right: 8px;"></i>
+                        Dernières activités
+                    </h3>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <ul class="list-group list-group-flush">
+                        {% for log in logs_recents|slice:":10" %}
+                        <li class="list-group-item" style="border-left: 3px solid #2563EB; padding: 10px 16px; border-bottom: 1px solid #E2E8F0;">
+                            <div>
+                                <strong style="font-size: 12px; color: #0F172A;">{{ log.user|default:"Système" }}</strong>
+                                <span style="font-size: 11px; color: #64748B; display: block;">
+                                    {{ log.action_time|date:"H:i" }} · {{ log.get_action_display }}
+                                </span>
+                            </div>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item" style="text-align: center; padding: 20px; color: #94A3B8;">
+                            <i class="fas fa-inbox" style="font-size: 24px; display: block; margin-bottom: 8px;"></i>
+                            Aucune activité récente
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var ctx = document.getElementById('weeklyChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ weekly_labels|default:"['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']"|safe }},
+            datasets: [{
+                label: 'Présents',
+                data: {{ weekly_presents|default:"[12,15,18,14,16,8,5]"|safe }},
+                backgroundColor: 'rgba(37, 99, 235, 0.7)',
+                borderColor: 'rgba(37, 99, 235, 1)',
+                borderWidth: 2,
+                borderRadius: 4,
+            }, {
+                label: 'Absents',
+                data: {{ weekly_absents|default:"[3,2,1,4,2,6,8]"|safe }},
+                backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                borderColor: 'rgba(239, 68, 68, 1)',
+                borderWidth: 2,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: { size: 11, weight: '600' },
+                        usePointStyle: true,
+                        padding: 20,
+                    }
+                }
+            },
+            scales: {
+                y: { beginAtZero: true },
+                x: { grid: { display: false } }
+            },
+            animation: { duration: 600 }
+        }
+    });
+});
+</script>
+{% endblock %}
