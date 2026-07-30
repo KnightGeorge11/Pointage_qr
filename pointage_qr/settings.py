@@ -64,6 +64,9 @@ CSRF_TRUSTED_ORIGINS = config(
 
 ROOT_URLCONF = 'pointage_qr.urls'
 
+# ============================================================
+# TEMPLATES - AJOUT DU CONTEXT PROCESSOR
+# ============================================================
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -75,6 +78,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'pointage.context_processors.dashboard_context',  # ← AJOUTÉ
             ],
         },
     },
@@ -192,14 +196,13 @@ JAZZMIN_SETTINGS = {
     
     "search_model": "pointage.Employe",
     "user_avatar": None,
-        # ============================================================
-    # DASHBOARD PERSONNALISÉ
+    
     # ============================================================
-    "dashboard": "pointage.admin_dashboard",  # Nom du template
-    "dashboard_context": {
-        "function": "pointage.context_processors.dashboard_context",
-    },
+    # DASHBOARD PERSONNALISÉ - CHEMIN CORRIGÉ
+    # ============================================================
+    "dashboard": "admin/dashboard.html",  # ← CHEMIN CORRECT
 }
+
 # ============================================================
 # JAZZMIN UI TWEAKS — Version Premium
 # ============================================================
@@ -211,8 +214,8 @@ JAZZMIN_UI_TWEAKS = {
     "brand_small_text": False,
     
     # ── Couleurs ──
-    "brand_colour": "navbar-dark",     # Sidebar foncée
-    "accent": "accent-primary",        # Accent bleu
+    "brand_colour": "navbar-dark",
+    "accent": "accent-primary",
     
     # ── Navbar ──
     "navbar": "navbar-white navbar-light",
@@ -223,11 +226,11 @@ JAZZMIN_UI_TWEAKS = {
     "layout_boxed": False,
     "footer_fixed": False,
     
-    # ── Sidebar (bleu foncé cohérent avec l'UI) ──
+    # ── Sidebar ──
     "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-primary",     # ← Bleu foncé
+    "sidebar": "sidebar-dark-primary",
     "sidebar_nav_small_text": False,
-    "sidebar_disable_expand": False,       # ← IMPORTANT : Ne pas désactiver
+    "sidebar_disable_expand": False,
     "sidebar_nav_child_indent": True,
     "sidebar_nav_compact_style": False,
     "sidebar_nav_legacy_style": False,
