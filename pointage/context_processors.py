@@ -1,68 +1,737 @@
-# pointage/context_processors.py
+{% extends "admin/base_site.html" %}
+{% load static i18n %}
 
-from django.utils import timezone
-from datetime import timedelta
-from django.contrib.admin.models import LogEntry
-from .models import Employe, Pointage, AnomaliePointage
-from .anomalies import compter_anomalies_ouvertes
+{% block title %}Tableau de bord | Administration{% endblock %}
 
-
-def dashboard_context(request):
-    """Fournit les données statistiques pour le dashboard Jazzmin."""
-    
-    today = timezone.localtime(timezone.now()).date()
-    
-    # Statistiques principales
-    total_employes = Employe.objects.filter(actif=True).count()
-    
-    today_pointages = Pointage.objects.filter(date_pointage=today)
-    presents_aujourdhui = today_pointages.values('employe').distinct().count()
-    
-    gardes_en_cours = Pointage.objects.filter(
-        date_pointage=today, periode='nuit',
-        type_journee='garde', heure_depart__isnull=True
-    ).count()
-    
-    anomalies_ouvertes = compter_anomalies_ouvertes()
-    
-    # Données hebdomadaires pour le graphique
-    days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-    weekly_presents = []
-    weekly_absents = []
-    weekly_retards = []
-    
-    for i in range(6, -1, -1):
-        jour = today - timedelta(days=i)
-        pointages_jour = Pointage.objects.filter(date_pointage=jour)
+{% block extrahead %}
+    {{ block.super }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .stat-card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 20px 24px;
+            border: 1px solid #E2E8F0;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+            transition: all 200ms ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08);
+            transform: translateY(-2px);
+        }
+        .stat-card .stat-icon {
+            font-size: 24px;
+            opacity: 0.15;
+            position: absolute;
+            right: 16px;
+            top: 16px;
+        }
+        .stat-card .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0F172A;
+            margin: 0 0 4px 0;
+            line-height: 1.1;
+        }
+        .stat-card .stat-label {
+            font-size: 13px;
+            color: #64748B;
+            margin: 0;
+        }
+        .stat-card .stat-link {
+            display: block;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #E2E8F0;
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748B;
+            text-decoration: none;
+            transition: color 150ms ease;
+        }
+        .stat-card .stat-link:hover {
+            color: #2563EB;
+        }
+        .stat-card .stat-link i {
+            font-size: 11px;
+        }
+        .stat-card.primary .stat-icon { color: #2563EB; }
+        .stat-card.success .stat-icon { color: #22C55E; }
+        .stat-card.warning .stat-icon { color: #F59E0B; }
+        .stat-card.danger .stat-icon { color: #EF4444; }
+        .stat-card.info .stat-icon { color: #3B82F6; }
         
-        presents = pointages_jour.values('employe').distinct().count()
-        retards = pointages_jour.filter(
-            periode__in=['matin', 'apres_midi'], retard__gt=timedelta(0)
-        ).count()
+        .stat-card.primary .stat-value { color: #2563EB; }
+        .stat-card.success .stat-value { color: #22C55E; }
+        .stat-card.warning .stat-value { color: #F59E0B; }
+        .stat-card.danger .stat-value { color: #EF4444; }
+        .stat-card.info .stat-value { color: #3B82F6; }
         
-        weekly_presents.append(presents)
-        weekly_absents.append(total_employes - presents)
-        weekly_retards.append(retards)
+        .activity-item {
+            padding: 10px 16px;
+            border-left: 3px solid #2563EB;
+            border-bottom: 1px solid #E2E8F0;
+            transition: background 150ms ease;
+        }
+        .activity-item:hover {
+            background: #F8FAFC;
+        }
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        .activity-item .activity-user {
+            font-size: 12px;
+            font-weight: 600;
+            color: #0F172A;
+        }
+        .activity-item .activity-action {
+            font-size: 11px;
+            color: #64748B;
+            display: block;
+        }
+        .activity-item .activity-time {
+            font-size: 10px;
+            color: #94A3B8;
+        }
+        .activity-item .activity-object {
+            font-size: 10px;
+            background: #F1F5F9;
+            padding: 1px 8px;
+            border-radius: 9999px;
+            color: #64748B;
+        }
+        
+        .badge-status {
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 10px;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .badge-status.open { background: #FEE2E2; color: #B91C1C; }
+        .badge-status.treated { background: #FEF3C7; color: #B45309; }
+        .badge-status.closed { background: #DCFCE7; color: #15803D; }
+        .badge-status.present { background: #DCFCE7; color: #15803D; }
+        .badge-status.retard { background: #FEF3C7; color: #B45309; }
+        .badge-status.absent { background: #FEE2E2; color: #B91C1C; }
+        
+        .badge-gravite {
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 9px;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .badge-gravite.critique { background: #FEE2E2; color: #B91C1C; }
+        .badge-gravite.warning { background: #FEF3C7; color: #B45309; }
+        .badge-gravite.info { background: #DBEAFE; color: #1D4ED8; }
+        
+        .chart-card {
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid #E2E8F0;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+            overflow: hidden;
+        }
+        .chart-card .chart-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #E2E8F0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chart-card .chart-header .chart-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #0F172A;
+            margin: 0;
+        }
+        .chart-card .chart-header .chart-title i {
+            color: #2563EB;
+            margin-right: 8px;
+        }
+        .chart-card .chart-body {
+            padding: 20px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div style="padding: 20px;">
+
+    <!-- ===== EN-TÊTE ===== -->
+    <div class="row">
+        <div class="col-12">
+            <div style="background: #fff; border-radius: 14px; border: 1px solid #E2E8F0; box-shadow: 0 1px 2px rgba(15,23,42,0.05); padding: 20px 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                    <div>
+                        <h4 style="font-weight: 700; color: #0F172A; margin: 0; font-size: 20px;">
+                            <i class="fas fa-chart-line" style="color: #2563EB; margin-right: 10px;"></i>
+                            Tableau de bord
+                        </h4>
+                        <p style="color: #64748B; margin: 4px 0 0 0; font-size: 13px;">
+                            <i class="fas fa-calendar-alt" style="margin-right: 6px;"></i>
+                            {% now "l d F Y" %} · {{ total_employes|default:"0" }} employés actifs
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-primary btn-sm" onclick="window.location.reload();" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; border-radius: 6px; padding: 8px 20px; background: #2563EB; color: #fff; border: none;">
+                            <i class="fas fa-sync-alt"></i> Actualiser
+                        </button>
+                        <a href="/" class="btn btn-outline-secondary btn-sm" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; border-radius: 6px; padding: 8px 20px; background: transparent; color: #64748B; border: 1px solid #E2E8F0; text-decoration: none;">
+                            <i class="fas fa-home"></i> App Web
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== CARTES DE STATISTIQUES ===== -->
+    <div class="row" style="margin-top: 20px;">
+        <div class="col-lg-3 col-6">
+            <div class="stat-card primary">
+                <div class="stat-icon"><i class="fas fa-users"></i></div>
+                <div class="stat-value">{{ total_employes|default:"0" }}</div>
+                <div class="stat-label">Employés total</div>
+                <a href="{% url 'admin:pointage_employe_changelist' %}" class="stat-link">
+                    Voir la liste <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="stat-card success">
+                <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+                <div class="stat-value">{{ presents_aujourdhui|default:"0" }}</div>
+                <div class="stat-label">Présents aujourd'hui</div>
+                <a href="{% url 'admin:pointage_pointage_changelist' %}?date_pointage__exact={% now 'Y-m-d' %}" class="stat-link">
+                    Voir les pointages <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="stat-card warning">
+                <div class="stat-icon"><i class="fas fa-triangle-exclamation"></i></div>
+                <div class="stat-value">{{ anomalies_ouvertes|default:"0" }}</div>
+                <div class="stat-label">Anomalies ouvertes</div>
+                <a href="{% url 'admin:pointage_anomaliepointage_changelist' %}?statut__exact=ouverte" class="stat-link">
+                    Voir les anomalies <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="stat-card info">
+                <div class="stat-icon"><i class="fas fa-moon"></i></div>
+                <div class="stat-value">{{ gardes_en_cours|default:"0" }}</div>
+                <div class="stat-label">Gardes en cours</div>
+                <a href="{% url 'admin:pointage_pointage_changelist' %}?periode__exact=nuit&type_journee__exact=garde" class="stat-link">
+                    Voir les gardes <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== GRAPHIQUES ===== -->
+    <div class="row" style="margin-top: 20px;">
+        
+        <!-- Graphique hebdomadaire -->
+        <div class="col-md-7">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h5 class="chart-title">
+                        <i class="fas fa-chart-bar"></i>
+                        Pointages de la semaine
+                    </h5>
+                    <span style="font-size: 11px; color: #64748B; background: #F8FAFC; padding: 4px 12px; border-radius: 9999px;">7 derniers jours</span>
+                </div>
+                <div class="chart-body">
+                    <canvas id="weeklyChart" style="height: 260px; width: 100%;"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Graphique d'évolution -->
+        <div class="col-md-5">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h5 class="chart-title">
+                        <i class="fas fa-chart-line"></i>
+                        Évolution mensuelle
+                    </h5>
+                    <span style="font-size: 11px; color: #64748B; background: #F8FAFC; padding: 4px 12px; border-radius: 9999px;">4 semaines</span>
+                </div>
+                <div class="chart-body">
+                    <canvas id="evolutionChart" style="height: 260px; width: 100%;"></canvas>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- ===== POSTES + ACTIVITÉ ===== -->
+    <div class="row" style="margin-top: 20px;">
+        
+        <!-- Camembert des postes -->
+        <div class="col-md-4">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h5 class="chart-title">
+                        <i class="fas fa-briefcase"></i>
+                        Répartition par poste
+                    </h5>
+                </div>
+                <div class="chart-body">
+                    <canvas id="postesChart" style="height: 220px; width: 100%;"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Activité récente détaillée -->
+        <div class="col-md-8">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h5 class="chart-title">
+                        <i class="fas fa-clock"></i>
+                        Historique des activités
+                    </h5>
+                    <a href="{% url 'admin:admin_log' %}" style="font-size: 11px; color: #2563EB; text-decoration: none;">
+                        Voir tout <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+                <div class="chart-body" style="padding: 0; max-height: 280px; overflow-y: auto;">
+                    {% for log in logs_detailed|slice:":15" %}
+                    <div class="activity-item">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span class="activity-user">
+                                    <i class="fas fa-user-circle" style="color: #2563EB; margin-right: 4px;"></i>
+                                    {{ log.user|default:"Système" }}
+                                </span>
+                                <span class="activity-action">
+                                    {% if log.is_addition %}
+                                        <span style="color: #22C55E;">➕ Ajout</span>
+                                    {% elif log.is_change %}
+                                        <span style="color: #F59E0B;">✏️ Modification</span>
+                                    {% elif log.is_deletion %}
+                                        <span style="color: #EF4444;">🗑️ Suppression</span>
+                                    {% else %}
+                                        {{ log.action_display }}
+                                    {% endif %}
+                                    {% if log.object_repr %}
+                                        <span style="color: #64748B;">—</span>
+                                        <span class="activity-object">{{ log.object_repr|truncatechars:30 }}</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div style="text-align: right; flex-shrink: 0; margin-left: 12px;">
+                                <span class="activity-time">{{ log.action_time|date:"d/m/Y H:i" }}</span>
+                                {% if log.content_type %}
+                                    <span style="display: block; font-size: 9px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.04em;">
+                                        {{ log.content_type }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if log.change_message %}
+                        <div style="font-size: 10px; color: #94A3B8; margin-top: 4px; border-top: 1px solid #F1F5F9; padding-top: 4px;">
+                            <i class="fas fa-comment"></i> {{ log.change_message|truncatechars:80 }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <div style="text-align: center; padding: 40px; color: #94A3B8;">
+                        <i class="fas fa-inbox" style="font-size: 24px; display: block; margin-bottom: 8px;"></i>
+                        Aucune activité récente
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- ===== DERNIERS POINTAGES ===== -->
+    <div class="row" style="margin-top: 20px;">
+        <div class="col-12">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h5 class="chart-title">
+                        <i class="fas fa-clock-rotate-left"></i>
+                        Derniers pointages
+                    </h5>
+                    <a href="{% url 'admin:pointage_pointage_changelist' %}" style="font-size: 11px; color: #2563EB; text-decoration: none;">
+                        Voir tout <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+                <div class="chart-body" style="padding: 0; max-height: 300px; overflow-y: auto;">
+                    <table class="table table-hover mb-0" style="font-size: 13px;">
+                        <thead>
+                            <tr>
+                                <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Employé</th>
+                                <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Date</th>
+                                <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Période</th>
+                                <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Horaires</th>
+                                <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Site</th>
+                                <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in pointages_data|slice:":10" %}
+                            <tr>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">
+                                    <strong style="color: #0F172A;">{{ p.employe }}</strong>
+                                    <span style="display: block; font-size: 10px; color: #94A3B8;">#{{ p.matricule }}</span>
+                                </td>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0; color: #64748B; font-size: 12px;">{{ p.date|date:"d/m/Y" }}</td>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0; font-size: 12px; color: #334155;">{{ p.periode }}</td>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0; font-size: 12px; color: #64748B; font-family: monospace;">
+                                    {{ p.heure_arrivee }} → {{ p.heure_depart }}
+                                </td>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0; font-size: 12px; color: #64748B;">{{ p.site }}</td>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">
+                                    <span class="badge-status 
+                                        {% if p.statut == 'present' %}present
+                                        {% elif p.statut == 'retard' %}retard
+                                        {% elif p.statut == 'absent' %}absent
+                                        {% else %}treated{% endif %}">
+                                        {% if p.statut == 'present' %}✓ Présent
+                                        {% elif p.statut == 'retard' %}⚠️ {{ p.retard }}min
+                                        {% elif p.statut == 'absent' %}✗ Absent
+                                        {% else %}{{ p.statut_display }}{% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 30px; color: #94A3B8;">
+                                    <i class="fas fa-inbox" style="font-size: 24px; display: block; margin-bottom: 8px;"></i>
+                                    Aucun pointage récent
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ANOMALIES RÉCENTES ===== -->
+    <div class="row" style="margin-top: 20px;">
+        <div class="col-12">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h5 class="chart-title">
+                        <i class="fas fa-triangle-exclamation" style="color: #EF4444;"></i>
+                        Anomalies récentes
+                    </h5>
+                    <a href="{% url 'admin:pointage_anomaliepointage_changelist' %}" style="font-size: 11px; color: #2563EB; text-decoration: none;">
+                        Voir tout <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+                <div class="chart-body" style="padding: 0; max-height: 300px; overflow-y: auto;">
+                    <table class="table table-hover mb-0" style="font-size: 13px;">
+                        <thead>
+                            <tr>
+                                <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Date</th>
+                                <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Employé</th>
+                                <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Type</th>
+                                <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Gravité</th>
+                                <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Message</th>
+                                <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in anomalies_data|slice:":10" %}
+                            <tr>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0; font-size: 12px; color: #64748B;">{{ a.created_at|date:"d/m/Y H:i" }}</td>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">
+                                    <strong style="color: #0F172A;">{{ a.employe|default:a.matricule }}</strong>
+                                    {% if a.matricule %}
+                                    <span style="display: block; font-size: 10px; color: #94A3B8;">#{{ a.matricule }}</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">
+                                    <span style="background: #DBEAFE; color: #1D4ED8; font-size: 10px; font-weight: 600; padding: 3px 12px; border-radius: 9999px;">
+                                        {{ a.type_display }}
+                                    </span>
+                                </td>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">
+                                    <span class="badge-gravite {{ a.gravite }}">
+                                        {{ a.gravite_display|upper }}
+                                    </span>
+                                </td>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #334155;">
+                                    {{ a.message|truncatechars:50 }}
+                                </td>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">
+                                    <span class="badge-status 
+                                        {% if a.statut == 'ouverte' %}open
+                                        {% elif a.statut == 'traitee' %}treated
+                                        {% else %}closed{% endif %}">
+                                        <i class="fas fa-circle" style="font-size: 6px; margin-right: 4px;"></i>
+                                        {{ a.statut_display|upper }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 30px; color: #94A3B8;">
+                                    <i class="fas fa-check-circle" style="font-size: 24px; display: block; margin-bottom: 8px; color: #22C55E;"></i>
+                                    Aucune anomalie à signaler
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT DES GRAPHIQUES -->
+<!-- ============================================================ -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
     
-    # Logs récents
-    logs_recents = LogEntry.objects.select_related(
-        'user', 'content_type'
-    ).order_by('-action_time')[:10]
+    const colors = {
+        blue: '#2563EB',
+        blueDim: 'rgba(37, 99, 235, 0.7)',
+        green: '#22C55E',
+        greenDim: 'rgba(34, 197, 94, 0.7)',
+        amber: '#F59E0B',
+        amberDim: 'rgba(245, 158, 11, 0.7)',
+        red: '#EF4444',
+        redDim: 'rgba(239, 68, 68, 0.7)',
+        ink: '#0F172A',
+        muted: '#64748B',
+        border: '#E2E8F0',
+    };
     
-    # Anomalies récentes
-    anomalies_recentes = AnomaliePointage.objects.select_related(
-        'employe', 'site'
-    ).order_by('-created_at')[:10]
+    // ============================================================
+    // GRAPHIQUE HEBDOMADAIRE
+    // ============================================================
+    var weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+    new Chart(weeklyCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ weekly_labels|safe }},
+            datasets: [{
+                label: 'Présents',
+                data: {{ weekly_presents|safe }},
+                backgroundColor: colors.blueDim,
+                borderColor: colors.blue,
+                borderWidth: 2,
+                borderRadius: 4,
+                barPercentage: 0.7,
+            }, {
+                label: 'Absents',
+                data: {{ weekly_absents|safe }},
+                backgroundColor: colors.redDim,
+                borderColor: colors.red,
+                borderWidth: 2,
+                borderRadius: 4,
+                barPercentage: 0.7,
+            }, {
+                label: 'Retards',
+                data: {{ weekly_retards|safe }},
+                backgroundColor: colors.amberDim,
+                borderColor: colors.amber,
+                borderWidth: 2,
+                borderRadius: 4,
+                barPercentage: 0.7,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: { size: 11, weight: '600' },
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        padding: 20,
+                        color: colors.muted,
+                    }
+                },
+                tooltip: {
+                    backgroundColor: colors.ink,
+                    titleFont: { size: 12, weight: '700' },
+                    bodyFont: { size: 11 },
+                    padding: 10,
+                    cornerRadius: 6,
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0,0,0,0.05)', drawTicks: false },
+                    ticks: { font: { size: 10 }, color: colors.muted, padding: 6 }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 10 }, color: colors.muted }
+                }
+            },
+            animation: { duration: 600 }
+        }
+    });
+
+    // ============================================================
+    // GRAPHIQUE D'ÉVOLUTION
+    // ============================================================
+    var evolutionCtx = document.getElementById('evolutionChart').getContext('2d');
+    new Chart(evolutionCtx, {
+        type: 'line',
+        data: {
+            labels: {{ evolution_labels|safe }},
+            datasets: [{
+                label: 'Taux de présence %',
+                data: {{ evolution_presence|safe }},
+                borderColor: colors.ink,
+                backgroundColor: 'rgba(15, 23, 42, 0.1)',
+                borderWidth: 2.5,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 7,
+                pointBackgroundColor: colors.ink,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+            }, {
+                label: 'Taux de ponctualité %',
+                data: {{ evolution_ponctualite|safe }},
+                borderColor: colors.blue,
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                borderWidth: 2.5,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 7,
+                pointBackgroundColor: colors.blue,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: { size: 11, weight: '600' },
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        padding: 20,
+                        color: colors.muted,
+                    }
+                },
+                tooltip: {
+                    backgroundColor: colors.ink,
+                    titleFont: { size: 12, weight: '700' },
+                    bodyFont: { size: 11 },
+                    padding: 10,
+                    cornerRadius: 6,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ' : ' + context.parsed.y + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: { color: 'rgba(0,0,0,0.05)', drawTicks: false },
+                    ticks: { 
+                        font: { size: 10 }, 
+                        color: colors.muted, 
+                        padding: 6,
+                        callback: function(value) { return value + '%'; }
+                    }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 10 }, color: colors.muted }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+            animation: { duration: 600 }
+        }
+    });
+
+    // ============================================================
+    // CAMEMBERT DES POSTES
+    // ============================================================
+    {% if postes_data %}
+    var postesCtx = document.getElementById('postesChart').getContext('2d');
+    var posteColors = [
+        '#2563EB', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6',
+        '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#84CC16'
+    ];
     
-    return {
-        'total_employes': total_employes,
-        'presents_aujourdhui': presents_aujourdhui,
-        'gardes_en_cours': gardes_en_cours,
-        'anomalies_ouvertes': anomalies_ouvertes,
-        'weekly_labels': days,
-        'weekly_presents': weekly_presents,
-        'weekly_absents': weekly_absents,
-        'weekly_retards': weekly_retards,
-        'logs_recents': logs_recents,
-        'anomalies_recentes': anomalies_recentes,
-    }
+    new Chart(postesCtx, {
+        type: 'pie',
+        data: {
+            labels: [{% for p in postes_data %}'{{ p.nom }}',{% endfor %}],
+            datasets: [{
+                data: [{% for p in postes_data %}{{ p.count }},{% endfor %}],
+                backgroundColor: posteColors.slice(0, {{ postes_data|length }}),
+                borderWidth: 0,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        font: { size: 10, weight: '600' },
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        padding: 12,
+                        color: colors.muted,
+                    }
+                },
+                tooltip: {
+                    backgroundColor: colors.ink,
+                    titleFont: { size: 12, weight: '700' },
+                    bodyFont: { size: 11 },
+                    padding: 10,
+                    cornerRadius: 6,
+                    callbacks: {
+                        label: function(context) {
+                            var total = context.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                            var percentage = Math.round((context.parsed / total) * 100);
+                            return context.label + ' : ' + context.parsed + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            },
+            animation: { animateRotate: true, duration: 600 }
+        }
+    });
+    {% endif %}
+    
+});
+</script>
+{% endblock %}
