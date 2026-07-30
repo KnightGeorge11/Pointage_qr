@@ -192,6 +192,13 @@ JAZZMIN_SETTINGS = {
     
     "search_model": "pointage.Employe",
     "user_avatar": None,
+        # ============================================================
+    # DASHBOARD PERSONNALISÉ
+    # ============================================================
+    "dashboard": "pointage.admin_dashboard",  # Nom du template
+    "dashboard_context": {
+        "function": "pointage.context_processors.dashboard_context",
+    },
 }
 # ============================================================
 # JAZZMIN UI TWEAKS — Version Premium
