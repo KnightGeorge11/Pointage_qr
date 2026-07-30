@@ -1,0 +1,460 @@
+{% extends "admin/change_list.html" %}
+{% load static i18n admin_list %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* =====================================================
+           ADMIN HISTORIQUE POINTAGES - STYLE PREMIUM
+           ===================================================== */
+        
+        /* ── Statistiques rapides ── */
+        .stats-mini {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stat-mini-card {
+            background: #fff;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            padding: 14px 18px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+            transition: all 200ms ease;
+        }
+        .stat-mini-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08);
+            transform: translateY(-2px);
+        }
+        .stat-mini-card .stat-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748B;
+            margin-bottom: 4px;
+        }
+        .stat-mini-card .stat-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #0F172A;
+        }
+        .stat-mini-card .stat-value.green { color: #22C55E; }
+        .stat-mini-card .stat-value.red { color: #EF4444; }
+        .stat-mini-card .stat-value.amber { color: #F59E0B; }
+        .stat-mini-card .stat-value.blue { color: #2563EB; }
+        .stat-mini-card .stat-sub {
+            font-size: 11px;
+            color: #94A3B8;
+            margin-top: 2px;
+        }
+
+        /* ── Bouton export ── */
+        .export-btn-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .export-btn-group .btn {
+            font-size: 11px;
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid #E2E8F0;
+            background: #fff;
+            color: #64748B;
+            transition: all 150ms ease;
+            text-decoration: none;
+        }
+        .export-btn-group .btn:hover {
+            background: #F8FAFC;
+            border-color: #94A3B8;
+        }
+        .export-btn-group .btn-excel {
+            background: #22C55E;
+            border-color: #22C55E;
+            color: #fff;
+        }
+        .export-btn-group .btn-excel:hover {
+            background: #16A34A;
+            border-color: #16A34A;
+        }
+        .export-btn-group .btn-pdf {
+            background: #EF4444;
+            border-color: #EF4444;
+            color: #fff;
+        }
+        .export-btn-group .btn-pdf:hover {
+            background: #DC2626;
+            border-color: #DC2626;
+        }
+
+        /* ── Filtres avancés ── */
+        .filter-advanced {
+            background: #F8FAFC;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            border: 1px solid #E2E8F0;
+        }
+        .filter-advanced .filter-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+        }
+        .filter-advanced .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .filter-advanced .filter-group label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748B;
+            margin-bottom: 3px;
+        }
+        .filter-advanced .filter-group input,
+        .filter-advanced .filter-group select {
+            padding: 6px 10px;
+            border: 1px solid #E2E8F0;
+            border-radius: 6px;
+            font-size: 12px;
+            background: #fff;
+            transition: all 150ms ease;
+        }
+        .filter-advanced .filter-group input:focus,
+        .filter-advanced .filter-group select:focus {
+            border-color: #2563EB;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            outline: none;
+        }
+
+        /* ── Lignes avec anomalies ── */
+        .row-anomaly {
+            border-left: 3px solid #EF4444 !important;
+        }
+        .row-retard {
+            border-left: 3px solid #F59E0B !important;
+        }
+        .row-warning {
+            background: #FFFBEB !important;
+        }
+        .row-danger {
+            background: #FEF2F2 !important;
+        }
+
+        /* ── Badge de retard ── */
+        .badge-retard {
+            background: #FEF3C7;
+            color: #B45309;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 10px;
+            border-radius: 9999px;
+        }
+        .badge-retard.important {
+            background: #FEE2E2;
+            color: #B91C1C;
+        }
+
+        /* ── Actions en masse personnalisées ── */
+        .admin-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .admin-actions .btn-action {
+            font-size: 11px;
+            padding: 4px 14px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 150ms ease;
+        }
+        .btn-action-success {
+            background: #DCFCE7;
+            color: #15803D;
+        }
+        .btn-action-success:hover {
+            background: #22C55E;
+            color: #fff;
+        }
+        .btn-action-danger {
+            background: #FEE2E2;
+            color: #B91C1C;
+        }
+        .btn-action-danger:hover {
+            background: #EF4444;
+            color: #fff;
+        }
+        .btn-action-warning {
+            background: #FEF3C7;
+            color: #B45309;
+        }
+        .btn-action-warning:hover {
+            background: #F59E0B;
+            color: #fff;
+        }
+
+        /* ── Graphique intégré ── */
+        .chart-inline {
+            background: #fff;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .chart-inline canvas {
+            max-height: 150px;
+        }
+
+        /* ── Vue synthétique par employé ── */
+        .summary-employe {
+            background: #fff;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .summary-employe .summary-header {
+            background: #F8FAFC;
+            padding: 10px 16px;
+            border-bottom: 1px solid #E2E8F0;
+            font-weight: 600;
+            font-size: 13px;
+            color: #0F172A;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .filter-advanced .filter-row {
+                grid-template-columns: 1fr 1fr;
+            }
+            .stats-mini {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (max-width: 480px) {
+            .filter-advanced .filter-row {
+                grid-template-columns: 1fr;
+            }
+            .stats-mini {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    {{ block.super }}
+
+    <div style="margin-top: 20px;">
+        
+        <!-- ============================================================ -->
+        <!-- STATISTIQUES RAPIDES -->
+        <!-- ============================================================ -->
+        <div class="stats-mini">
+            <div class="stat-mini-card">
+                <div class="stat-label"><i class="fas fa-clock" style="margin-right: 4px;"></i> Total pointages</div>
+                <div class="stat-value blue">{{ cl.result_list|length }}</div>
+                <div class="stat-sub">Sur la période</div>
+            </div>
+            <div class="stat-mini-card">
+                <div class="stat-label"><i class="fas fa-user-check" style="margin-right: 4px;"></i> Présents</div>
+                <div class="stat-value green">{{ presents_count|default:0 }}</div>
+                <div class="stat-sub">Pointages complets</div>
+            </div>
+            <div class="stat-mini-card">
+                <div class="stat-label"><i class="fas fa-clock" style="margin-right: 4px; color: #F59E0B;"></i> Retards</div>
+                <div class="stat-value amber">{{ retards_count|default:0 }}</div>
+                <div class="stat-sub">> 5 min</div>
+            </div>
+            <div class="stat-mini-card">
+                <div class="stat-label"><i class="fas fa-triangle-exclamation" style="margin-right: 4px; color: #EF4444;"></i> Anomalies</div>
+                <div class="stat-value red">{{ anomalies_count|default:0 }}</div>
+                <div class="stat-sub">À traiter</div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- GRAPHIQUE DES STATUTS -->
+        <!-- ============================================================ -->
+        <div class="chart-inline">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-weight: 600; font-size: 14px; color: #0F172A;">
+                    <i class="fas fa-chart-pie" style="color: #2563EB; margin-right: 8px;"></i>
+                    Répartition des statuts
+                </span>
+                <span style="font-size: 11px; color: #94A3B8;">{{ total_employes|default:0 }} employés</span>
+            </div>
+            <canvas id="statusChart" style="max-height: 80px;"></canvas>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- FILTRES AVANCÉS -->
+        <!-- ============================================================ -->
+        <div class="filter-advanced">
+            <form method="get" id="advancedFilterForm">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span style="font-weight: 600; font-size: 13px; color: #0F172A;">
+                        <i class="fas fa-sliders-h" style="color: #2563EB; margin-right: 6px;"></i>
+                        Filtres avancés
+                    </span>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="submit" class="btn btn-primary btn-sm" style="font-size: 11px; padding: 4px 14px; background: #2563EB; color: #fff; border: none; border-radius: 6px;">
+                            <i class="fas fa-filter"></i> Appliquer
+                        </button>
+                        <a href="{% url 'admin:pointage_pointage_changelist' %}" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 14px; background: #F1F5F9; color: #64748B; border: none; border-radius: 6px; text-decoration: none;">
+                            <i class="fas fa-times"></i> Réinitialiser
+                        </a>
+                    </div>
+                </div>
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Date début</label>
+                        <input type="date" name="date_debut" value="{{ request.GET.date_debut|default:'' }}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Date fin</label>
+                        <input type="date" name="date_fin" value="{{ request.GET.date_fin|default:'' }}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Statut</label>
+                        <select name="statut">
+                            <option value="">Tous</option>
+                            <option value="present" {% if request.GET.statut == 'present' %}selected{% endif %}>Présent</option>
+                            <option value="absent" {% if request.GET.statut == 'absent' %}selected{% endif %}>Absent</option>
+                            <option value="retard" {% if request.GET.statut == 'retard' %}selected{% endif %}>Retard</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Retard ></label>
+                        <select name="retard_min">
+                            <option value="">Aucun</option>
+                            <option value="5" {% if request.GET.retard_min == '5' %}selected{% endif %}>5 min</option>
+                            <option value="15" {% if request.GET.retard_min == '15' %}selected{% endif %}>15 min</option>
+                            <option value="30" {% if request.GET.retard_min == '30' %}selected{% endif %}>30 min</option>
+                            <option value="60" {% if request.GET.retard_min == '60' %}selected{% endif %}>1 heure</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Période</label>
+                        <select name="periode">
+                            <option value="">Toutes</option>
+                            <option value="matin" {% if request.GET.periode == 'matin' %}selected{% endif %}>Matin</option>
+                            <option value="apres_midi" {% if request.GET.periode == 'apres_midi' %}selected{% endif %}>Après-midi</option>
+                            <option value="nuit" {% if request.GET.periode == 'nuit' %}selected{% endif %}>Nuit</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Recherche</label>
+                        <input type="text" name="q" placeholder="Nom, matricule..." value="{{ request.GET.q|default:'' }}">
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- EXPORT & ACTIONS -->
+        <!-- ============================================================ -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+            <div class="export-btn-group">
+                <a href="{% url 'admin:pointage_pointage_changelist' %}?export=excel{{ request.GET.urlencode }}" class="btn btn-excel">
+                    <i class="fas fa-file-excel"></i> Excel
+                </a>
+                <a href="{% url 'admin:pointage_pointage_changelist' %}?export=pdf{{ request.GET.urlencode }}" class="btn btn-pdf">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+                <button class="btn" onclick="window.print();">
+                    <i class="fas fa-print"></i> Imprimer
+                </button>
+            </div>
+            <div class="admin-actions">
+                <span style="font-size: 11px; color: #94A3B8; margin-right: 4px;">Actions en masse :</span>
+                <button class="btn-action btn-action-success" onclick="alert('Fonctionnalité : Marquer comme présent')">
+                    <i class="fas fa-check"></i> Présent
+                </button>
+                <button class="btn-action btn-action-warning" onclick="alert('Fonctionnalité : Marquer comme retard')">
+                    <i class="fas fa-clock"></i> Retard
+                </button>
+                <button class="btn-action btn-action-danger" onclick="alert('Fonctionnalité : Supprimer sélection')">
+                    <i class="fas fa-trash"></i> Supprimer
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- JAVASCRIPT POUR LE GRAPHIQUE -->
+    <!-- ============================================================ -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // ============================================================
+        // GRAPHIQUE DES STATUTS
+        // ============================================================
+        var ctx = document.getElementById('statusChart').getContext('2d');
+        
+        var statusData = {
+            labels: ['Présents', 'Absents', 'Retards'],
+            datasets: [{
+                data: [
+                    {{ presents_count|default:0 }},
+                    {{ absents_count|default:0 }},
+                    {{ retards_count|default:0 }}
+                ],
+                backgroundColor: ['#22C55E', '#EF4444', '#F59E0B'],
+                borderWidth: 0,
+                hoverOffset: 6,
+            }]
+        };
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: statusData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: { size: 10, weight: '600' },
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            padding: 12,
+                            color: '#64748B',
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#0F172A',
+                        titleFont: { size: 11, weight: '700' },
+                        bodyFont: { size: 10 },
+                        padding: 8,
+                        cornerRadius: 6,
+                        callbacks: {
+                            label: function(context) {
+                                var total = context.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                                var percentage = Math.round((context.parsed / total) * 100);
+                                return context.label + ' : ' + context.parsed + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                },
+                animation: {
+                    animateRotate: true,
+                    duration: 600
+                }
+            }
+        });
+    });
+    </script>
+{% endblock %}
