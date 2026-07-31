@@ -6,11 +6,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* ── Supprimer la double barre de recherche ── */
-        #toolbar {
-            display: none !important;
-        }
-        
         /* ── Stats ── */
         .stats-mini {
             display: grid;
@@ -83,46 +78,6 @@
             border-color: #16A34A;
         }
 
-        /* ── Actions en masse ── */
-        .admin-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        .admin-actions .btn-action {
-            font-size: 11px;
-            padding: 4px 14px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            transition: all 150ms ease;
-        }
-        .btn-action-success {
-            background: #DCFCE7;
-            color: #15803D;
-        }
-        .btn-action-success:hover {
-            background: #22C55E;
-            color: #fff;
-        }
-        .btn-action-danger {
-            background: #FEE2E2;
-            color: #B91C1C;
-        }
-        .btn-action-danger:hover {
-            background: #EF4444;
-            color: #fff;
-        }
-        .btn-action-warning {
-            background: #FEF3C7;
-            color: #B45309;
-        }
-        .btn-action-warning:hover {
-            background: #F59E0B;
-            color: #fff;
-        }
-
         /* ── Graphique ── */
         .chart-inline {
             background: #fff;
@@ -135,60 +90,13 @@
             max-height: 120px;
         }
 
-        /* ── Filtres avancés ── */
-        .filter-advanced {
-            background: #F8FAFC;
-            border-radius: 10px;
-            padding: 16px 20px;
-            margin-bottom: 16px;
-            border: 1px solid #E2E8F0;
-        }
-        .filter-advanced .filter-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 12px;
-        }
-        .filter-advanced .filter-group {
-            display: flex;
-            flex-direction: column;
-        }
-        .filter-advanced .filter-group label {
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #64748B;
-            margin-bottom: 3px;
-        }
-        .filter-advanced .filter-group input,
-        .filter-advanced .filter-group select {
-            padding: 6px 10px;
-            border: 1px solid #E2E8F0;
-            border-radius: 6px;
-            font-size: 12px;
-            background: #fff;
-            transition: all 150ms ease;
-        }
-        .filter-advanced .filter-group input:focus,
-        .filter-advanced .filter-group select:focus {
-            border-color: #2563EB;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-            outline: none;
-        }
-
         /* ── Responsive ── */
         @media (max-width: 768px) {
-            .filter-advanced .filter-row {
-                grid-template-columns: 1fr 1fr;
-            }
             .stats-mini {
                 grid-template-columns: repeat(2, 1fr);
             }
         }
         @media (max-width: 480px) {
-            .filter-advanced .filter-row {
-                grid-template-columns: 1fr;
-            }
             .stats-mini {
                 grid-template-columns: 1fr 1fr;
             }
@@ -224,98 +132,15 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- FILTRES AVANCÉS -->
+    <!-- EXPORT EXCEL -->
     <!-- ============================================================ -->
-    <div class="filter-advanced">
-        <form method="get" id="advancedFilterForm">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <span style="font-weight: 600; font-size: 13px; color: #0F172A;">
-                    <i class="fas fa-sliders-h" style="color: #2563EB; margin-right: 6px;"></i>
-                    Filtres avancés
-                </span>
-                <div style="display: flex; gap: 8px;">
-                    <button type="submit" class="btn btn-primary btn-sm" style="font-size: 11px; padding: 4px 14px; background: #2563EB; color: #fff; border: none; border-radius: 6px;">
-                        <i class="fas fa-filter"></i> Appliquer
-                    </button>
-                    <a href="{% url 'admin:pointage_pointage_changelist' %}" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 14px; background: #F1F5F9; color: #64748B; border: none; border-radius: 6px; text-decoration: none;">
-                        <i class="fas fa-times"></i> Réinitialiser
-                    </a>
-                </div>
-            </div>
-            <div class="filter-row">
-                <!-- Date début -->
-                <div class="filter-group">
-                    <label>Date début</label>
-                    <input type="date" name="date_pointage__gte" value="{{ request.GET.date_pointage__gte|default:'' }}">
-                </div>
-                <!-- Date fin -->
-                <div class="filter-group">
-                    <label>Date fin</label>
-                    <input type="date" name="date_pointage__lte" value="{{ request.GET.date_pointage__lte|default:'' }}">
-                </div>
-                <!-- Statut -->
-                <div class="filter-group">
-                    <label>Statut</label>
-                    <select name="statut__exact">
-                        <option value="">Tous</option>
-                        <option value="present" {% if request.GET.statut__exact == 'present' %}selected{% endif %}>Présent</option>
-                        <option value="absent" {% if request.GET.statut__exact == 'absent' %}selected{% endif %}>Absent</option>
-                        <option value="retard" {% if request.GET.statut__exact == 'retard' %}selected{% endif %}>Retard</option>
-                    </select>
-                </div>
-                <!-- Période -->
-                <div class="filter-group">
-                    <label>Période</label>
-                    <select name="periode__exact">
-                        <option value="">Toutes</option>
-                        <option value="matin" {% if request.GET.periode__exact == 'matin' %}selected{% endif %}>Matin</option>
-                        <option value="apres_midi" {% if request.GET.periode__exact == 'apres_midi' %}selected{% endif %}>Après-midi</option>
-                        <option value="nuit" {% if request.GET.periode__exact == 'nuit' %}selected{% endif %}>Nuit</option>
-                    </select>
-                </div>
-                <!-- Site -->
-                <div class="filter-group">
-                    <label>Site</label>
-                    <select name="site__id__exact">
-                        <option value="">Tous</option>
-                        {% for site in sites_list %}
-                            <option value="{{ site.id }}" {% if request.GET.site__id__exact == site.id|stringformat:"s" %}selected{% endif %}>
-                                {{ site.nom }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <!-- Recherche -->
-                <div class="filter-group">
-                    <label>Recherche</label>
-                    <input type="text" name="q" placeholder="Nom, matricule..." value="{{ request.GET.q|default:'' }}">
-                </div>
-            </div>
-        </form>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- EXPORT & ACTIONS EN MASSE -->
-    <!-- ============================================================ -->
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+    <div style="display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
         <div class="export-btn-group">
-            <a href="{% url 'admin:pointage_pointage_changelist' %}?export=excel{{ request.GET.urlencode }}" class="btn btn-excel">
-                <i class="fas fa-file-excel"></i> Excel
+            <a href="#" class="btn btn-excel" onclick="exportExcel(); return false;">
+                <i class="fas fa-file-excel"></i> Exporter Excel
             </a>
             <button class="btn" onclick="window.print();">
                 <i class="fas fa-print"></i> Imprimer
-            </button>
-        </div>
-        <div class="admin-actions">
-            <span style="font-size: 11px; color: #94A3B8; margin-right: 4px;">Actions :</span>
-            <button class="btn-action btn-action-success" onclick="submitAction('marquer_present')">
-                <i class="fas fa-check"></i> Présent
-            </button>
-            <button class="btn-action btn-action-warning" onclick="submitAction('marquer_retard')">
-                <i class="fas fa-clock"></i> Retard
-            </button>
-            <button class="btn-action btn-action-danger" onclick="submitAction('marquer_absent')">
-                <i class="fas fa-times"></i> Absent
             </button>
         </div>
     </div>
@@ -402,45 +227,15 @@
     });
 
     // ============================================================
-    // FONCTION POUR LES ACTIONS EN MASSE
+    // FONCTION POUR L'EXPORT EXCEL
     // ============================================================
-    function submitAction(actionValue) {
-        // Sélectionner le formulaire de changement de Django Admin
-        var form = document.getElementById('changelist-form');
-        if (!form) {
-            alert('Formulaire non trouvé');
-            return;
-        }
-        
-        // Sélectionner ou créer le select d'action
-        var actionSelect = form.querySelector('select[name="action"]');
-        if (!actionSelect) {
-            // Créer un select caché si il n'existe pas
-            actionSelect = document.createElement('select');
-            actionSelect.name = 'action';
-            actionSelect.style.display = 'none';
-            form.appendChild(actionSelect);
-        }
-        
-        // Définir la valeur de l'action
-        actionSelect.value = actionValue;
-        
-        // Cocher toutes les cases si aucune n'est cochée
-        var checkboxes = form.querySelectorAll('input[name="_selected_action"]:checked');
-        if (checkboxes.length === 0) {
-            // Sélectionner toutes les cases
-            var allCheckboxes = form.querySelectorAll('input[name="_selected_action"]');
-            if (allCheckboxes.length === 0) {
-                alert('Aucun pointage à sélectionner');
-                return;
-            }
-            allCheckboxes.forEach(function(cb) {
-                cb.checked = true;
-            });
-        }
-        
-        // Soumettre le formulaire
-        form.submit();
+    function exportExcel() {
+        // Récupérer tous les paramètres GET actuels
+        var params = new URLSearchParams(window.location.search);
+        // Ajouter le paramètre d'export
+        params.set('export_excel', '1');
+        // Rediriger vers la même page avec le paramètre
+        window.location.href = window.location.pathname + '?' + params.toString();
     }
     </script>
 {% endblock %}

@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html, escape
 from django.urls import path
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
@@ -286,10 +286,10 @@ class PointageAdmin(admin.ModelAdmin):
     get_heures_display.short_description = "Heures travaillées"
     
     # ============================================================
-    # ACTIONS EN MASSE
+    # ACTIONS EN MASSE (conservées dans la dropdown)
     # ============================================================
     
-    actions = ['marquer_present', 'marquer_retard', 'marquer_absent', 'supprimer_selection', 'export_selection_excel']
+    actions = ['marquer_present', 'marquer_retard', 'marquer_absent', 'supprimer_selection']
     
     def marquer_present(self, request, queryset):
         queryset.update(statut='present')
@@ -313,62 +313,30 @@ class PointageAdmin(admin.ModelAdmin):
             self.message_user(request, f"🗑️ {count} pointage(s) supprimé(s).")
     supprimer_selection.short_description = "🗑️ Supprimer la sélection"
     
-    def export_selection_excel(self, request, queryset):
-        import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-        from django.http import HttpResponse
-        
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Pointages"
-        
-        # En-têtes
-        headers = ['ID', 'Employé', 'Matricule', 'Date', 'Période', 'Type', 'Arrivée', 'Départ', 'Site', 'Statut', 'Retard', 'Heures']
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=header)
-            cell.font = Font(bold=True, color="FFFFFF")
-            cell.fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
-            cell.alignment = Alignment(horizontal="center")
-        
-        # Données
-        for row, pointage in enumerate(queryset, 2):
-            ws.cell(row=row, column=1, value=pointage.id)
-            ws.cell(row=row, column=2, value=str(pointage.employe))
-            ws.cell(row=row, column=3, value=pointage.employe.matricule)
-            ws.cell(row=row, column=4, value=pointage.date_pointage.strftime('%d/%m/%Y'))
-            ws.cell(row=row, column=5, value=pointage.get_periode_display())
-            ws.cell(row=row, column=6, value=pointage.get_type_journee_display())
-            ws.cell(row=row, column=7, value=pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else '')
-            ws.cell(row=row, column=8, value=pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else '')
-            ws.cell(row=row, column=9, value=str(pointage.site) if pointage.site else '')
-            ws.cell(row=row, column=10, value=pointage.get_statut_display())
-            ws.cell(row=row, column=11, value=pointage.get_retard_minutes() if pointage.retard else 0)
-            ws.cell(row=row, column=12, value=self.get_heures_display(pointage))
-        
-        # Ajuster les colonnes
-        for col in range(1, len(headers) + 1):
-            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 15
-        
-        response = HttpResponse(
-            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
-        response['Content-Disposition'] = f'attachment; filename="pointages_export_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx"'
-        wb.save(response)
-        return response
-    export_selection_excel.short_description = "📊 Exporter la sélection en Excel"
-    
     # ============================================================
-    # CONTEXTE PERSONNALISÉ POUR LE CHANGELIST - AVEC NETTOYAGE DES PARAMÈTRES
+    # CONTEXTE PERSONNALISÉ POUR LE CHANGELIST
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
         # ============================================================
         # NETTOYER LES PARAMÈTRES GET POUR ÉVITER LES ERREURS
         # ============================================================
-        # Créer une copie mutable des paramètres GET
         get_params = request.GET.copy()
         
-        # Supprimer les paramètres vides qui causent des erreurs
+        # Vérifier si c'est une demande d'export Excel
+        if get_params.get('export_excel') == '1':
+            # Supprimer le paramètre d'export pour ne pas interférer
+            get_params.pop('export_excel', None)
+            request.GET = get_params
+            
+            # Récupérer le queryset
+            cl = self.get_changelist_instance(request)
+            queryset = cl.get_queryset(request)
+            
+            # Exporter en Excel
+            return self.export_excel(request, queryset)
+        
+        # Supprimer les paramètres vides
         params_to_remove = []
         for key, value in get_params.items():
             if value == '' or value is None:
@@ -377,9 +345,7 @@ class PointageAdmin(admin.ModelAdmin):
         for key in params_to_remove:
             get_params.pop(key, None)
         
-        # Mettre à jour request.GET avec les paramètres nettoyés
         request.GET = get_params
-        # ============================================================
         
         # Récupérer le queryset via la méthode standard de Django Admin
         cl = self.get_changelist_instance(request)
@@ -426,6 +392,114 @@ class PointageAdmin(admin.ModelAdmin):
             minutes = int((total_seconds % 3600) // 60)
             return f"{hours}h{minutes:02d}"
         return "0h00"
+    
+    # ============================================================
+    # EXPORT EXCEL (même format que l'utilisateur)
+    # ============================================================
+    
+    def export_excel(self, request, queryset):
+        """Exporte les pointages en Excel au même format que l'utilisateur"""
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from django.http import HttpResponse
+        from collections import defaultdict
+        
+        if not queryset:
+            messages.warning(request, "Aucun pointage à exporter.")
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/admin/pointage/pointage/'))
+        
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Pointages"
+        
+        # Palette de couleurs (identique à l'export utilisateur)
+        BLUE = '1E3A5F'
+        BLUE_LIGHT = 'D6E4F0'
+        ORANGE_BG = 'FEF3C7'
+        ORANGE_FG = 'D97706'
+        GREEN_BG = 'DCFCE7'
+        GREEN_FG = '15803D'
+        RED_BG = 'FEE2E2'
+        RED_FG = 'B91C1C'
+        PURPLE_BG = 'EDE9FE'
+        PURPLE_FG = '7C3AED'
+        NIGHT_BG = '1E1B4B'
+        NIGHT_FG = 'A5B4FC'
+        DARK = '1A1A1A'
+        GREY_LIGHT = 'F5F5F7'
+        GREY_MID = 'E5E5E5'
+        WHITE = 'FFFFFF'
+        TOTAL_BG = 'EEF2FF'
+        
+        def sd(color=GREY_MID, style='thin'):
+            return Side(style=style, color=color)
+        
+        def b_all(color=GREY_MID):
+            s = sd(color)
+            return Border(left=s, right=s, top=s, bottom=s)
+        
+        def b_outer(color=BLUE):
+            s = Side(style='medium', color=color)
+            return Border(left=s, right=s, top=s, bottom=s)
+        
+        def sc(c, value='', bg=WHITE, fg=DARK, bold=False, size=9,
+               halign='center', valign='center', wrap=False, border=None, italic=False):
+            c.value = value
+            c.font = Font(name='Arial', bold=bold, color=fg, size=size, italic=italic)
+            c.fill = PatternFill('solid', start_color=bg)
+            c.alignment = Alignment(horizontal=halign, vertical=valign, wrap_text=wrap)
+            if border:
+                c.border = border
+        
+        # En-têtes
+        headers = ['Employé', 'Matricule', 'Date', 'Période', 'Type', 'Arrivée', 'Départ', 'Site', 'Statut', 'Retard (min)', 'Heures']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill(start_color=BLUE, end_color=BLUE, fill_type="solid")
+            cell.alignment = Alignment(horizontal="center")
+        
+        # Données
+        for row, pointage in enumerate(queryset, 2):
+            ws.cell(row=row, column=1, value=str(pointage.employe))
+            ws.cell(row=row, column=2, value=pointage.employe.matricule)
+            ws.cell(row=row, column=3, value=pointage.date_pointage.strftime('%d/%m/%Y'))
+            ws.cell(row=row, column=4, value=pointage.get_periode_display())
+            ws.cell(row=row, column=5, value=pointage.get_type_journee_display())
+            ws.cell(row=row, column=6, value=pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else '')
+            ws.cell(row=row, column=7, value=pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else '')
+            ws.cell(row=row, column=8, value=str(pointage.site) if pointage.site else '')
+            ws.cell(row=row, column=9, value=pointage.get_statut_display())
+            ws.cell(row=row, column=10, value=pointage.get_retard_minutes() if pointage.retard else 0)
+            
+            # Heures travaillées
+            if pointage.heures_travaillees and pointage.heures_travaillees.total_seconds() > 0:
+                total_seconds = pointage.heures_travaillees.total_seconds()
+                hours = int(total_seconds // 3600)
+                minutes = int((total_seconds % 3600) // 60)
+                ws.cell(row=row, column=11, value=f"{hours}h{minutes:02d}")
+            else:
+                ws.cell(row=row, column=11, value="0h00")
+        
+        # Ajuster les colonnes
+        for col in range(1, len(headers) + 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
+        
+        # Ajouter une ligne de total en bas
+        total_row = queryset.count() + 2
+        ws.cell(row=total_row, column=1, value="TOTAL").font = Font(bold=True)
+        ws.cell(row=total_row, column=10, value=queryset.filter(retard__gt=timedelta(0)).count())
+        ws.cell(row=total_row, column=1).fill = PatternFill('solid', start_color=TOTAL_BG)
+        ws.cell(row=total_row, column=10).fill = PatternFill('solid', start_color=TOTAL_BG)
+        ws.cell(row=total_row, column=11).fill = PatternFill('solid', start_color=TOTAL_BG)
+        
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        filename = f"pointages_export_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        wb.save(response)
+        return response
 
 
 # ============================================================
