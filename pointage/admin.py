@@ -334,19 +334,15 @@ class PointageAdmin(admin.ModelAdmin):
         # INTERCEPTER L'EXPORT EXCEL AVANT TOUT
         # ============================================================
         if 'export_excel' in request.GET:
-            # Récupérer tous les paramètres sans 'export_excel'
             params = request.GET.copy()
             params.pop('export_excel', None)
             
-            # Construire une nouvelle requête sans le paramètre export_excel
             new_request = request
             new_request.GET = params
             
-            # Récupérer le queryset via la méthode standard de Django Admin
             cl = self.get_changelist_instance(new_request)
             queryset = cl.get_queryset(new_request)
             
-            # Appliquer les filtres manuellement
             if params.get('date_debut'):
                 try:
                     from datetime import datetime
@@ -380,13 +376,22 @@ class PointageAdmin(admin.ModelAdmin):
             elif params.get('periode_type') == 'nuit':
                 queryset = queryset.filter(type_journee='garde')
             
-            # Exporter en Excel
             return self.export_excel(request, queryset)
         
         # ============================================================
         # NETTOYER LES PARAMÈTRES GET POUR ÉVITER LES ERREURS
         # ============================================================
         get_params = request.GET.copy()
+        
+        # Paramètres personnalisés à supprimer car Django Admin ne les connaît pas
+        custom_params = ['date_debut', 'date_fin', 'employe', 'site', 'periode_type']
+        
+        # Sauvegarder les valeurs pour les utiliser plus tard
+        filter_values = {}
+        for key in custom_params:
+            if key in get_params:
+                filter_values[key] = get_params[key]
+                get_params.pop(key, None)  # Supprimer de la requête
         
         # Supprimer les paramètres vides
         params_to_remove = []
@@ -397,13 +402,48 @@ class PointageAdmin(admin.ModelAdmin):
         for key in params_to_remove:
             get_params.pop(key, None)
         
+        # Mettre à jour la requête
         request.GET = get_params
         
         # Récupérer le queryset via la méthode standard de Django Admin
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
         
-        # Calcul des statistiques sur le queryset filtré
+        # Appliquer les filtres personnalisés sur le queryset
+        if filter_values.get('date_debut'):
+            try:
+                from datetime import datetime
+                date_debut = datetime.strptime(filter_values['date_debut'], '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__gte=date_debut)
+            except ValueError:
+                pass
+        
+        if filter_values.get('date_fin'):
+            try:
+                from datetime import datetime
+                date_fin = datetime.strptime(filter_values['date_fin'], '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__lte=date_fin)
+            except ValueError:
+                pass
+        
+        if filter_values.get('employe'):
+            try:
+                queryset = queryset.filter(employe_id=filter_values['employe'])
+            except ValueError:
+                pass
+        
+        if filter_values.get('site'):
+            try:
+                queryset = queryset.filter(site_id=filter_values['site'])
+            except ValueError:
+                pass
+        
+        if filter_values.get('periode_type') == 'jour':
+            queryset = queryset.filter(type_journee='normal')
+        elif filter_values.get('periode_type') == 'nuit':
+            queryset = queryset.filter(type_journee='garde')
+        
+        # Calcul des statistiques
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
         retards = queryset.filter(statut='retard').count()
@@ -435,11 +475,12 @@ class PointageAdmin(admin.ModelAdmin):
             'total_employes': Employe.objects.filter(actif=True).count(),
             'sites_list': sites_list,
             'employes_list': employes_list,
-            'filter_date_debut': request.GET.get('date_debut', ''),
-            'filter_date_fin': request.GET.get('date_fin', ''),
-            'filter_employe': request.GET.get('employe', ''),
-            'filter_site': request.GET.get('site', ''),
-            'filter_periode_type': request.GET.get('periode_type', ''),
+            # Conserver les valeurs pour les afficher dans les filtres
+            'filter_date_debut': filter_values.get('date_debut', ''),
+            'filter_date_fin': filter_values.get('date_fin', ''),
+            'filter_employe': filter_values.get('employe', ''),
+            'filter_site': filter_values.get('site', ''),
+            'filter_periode_type': filter_values.get('periode_type', ''),
         })
         
         return super().changelist_view(request, extra_context=extra_context)
