@@ -358,10 +358,29 @@ class PointageAdmin(admin.ModelAdmin):
     export_selection_excel.short_description = "📊 Exporter la sélection en Excel"
     
     # ============================================================
-    # CONTEXTE PERSONNALISÉ POUR LE CHANGELIST
+    # CONTEXTE PERSONNALISÉ POUR LE CHANGELIST - AVEC NETTOYAGE DES PARAMÈTRES
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
+        # ============================================================
+        # NETTOYER LES PARAMÈTRES GET POUR ÉVITER LES ERREURS
+        # ============================================================
+        # Créer une copie mutable des paramètres GET
+        get_params = request.GET.copy()
+        
+        # Supprimer les paramètres vides qui causent des erreurs
+        params_to_remove = []
+        for key, value in get_params.items():
+            if value == '' or value is None:
+                params_to_remove.append(key)
+        
+        for key in params_to_remove:
+            get_params.pop(key, None)
+        
+        # Mettre à jour request.GET avec les paramètres nettoyés
+        request.GET = get_params
+        # ============================================================
+        
         # Récupérer le queryset via la méthode standard de Django Admin
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
