@@ -6,6 +6,8 @@ from django.contrib.admin.models import LogEntry
 from django.db.models import Count, Q
 from .models import Employe, Pointage, AnomaliePointage, Site, Poste
 from .anomalies import compter_anomalies_ouvertes
+from .models import DemandeModification, AnomaliePointage
+
 
 
 def dashboard_context(request):
@@ -233,4 +235,22 @@ def dashboard_context(request):
         # Anomalies récentes
         'anomalies_data': anomalies_data,
         'anomalies_recentes': anomalies_recentes,
+    }
+ 
+def admin_badge_counts(request):
+    """
+    Fournit les compteurs pour les badges de la sidebar Jazzmin.
+    Ces compteurs sont utilisés par la navigation personnalisée.
+    """
+    # Demandes en attente
+    demandes_attente = DemandeModification.objects.filter(statut='en_attente').count()
+    
+    # Anomalies ouvertes
+    anomalies_ouvertes = AnomaliePointage.objects.filter(
+        statut=AnomaliePointage.STATUT_OUVERTE
+    ).count()
+    
+    return {
+        'demandes_attente': demandes_attente if demandes_attente > 0 else None,
+        'anomalies_ouvertes': anomalies_ouvertes if anomalies_ouvertes > 0 else None,
     }

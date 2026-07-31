@@ -79,6 +79,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'pointage.context_processors.dashboard_context',
+                'pointage.context_processors.admin_badge_counts',
             ],
         },
     },
@@ -138,8 +139,10 @@ LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 
+# settings.py
+
 # ============================================================
-# CONFIGURATION JAZZMIN — Version Premium avec Navigation
+# CONFIGURATION JAZZMIN — Version Premium avec Navigation + Badges
 # ============================================================
 JAZZMIN_SETTINGS = {
     # ── Identité ──
@@ -270,6 +273,12 @@ JAZZMIN_SETTINGS = {
         {
             "name": "⚠️ Anomalies",
             "icon": "fas fa-triangle-exclamation",
+            # ============================================================
+            # BADGE DYNAMIQUE POUR LES ANOMALIES OUVERTES
+            # ============================================================
+            "badge": "anomalies_ouvertes",  # ← Context processor
+            "badge_class": "badge-danger",   # ← Classe CSS (rouge)
+            # ============================================================
             "children": [
                 {
                     "name": "🔴 Ouvertes",
@@ -326,14 +335,20 @@ JAZZMIN_SETTINGS = {
             ],
         },
         {
+            "name": "📦 Demandes",
+            "icon": "fas fa-inbox",
+            # ============================================================
+            # BADGE DYNAMIQUE POUR LES DEMANDES EN ATTENTE
+            # ============================================================
+            "badge": "demandes_attente",    # ← Context processor
+            "badge_class": "badge-danger",  # ← Classe CSS (rouge)
+            # ============================================================
+            "url": "admin:pointage_demandemodification_changelist",
+        },
+        {
             "name": "📱 Scans",
             "icon": "fas fa-qrcode",
             "url": "admin:pointage_scan_changelist",
-        },
-        {
-            "name": "📦 Demandes",
-            "icon": "fas fa-inbox",
-            "url": "admin:pointage_demandemodification_changelist",
         },
         {
             "name": "🔐 Utilisateurs",

@@ -913,12 +913,14 @@ class ScanAdmin(admin.ModelAdmin):
 # ANOMALIES DE POINTAGE
 # ============================================================
 
+# pointage/admin.py
+
 class AnomalieTraitementInline(admin.StackedInline):
     model = AnomalieTraitement
     can_delete = False
     extra = 0
     max_num = 1
-    fields = ('administrateur', 'date_traitement', 'commentaire')
+    fields = ('administrateur', 'date_traitement', 'commentaire', 'pointage_concerne', 'corrections')
     readonly_fields = ('administrateur', 'date_traitement')
 
 
@@ -926,7 +928,7 @@ class AnomalieTraitementInline(admin.StackedInline):
 class AnomaliePointageAdmin(admin.ModelAdmin):
     list_display = ('type_display', 'employe_ou_matricule', 'gravite_badge', 'statut_badge', 'created_at')
     list_filter = ('statut', 'type')
-    search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule', 'matricule_scanne')
+    search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule', 'matricule_scanne', 'message')
     date_hierarchy = 'created_at'
     inlines = [AnomalieTraitementInline]
     actions = ['marquer_traitees', 'marquer_cloturees']
