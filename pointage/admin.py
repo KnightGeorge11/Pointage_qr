@@ -286,7 +286,7 @@ class PointageAdmin(admin.ModelAdmin):
     get_heures_display.short_description = "Heures travaillées"
     
     # ============================================================
-    # ACTIONS EN MASSE (conservées dans la dropdown)
+    # ACTIONS EN MASSE
     # ============================================================
     
     actions = ['marquer_present', 'marquer_retard', 'marquer_absent', 'supprimer_selection']
@@ -314,6 +314,18 @@ class PointageAdmin(admin.ModelAdmin):
     supprimer_selection.short_description = "🗑️ Supprimer la sélection"
     
     # ============================================================
+    # FILTRES AVANCÉS (identiques à l'interface utilisateur)
+    # ============================================================
+    
+    def get_employes_list(self):
+        """Récupère la liste des employés pour le filtre"""
+        return Employe.objects.filter(actif=True).order_by('nom', 'prenom')
+    
+    def get_sites_list(self):
+        """Récupère la liste des sites pour le filtre"""
+        return Site.objects.all().order_by('nom')
+    
+    # ============================================================
     # CONTEXTE PERSONNALISÉ POUR LE CHANGELIST
     # ============================================================
     
@@ -327,11 +339,44 @@ class PointageAdmin(admin.ModelAdmin):
         if get_params.get('export_excel') == '1':
             # Supprimer le paramètre d'export pour ne pas interférer
             get_params.pop('export_excel', None)
-            request.GET = get_params
             
             # Récupérer le queryset
             cl = self.get_changelist_instance(request)
             queryset = cl.get_queryset(request)
+            
+            # Appliquer les filtres manuellement (comme l'interface utilisateur)
+            if get_params.get('date_debut'):
+                try:
+                    from datetime import datetime
+                    date_debut = datetime.strptime(get_params['date_debut'], '%Y-%m-%d').date()
+                    queryset = queryset.filter(date_pointage__gte=date_debut)
+                except ValueError:
+                    pass
+            
+            if get_params.get('date_fin'):
+                try:
+                    from datetime import datetime
+                    date_fin = datetime.strptime(get_params['date_fin'], '%Y-%m-%d').date()
+                    queryset = queryset.filter(date_pointage__lte=date_fin)
+                except ValueError:
+                    pass
+            
+            if get_params.get('employe'):
+                try:
+                    queryset = queryset.filter(employe_id=get_params['employe'])
+                except ValueError:
+                    pass
+            
+            if get_params.get('site'):
+                try:
+                    queryset = queryset.filter(site_id=get_params['site'])
+                except ValueError:
+                    pass
+            
+            if get_params.get('periode_type') == 'jour':
+                queryset = queryset.filter(type_journee='normal')
+            elif get_params.get('periode_type') == 'nuit':
+                queryset = queryset.filter(type_journee='garde')
             
             # Exporter en Excel
             return self.export_excel(request, queryset)
@@ -367,8 +412,9 @@ class PointageAdmin(admin.ModelAdmin):
             if p.heures_travaillees:
                 total_heures += p.heures_travaillees
         
-        # Récupérer la liste des sites pour le template
+        # Récupérer la liste des sites et employés pour les filtres
         sites_list = Site.objects.all().order_by('nom')
+        employes_list = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         
         extra_context = extra_context or {}
         extra_context.update({
@@ -381,6 +427,13 @@ class PointageAdmin(admin.ModelAdmin):
             'employes_count': queryset.values('employe').distinct().count(),
             'total_employes': Employe.objects.filter(actif=True).count(),
             'sites_list': sites_list,
+            'employes_list': employes_list,
+            # Transmettre les paramètres pour les conserver dans le template
+            'filter_date_debut': request.GET.get('date_debut', ''),
+            'filter_date_fin': request.GET.get('date_fin', ''),
+            'filter_employe': request.GET.get('employe', ''),
+            'filter_site': request.GET.get('site', ''),
+            'filter_periode_type': request.GET.get('periode_type', ''),
         })
         
         return super().changelist_view(request, extra_context=extra_context)
@@ -394,17 +447,17 @@ class PointageAdmin(admin.ModelAdmin):
         return "0h00"
     
     # ============================================================
-    # EXPORT EXCEL (même format que l'utilisateur)
+    # EXPORT EXCEL (même format que l'interface utilisateur)
     # ============================================================
     
     def export_excel(self, request, queryset):
-        """Exporte les pointages en Excel au même format que l'utilisateur"""
+        """Exporte les pointages en Excel (même format que l'utilisateur)"""
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from django.http import HttpResponse
         from collections import defaultdict
         
-        if not queryset:
+        if not queryset.exists():
             messages.warning(request, "Aucun pointage à exporter.")
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/admin/pointage/pointage/'))
         
@@ -414,32 +467,20 @@ class PointageAdmin(admin.ModelAdmin):
         
         # Palette de couleurs (identique à l'export utilisateur)
         BLUE = '1E3A5F'
-        BLUE_LIGHT = 'D6E4F0'
-        ORANGE_BG = 'FEF3C7'
-        ORANGE_FG = 'D97706'
-        GREEN_BG = 'DCFCE7'
-        GREEN_FG = '15803D'
-        RED_BG = 'FEE2E2'
-        RED_FG = 'B91C1C'
-        PURPLE_BG = 'EDE9FE'
-        PURPLE_FG = '7C3AED'
-        NIGHT_BG = '1E1B4B'
-        NIGHT_FG = 'A5B4FC'
-        DARK = '1A1A1A'
+        WHITE = 'FFFFFF'
         GREY_LIGHT = 'F5F5F7'
         GREY_MID = 'E5E5E5'
-        WHITE = 'FFFFFF'
+        DARK = '1A1A1A'
         TOTAL_BG = 'EEF2FF'
+        GREEN_BG = 'DCFCE7'
+        RED_BG = 'FEE2E2'
+        ORANGE_BG = 'FEF3C7'
         
         def sd(color=GREY_MID, style='thin'):
             return Side(style=style, color=color)
         
         def b_all(color=GREY_MID):
             s = sd(color)
-            return Border(left=s, right=s, top=s, bottom=s)
-        
-        def b_outer(color=BLUE):
-            s = Side(style='medium', color=color)
             return Border(left=s, right=s, top=s, bottom=s)
         
         def sc(c, value='', bg=WHITE, fg=DARK, bold=False, size=9,
@@ -451,7 +492,7 @@ class PointageAdmin(admin.ModelAdmin):
             if border:
                 c.border = border
         
-        # En-têtes
+        # En-têtes (même que l'interface utilisateur)
         headers = ['Employé', 'Matricule', 'Date', 'Période', 'Type', 'Arrivée', 'Départ', 'Site', 'Statut', 'Retard (min)', 'Heures']
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
@@ -470,7 +511,10 @@ class PointageAdmin(admin.ModelAdmin):
             ws.cell(row=row, column=7, value=pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else '')
             ws.cell(row=row, column=8, value=str(pointage.site) if pointage.site else '')
             ws.cell(row=row, column=9, value=pointage.get_statut_display())
-            ws.cell(row=row, column=10, value=pointage.get_retard_minutes() if pointage.retard else 0)
+            
+            # Retard en minutes
+            retard_minutes = pointage.get_retard_minutes() if pointage.retard else 0
+            ws.cell(row=row, column=10, value=retard_minutes)
             
             # Heures travaillées
             if pointage.heures_travaillees and pointage.heures_travaillees.total_seconds() > 0:
@@ -485,13 +529,11 @@ class PointageAdmin(admin.ModelAdmin):
         for col in range(1, len(headers) + 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
         
-        # Ajouter une ligne de total en bas
+        # Ajouter une ligne de total
         total_row = queryset.count() + 2
-        ws.cell(row=total_row, column=1, value="TOTAL").font = Font(bold=True)
-        ws.cell(row=total_row, column=10, value=queryset.filter(retard__gt=timedelta(0)).count())
-        ws.cell(row=total_row, column=1).fill = PatternFill('solid', start_color=TOTAL_BG)
-        ws.cell(row=total_row, column=10).fill = PatternFill('solid', start_color=TOTAL_BG)
-        ws.cell(row=total_row, column=11).fill = PatternFill('solid', start_color=TOTAL_BG)
+        sc(ws.cell(row=total_row, column=1), value="TOTAL", bg=TOTAL_BG, bold=True, halign='left')
+        sc(ws.cell(row=total_row, column=10), value=queryset.filter(retard__gt=timedelta(0)).count(), bg=TOTAL_BG, bold=True)
+        sc(ws.cell(row=total_row, column=11), value="", bg=TOTAL_BG)
         
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

@@ -48,34 +48,121 @@
             margin-top: 2px;
         }
 
+        /* ── Barre de filtres (identique à l'interface utilisateur) ── */
+        .filter-bar {
+            background: #fff;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            padding: 20px 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+        }
+        .filter-bar-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #E2E8F0;
+        }
+        .filter-bar-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #64748B;
+        }
+        .filter-bar-separator {
+            flex: 1;
+            height: 1px;
+            background: #E2E8F0;
+        }
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .filter-group-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748B;
+            margin-bottom: 4px;
+        }
+        .filter-group-input {
+            width: 100%;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: #0F172A;
+            transition: all 150ms ease;
+            appearance: none;
+        }
+        .filter-group-input:focus {
+            outline: none;
+            border-color: #2563EB;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        .filter-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding-top: 16px;
+            border-top: 1px solid #E2E8F0;
+            flex-wrap: wrap;
+        }
+        .filter-actions .btn {
+            font-size: 11px;
+            padding: 6px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-outline-secondary {
+            background: transparent;
+            color: #64748B;
+            border: 1px solid #E2E8F0;
+        }
+        .btn-outline-secondary:hover {
+            background: #F8FAFC;
+            color: #0F172A;
+        }
+        .btn-success {
+            background: #22C55E;
+            color: #fff;
+        }
+        .btn-success:hover {
+            background: #16A34A;
+        }
+        .btn-primary {
+            background: #2563EB;
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: #1D4ED8;
+        }
+
         /* ── Export buttons ── */
         .export-btn-group {
             display: flex;
             gap: 6px;
             flex-wrap: wrap;
-        }
-        .export-btn-group .btn {
-            font-size: 11px;
-            padding: 4px 12px;
-            border-radius: 6px;
-            border: 1px solid #E2E8F0;
-            background: #fff;
-            color: #64748B;
-            transition: all 150ms ease;
-            text-decoration: none;
-        }
-        .export-btn-group .btn:hover {
-            background: #F8FAFC;
-            border-color: #94A3B8;
-        }
-        .export-btn-group .btn-excel {
-            background: #22C55E;
-            border-color: #22C55E;
-            color: #fff;
-        }
-        .export-btn-group .btn-excel:hover {
-            background: #16A34A;
-            border-color: #16A34A;
         }
 
         /* ── Graphique ── */
@@ -92,11 +179,24 @@
 
         /* ── Responsive ── */
         @media (max-width: 768px) {
+            .filter-grid {
+                grid-template-columns: 1fr 1fr;
+            }
             .stats-mini {
                 grid-template-columns: repeat(2, 1fr);
             }
+            .filter-actions {
+                flex-direction: column;
+            }
+            .filter-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
         }
         @media (max-width: 480px) {
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
             .stats-mini {
                 grid-template-columns: 1fr 1fr;
             }
@@ -132,17 +232,69 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- EXPORT EXCEL -->
+    <!-- FILTRES (identique à l'interface utilisateur) -->
     <!-- ============================================================ -->
-    <div style="display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
-        <div class="export-btn-group">
-            <a href="#" class="btn btn-excel" onclick="exportExcel(); return false;">
-                <i class="fas fa-file-excel"></i> Exporter Excel
-            </a>
-            <button class="btn" onclick="window.print();">
-                <i class="fas fa-print"></i> Imprimer
-            </button>
+    <div class="filter-bar">
+        <div class="filter-bar-header">
+            <span class="filter-bar-label">
+                <i class="fas fa-sliders-h" style="margin-right:6px;"></i>
+                Filtres de recherche
+            </span>
+            <div class="filter-bar-separator"></div>
         </div>
+        <form method="get" id="filterForm">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label class="filter-group-label">Date début</label>
+                    <input type="date" class="filter-group-input" name="date_debut" value="{{ request.GET.date_debut|default:'' }}">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-group-label">Date fin</label>
+                    <input type="date" class="filter-group-input" name="date_fin" value="{{ request.GET.date_fin|default:'' }}">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-group-label">Employé</label>
+                    <select class="filter-group-input" name="employe">
+                        <option value="">Tous les employés</option>
+                        {% for employe in employes_list %}
+                            <option value="{{ employe.id }}" {% if request.GET.employe == employe.id|stringformat:"s" %}selected{% endif %}>
+                                {{ employe.prenom }} {{ employe.nom }} ({{ employe.matricule }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-group-label">Site</label>
+                    <select class="filter-group-input" name="site">
+                        <option value="">Tous les sites</option>
+                        {% for site in sites_list %}
+                            <option value="{{ site.id }}" {% if request.GET.site == site.id|stringformat:"s" %}selected{% endif %}>
+                                {{ site.nom }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-group-label">Type de période</label>
+                    <select class="filter-group-input" name="periode_type">
+                        <option value="">Tous (Jour + Nuit)</option>
+                        <option value="jour" {% if request.GET.periode_type == 'jour' %}selected{% endif %}>Jour seulement</option>
+                        <option value="nuit" {% if request.GET.periode_type == 'nuit' %}selected{% endif %}>Nuit (Gardes) seulement</option>
+                    </select>
+                </div>
+            </div>
+            <div class="filter-actions">
+                <a href="{% url 'admin:pointage_pointage_changelist' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Réinitialiser
+                </a>
+                <a href="{% url 'admin:pointage_pointage_changelist' %}?export_excel=1{{ request.GET.urlencode }}" class="btn btn-success" onclick="return exportExcel();">
+                    <i class="fas fa-file-excel"></i> Exporter Excel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Appliquer
+                </button>
+            </div>
+        </form>
     </div>
 
     <!-- ============================================================ -->
@@ -236,6 +388,7 @@
         params.set('export_excel', '1');
         // Rediriger vers la même page avec le paramètre
         window.location.href = window.location.pathname + '?' + params.toString();
+        return false;
     }
     </script>
 {% endblock %}
