@@ -315,42 +315,44 @@ class PointageAdmin(admin.ModelAdmin):
     supprimer_selection.short_description = "🗑️ Supprimer la sélection"
     
     # ============================================================
-    # FILTRES AVANCÉS (identiques à l'interface utilisateur)
+    # GET QUERYSET - Laisser Django Admin faire son travail
     # ============================================================
     
-    def get_employes_list(self):
-        """Récupère la liste des employés pour le filtre"""
-        return Employe.objects.filter(actif=True).order_by('nom', 'prenom')
-    
-    def get_sites_list(self):
-        """Récupère la liste des sites pour le filtre"""
-        return Site.objects.all().order_by('nom')
+    def get_queryset(self, request):
+        """Retourne le queryset avec toutes les relations"""
+        return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW PERSONNALISÉE
+    # CHANGELIST VIEW - SEULEMENT POUR LE CONTEXTE
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
         # ============================================================
-        # RÉCUPÉRER TOUS LES PARAMÈTRES
+        # EXPORT EXCEL
         # ============================================================
-        params = request.GET.copy()
-        
-        # Vérifier si c'est une demande d'export Excel
-        if 'export_excel' in params:
+        if 'export_excel' in request.GET:
+            # Récupérer le queryset via Django Admin
+            cl = self.get_changelist_instance(request)
+            # Créer une copie de la requête sans export_excel
+            params = request.GET.copy()
             params.pop('export_excel', None)
-            queryset = self.get_filtered_queryset(params)
+            request.GET = params
+            
+            # Récupérer le queryset
+            cl = self.get_changelist_instance(request)
+            queryset = cl.get_queryset(request)
+            
+            # Exporter
             return self.export_excel(request, queryset)
         
         # ============================================================
-        # CONSTRUIRE LE QUERYSET AVEC FILTRES PERSONNALISÉS
+        # STATISTIQUES POUR LE TEMPLATE
         # ============================================================
-        queryset = self.get_filtered_queryset(params)
-        queryset = queryset.order_by('-date_pointage', 'employe__nom')
+        # Récupérer le queryset via Django Admin
+        cl = self.get_changelist_instance(request)
+        queryset = cl.get_queryset(request)
         
-        # ============================================================
-        # CALCULER LES STATISTIQUES
-        # ============================================================
+        # Statistiques
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
         retards = queryset.filter(statut='retard').count()
@@ -360,48 +362,36 @@ class PointageAdmin(admin.ModelAdmin):
             Q(statut='absent')
         ).count()
         
+        # Heures totales
         total_heures = timedelta()
-        for p in queryset[:500]:  # Limiter pour la performance
+        for p in queryset[:100]:
             if p.heures_travaillees:
                 total_heures += p.heures_travaillees
         
-        # ============================================================
-        # PAGINATION
-        # ============================================================
-        paginator = Paginator(queryset, 20)
-        page = request.GET.get('page', 1)
-        try:
-            page_obj = paginator.page(page)
-        except PageNotAnInteger:
-            page_obj = paginator.page(1)
-        except EmptyPage:
-            page_obj = paginator.page(paginator.num_pages)
+        # Récupérer les valeurs des filtres pour le template
+        filter_date_debut = request.GET.get('date_debut', '')
+        filter_date_fin = request.GET.get('date_fin', '')
+        filter_employe = request.GET.get('employe', '')
+        filter_site = request.GET.get('site', '')
+        filter_periode_type = request.GET.get('periode_type', '')
         
-        # ============================================================
-        # PRÉPARER LE CONTEXTE POUR LE TEMPLATE
-        # ============================================================
+        # Liste des employés et sites
         sites_list = Site.objects.all().order_by('nom')
         employes_list = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         
-        # Récupérer les valeurs des filtres
-        date_debut = params.get('date_debut', '')
-        date_fin = params.get('date_fin', '')
-        employe_id = params.get('employe', '')
-        site_id = params.get('site', '')
-        periode_type = params.get('periode_type', '')
-        
-        # Construire la chaîne de paramètres pour l'export
+        # Construction des paramètres pour l'export
         export_params = []
-        if date_debut:
-            export_params.append(f"date_debut={date_debut}")
-        if date_fin:
-            export_params.append(f"date_fin={date_fin}")
-        if employe_id:
-            export_params.append(f"employe={employe_id}")
-        if site_id:
-            export_params.append(f"site={site_id}")
-        if periode_type:
-            export_params.append(f"periode_type={periode_type}")
+        if filter_date_debut:
+            export_params.append(f"date_debut={filter_date_debut}")
+        if filter_date_fin:
+            export_params.append(f"date_fin={filter_date_fin}")
+        if filter_employe:
+            export_params.append(f"employe={filter_employe}")
+        if filter_site:
+            export_params.append(f"site={filter_site}")
+        if filter_periode_type:
+            export_params.append(f"periode_type={filter_periode_type}")
+        request_get = '&'.join(export_params)
         
         extra_context = extra_context or {}
         extra_context.update({
@@ -415,115 +405,15 @@ class PointageAdmin(admin.ModelAdmin):
             'total_employes': Employe.objects.filter(actif=True).count(),
             'sites_list': sites_list,
             'employes_list': employes_list,
-            # Valeurs des filtres pour les afficher dans le template
-            'filter_date_debut': date_debut,
-            'filter_date_fin': date_fin,
-            'filter_employe': employe_id,
-            'filter_site': site_id,
-            'filter_periode_type': periode_type,
-            # Paramètres pour l'export
-            'request_get': '&'.join(export_params),
+            'filter_date_debut': filter_date_debut,
+            'filter_date_fin': filter_date_fin,
+            'filter_employe': filter_employe,
+            'filter_site': filter_site,
+            'filter_periode_type': filter_periode_type,
+            'request_get': request_get,
         })
         
-        # Modifier le context du changelist pour utiliser notre queryset paginé
-        # On remplace le queryset par défaut
-        request._changelist_queryset = page_obj
-        
         return super().changelist_view(request, extra_context=extra_context)
-    
-    def get_filtered_queryset(self, params):
-        """Construit le queryset avec tous les filtres"""
-        queryset = Pointage.objects.select_related('employe', 'site')
-        
-        # Récupérer les valeurs des filtres
-        date_debut = params.get('date_debut', '')
-        date_fin = params.get('date_fin', '')
-        employe_id = params.get('employe', '')
-        site_id = params.get('site', '')
-        periode_type = params.get('periode_type', '')
-        search_query = params.get('q', '')
-        
-        # Filtre date début
-        if date_debut:
-            try:
-                date_debut_obj = datetime.strptime(date_debut, '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__gte=date_debut_obj)
-            except ValueError:
-                pass
-        
-        # Filtre date fin
-        if date_fin:
-            try:
-                date_fin_obj = datetime.strptime(date_fin, '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__lte=date_fin_obj)
-            except ValueError:
-                pass
-        
-        # Filtre employé
-        if employe_id:
-            try:
-                queryset = queryset.filter(employe_id=int(employe_id))
-            except (ValueError, TypeError):
-                pass
-        
-        # Filtre site
-        if site_id:
-            try:
-                queryset = queryset.filter(site_id=int(site_id))
-            except (ValueError, TypeError):
-                pass
-        
-        # Filtre type de période
-        if periode_type == 'jour':
-            queryset = queryset.filter(type_journee='normal')
-        elif periode_type == 'nuit':
-            queryset = queryset.filter(type_journee='garde')
-        
-        # Recherche
-        if search_query:
-            queryset = queryset.filter(
-                Q(employe__nom__icontains=search_query) |
-                Q(employe__prenom__icontains=search_query) |
-                Q(employe__matricule__icontains=search_query)
-            )
-        
-        # Appliquer les filtres Jazzmin (statut, periode, site, date_pointage, type_journee)
-        # Ces filtres sont dans l'URL avec des noms comme statut__exact, periode__exact, etc.
-        for key, value in params.items():
-            if key.endswith('__exact') and value:
-                try:
-                    queryset = queryset.filter(**{key: value})
-                except (ValueError, TypeError):
-                    pass
-            elif key == 'date_pointage__gte' and value:
-                try:
-                    date_obj = datetime.strptime(value, '%Y-%m-%d').date()
-                    queryset = queryset.filter(date_pointage__gte=date_obj)
-                except ValueError:
-                    pass
-            elif key == 'date_pointage__lte' and value:
-                try:
-                    date_obj = datetime.strptime(value, '%Y-%m-%d').date()
-                    queryset = queryset.filter(date_pointage__lte=date_obj)
-                except ValueError:
-                    pass
-            elif key == 'date_pointage__year' and value:
-                try:
-                    queryset = queryset.filter(date_pointage__year=int(value))
-                except ValueError:
-                    pass
-            elif key == 'date_pointage__month' and value:
-                try:
-                    queryset = queryset.filter(date_pointage__month=int(value))
-                except ValueError:
-                    pass
-            elif key == 'date_pointage__day' and value:
-                try:
-                    queryset = queryset.filter(date_pointage__day=int(value))
-                except ValueError:
-                    pass
-        
-        return queryset
     
     def _format_timedelta(self, td):
         if td and td.total_seconds() > 0:
@@ -534,11 +424,11 @@ class PointageAdmin(admin.ModelAdmin):
         return "0h00"
     
     # ============================================================
-    # EXPORT EXCEL (même format que l'interface utilisateur)
+    # EXPORT EXCEL
     # ============================================================
     
     def export_excel(self, request, queryset):
-        """Exporte les pointages en Excel (même format que l'utilisateur)"""
+        """Exporte les pointages en Excel"""
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from django.http import HttpResponse
@@ -551,30 +441,18 @@ class PointageAdmin(admin.ModelAdmin):
         ws = wb.active
         ws.title = "Pointages"
         
-        # Palette de couleurs (identique à l'export utilisateur)
+        # Couleurs
         BLUE = '1E3A5F'
         WHITE = 'FFFFFF'
-        GREY_MID = 'E5E5E5'
-        DARK = '1A1A1A'
         TOTAL_BG = 'EEF2FF'
         
-        def sd(color=GREY_MID, style='thin'):
-            return Side(style=style, color=color)
-        
-        def b_all(color=GREY_MID):
-            s = sd(color)
-            return Border(left=s, right=s, top=s, bottom=s)
-        
-        def sc(c, value='', bg=WHITE, fg=DARK, bold=False, size=9,
-               halign='center', valign='center', wrap=False, border=None, italic=False):
+        def sc(c, value='', bg=WHITE, fg='1A1A1A', bold=False, size=9):
             c.value = value
-            c.font = Font(name='Arial', bold=bold, color=fg, size=size, italic=italic)
+            c.font = Font(name='Arial', bold=bold, color=fg, size=size)
             c.fill = PatternFill('solid', start_color=bg)
-            c.alignment = Alignment(horizontal=halign, vertical=valign, wrap_text=wrap)
-            if border:
-                c.border = border
+            c.alignment = Alignment(horizontal='center', vertical='center')
         
-        # En-têtes (même que l'interface utilisateur)
+        # En-têtes
         headers = ['Employé', 'Matricule', 'Date', 'Période', 'Type', 'Arrivée', 'Départ', 'Site', 'Statut', 'Retard (min)', 'Heures']
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
@@ -593,12 +471,8 @@ class PointageAdmin(admin.ModelAdmin):
             ws.cell(row=row, column=7, value=pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else '')
             ws.cell(row=row, column=8, value=str(pointage.site) if pointage.site else '')
             ws.cell(row=row, column=9, value=pointage.get_statut_display())
+            ws.cell(row=row, column=10, value=pointage.get_retard_minutes() if pointage.retard else 0)
             
-            # Retard en minutes
-            retard_minutes = pointage.get_retard_minutes() if pointage.retard else 0
-            ws.cell(row=row, column=10, value=retard_minutes)
-            
-            # Heures travaillées
             if pointage.heures_travaillees and pointage.heures_travaillees.total_seconds() > 0:
                 total_seconds = pointage.heures_travaillees.total_seconds()
                 hours = int(total_seconds // 3600)
@@ -611,11 +485,12 @@ class PointageAdmin(admin.ModelAdmin):
         for col in range(1, len(headers) + 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
         
-        # Ajouter une ligne de total
+        # Total
         total_row = queryset.count() + 2
-        sc(ws.cell(row=total_row, column=1), value="TOTAL", bg=TOTAL_BG, bold=True, halign='left')
-        sc(ws.cell(row=total_row, column=10), value=queryset.filter(retard__gt=timedelta(0)).count(), bg=TOTAL_BG, bold=True)
-        sc(ws.cell(row=total_row, column=11), value="", bg=TOTAL_BG)
+        ws.cell(row=total_row, column=1, value="TOTAL").font = Font(bold=True)
+        ws.cell(row=total_row, column=10, value=queryset.filter(retard__gt=timedelta(0)).count())
+        ws.cell(row=total_row, column=1).fill = PatternFill('solid', start_color=TOTAL_BG)
+        ws.cell(row=total_row, column=10).fill = PatternFill('solid', start_color=TOTAL_BG)
         
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
