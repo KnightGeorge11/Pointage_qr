@@ -1,4 +1,4 @@
-# pointage/admin.py - Version Nettoyée
+# pointage/admin.py - Version avec un seul filtre Période
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -23,24 +23,30 @@ from datetime import timedelta, datetime
 
 
 # ============================================================
-# FILTRES PERSONNALISÉS SIMPLES
+# FILTRE PÉRIODE UNIQUE (fusionné)
 # ============================================================
 
-class PeriodeFilter(SimpleListFilter):
+class PeriodeFusionFilter(SimpleListFilter):
     title = 'Période'
-    parameter_name = 'periode_type'
+    parameter_name = 'periode'
 
     def lookups(self, request, model_admin):
         return [
-            ('jour', 'Jour (normal)'),
-            ('nuit', 'Nuit (garde)'),
+            ('matin', 'Matin'),
+            ('apres_midi', 'Après-midi'),
+            ('nuit', 'Nuit'),
+            ('garde', 'Garde de nuit'),
         ]
 
     def queryset(self, request, queryset):
-        if self.value() == 'jour':
-            return queryset.filter(type_journee='normal')
+        if self.value() == 'matin':
+            return queryset.filter(periode='matin')
+        if self.value() == 'apres_midi':
+            return queryset.filter(periode='apres_midi')
         if self.value() == 'nuit':
-            return queryset.filter(type_journee='garde')
+            return queryset.filter(periode='nuit', type_journee='normal')
+        if self.value() == 'garde':
+            return queryset.filter(periode='nuit', type_journee='garde')
         return queryset
 
 
@@ -239,16 +245,13 @@ class EmployeAdmin(admin.ModelAdmin):
 
 @admin.register(Pointage)
 class PointageAdmin(admin.ModelAdmin):
-    # ============================================================
-    # CONFIGURATION DE BASE
-    # ============================================================
-    
     change_list_template = "admin/pointage/pointage_changelist.html"
     
     list_display = [
         'employe',
         'date_pointage',
         'periode',
+        'type_journee',
         'heure_arrivee',
         'heure_depart',
         'site',
@@ -258,14 +261,13 @@ class PointageAdmin(admin.ModelAdmin):
     ]
     
     # ============================================================
-    # FILTRES - Jazzmin avec les filtres existants
+    # FILTRES - UNIQUE FILTRE PÉRIODE FUSIONNÉ
     # ============================================================
     list_filter = [
         'statut',
-        'periode',
+        PeriodeFusionFilter,  # Filtre unique pour Matin/Après-midi/Nuit/Garde
         'site',
         'date_pointage',
-        PeriodeFilter,  # Jour / Nuit
     ]
     
     search_fields = [
@@ -343,18 +345,16 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW - POUR LE CONTEXTE DU TEMPLATE
+    # CHANGELIST VIEW
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
         
-        # Export Excel
         if 'export_excel' in request.GET:
             return self.export_excel(request, queryset)
         
-        # Statistiques
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
         retards = queryset.filter(statut='retard').count()
