@@ -1,6 +1,7 @@
 # pointage/admin.py
 
 from django.contrib import admin
+from django.contrib.admin import SimpleListFilter
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html, escape
 from django.urls import path
@@ -20,6 +21,101 @@ from .models import (
 from .anomalies import marquer_traitee, marquer_cloturee
 import uuid
 from datetime import timedelta, datetime
+
+
+# ============================================================
+# FILTRES PERSONNALISÉS POUR JAZZMIN
+# ============================================================
+
+class DateDebutFilter(SimpleListFilter):
+    title = 'Date début'
+    parameter_name = 'date_debut'
+
+    def lookups(self, request, model_admin):
+        today = timezone.localtime(timezone.now()).date()
+        return [
+            ('today', "Aujourd'hui"),
+            ('yesterday', 'Hier'),
+            ('week', 'Cette semaine'),
+            ('month', 'Ce mois-ci'),
+        ]
+
+    def queryset(self, request, queryset):
+        today = timezone.localtime(timezone.now()).date()
+        if self.value() == 'today':
+            return queryset.filter(date_pointage=today)
+        if self.value() == 'yesterday':
+            yesterday = today - timedelta(days=1)
+            return queryset.filter(date_pointage=yesterday)
+        if self.value() == 'week':
+            start_of_week = today - timedelta(days=today.weekday())
+            return queryset.filter(date_pointage__gte=start_of_week)
+        if self.value() == 'month':
+            return queryset.filter(date_pointage__month=today.month, date_pointage__year=today.year)
+        return queryset
+
+
+class DateFinFilter(SimpleListFilter):
+    title = 'Date fin'
+    parameter_name = 'date_fin'
+
+    def lookups(self, request, model_admin):
+        today = timezone.localtime(timezone.now()).date()
+        return [
+            ('today', "Aujourd'hui"),
+            ('yesterday', 'Hier'),
+            ('week', 'Cette semaine'),
+            ('month', 'Ce mois-ci'),
+        ]
+
+    def queryset(self, request, queryset):
+        today = timezone.localtime(timezone.now()).date()
+        if self.value() == 'today':
+            return queryset.filter(date_pointage=today)
+        if self.value() == 'yesterday':
+            yesterday = today - timedelta(days=1)
+            return queryset.filter(date_pointage=yesterday)
+        if self.value() == 'week':
+            start_of_week = today - timedelta(days=today.weekday())
+            return queryset.filter(date_pointage__gte=start_of_week)
+        if self.value() == 'month':
+            return queryset.filter(date_pointage__month=today.month, date_pointage__year=today.year)
+        return queryset
+
+
+class EmployeFilter(SimpleListFilter):
+    title = 'Employé'
+    parameter_name = 'employe'
+
+    def lookups(self, request, model_admin):
+        employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
+        return [(str(e.id), f"{e.prenom} {e.nom} ({e.matricule})") for e in employes]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            try:
+                return queryset.filter(employe_id=int(self.value()))
+            except ValueError:
+                return queryset
+        return queryset
+
+
+class PeriodeTypeFilter(SimpleListFilter):
+    title = 'Type de période'
+    parameter_name = 'periode_type'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('jour', 'Jour (normal)'),
+            ('nuit', 'Nuit (garde)'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'jour':
+            return queryset.filter(type_journee='normal')
+        if self.value() == 'nuit':
+            return queryset.filter(type_journee='garde')
+        return queryset
 
 
 # ============================================================
@@ -212,10 +308,8 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - VERSION AMÉLIORÉE AVEC CHANGELIST PERSONNALISÉE
+# POINTAGE - VERSION AMÉLIORÉE AVEC FILTRES PERSONNALISÉS
 # ============================================================
-
-# pointage/admin.py - Classe PointageAdmin COMPLETE
 
 @admin.register(Pointage)
 class PointageAdmin(admin.ModelAdmin):
@@ -240,11 +334,17 @@ class PointageAdmin(admin.ModelAdmin):
         'date_creation',
     ]
     
+    # ============================================================
+    # FILTRES - INCLURE LES FILTRES PERSONNALISÉS
+    # ============================================================
     list_filter = [
+        DateDebutFilter,
+        DateFinFilter,
+        EmployeFilter,
+        PeriodeTypeFilter,
         'statut',
         'periode',
         'site',
-        'date_pointage',
         'type_journee',
     ]
     
@@ -324,67 +424,19 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW - INTERCEPTER LES PARAMÈTRES PERSONNALISÉS
+    # CHANGELIST VIEW - POUR LE CONTEXTE DU TEMPLATE
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
-        # ============================================================
-        # INTERCEPTER LES PARAMÈTRES PERSONNALISÉS
-        # ============================================================
-        # Créer une copie des paramètres GET
-        get_params = request.GET.copy()
-        
-        # Paramètres personnalisés à retirer de la requête
-        custom_params = ['date_debut', 'date_fin', 'employe', 'site', 'periode_type']
-        
-        # Extraire les valeurs des paramètres personnalisés
-        date_debut = get_params.get('date_debut', '')
-        date_fin = get_params.get('date_fin', '')
-        employe = get_params.get('employe', '')
-        site = get_params.get('site', '')
-        periode_type = get_params.get('periode_type', '')
-        
-        # Supprimer les paramètres personnalisés de la requête
-        for param in custom_params:
-            if param in get_params:
-                get_params.pop(param)
-        
-        # Supprimer les paramètres vides
-        params_to_remove = []
-        for key, value in get_params.items():
-            if value == '' or value is None:
-                params_to_remove.append(key)
-        for key in params_to_remove:
-            get_params.pop(key, None)
-        
-        # Mettre à jour la requête avec les paramètres nettoyés
-        request.GET = get_params
-        
-        # ============================================================
-        # VÉRIFIER L'EXPORT EXCEL
-        # ============================================================
-        if 'export_excel' in request.GET:
-            # Récupérer le queryset
-            cl = self.get_changelist_instance(request)
-            queryset = cl.get_queryset(request)
-            
-            # Appliquer les filtres personnalisés
-            queryset = self.apply_custom_filters(queryset, date_debut, date_fin, employe, site, periode_type)
-            
-            return self.export_excel(request, queryset)
-        
-        # ============================================================
-        # RÉCUPÉRER LE QUERYSET FILTRÉ
-        # ============================================================
+        # Récupérer le queryset via Django Admin (les filtres sont déjà appliqués)
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
         
-        # Appliquer les filtres personnalisés
-        queryset = self.apply_custom_filters(queryset, date_debut, date_fin, employe, site, periode_type)
+        # Vérifier l'export Excel
+        if 'export_excel' in request.GET:
+            return self.export_excel(request, queryset)
         
-        # ============================================================
-        # STATISTIQUES
-        # ============================================================
+        # Statistiques
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
         retards = queryset.filter(statut='retard').count()
@@ -399,25 +451,9 @@ class PointageAdmin(admin.ModelAdmin):
             if p.heures_travaillees:
                 total_heures += p.heures_travaillees
         
-        # ============================================================
-        # CONTEXTE POUR LE TEMPLATE
-        # ============================================================
+        # Listes pour les filtres (si nécessaire dans le template)
         sites_list = Site.objects.all().order_by('nom')
         employes_list = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
-        
-        # Construction des paramètres pour l'export
-        export_params = []
-        if date_debut:
-            export_params.append(f"date_debut={date_debut}")
-        if date_fin:
-            export_params.append(f"date_fin={date_fin}")
-        if employe:
-            export_params.append(f"employe={employe}")
-        if site:
-            export_params.append(f"site={site}")
-        if periode_type:
-            export_params.append(f"periode_type={periode_type}")
-        request_get = '&'.join(export_params)
         
         extra_context = extra_context or {}
         extra_context.update({
@@ -431,53 +467,9 @@ class PointageAdmin(admin.ModelAdmin):
             'total_employes': Employe.objects.filter(actif=True).count(),
             'sites_list': sites_list,
             'employes_list': employes_list,
-            'filter_date_debut': date_debut,
-            'filter_date_fin': date_fin,
-            'filter_employe': employe,
-            'filter_site': site,
-            'filter_periode_type': periode_type,
-            'request_get': request_get,
         })
         
-        # Remplacer le queryset du changelist
-        request._changelist_queryset = queryset
-        
         return super().changelist_view(request, extra_context=extra_context)
-    
-    def apply_custom_filters(self, queryset, date_debut, date_fin, employe, site, periode_type):
-        """Applique les filtres personnalisés au queryset"""
-        if date_debut:
-            try:
-                date_obj = datetime.strptime(date_debut, '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__gte=date_obj)
-            except ValueError:
-                pass
-        
-        if date_fin:
-            try:
-                date_obj = datetime.strptime(date_fin, '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__lte=date_obj)
-            except ValueError:
-                pass
-        
-        if employe:
-            try:
-                queryset = queryset.filter(employe_id=int(employe))
-            except ValueError:
-                pass
-        
-        if site:
-            try:
-                queryset = queryset.filter(site_id=int(site))
-            except ValueError:
-                pass
-        
-        if periode_type == 'jour':
-            queryset = queryset.filter(type_journee='normal')
-        elif periode_type == 'nuit':
-            queryset = queryset.filter(type_journee='garde')
-        
-        return queryset
     
     def _format_timedelta(self, td):
         if td and td.total_seconds() > 0:
