@@ -7,11 +7,11 @@
 {% block extra_css %}
 <style>
 /* =====================================================
-   SCANNER — Version Premium SaaS
+   SCANNER — Design System harmonisé
    ===================================================== */
 
 /* ── En-tête ── */
-.page-header-scanner {
+.page-header {
     background: var(--bg-primary);
     border-radius: var(--radius-lg);
     padding: 24px 28px;
@@ -24,7 +24,7 @@
     overflow: hidden;
 }
 
-.page-header-scanner::after {
+.page-header::after {
     content: '';
     position: absolute;
     right: -40px;
@@ -36,12 +36,12 @@
     pointer-events: none;
 }
 
-.page-header-scanner-left {
+.page-header-left {
     position: relative;
     z-index: 1;
 }
 
-.page-header-scanner-eyebrow {
+.page-header-eyebrow {
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -53,7 +53,7 @@
     gap: 8px;
 }
 
-.page-header-scanner-eyebrow::before {
+.page-header-eyebrow::before {
     content: '';
     width: 16px;
     height: 2px;
@@ -61,7 +61,7 @@
     border-radius: 1px;
 }
 
-.page-header-scanner-title {
+.page-header-title {
     font-size: 24px;
     font-weight: 700;
     color: #fff;
@@ -70,14 +70,14 @@
     margin: 0;
 }
 
-.page-header-scanner-sub {
+.page-header-sub {
     font-size: 13px;
     color: rgba(255, 255, 255, 0.4);
     font-weight: 500;
     margin-top: 4px;
 }
 
-.page-header-scanner-stats {
+.page-header-stats {
     display: flex;
     gap: 2px;
     flex-shrink: 0;
@@ -85,23 +85,23 @@
     z-index: 1;
 }
 
-.header-stat-scanner {
+.header-stat {
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    padding: 10px 18px;
+    padding: 12px 20px;
     min-width: 90px;
     text-align: center;
 }
 
-.header-stat-scanner:first-child {
+.header-stat:first-child {
     border-radius: var(--radius-sm) 0 0 var(--radius-sm);
 }
 
-.header-stat-scanner:last-child {
+.header-stat:last-child {
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
-.header-stat-scanner-label {
+.header-stat-label {
     font-size: 8px;
     font-weight: 600;
     text-transform: uppercase;
@@ -110,7 +110,7 @@
     margin-bottom: 4px;
 }
 
-.header-stat-scanner-value {
+.header-stat-value {
     font-family: 'Inter', monospace;
     font-size: 20px;
     font-weight: 600;
@@ -287,22 +287,6 @@
     font-size: 11px;
     margin-top: 2px;
     opacity: 0.7;
-}
-
-.scan-feedback.success .scan-feedback-sub {
-    color: var(--green-700);
-}
-
-.scan-feedback.error .scan-feedback-sub {
-    color: var(--red-600);
-}
-
-.scan-feedback.warning .scan-feedback-sub {
-    color: var(--amber-600);
-}
-
-.scan-feedback.info .scan-feedback-sub {
-    color: var(--blue-700);
 }
 
 /* ── Formulaire ── */
@@ -697,11 +681,11 @@
 
 /* ── Responsive ── */
 @media (max-width: 992px) {
-    .page-header-scanner-stats {
+    .page-header-stats {
         display: none;
     }
 
-    .page-header-scanner {
+    .page-header {
         flex-direction: column;
         align-items: flex-start;
     }
@@ -718,7 +702,7 @@
 }
 
 @media (max-width: 768px) {
-    .page-header-scanner-title {
+    .page-header-title {
         font-size: 20px;
     }
 
@@ -757,15 +741,15 @@
 }
 
 @media (max-width: 480px) {
-    .page-header-scanner {
+    .page-header {
         padding: 16px 18px;
     }
 
-    .page-header-scanner-title {
+    .page-header-title {
         font-size: 18px;
     }
 
-    .page-header-scanner-sub {
+    .page-header-sub {
         font-size: 11px;
     }
 
@@ -812,27 +796,27 @@
 {% block content %}
 
 <!-- ===== EN-TÊTE ===== -->
-<div class="page-header-scanner">
-    <div class="page-header-scanner-left">
-        <div class="page-header-scanner-eyebrow">Enregistrement</div>
-        <h1 class="page-header-scanner-title">Pointage</h1>
-        <div class="page-header-scanner-sub">
+<div class="page-header">
+    <div class="page-header-left">
+        <div class="page-header-eyebrow">Enregistrement</div>
+        <h1 class="page-header-title">Pointage</h1>
+        <div class="page-header-sub">
             <i class="fas fa-qrcode" style="margin-right:6px;opacity:0.5;"></i>
             Scanner QR USB ou saisie manuelle du matricule
         </div>
     </div>
-    <div class="page-header-scanner-stats">
-        <div class="header-stat-scanner">
-            <div class="header-stat-scanner-label">Total employés</div>
-            <div class="header-stat-scanner-value">{{ total_employes }}</div>
+    <div class="page-header-stats">
+        <div class="header-stat">
+            <div class="header-stat-label">Total employés</div>
+            <div class="header-stat-value">{{ total_employes }}</div>
         </div>
-        <div class="header-stat-scanner">
-            <div class="header-stat-scanner-label">Présents</div>
-            <div class="header-stat-scanner-value" style="color:var(--green-500);">{{ presents_aujourdhui }}</div>
+        <div class="header-stat">
+            <div class="header-stat-label">Présents</div>
+            <div class="header-stat-value" style="color:var(--green-500);">{{ presents_aujourdhui }}</div>
         </div>
-        <div class="header-stat-scanner">
-            <div class="header-stat-scanner-label">Gardes</div>
-            <div class="header-stat-scanner-value" style="color:#A5B4FC;">{{ gardes_en_cours }}</div>
+        <div class="header-stat">
+            <div class="header-stat-label">Gardes</div>
+            <div class="header-stat-value" style="color:#A5B4FC;">{{ gardes_en_cours }}</div>
         </div>
     </div>
 </div>
@@ -855,6 +839,31 @@
         </div>
 
         <div class="scanner-card-body">
+
+            <!-- Messages Django -->
+            {% if messages %}
+                {% for message in messages %}
+                <div class="scan-feedback 
+                    {% if 'success' in message.tags %}success
+                    {% elif 'warning' in message.tags %}warning
+                    {% elif 'error' in message.tags %}error
+                    {% else %}info{% endif %}" id="djangoMsg">
+                    <div class="scan-feedback-icon">
+                        {% if 'success' in message.tags %}<i class="fas fa-check"></i>
+                        {% elif 'warning' in message.tags %}<i class="fas fa-exclamation-triangle"></i>
+                        {% elif 'error' in message.tags %}<i class="fas fa-times"></i>
+                        {% else %}<i class="fas fa-info"></i>{% endif %}
+                    </div>
+                    <div class="scan-feedback-content">
+                        <div class="scan-feedback-title">{{ message }}</div>
+                        {% if message.extra_tags %}
+                        <div class="scan-feedback-sub">{{ message.extra_tags }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+
             <form method="post" id="scanForm">
                 {% csrf_token %}
 
@@ -1064,7 +1073,6 @@
             if (existing) existing.remove();
             cardBody.insertBefore(feedback, cardBody.firstChild);
 
-            // Auto-dismiss après 3s
             setTimeout(function() {
                 feedback.style.transition = 'opacity 0.3s, transform 0.3s';
                 feedback.style.opacity = '0';
@@ -1148,19 +1156,16 @@
 
     // ─── Raccourci clavier ───────────────────────────────────
     document.addEventListener('keydown', function(e) {
-        // Alt + J pour mode Jour
         if (e.altKey && e.key === 'j') {
             e.preventDefault();
             periodeJour.checked = true;
             syncPeriodeUI();
         }
-        // Alt + N pour mode Nuit
         if (e.altKey && e.key === 'n') {
             e.preventDefault();
             periodeNuit.checked = true;
             syncPeriodeUI();
         }
-        // Entrée pour soumettre
         if (e.key === 'Enter' && document.activeElement === matriculeInput) {
             e.preventDefault();
             submitBtn.click();
