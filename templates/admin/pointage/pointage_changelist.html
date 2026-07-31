@@ -224,7 +224,7 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- FILTRES AVANCÉS - Utilise les filtres Jazzmin -->
+    <!-- FILTRES AVANCÉS -->
     <!-- ============================================================ -->
     <div class="filter-advanced">
         <form method="get" id="advancedFilterForm">
@@ -246,17 +246,17 @@
                 <!-- Date début -->
                 <div class="filter-group">
                     <label>Date début</label>
-                    <input type="date" name="date_pointage__gte" value="{{ request.GET.date_pointage__gte|default:'' }}" onchange="if(this.value==''){this.name='dummy'}else{this.name='date_pointage__gte'}">
+                    <input type="date" name="date_pointage__gte" value="{{ request.GET.date_pointage__gte|default:'' }}">
                 </div>
                 <!-- Date fin -->
                 <div class="filter-group">
                     <label>Date fin</label>
-                    <input type="date" name="date_pointage__lte" value="{{ request.GET.date_pointage__lte|default:'' }}" onchange="if(this.value==''){this.name='dummy'}else{this.name='date_pointage__lte'}">
+                    <input type="date" name="date_pointage__lte" value="{{ request.GET.date_pointage__lte|default:'' }}">
                 </div>
                 <!-- Statut -->
                 <div class="filter-group">
                     <label>Statut</label>
-                    <select name="statut__exact" onchange="if(this.value==''){this.name='dummy'}else{this.name='statut__exact'}">
+                    <select name="statut__exact">
                         <option value="">Tous</option>
                         <option value="present" {% if request.GET.statut__exact == 'present' %}selected{% endif %}>Présent</option>
                         <option value="absent" {% if request.GET.statut__exact == 'absent' %}selected{% endif %}>Absent</option>
@@ -266,7 +266,7 @@
                 <!-- Période -->
                 <div class="filter-group">
                     <label>Période</label>
-                    <select name="periode__exact" onchange="if(this.value==''){this.name='dummy'}else{this.name='periode__exact'}">
+                    <select name="periode__exact">
                         <option value="">Toutes</option>
                         <option value="matin" {% if request.GET.periode__exact == 'matin' %}selected{% endif %}>Matin</option>
                         <option value="apres_midi" {% if request.GET.periode__exact == 'apres_midi' %}selected{% endif %}>Après-midi</option>
@@ -276,7 +276,7 @@
                 <!-- Site -->
                 <div class="filter-group">
                     <label>Site</label>
-                    <select name="site__id__exact" onchange="if(this.value==''){this.name='dummy'}else{this.name='site__id__exact'}">
+                    <select name="site__id__exact">
                         <option value="">Tous</option>
                         {% for site in sites_list %}
                             <option value="{{ site.id }}" {% if request.GET.site__id__exact == site.id|stringformat:"s" %}selected{% endif %}>
@@ -308,13 +308,13 @@
         </div>
         <div class="admin-actions">
             <span style="font-size: 11px; color: #94A3B8; margin-right: 4px;">Actions :</span>
-            <button class="btn-action btn-action-success" onclick="document.querySelector('select[name=action]').value='marquer_present';document.querySelector('#changelist-form').submit();">
+            <button class="btn-action btn-action-success" onclick="submitAction('marquer_present')">
                 <i class="fas fa-check"></i> Présent
             </button>
-            <button class="btn-action btn-action-warning" onclick="document.querySelector('select[name=action]').value='marquer_retard';document.querySelector('#changelist-form').submit();">
+            <button class="btn-action btn-action-warning" onclick="submitAction('marquer_retard')">
                 <i class="fas fa-clock"></i> Retard
             </button>
-            <button class="btn-action btn-action-danger" onclick="document.querySelector('select[name=action]').value='marquer_absent';document.querySelector('#changelist-form').submit();">
+            <button class="btn-action btn-action-danger" onclick="submitAction('marquer_absent')">
                 <i class="fas fa-times"></i> Absent
             </button>
         </div>
@@ -400,5 +400,47 @@
             }
         });
     });
+
+    // ============================================================
+    // FONCTION POUR LES ACTIONS EN MASSE
+    // ============================================================
+    function submitAction(actionValue) {
+        // Sélectionner le formulaire de changement de Django Admin
+        var form = document.getElementById('changelist-form');
+        if (!form) {
+            alert('Formulaire non trouvé');
+            return;
+        }
+        
+        // Sélectionner ou créer le select d'action
+        var actionSelect = form.querySelector('select[name="action"]');
+        if (!actionSelect) {
+            // Créer un select caché si il n'existe pas
+            actionSelect = document.createElement('select');
+            actionSelect.name = 'action';
+            actionSelect.style.display = 'none';
+            form.appendChild(actionSelect);
+        }
+        
+        // Définir la valeur de l'action
+        actionSelect.value = actionValue;
+        
+        // Cocher toutes les cases si aucune n'est cochée
+        var checkboxes = form.querySelectorAll('input[name="_selected_action"]:checked');
+        if (checkboxes.length === 0) {
+            // Sélectionner toutes les cases
+            var allCheckboxes = form.querySelectorAll('input[name="_selected_action"]');
+            if (allCheckboxes.length === 0) {
+                alert('Aucun pointage à sélectionner');
+                return;
+            }
+            allCheckboxes.forEach(function(cb) {
+                cb.checked = true;
+            });
+        }
+        
+        // Soumettre le formulaire
+        form.submit();
+    }
     </script>
 {% endblock %}
