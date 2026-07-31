@@ -6,11 +6,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* =====================================================
-           ADMIN HISTORIQUE POINTAGES - STYLE PREMIUM
-           ===================================================== */
+        /* ── Supprimer la double barre de recherche ── */
+        #toolbar {
+            display: none !important;
+        }
         
-        /* ── Statistiques rapides ── */
+        /* ── Stats ── */
         .stats-mini {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -134,28 +135,6 @@
             max-height: 120px;
         }
 
-        /* ── Lignes avec anomalies ── */
-        .row-anomaly {
-            border-left: 3px solid #EF4444 !important;
-        }
-        .row-retard {
-            border-left: 3px solid #F59E0B !important;
-        }
-
-        /* ── Badge retard ── */
-        .badge-retard {
-            background: #FEF3C7;
-            color: #B45309;
-            font-size: 10px;
-            font-weight: 600;
-            padding: 2px 10px;
-            border-radius: 9999px;
-        }
-        .badge-retard.important {
-            background: #FEE2E2;
-            color: #B91C1C;
-        }
-
         /* ── Filtres avancés ── */
         .filter-advanced {
             background: #F8FAFC;
@@ -245,7 +224,7 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- FILTRES AVANCÉS (DYNAMIQUES) -->
+    <!-- FILTRES AVANCÉS - Utilise les filtres Jazzmin -->
     <!-- ============================================================ -->
     <div class="filter-advanced">
         <form method="get" id="advancedFilterForm">
@@ -267,54 +246,43 @@
                 <!-- Date début -->
                 <div class="filter-group">
                     <label>Date début</label>
-                    <input type="date" name="date_debut" value="{{ request.GET.date_debut|default:'' }}">
+                    <input type="date" name="date_pointage__gte" value="{{ request.GET.date_pointage__gte|default:'' }}">
                 </div>
                 <!-- Date fin -->
                 <div class="filter-group">
                     <label>Date fin</label>
-                    <input type="date" name="date_fin" value="{{ request.GET.date_fin|default:'' }}">
+                    <input type="date" name="date_pointage__lte" value="{{ request.GET.date_pointage__lte|default:'' }}">
                 </div>
                 <!-- Statut -->
                 <div class="filter-group">
                     <label>Statut</label>
-                    <select name="statut">
+                    <select name="statut__exact">
                         <option value="">Tous</option>
-                        <option value="present" {% if request.GET.statut == 'present' %}selected{% endif %}>Présent</option>
-                        <option value="absent" {% if request.GET.statut == 'absent' %}selected{% endif %}>Absent</option>
-                        <option value="retard" {% if request.GET.statut == 'retard' %}selected{% endif %}>Retard</option>
+                        <option value="present" {% if request.GET.statut__exact == 'present' %}selected{% endif %}>Présent</option>
+                        <option value="absent" {% if request.GET.statut__exact == 'absent' %}selected{% endif %}>Absent</option>
+                        <option value="retard" {% if request.GET.statut__exact == 'retard' %}selected{% endif %}>Retard</option>
                     </select>
                 </div>
                 <!-- Période -->
                 <div class="filter-group">
                     <label>Période</label>
-                    <select name="periode">
+                    <select name="periode__exact">
                         <option value="">Toutes</option>
-                        <option value="matin" {% if request.GET.periode == 'matin' %}selected{% endif %}>Matin</option>
-                        <option value="apres_midi" {% if request.GET.periode == 'apres_midi' %}selected{% endif %}>Après-midi</option>
-                        <option value="nuit" {% if request.GET.periode == 'nuit' %}selected{% endif %}>Nuit</option>
+                        <option value="matin" {% if request.GET.periode__exact == 'matin' %}selected{% endif %}>Matin</option>
+                        <option value="apres_midi" {% if request.GET.periode__exact == 'apres_midi' %}selected{% endif %}>Après-midi</option>
+                        <option value="nuit" {% if request.GET.periode__exact == 'nuit' %}selected{% endif %}>Nuit</option>
                     </select>
                 </div>
-                <!-- Site (DYNAMIQUE) -->
+                <!-- Site -->
                 <div class="filter-group">
                     <label>Site</label>
-                    <select name="site">
+                    <select name="site__id__exact">
                         <option value="">Tous</option>
                         {% for site in sites_list %}
-                            <option value="{{ site.id }}" {% if request.GET.site == site.id|stringformat:"s" %}selected{% endif %}>
+                            <option value="{{ site.id }}" {% if request.GET.site__id__exact == site.id|stringformat:"s" %}selected{% endif %}>
                                 {{ site.nom }}
                             </option>
                         {% endfor %}
-                    </select>
-                </div>
-                <!-- Retard minimum -->
-                <div class="filter-group">
-                    <label>Retard ></label>
-                    <select name="retard_min">
-                        <option value="">Aucun</option>
-                        <option value="5" {% if request.GET.retard_min == '5' %}selected{% endif %}>5 min</option>
-                        <option value="15" {% if request.GET.retard_min == '15' %}selected{% endif %}>15 min</option>
-                        <option value="30" {% if request.GET.retard_min == '30' %}selected{% endif %}>30 min</option>
-                        <option value="60" {% if request.GET.retard_min == '60' %}selected{% endif %}>1 heure</option>
                     </select>
                 </div>
                 <!-- Recherche -->

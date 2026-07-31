@@ -362,52 +362,11 @@ class PointageAdmin(admin.ModelAdmin):
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
-        # Récupérer le queryset filtré
+        # Récupérer le queryset via la méthode standard de Django Admin
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
         
-        # Appliquer les filtres de recherche si présents
-        if request.GET.get('q'):
-            queryset = queryset.filter(
-                Q(employe__nom__icontains=request.GET['q']) |
-                Q(employe__prenom__icontains=request.GET['q']) |
-                Q(employe__matricule__icontains=request.GET['q'])
-            )
-        
-        if request.GET.get('date_debut'):
-            try:
-                date_debut = datetime.strptime(request.GET['date_debut'], '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__gte=date_debut)
-            except ValueError:
-                pass
-        
-        if request.GET.get('date_fin'):
-            try:
-                date_fin = datetime.strptime(request.GET['date_fin'], '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__lte=date_fin)
-            except ValueError:
-                pass
-        
-        if request.GET.get('statut'):
-            queryset = queryset.filter(statut=request.GET['statut'])
-        
-        if request.GET.get('periode'):
-            queryset = queryset.filter(periode=request.GET['periode'])
-        
-        if request.GET.get('site'):
-            try:
-                queryset = queryset.filter(site_id=request.GET['site'])
-            except ValueError:
-                pass
-        
-        if request.GET.get('retard_min'):
-            try:
-                retard_min = int(request.GET['retard_min'])
-                queryset = queryset.filter(retard__gte=timedelta(minutes=retard_min))
-            except ValueError:
-                pass
-        
-        # Calcul des statistiques
+        # Calcul des statistiques sur le queryset filtré
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
         retards = queryset.filter(statut='retard').count()
@@ -417,15 +376,13 @@ class PointageAdmin(admin.ModelAdmin):
             Q(statut='absent')
         ).count()
         
-        # Calcul des heures totales (pour l'affichage)
+        # Calcul des heures totales
         total_heures = timedelta()
         for p in queryset:
             if p.heures_travaillees:
                 total_heures += p.heures_travaillees
         
-        # ============================================================
-        # RÉCUPÉRER LA LISTE DES SITES POUR LE TEMPLATE
-        # ============================================================
+        # Récupérer la liste des sites pour le template
         sites_list = Site.objects.all().order_by('nom')
         
         extra_context = extra_context or {}
@@ -438,7 +395,7 @@ class PointageAdmin(admin.ModelAdmin):
             'total_heures': self._format_timedelta(total_heures),
             'employes_count': queryset.values('employe').distinct().count(),
             'total_employes': Employe.objects.filter(actif=True).count(),
-            'sites_list': sites_list,  # ← AJOUTÉ
+            'sites_list': sites_list,
         })
         
         return super().changelist_view(request, extra_context=extra_context)
