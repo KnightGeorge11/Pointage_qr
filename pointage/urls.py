@@ -81,5 +81,6 @@ urlpatterns = [
     path('api/prochain-scan/<int:employe_id>/',       get_prochain_scan,           name='prochain_scan'),
     path('api/dashboard-stats/',                      get_dashboard_stats,         name='dashboard_stats'),
     path('api/charts-data/',                          get_charts_data,             name='charts_data'),
-
+    path('admin/demande/<int:pk>/approuver/', views.approuver_demande_view, name='demande_approuver'),
+    path('admin/demande/<int:pk>/refuser/', views.refuser_demande_view, name='demande_refuser'),
 ]

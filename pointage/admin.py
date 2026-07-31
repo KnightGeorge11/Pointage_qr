@@ -4,12 +4,13 @@ from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
+from django.urls import path, reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
 from django.db.models import Q
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
@@ -338,7 +339,6 @@ class PointageAdmin(admin.ModelAdmin):
             messages.warning(request, "Aucun pointage à exporter.")
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/admin/pointage/pointage/'))
         
-        # Récupérer les dates min et max
         dates = queryset.values_list('date_pointage', flat=True).distinct().order_by('date_pointage')
         if not dates:
             messages.warning(request, "Aucune date trouvée.")
@@ -347,7 +347,6 @@ class PointageAdmin(admin.ModelAdmin):
         date_debut = dates[0]
         date_fin = dates.last()
         
-        # Construire les données par employé et par jour
         emp_data = defaultdict(lambda: defaultdict(lambda: {'matin': None, 'apres_midi': None, 'nuit': None}))
         emp_info = {}
         
@@ -355,7 +354,6 @@ class PointageAdmin(admin.ModelAdmin):
             emp_info[p.employe.id] = (p.employe.id, p.employe.get_nom_complet(), p.employe.matricule)
             emp_data[p.employe.id][p.date_pointage][p.periode] = p
         
-        # Générer la liste des jours
         def work_days(d1, d2):
             days, d = [], d1
             while d <= d2:
@@ -374,7 +372,6 @@ class PointageAdmin(admin.ModelAdmin):
         def fmt_time(t):
             return t.strftime('%H:%M') if t else '—'
         
-        # Palette de couleurs
         BLUE = '1E3A5F'
         BLUE_LIGHT = 'D6E4F0'
         ORANGE_BG = 'FEF3C7'
@@ -436,14 +433,12 @@ class PointageAdmin(admin.ModelAdmin):
             ws.column_dimensions[get_column_letter(COL_DAYS + i)].width = 14
         ws.column_dimensions[get_column_letter(COL_TOTAL)].width = 18
         
-        # Titre
         ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=COL_TOTAL)
         sc(ws['A1'],
            value=f"RÉSUMÉ DES POINTAGES  ·  Du {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}",
            bg=BLUE, fg=WHITE, bold=True, size=13)
         ws.row_dimensions[1].height = 36
         
-        # En-têtes
         HEADER_ROW = 2
         sc(ws.cell(row=HEADER_ROW, column=COL_EMP), value='Employé',
            bg=BLUE, fg=WHITE, bold=True, size=9, border=b_all(BLUE))
@@ -579,7 +574,6 @@ class PointageAdmin(admin.ModelAdmin):
                        border=Border(bottom=Side(style='medium', color=BLUE),
                                      left=sd(), right=sd()))
             
-            # Colonne TOTAL
             ws.merge_cells(start_row=base, start_column=COL_TOTAL,
                            end_row=base + 6, end_column=COL_TOTAL)
             
@@ -608,6 +602,273 @@ class PointageAdmin(admin.ModelAdmin):
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         wb.save(response)
         return response
+
+
+# ============================================================
+# DEMANDE DE MODIFICATION - AVEC BOUTONS ACCEPTER/REFUSER
+# ============================================================
+
+@admin.register(DemandeModification)
+class DemandeModificationAdmin(admin.ModelAdmin):
+    list_display = ('demandeur', 'type_action', 'cible', 'statut_badge', 'date_creation', 'boutons_action')
+    list_filter = ('statut', 'type_action', 'cible')
+    search_fields = ('demandeur__username',)
+    actions = ['approuver_demandes', 'refuser_demandes']
+
+    readonly_fields = (
+        'demandeur', 'type_action', 'cible',
+        'donnees_formatees', 'statut_badge',
+        'date_creation', 'traitee_par', 'date_traitement',
+        'boutons_fiche',
+    )
+
+    fieldsets = (
+        ('Informations', {
+            'fields': ('demandeur', 'type_action', 'cible', 'date_creation')
+        }),
+        ('Données soumises', {
+            'fields': ('donnees_formatees',)
+        }),
+        ('Statut', {
+            'fields': ('statut_badge', 'traitee_par', 'date_traitement')
+        }),
+        ('Commentaire', {
+            'fields': ('commentaire',)
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def statut_badge(self, obj):
+        styles = {
+            'en_attente': ('rgba(251,191,36,.12)', '#fbbf24', '⏳ En attente'),
+            'approuvee': ('rgba(74,222,128,.12)', '#4ade80', '✅ Approuvée'),
+            'refusee': ('rgba(248,113,113,.12)', '#f87171', '❌ Refusée'),
+        }
+        bg, color, label = styles.get(obj.statut, ('rgba(255,255,255,.07)', '#e8eaf0', obj.statut))
+        return mark_safe(
+            f'<span style="background:{bg};color:{color};padding:4px 12px;'
+            f'border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;">'
+            f'{label}</span>'
+        )
+    statut_badge.short_description = 'Statut'
+
+    def boutons_action(self, obj):
+        if obj.statut != 'en_attente':
+            return mark_safe(
+                '<span style="color:rgba(232,234,240,.3);font-size:12px;font-style:italic;">Traitée</span>'
+            )
+        url_approuver = reverse('admin:demande_approuver', args=[obj.pk])
+        url_refuser = reverse('admin:demande_refuser', args=[obj.pk])
+        return mark_safe(
+            f'<div style="display:flex;gap:6px;">'
+            f'<a href="{url_approuver}" style="background:rgba(74,222,128,.12);color:#4ade80;'
+            f'border:1px solid rgba(74,222,128,.3);padding:4px 12px;border-radius:6px;'
+            f'font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap;">✅ Accepter</a>'
+            f'<a href="{url_refuser}" style="background:rgba(248,113,113,.12);color:#f87171;'
+            f'border:1px solid rgba(248,113,113,.3);padding:4px 12px;border-radius:6px;'
+            f'font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap;">❌ Refuser</a>'
+            f'</div>'
+        )
+    boutons_action.short_description = 'Actions'
+
+    def boutons_fiche(self, obj):
+        btn_retour = (
+            '<a href="../" style="display:inline-flex;align-items:center;gap:6px;'
+            'background:rgba(255,255,255,.06);color:#e8eaf0;'
+            'border:1px solid rgba(255,255,255,.15);padding:8px 18px;'
+            'border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">'
+            '← Retour</a>'
+        )
+        if obj.statut != 'en_attente':
+            return mark_safe(btn_retour)
+
+        return mark_safe(
+            '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">'
+            '<button type="submit" name="_accepter" value="1" '
+            'style="background:rgba(74,222,128,.15);color:#4ade80;'
+            'border:1px solid rgba(74,222,128,.35);padding:8px 20px;'
+            'border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">'
+            '✅ Accepter</button>'
+            '<button type="submit" name="_refuser" value="1" '
+            'style="background:rgba(248,113,113,.15);color:#f87171;'
+            'border:1px solid rgba(248,113,113,.35);padding:8px 20px;'
+            'border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">'
+            '❌ Refuser</button>'
+            + btn_retour +
+            '</div>'
+        )
+    boutons_fiche.short_description = ''
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path('<int:pk>/approuver/', self.admin_site.admin_view(self.approuver_view), name='demande_approuver'),
+            path('<int:pk>/refuser/', self.admin_site.admin_view(self.refuser_view), name='demande_refuser'),
+        ]
+        return custom + urls
+
+    def approuver_view(self, request, pk):
+        demande = get_object_or_404(DemandeModification, pk=pk)
+        if demande.statut == 'en_attente':
+            try:
+                self._appliquer_demande(demande)
+                demande.statut = 'approuvee'
+                demande.traitee_par = request.user
+                demande.date_traitement = timezone.now()
+                demande.save()
+                self.message_user(request, f"✅ Demande #{pk} approuvée et appliquée.")
+            except Exception as e:
+                self.message_user(request, f"❌ Erreur : {e}", level='error')
+        return HttpResponseRedirect("../../")
+
+    def refuser_view(self, request, pk):
+        demande = get_object_or_404(DemandeModification, pk=pk)
+        if demande.statut == 'en_attente':
+            demande.statut = 'refusee'
+            demande.traitee_par = request.user
+            demande.date_traitement = timezone.now()
+            demande.save()
+            self.message_user(request, f"❌ Demande #{pk} refusée.")
+        return HttpResponseRedirect("../../")
+
+    def response_change(self, request, obj):
+        if '_accepter' in request.POST and obj.statut == 'en_attente':
+            try:
+                self._appliquer_demande(obj)
+                obj.statut = 'approuvee'
+                obj.traitee_par = request.user
+                obj.date_traitement = timezone.now()
+                obj.save()
+                self.message_user(request, f"✅ Demande #{obj.pk} approuvée et appliquée.")
+            except Exception as e:
+                self.message_user(request, f"❌ Erreur : {e}", level='error')
+            return HttpResponseRedirect("../")
+
+        if '_refuser' in request.POST and obj.statut == 'en_attente':
+            obj.statut = 'refusee'
+            obj.traitee_par = request.user
+            obj.date_traitement = timezone.now()
+            obj.save()
+            self.message_user(request, f"❌ Demande #{obj.pk} refusée.")
+            return HttpResponseRedirect("../")
+
+        return super().response_change(request, obj)
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            original = DemandeModification.objects.get(pk=obj.pk)
+            obj.demandeur = original.demandeur
+            obj.type_action = original.type_action
+            obj.cible = original.cible
+            obj.cible_id = original.cible_id
+            obj.donnees = original.donnees
+            obj.statut = original.statut
+            obj.traitee_par = original.traitee_par
+            obj.date_traitement = original.date_traitement
+        super().save_model(request, obj, form, change)
+
+    def donnees_formatees(self, obj):
+        if not obj.donnees:
+            return '—'
+        lignes = []
+        for cle, valeur in obj.donnees.items():
+            lignes.append(format_html(
+                '<tr>'
+                '<td style="padding:8px 14px;color:rgba(255,255,255,.45);font-size:11px;'
+                'text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;'
+                'border-bottom:1px solid rgba(255,255,255,.06)">{}</td>'
+                '<td style="padding:8px 14px;font-weight:500;color:#e8eaf0;'
+                'border-bottom:1px solid rgba(255,255,255,.06)">{}</td>'
+                '</tr>',
+                cle, valeur
+            ))
+        return format_html(
+            '<table style="border-collapse:collapse;width:100%;background:#1c2236;'
+            'border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">{}</table>',
+            mark_safe(''.join(lignes))
+        )
+    donnees_formatees.short_description = "Données de la demande"
+
+    @admin.action(description="✅ Approuver les demandes sélectionnées")
+    def approuver_demandes(self, request, queryset):
+        for demande in queryset.filter(statut='en_attente'):
+            try:
+                self._appliquer_demande(demande)
+                demande.statut = 'approuvee'
+                demande.traitee_par = request.user
+                demande.date_traitement = timezone.now()
+                demande.save()
+            except Exception as e:
+                self.message_user(request, f"❌ Erreur demande #{demande.pk} : {e}", level='error')
+        self.message_user(request, "✅ Demandes approuvées et appliquées.")
+
+    @admin.action(description="❌ Refuser les demandes sélectionnées")
+    def refuser_demandes(self, request, queryset):
+        for demande in queryset.filter(statut='en_attente'):
+            demande.statut = 'refusee'
+            demande.traitee_par = request.user
+            demande.date_traitement = timezone.now()
+            demande.save()
+        self.message_user(request, "❌ Demandes refusées.")
+
+    def _appliquer_demande(self, demande):
+        d = demande.donnees
+
+        if demande.cible == 'employe':
+            if demande.type_action == 'create':
+                Employe.objects.create(
+                    nom=d['nom'], prenom=d['prenom'],
+                    matricule=d['matricule'],
+                    poste_id=d.get('poste'),
+                    actif=d.get('actif', True)
+                )
+            elif demande.type_action == 'update':
+                Employe.objects.filter(pk=demande.cible_id).update(
+                    nom=d['nom'], prenom=d['prenom'],
+                    matricule=d['matricule'],
+                    poste_id=d.get('poste'),
+                    actif=d.get('actif', True)
+                )
+            elif demande.type_action == 'delete':
+                Employe.objects.filter(pk=demande.cible_id).update(actif=False)
+
+        elif demande.cible == 'site':
+            if demande.type_action == 'create':
+                Site.objects.create(
+                    nom=d['nom'], adresse=d.get('adresse', ''),
+                    heure_ouverture_matin=d['heure_ouverture_matin'],
+                    heure_fermeture_matin=d['heure_fermeture_matin'],
+                    heure_ouverture_apres_midi=d['heure_ouverture_apres_midi'],
+                    heure_fermeture_apres_midi=d['heure_fermeture_apres_midi'],
+                )
+            elif demande.type_action == 'update':
+                Site.objects.filter(pk=demande.cible_id).update(
+                    nom=d['nom'], adresse=d.get('adresse', ''),
+                    heure_ouverture_matin=d['heure_ouverture_matin'],
+                    heure_fermeture_matin=d['heure_fermeture_matin'],
+                    heure_ouverture_apres_midi=d['heure_ouverture_apres_midi'],
+                    heure_fermeture_apres_midi=d['heure_fermeture_apres_midi'],
+                )
+            elif demande.type_action == 'delete':
+                Site.objects.filter(pk=demande.cible_id).delete()
+
+        elif demande.cible == 'poste':
+            if demande.type_action == 'create':
+                Poste.objects.create(
+                    nom=d['nom'],
+                    description=d.get('description', ''),
+                    couleur=d.get('couleur', '#4361ee')
+                )
+            elif demande.type_action == 'update':
+                Poste.objects.filter(pk=demande.cible_id).update(
+                    nom=d['nom'],
+                    description=d.get('description', ''),
+                    couleur=d.get('couleur', '#4361ee')
+                )
+            elif demande.type_action == 'delete':
+                Poste.objects.filter(pk=demande.cible_id).delete()
 
 
 # ============================================================
@@ -646,77 +907,6 @@ class ScanAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('employe', 'site')
-
-
-# ============================================================
-# DEMANDE DE MODIFICATION
-# ============================================================
-
-@admin.register(DemandeModification)
-class DemandeModificationAdmin(admin.ModelAdmin):
-    list_display = ('demandeur', 'type_action', 'cible', 'statut_badge', 'date_creation')
-    list_filter = ('statut', 'type_action', 'cible')
-    search_fields = ('demandeur__username',)
-
-    readonly_fields = (
-        'demandeur', 'type_action', 'cible',
-        'donnees_formatees', 'statut_badge',
-        'date_creation', 'traitee_par', 'date_traitement',
-    )
-
-    fieldsets = (
-        ('Informations', {
-            'fields': ('demandeur', 'type_action', 'cible', 'date_creation')
-        }),
-        ('Données soumises', {
-            'fields': ('donnees_formatees',)
-        }),
-        ('Statut', {
-            'fields': ('statut_badge', 'traitee_par', 'date_traitement')
-        }),
-        ('Commentaire', {
-            'fields': ('commentaire',)
-        }),
-    )
-
-    def has_add_permission(self, request):
-        return False
-
-    def statut_badge(self, obj):
-        styles = {
-            'en_attente': ('rgba(251,191,36,.12)', '#fbbf24', '⏳ En attente'),
-            'approuvee': ('rgba(74,222,128,.12)', '#4ade80', '✅ Approuvée'),
-            'refusee': ('rgba(248,113,113,.12)', '#f87171', '❌ Refusée'),
-        }
-        bg, color, label = styles.get(obj.statut, ('rgba(255,255,255,.07)', '#e8eaf0', obj.statut))
-        return mark_safe(
-            f'<span style="background:{bg};color:{color};padding:4px 12px;'
-            f'border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;">'
-            f'{label}</span>'
-        )
-    statut_badge.short_description = 'Statut'
-
-    def donnees_formatees(self, obj):
-        if not obj.donnees:
-            return '—'
-        lignes = []
-        for cle, valeur in obj.donnees.items():
-            lignes.append(format_html(
-                '<tr>'
-                '<td style="padding:8px 14px;color:rgba(255,255,255,.45);font-size:11px;'
-                'text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;'
-                'border-bottom:1px solid rgba(255,255,255,.06)">{}</td>'
-                '<td style="padding:8px 14px;font-weight:500;color:#e8eaf0;'
-                'border-bottom:1px solid rgba(255,255,255,.06)">{}</td>'
-                '</tr>',
-                cle, valeur
-            ))
-        return format_html(
-            '<table style="border-collapse:collapse;width:100%;background:#1c2236;'
-            'border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">{}</table>',
-            mark_safe(''.join(lignes))
-        )
-    donnees_formatees.short_description = "Données de la demande"
 
 
 # ============================================================

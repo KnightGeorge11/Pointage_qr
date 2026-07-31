@@ -32,6 +32,70 @@ from decimal import Decimal
 from .services import process_scan, parse_qr_data
 from .anomalies import enregistrer_anomalie, marquer_traitee, marquer_cloturee, compter_anomalies_ouvertes
 
+
+# ============================================================
+# VUES POUR LES DEMANDES DE MODIFICATION (Accepter/Refuser)
+# ============================================================
+
+@login_required
+def approuver_demande_view(request, pk):
+    """Approuve une demande de modification et applique les changements"""
+    from django.shortcuts import get_object_or_404
+    from .models import DemandeModification
+    from .admin import DemandeModificationAdmin
+    
+    if not request.user.is_staff:
+        messages.error(request, "❌ Seul un administrateur peut approuver une demande.")
+        return redirect('admin:pointage_demandemodification_changelist')
+    
+    demande = get_object_or_404(DemandeModification, pk=pk)
+    
+    if demande.statut != 'en_attente':
+        messages.warning(request, f"⚠️ Cette demande a déjà été traitée.")
+        return redirect('admin:pointage_demandemodification_changelist')
+    
+    try:
+        # Utiliser la méthode existante pour appliquer la demande
+        admin_instance = DemandeModificationAdmin(DemandeModification, None)
+        admin_instance._appliquer_demande(demande)
+        
+        demande.statut = 'approuvee'
+        demande.traitee_par = request.user
+        demande.date_traitement = timezone.now()
+        demande.save()
+        
+        messages.success(request, f"✅ Demande #{pk} approuvée et appliquée avec succès.")
+    except Exception as e:
+        messages.error(request, f"❌ Erreur lors de l'application : {e}")
+    
+    return redirect('admin:pointage_demandemodification_changelist')
+
+
+@login_required
+def refuser_demande_view(request, pk):
+    """Refuse une demande de modification"""
+    from django.shortcuts import get_object_or_404
+    from .models import DemandeModification
+    
+    if not request.user.is_staff:
+        messages.error(request, "❌ Seul un administrateur peut refuser une demande.")
+        return redirect('admin:pointage_demandemodification_changelist')
+    
+    demande = get_object_or_404(DemandeModification, pk=pk)
+    
+    if demande.statut != 'en_attente':
+        messages.warning(request, f"⚠️ Cette demande a déjà été traitée.")
+        return redirect('admin:pointage_demandemodification_changelist')
+    
+    demande.statut = 'refusee'
+    demande.traitee_par = request.user
+    demande.date_traitement = timezone.now()
+    demande.save()
+    
+    messages.success(request, f"❌ Demande #{pk} refusée.")
+    return redirect('admin:pointage_demandemodification_changelist')
+
+
 # ---------------------------
 # FONCTIONS UTILITAIRES
 # ---------------------------
@@ -190,8 +254,6 @@ def scanner_view(request):
         site_id     = request.POST.get('site_id')
         periode_type = request.POST.get('periode_type', 'auto')
 
-        # L'interface web peut envoyer soit le QR brut, soit le matricule seul
-        # (le scanner HTML envoie le QR complet ; le formulaire manuel envoie le matricule)
         if raw_qr:
             parsed = parse_qr_data(raw_qr)
             if not parsed:
@@ -200,7 +262,6 @@ def scanner_view(request):
             mat   = parsed['matricule']
             token = parsed['token']
         elif matricule:
-            # Formulaire manuel : récupérer le token depuis la DB
             try:
                 emp   = Employe.objects.get(matricule=matricule, actif=True)
                 mat   = emp.matricule
@@ -234,7 +295,6 @@ def scanner_view(request):
 
         return redirect('scanner')
 
-    # GET
     today                = timezone.localtime(timezone.now()).date()
     total_employes       = Employe.objects.filter(actif=True).count()
     pointages_aujourdhui = Pointage.objects.filter(date_pointage=today)
@@ -265,10 +325,8 @@ def _creer_demande(request, type_action, cible, form=None, cible_id=None):
     if form:
         for field, value in form.cleaned_data.items():
             if hasattr(value, 'pk'):
-                # ForeignKey
                 donnees[field] = value.pk
             elif hasattr(value, '__iter__') and not isinstance(value, str):
-                # ManyToMany (ex: sites)
                 donnees[field] = [v.pk if hasattr(v, 'pk') else v for v in value]
             else:
                 donnees[field] = str(value) if value is not None else None
@@ -283,7 +341,7 @@ def _creer_demande(request, type_action, cible, form=None, cible_id=None):
 
 
 # ---------------------------
-# VUES POUR LES EMPLOYÉS
+# VUES POUR LES EMPLOYÉS - CORRIGÉES (Admin crée directement)
 # ---------------------------
 
 class EmployeListView(LoginRequiredMixin, ListView):
@@ -296,7 +354,6 @@ class EmployeListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Demandes en attente liées aux employés, visibles par l'utilisateur
         context['demandes_en_attente'] = DemandeModification.objects.filter(
             statut='en_attente', cible='employe'
         ).count()
@@ -308,15 +365,20 @@ def employe_create_view(request):
     if request.method == 'POST':
         form = EmployeForm(request.POST)
         if form.is_valid():
-            _creer_demande(request, 'create', 'employe', form=form)
-            messages.success(request, "✅ Votre demande d'ajout d'employé a été envoyée à l'administrateur.")
-            return redirect('employes')
+            if request.user.is_staff:
+                employe = form.save()
+                messages.success(request, f"✅ Employé {employe.get_nom_complet()} créé avec succès.")
+                return redirect('employes')
+            else:
+                _creer_demande(request, 'create', 'employe', form=form)
+                messages.success(request, "✅ Votre demande d'ajout d'employé a été envoyée à l'administrateur.")
+                return redirect('employes')
     else:
         form = EmployeForm()
     return render(request, 'pointage/employe_form.html', {
         'form': form,
-        'mode': 'demande',
-        'titre': 'Demande d\'ajout d\'employé',
+        'mode': 'demande' if not request.user.is_staff else 'creation',
+        'titre': 'Ajout d\'employé' if request.user.is_staff else 'Demande d\'ajout d\'employé',
     })
 
 
@@ -326,16 +388,21 @@ def employe_update_view(request, pk):
     if request.method == 'POST':
         form = EmployeForm(request.POST, instance=employe)
         if form.is_valid():
-            _creer_demande(request, 'update', 'employe', form=form, cible_id=pk)
-            messages.success(request, "✅ Votre demande de modification a été envoyée à l'administrateur.")
-            return redirect('employes')
+            if request.user.is_staff:
+                form.save()
+                messages.success(request, f"✅ Employé {employe.get_nom_complet()} modifié avec succès.")
+                return redirect('employes')
+            else:
+                _creer_demande(request, 'update', 'employe', form=form, cible_id=pk)
+                messages.success(request, "✅ Votre demande de modification a été envoyée à l'administrateur.")
+                return redirect('employes')
     else:
         form = EmployeForm(instance=employe)
     return render(request, 'pointage/employe_form.html', {
         'form': form,
         'object': employe,
-        'mode': 'demande',
-        'titre': f'Demande de modification — {employe.get_nom_complet()}',
+        'mode': 'demande' if not request.user.is_staff else 'modification',
+        'titre': f'Modification de {employe.get_nom_complet()}' if request.user.is_staff else f'Demande de modification — {employe.get_nom_complet()}',
     })
 
 
@@ -343,17 +410,23 @@ def employe_update_view(request, pk):
 def employe_delete_view(request, pk):
     employe = get_object_or_404(Employe, pk=pk)
     if request.method == 'POST':
-        _creer_demande(request, 'delete', 'employe', cible_id=pk)
-        messages.success(request, "✅ Votre demande de suppression a été envoyée à l'administrateur.")
-        return redirect('employes')
+        if request.user.is_staff:
+            nom = employe.get_nom_complet()
+            employe.delete()
+            messages.success(request, f"✅ Employé {nom} supprimé avec succès.")
+            return redirect('employes')
+        else:
+            _creer_demande(request, 'delete', 'employe', cible_id=pk)
+            messages.success(request, "✅ Votre demande de suppression a été envoyée à l'administrateur.")
+            return redirect('employes')
     return render(request, 'pointage/employe_confirm_delete.html', {
         'object': employe,
-        'mode': 'demande',
+        'mode': 'demande' if not request.user.is_staff else 'suppression',
     })
 
 
 # ---------------------------
-# VUES POUR LES SITES
+# VUES POUR LES SITES - CORRIGÉES (Admin crée directement)
 # ---------------------------
 
 class SiteListView(LoginRequiredMixin, ListView):
@@ -374,15 +447,20 @@ def site_create_view(request):
     if request.method == 'POST':
         form = SiteForm(request.POST)
         if form.is_valid():
-            _creer_demande(request, 'create', 'site', form=form)
-            messages.success(request, "✅ Votre demande d'ajout de site a été envoyée à l'administrateur.")
-            return redirect('sites')
+            if request.user.is_staff:
+                site = form.save()
+                messages.success(request, f"✅ Site {site.nom} créé avec succès.")
+                return redirect('sites')
+            else:
+                _creer_demande(request, 'create', 'site', form=form)
+                messages.success(request, "✅ Votre demande d'ajout de site a été envoyée à l'administrateur.")
+                return redirect('sites')
     else:
         form = SiteForm()
     return render(request, 'pointage/site_form.html', {
         'form': form,
-        'mode': 'demande',
-        'titre': 'Demande d\'ajout de site',
+        'mode': 'demande' if not request.user.is_staff else 'creation',
+        'titre': 'Ajout de site' if request.user.is_staff else 'Demande d\'ajout de site',
     })
 
 
@@ -392,21 +470,26 @@ def site_update_view(request, pk):
     if request.method == 'POST':
         form = SiteForm(request.POST, instance=site)
         if form.is_valid():
-            _creer_demande(request, 'update', 'site', form=form, cible_id=pk)
-            messages.success(request, "✅ Votre demande de modification a été envoyée à l'administrateur.")
-            return redirect('sites')
+            if request.user.is_staff:
+                form.save()
+                messages.success(request, f"✅ Site {site.nom} modifié avec succès.")
+                return redirect('sites')
+            else:
+                _creer_demande(request, 'update', 'site', form=form, cible_id=pk)
+                messages.success(request, "✅ Votre demande de modification a été envoyée à l'administrateur.")
+                return redirect('sites')
     else:
         form = SiteForm(instance=site)
     return render(request, 'pointage/site_form.html', {
         'form': form,
         'object': site,
-        'mode': 'demande',
-        'titre': f'Demande de modification — {site.nom}',
+        'mode': 'demande' if not request.user.is_staff else 'modification',
+        'titre': f'Modification de {site.nom}' if request.user.is_staff else f'Demande de modification — {site.nom}',
     })
 
 
 # ---------------------------
-# VUES POUR LES POSTES
+# VUES POUR LES POSTES - CORRIGÉES (Admin crée directement)
 # ---------------------------
 
 class PosteListView(LoginRequiredMixin, ListView):
@@ -427,15 +510,20 @@ def poste_create_view(request):
     if request.method == 'POST':
         form = PosteForm(request.POST)
         if form.is_valid():
-            _creer_demande(request, 'create', 'poste', form=form)
-            messages.success(request, "✅ Votre demande d'ajout de poste a été envoyée à l'administrateur.")
-            return redirect('postes')
+            if request.user.is_staff:
+                poste = form.save()
+                messages.success(request, f"✅ Poste {poste.nom} créé avec succès.")
+                return redirect('postes')
+            else:
+                _creer_demande(request, 'create', 'poste', form=form)
+                messages.success(request, "✅ Votre demande d'ajout de poste a été envoyée à l'administrateur.")
+                return redirect('postes')
     else:
         form = PosteForm()
     return render(request, 'pointage/poste_form.html', {
         'form': form,
-        'mode': 'demande',
-        'titre': 'Demande d\'ajout de poste',
+        'mode': 'demande' if not request.user.is_staff else 'creation',
+        'titre': 'Ajout de poste' if request.user.is_staff else 'Demande d\'ajout de poste',
     })
 
 
@@ -445,16 +533,21 @@ def poste_update_view(request, pk):
     if request.method == 'POST':
         form = PosteForm(request.POST, instance=poste)
         if form.is_valid():
-            _creer_demande(request, 'update', 'poste', form=form, cible_id=pk)
-            messages.success(request, "✅ Votre demande de modification a été envoyée à l'administrateur.")
-            return redirect('postes')
+            if request.user.is_staff:
+                form.save()
+                messages.success(request, f"✅ Poste {poste.nom} modifié avec succès.")
+                return redirect('postes')
+            else:
+                _creer_demande(request, 'update', 'poste', form=form, cible_id=pk)
+                messages.success(request, "✅ Votre demande de modification a été envoyée à l'administrateur.")
+                return redirect('postes')
     else:
         form = PosteForm(instance=poste)
     return render(request, 'pointage/poste_form.html', {
         'form': form,
         'object': poste,
-        'mode': 'demande',
-        'titre': f'Demande de modification — {poste.nom}',
+        'mode': 'demande' if not request.user.is_staff else 'modification',
+        'titre': f'Modification de {poste.nom}' if request.user.is_staff else f'Demande de modification — {poste.nom}',
     })
 
 
@@ -462,12 +555,18 @@ def poste_update_view(request, pk):
 def poste_delete_view(request, pk):
     poste = get_object_or_404(Poste, pk=pk)
     if request.method == 'POST':
-        _creer_demande(request, 'delete', 'poste', cible_id=pk)
-        messages.success(request, "✅ Votre demande de suppression a été envoyée à l'administrateur.")
-        return redirect('postes')
+        if request.user.is_staff:
+            nom = poste.nom
+            poste.delete()
+            messages.success(request, f"✅ Poste {nom} supprimé avec succès.")
+            return redirect('postes')
+        else:
+            _creer_demande(request, 'delete', 'poste', cible_id=pk)
+            messages.success(request, "✅ Votre demande de suppression a été envoyée à l'administrateur.")
+            return redirect('postes')
     return render(request, 'pointage/poste_confirm_delete.html', {
         'object': poste,
-        'mode': 'demande',
+        'mode': 'demande' if not request.user.is_staff else 'suppression',
     })
 
 
@@ -484,7 +583,6 @@ class PointageListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         queryset = Pointage.objects.all().select_related('employe', 'site').prefetch_related('scans')
 
-        # Filtre par plage de dates
         date_debut = self.request.GET.get('date_debut')
         date_fin   = self.request.GET.get('date_fin')
         if date_debut:
@@ -603,12 +701,6 @@ class PointageDetailView(LoginRequiredMixin, DetailView):
 
 
 class PointageDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
-    """Suppression d'un pointage — réservée à l'Admin/RH (is_staff).
-
-    role='user' ne doit jamais pouvoir modifier/créer/supprimer un
-    Pointage directement : seul l'Admin/RH le peut (via cette vue ou
-    PointageAdmin), et le traitement/correction des anomalies reste
-    exclusivement dans l'interface Admin/RH (Phase 4)."""
     model         = Pointage
     template_name = 'pointage/pointage_confirm_delete.html'
     success_url   = reverse_lazy('pointages')
@@ -626,40 +718,12 @@ class PointageDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
 
 # ============================================================
-# ANOMALIES DE POINTAGE (Phase 4)
+# ANOMALIES DE POINTAGE
 # ============================================================
-#
-# Consultation, traitement et clôture des anomalies enregistrées en
-# effet de bord par services.py/anomalies.py. Cette vue ne prend aucune
-# décision métier : elle affiche ce qui a déjà été décidé et délègue le
-# changement de statut aux fonctions de anomalies.py.
 
 @login_required
 def alertes_rh_view(request):
-    """
-    Consultation des anomalies - accessible à tous les utilisateurs authentifiés.
-    Traitement (POST) - réservé à l'Admin/RH (is_staff).
-    """
-    # ============================================================
-    # LOG DE DIAGNOSTIC - À SUPPRIMER APRÈS VÉRIFICATION
-    # ============================================================
-    print("=" * 80)
-    print("🔴🔴🔴 alertes_rh_view EXÉCUTÉE 🔴🔴🔴")
-    print("=" * 80)
-    print(f"  ➤ Utilisateur : {request.user}")
-    print(f"  ➤ Username    : {request.user.username}")
-    print(f"  ➤ is_staff    : {request.user.is_staff}")
-    print(f"  ➤ role        : {getattr(request.user, 'role', 'NON DÉFINI')}")
-    print(f"  ➤ Méthode     : {request.method}")
-    print(f"  ➤ URL         : {request.path}")
-    print(f"  ➤ GET params  : {dict(request.GET)}")
-    print(f"  ➤ POST data   : {dict(request.POST) if request.method == 'POST' else 'N/A'}")
-    print("=" * 80)
-    # ============================================================
-    
-    # --- TRAITEMENT POST (réservé à l'Admin/RH) ---
     if request.method == 'POST':
-        # Vérification des droits
         if not request.user.is_staff:
             messages.error(request, "❌ Seul un administrateur ou RH peut traiter une anomalie.")
             return redirect('alertes_rh')
@@ -694,7 +758,6 @@ def alertes_rh_view(request):
             
         return redirect('alertes_rh')
 
-    # --- CONSULTATION GET (accessible à tous) ---
     filter_type = request.GET.get('type', '')
     filter_statut = request.GET.get('statut', '')
     filter_search = request.GET.get('search', '').strip()
@@ -715,139 +778,22 @@ def alertes_rh_view(request):
             Q(matricule_scanne__icontains=filter_search)
         )
 
-    # ================================================================
-    # AJOUT : Calcul des statistiques pour les mini-stats
-    # ================================================================
-    # Total des anomalies (toutes)
     total_alertes = qs.count()
-    
-    # Compteurs par statut (sur l'ensemble, pas seulement la page filtrée)
     ouvertes = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_OUVERTE).count()
     traitees = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_TRAITEE).count()
     cloturees = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_CLOTUREE).count()
-    non_traitees = ouvertes  # pour le badge de l'en-tête
-    # ================================================================
+    non_traitees = ouvertes
 
     paginator = Paginator(qs, 20)
     alertes = paginator.get_page(request.GET.get('page'))
 
     context = {
         'alertes': alertes,
-        'non_traitees': non_traitees,  # Badge d'en-tête
-        'ouvertes': ouvertes,          # Mini-stat "Ouvertes"
-        'traitees': traitees,          # Mini-stat "Traitées"
-        'cloturees': cloturees,        # Mini-stat "Clôturées"
-        'total_alertes': total_alertes, # Mini-stat "Total"
-        'types_alerte': AnomaliePointage.TYPE_CHOICES,
-        'filter_type': filter_type,
-        'filter_statut': filter_statut,
-        'filter_search': filter_search,
-        'user_is_staff': request.user.is_staff,
-    }
-    return render(request, 'admin/pointage/alerte/alertes_rh.html', context)@login_required
-def alertes_rh_view(request):
-    """
-    Consultation des anomalies - accessible à tous les utilisateurs authentifiés.
-    Traitement (POST) - réservé à l'Admin/RH (is_staff).
-    """
-    # ============================================================
-    # LOG DE DIAGNOSTIC - À SUPPRIMER APRÈS VÉRIFICATION
-    # ============================================================
-    print("=" * 80)
-    print("🔴🔴🔴 alertes_rh_view EXÉCUTÉE 🔴🔴🔴")
-    print("=" * 80)
-    print(f"  ➤ Utilisateur : {request.user}")
-    print(f"  ➤ Username    : {request.user.username}")
-    print(f"  ➤ is_staff    : {request.user.is_staff}")
-    print(f"  ➤ role        : {getattr(request.user, 'role', 'NON DÉFINI')}")
-    print(f"  ➤ Méthode     : {request.method}")
-    print(f"  ➤ URL         : {request.path}")
-    print(f"  ➤ GET params  : {dict(request.GET)}")
-    print(f"  ➤ POST data   : {dict(request.POST) if request.method == 'POST' else 'N/A'}")
-    print("=" * 80)
-    # ============================================================
-    
-    # --- TRAITEMENT POST (réservé à l'Admin/RH) ---
-    if request.method == 'POST':
-        # Vérification des droits
-        if not request.user.is_staff:
-            messages.error(request, "❌ Seul un administrateur ou RH peut traiter une anomalie.")
-            return redirect('alertes_rh')
-        
-        anomalie = get_object_or_404(AnomaliePointage, pk=request.POST.get('anomalie_id'))
-        action = request.POST.get('action')
-        
-        try:
-            if action == 'traiter':
-                commentaire = request.POST.get('commentaire', '').strip()
-                champ = request.POST.get('champ_corrige', '').strip()
-                ancienne = request.POST.get('ancienne_valeur', '').strip()
-                nouvelle = request.POST.get('nouvelle_valeur', '').strip()
-                corrections = []
-                if champ:
-                    corrections.append({
-                        'champ': champ,
-                        'ancienne_valeur': ancienne,
-                        'nouvelle_valeur': nouvelle,
-                    })
-                marquer_traitee(anomalie, request.user, commentaire=commentaire, corrections=corrections)
-                messages.success(request, f"✅ Anomalie #{anomalie.pk} marquée comme traitée.")
-                
-            elif action == 'cloturer':
-                marquer_cloturee(anomalie, request.user)
-                messages.success(request, f"🔒 Anomalie #{anomalie.pk} clôturée.")
-                
-        except ValueError as e:
-            messages.error(request, f"❌ {e}")
-        except PermissionError as e:
-            messages.error(request, f"❌ {e}")
-            
-        return redirect('alertes_rh')
-
-    # --- CONSULTATION GET (accessible à tous) ---
-    filter_type = request.GET.get('type', '')
-    filter_statut = request.GET.get('statut', '')
-    filter_search = request.GET.get('search', '').strip()
-
-    qs = AnomaliePointage.objects.select_related(
-        'employe', 'site', 'traitement', 'traitement__administrateur', 'cloturee_par'
-    )
-    
-    if filter_type:
-        qs = qs.filter(type=filter_type)
-    if filter_statut:
-        qs = qs.filter(statut=filter_statut)
-    if filter_search:
-        qs = qs.filter(
-            Q(employe__nom__icontains=filter_search) |
-            Q(employe__prenom__icontains=filter_search) |
-            Q(employe__matricule__icontains=filter_search) |
-            Q(matricule_scanne__icontains=filter_search)
-        )
-
-    # ================================================================
-    # AJOUT : Calcul des statistiques pour les mini-stats
-    # ================================================================
-    # Total des anomalies (toutes)
-    total_alertes = qs.count()
-    
-    # Compteurs par statut (sur l'ensemble, pas seulement la page filtrée)
-    ouvertes = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_OUVERTE).count()
-    traitees = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_TRAITEE).count()
-    cloturees = AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_CLOTUREE).count()
-    non_traitees = ouvertes  # pour le badge de l'en-tête
-    # ================================================================
-
-    paginator = Paginator(qs, 20)
-    alertes = paginator.get_page(request.GET.get('page'))
-
-    context = {
-        'alertes': alertes,
-        'non_traitees': non_traitees,  # Badge d'en-tête
-        'ouvertes': ouvertes,          # Mini-stat "Ouvertes"
-        'traitees': traitees,          # Mini-stat "Traitées"
-        'cloturees': cloturees,        # Mini-stat "Clôturées"
-        'total_alertes': total_alertes, # Mini-stat "Total"
+        'non_traitees': non_traitees,
+        'ouvertes': ouvertes,
+        'traitees': traitees,
+        'cloturees': cloturees,
+        'total_alertes': total_alertes,
         'types_alerte': AnomaliePointage.TYPE_CHOICES,
         'filter_type': filter_type,
         'filter_statut': filter_statut,
@@ -862,13 +808,11 @@ def export_resume_excel(request):
     """Export résumé par employé entre 2 dates — format tableau par jour"""
     from collections import defaultdict
 
-    # --- Récupération des paramètres ---
     date_debut_str = request.GET.get('date_debut')
     date_fin_str   = request.GET.get('date_fin')
     employe_filter = request.GET.get('employe')
     site_filter    = request.GET.get('site')
 
-    # --- Détermination des dates (avec fallback) ---
     try:
         if date_debut_str and date_fin_str:
             date_debut = datetime.strptime(date_debut_str, '%Y-%m-%d').date()
@@ -885,7 +829,6 @@ def export_resume_excel(request):
             today = timezone.localtime(timezone.now()).date()
             date_debut = date_fin = today
 
-    # --- Génération du fichier Excel ---
     try:
         def work_days(d1, d2):
             days, d = [], d1
@@ -914,7 +857,6 @@ def export_resume_excel(request):
             emp_info[p.employe.id] = (p.employe.id, p.employe.get_nom_complet(), p.employe.matricule)
             emp_data[p.employe.id][p.date_pointage][p.periode] = p
 
-        # ✅ Helper formaté utilisant get_duree_formatee()
         def fmt_duree(pointage):
             if not pointage or not pointage.heures_travaillees:
                 return '—'
@@ -923,7 +865,6 @@ def export_resume_excel(request):
         def fmt_time(t):
             return t.strftime('%H:%M') if t else '—'
 
-        # Palette de couleurs
         BLUE       = '1E3A5F'
         BLUE_LIGHT = 'D6E4F0'
         ORANGE_BG  = 'FEF3C7'
@@ -985,14 +926,12 @@ def export_resume_excel(request):
             ws.column_dimensions[get_column_letter(COL_DAYS + i)].width = 14
         ws.column_dimensions[get_column_letter(COL_TOTAL)].width = 18
 
-        # Titre
         ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=COL_TOTAL)
         sc(ws['A1'],
            value=f"RÉSUMÉ DES POINTAGES  ·  Du {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}",
            bg=BLUE, fg=WHITE, bold=True, size=13)
         ws.row_dimensions[1].height = 36
 
-        # En-têtes
         HEADER_ROW = 2
         sc(ws.cell(row=HEADER_ROW, column=COL_EMP), value='Employé',
            bg=BLUE, fg=WHITE, bold=True, size=9, border=b_all(BLUE))
@@ -1128,7 +1067,6 @@ def export_resume_excel(request):
                        border=Border(bottom=Side(style='medium', color=BLUE),
                                      left=sd(), right=sd()))
 
-            # Colonne TOTAL
             ws.merge_cells(start_row=base, start_column=COL_TOTAL,
                            end_row=base + 6, end_column=COL_TOTAL)
             
@@ -1188,13 +1126,6 @@ class SiteViewSet(viewsets.ModelViewSet):
 
 
 class PointageViewSet(viewsets.ModelViewSet):
-    """
-    role='user' peut consulter (list/retrieve) mais ne doit jamais
-    pouvoir créer/modifier/supprimer un Pointage directement via l'API :
-    seul l'Admin/RH (is_staff) le peut. Ce n'est pas lié à
-    DemandeModification (qui ne concerne que Employé/Site/Poste) — c'est
-    une restriction directe sur ce ViewSet.
-    """
     queryset           = Pointage.objects.all()
 
     def get_permissions(self):
@@ -1233,11 +1164,6 @@ class PointageViewSet(viewsets.ModelViewSet):
 
 
 class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    API de consultation et de traitement des anomalies de pointage.
-    - Lecture : accessible à tous les utilisateurs authentifiés
-    - Traitement/Clôture : réservé à l'Admin/RH (is_staff)
-    """
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
@@ -1260,25 +1186,6 @@ class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=['post'])
     def traiter(self, request, pk=None):
-        """
-        Traiter une anomalie - Réservé à l'Admin/RH.
-        """
-        # ============================================================
-        # LOG DE DIAGNOSTIC - À SUPPRIMER APRÈS VÉRIFICATION
-        # ============================================================
-        print("=" * 80)
-        print("🔵🔵🔵 AnomaliePointageViewSet.traiter EXÉCUTÉE 🔵🔵🔵")
-        print("=" * 80)
-        print(f"  ➤ Utilisateur : {request.user}")
-        print(f"  ➤ Username    : {request.user.username}")
-        print(f"  ➤ is_staff    : {request.user.is_staff}")
-        print(f"  ➤ role        : {getattr(request.user, 'role', 'NON DÉFINI')}")
-        print(f"  ➤ pk          : {pk}")
-        print(f"  ➤ POST data   : {dict(request.data)}")
-        print("=" * 80)
-        # ============================================================
-        
-        # Vérification des droits
         if not request.user.is_staff:
             return Response(
                 {'success': False, 'error': 'Seul un administrateur ou RH peut traiter une anomalie.'},
@@ -1303,24 +1210,6 @@ class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=['post'])
     def cloturer(self, request, pk=None):
-        """
-        Clôturer une anomalie - Réservé à l'Admin/RH.
-        """
-        # ============================================================
-        # LOG DE DIAGNOSTIC - À SUPPRIMER APRÈS VÉRIFICATION
-        # ============================================================
-        print("=" * 80)
-        print("🟢🟢🟢 AnomaliePointageViewSet.cloturer EXÉCUTÉE 🟢🟢🟢")
-        print("=" * 80)
-        print(f"  ➤ Utilisateur : {request.user}")
-        print(f"  ➤ Username    : {request.user.username}")
-        print(f"  ➤ is_staff    : {request.user.is_staff}")
-        print(f"  ➤ role        : {getattr(request.user, 'role', 'NON DÉFINI')}")
-        print(f"  ➤ pk          : {pk}")
-        print("=" * 80)
-        # ============================================================
-        
-        # Vérification des droits
         if not request.user.is_staff:
             return Response(
                 {'success': False, 'error': 'Seul un administrateur ou RH peut clôturer une anomalie.'},
@@ -1345,7 +1234,6 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status as drf_status
 
 class ScanAPIView(APIView):
-    """Endpoint API web (authentification session requise)."""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -1391,7 +1279,6 @@ from rest_framework.decorators import api_view, permission_classes as pc
 @api_view(['POST'])
 @pc([IsAuthenticated])
 def scan_api_view(request):
-    """Vue fonctionnelle équivalente à ScanAPIView — garde pour compatibilité URL."""
     raw_qr  = request.data.get('qr_data', '').strip()
     site_id = request.data.get('site_id')
     mode    = request.data.get('mode', 'auto')
