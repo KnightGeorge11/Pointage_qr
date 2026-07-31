@@ -1,10 +1,9 @@
-# pointage/admin.py - Version avec un seul filtre Période
+# pointage/admin.py
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
-from django.urls import path
 from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin
@@ -20,10 +19,14 @@ from .models import (
 from .anomalies import marquer_traitee, marquer_cloturee
 import uuid
 from datetime import timedelta, datetime
+from collections import defaultdict
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 
 # ============================================================
-# FILTRE PÉRIODE UNIQUE (fusionné)
+# FILTRE PÉRIODE UNIQUE
 # ============================================================
 
 class PeriodeFusionFilter(SimpleListFilter):
@@ -127,7 +130,6 @@ class EmployeAdmin(admin.ModelAdmin):
         ('QR Code', {
             'fields': ('info_qr_code', 'qr_code_display', 'qr_code_token'),
             'classes': ('wide',),
-            'description': "Gestion du QR code de l'employé"
         }),
         ('Dates', {
             'fields': ('date_creation',),
@@ -151,35 +153,27 @@ class EmployeAdmin(admin.ModelAdmin):
         if obj.qr_code:
             return format_html(
                 '<div style="text-align:center;margin:20px 0;">'
-                '<div style="margin-bottom:12px;font-weight:600;color:#e8eaf0;">QR Code pour le pointage</div>'
+                '<div style="margin-bottom:12px;font-weight:600;color:#e8eaf0;">QR Code</div>'
                 '<img src="{}" width="220" height="220" '
                 'style="border:3px solid #4f8ef7;border-radius:10px;padding:10px;background:white;">'
                 '</div>',
                 obj.qr_code.url
             )
-        return mark_safe(
-            '<div style="color:#f87171;padding:14px;background:rgba(248,113,113,.1);'
-            'border-radius:8px;text-align:center;">Le QR Code n\'a pas encore été généré.</div>'
-        )
-    qr_code_display.short_description = 'Visualisation du QR Code'
+        return mark_safe('<div style="color:#f87171;padding:14px;text-align:center;">Non généré</div>')
+    qr_code_display.short_description = 'Visualisation QR Code'
 
     def info_qr_code(self, obj):
         if obj.qr_code:
             return format_html(
                 '<div style="background:rgba(79,142,247,.08);padding:16px;border-radius:8px;'
                 'border:1px solid rgba(79,142,247,.2);margin-bottom:14px;">'
-                '<h4 style="margin-top:0;color:#4f8ef7;font-size:13px;font-weight:600;">'
-                'Informations du QR Code</h4>'
-                '<div style="margin-bottom:10px;font-size:12px;color:rgba(232,234,240,.6);">'
-                'Données encodées :</div>'
+                '<h4 style="margin-top:0;color:#4f8ef7;font-size:13px;font-weight:600;">QR Code</h4>'
                 '<code style="background:rgba(255,255,255,.07);padding:6px 10px;border-radius:5px;'
                 'font-size:12px;color:#e8eaf0;display:inline-block;margin-bottom:14px;">'
                 'EMPLOYE:{}:{}</code>'
                 '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-                '<a href="{}" download class="button" style="text-decoration:none;">'
-                'Télécharger</a>'
-                '<a href="{}" target="_blank" class="button" style="text-decoration:none;">'
-                'Ouvrir</a>'
+                '<a href="{}" download class="button" style="text-decoration:none;">Télécharger</a>'
+                '<a href="{}" target="_blank" class="button" style="text-decoration:none;">Ouvrir</a>'
                 '<button type="submit" name="_generate_qr" value="1" class="button" '
                 'style="background:#28a745;border-color:#28a745;">Régénérer</button>'
                 '</div></div>',
@@ -187,10 +181,7 @@ class EmployeAdmin(admin.ModelAdmin):
             )
         return mark_safe(
             '<div style="background:rgba(251,191,36,.08);padding:14px;border-radius:8px;'
-            'border:1px solid rgba(251,191,36,.2);margin-bottom:14px;">'
-            '<h4 style="margin-top:0;color:#fbbf24;font-size:13px;font-weight:600;">QR Code non généré</h4>'
-            '<p style="margin-bottom:12px;font-size:13px;color:rgba(232,234,240,.6);">'
-            "Le QR code n'a pas encore été généré pour cet employé.</p>"
+            'border:1px solid rgba(251,191,36,.2);">'
             '<button type="submit" name="_generate_qr" value="1" class="button" '
             'style="background:#4f8ef7;border-color:#4f8ef7;color:white;">Générer QR Code</button>'
             '</div>'
@@ -218,25 +209,20 @@ class EmployeAdmin(admin.ModelAdmin):
             employe.save()
             count += 1
         self.message_user(request, f"✅ {count} QR code(s) régénéré(s).", messages.SUCCESS)
-    regenerer_qr_codes.short_description = "🔄 Régénérer les QR codes sélectionnés"
+    regenerer_qr_codes.short_description = "🔄 Régénérer les QR codes"
 
     def activer_employes(self, request, queryset):
         updated = queryset.update(actif=True)
         self.message_user(request, f"✅ {updated} employé(s) activé(s).", messages.SUCCESS)
-    activer_employes.short_description = "✅ Activer les employés sélectionnés"
+    activer_employes.short_description = "✅ Activer"
 
     def desactiver_employes(self, request, queryset):
         updated = queryset.update(actif=False)
         self.message_user(request, f"⛔ {updated} employé(s) désactivé(s).", messages.SUCCESS)
-    desactiver_employes.short_description = "⛔ Désactiver les employés sélectionnés"
+    desactiver_employes.short_description = "⛔ Désactiver"
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('poste')
-
-    class Media:
-        css = {
-            'all': ('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',)
-        }
 
 
 # ============================================================
@@ -260,12 +246,9 @@ class PointageAdmin(admin.ModelAdmin):
         'get_heures_display',
     ]
     
-    # ============================================================
-    # FILTRES - UNIQUE FILTRE PÉRIODE FUSIONNÉ
-    # ============================================================
     list_filter = [
         'statut',
-        PeriodeFusionFilter,  # Filtre unique pour Matin/Après-midi/Nuit/Garde
+        PeriodeFusionFilter,
         'site',
         'date_pointage',
     ]
@@ -279,21 +262,12 @@ class PointageAdmin(admin.ModelAdmin):
     readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
     date_hierarchy = 'date_pointage'
     
-    # ============================================================
-    # CHAMPS PERSONNALISÉS
-    # ============================================================
-    
     def get_retard_display(self, obj):
         if obj.retard and obj.retard.total_seconds() > 0:
             minutes = obj.get_retard_minutes()
             if minutes >= 30:
                 return format_html(
                     '<span style="background:#FEE2E2;color:#B91C1C;padding:2px 10px;border-radius:9999px;font-weight:600;font-size:10px;">⚠️ {} min</span>',
-                    minutes
-                )
-            elif minutes >= 15:
-                return format_html(
-                    '<span style="background:#FEF3C7;color:#B45309;padding:2px 10px;border-radius:9999px;font-weight:600;font-size:10px;">⏱️ {} min</span>',
                     minutes
                 )
             return f"{minutes} min"
@@ -308,10 +282,6 @@ class PointageAdmin(admin.ModelAdmin):
             return f"{hours}h{minutes:02d}"
         return "—"
     get_heures_display.short_description = "Heures travaillées"
-    
-    # ============================================================
-    # ACTIONS EN MASSE
-    # ============================================================
     
     actions = ['marquer_present', 'marquer_retard', 'marquer_absent', 'supprimer_selection']
     
@@ -335,18 +305,10 @@ class PointageAdmin(admin.ModelAdmin):
         if count > 0:
             queryset.delete()
             self.message_user(request, f"🗑️ {count} pointage(s) supprimé(s).")
-    supprimer_selection.short_description = "🗑️ Supprimer la sélection"
-    
-    # ============================================================
-    # GET QUERYSET
-    # ============================================================
+    supprimer_selection.short_description = "🗑️ Supprimer"
     
     def get_queryset(self, request):
         return Pointage.objects.select_related('employe', 'site')
-    
-    # ============================================================
-    # CHANGELIST VIEW
-    # ============================================================
     
     def changelist_view(self, request, extra_context=None):
         cl = self.get_changelist_instance(request)
@@ -360,90 +322,289 @@ class PointageAdmin(admin.ModelAdmin):
         retards = queryset.filter(statut='retard').count()
         absents = queryset.filter(statut='absent').count()
         
-        total_heures = timedelta()
-        for p in queryset[:100]:
-            if p.heures_travaillees:
-                total_heures += p.heures_travaillees
-        
         extra_context = extra_context or {}
         extra_context.update({
             'total': total,
             'presents_count': presents,
             'retards_count': retards,
             'absents_count': absents,
-            'total_heures': self._format_timedelta(total_heures),
         })
         
         return super().changelist_view(request, extra_context=extra_context)
     
-    def _format_timedelta(self, td):
-        if td and td.total_seconds() > 0:
-            total_seconds = td.total_seconds()
-            hours = int(total_seconds // 3600)
-            minutes = int((total_seconds % 3600) // 60)
-            return f"{hours}h{minutes:02d}"
-        return "0h00"
-    
-    # ============================================================
-    # EXPORT EXCEL
-    # ============================================================
-    
     def export_excel(self, request, queryset):
-        import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment
-        from django.http import HttpResponse
-        
+        """Export Excel au même format que l'interface utilisateur"""
         if not queryset.exists():
             messages.warning(request, "Aucun pointage à exporter.")
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/admin/pointage/pointage/'))
         
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Pointages"
+        # Récupérer les dates min et max
+        dates = queryset.values_list('date_pointage', flat=True).distinct().order_by('date_pointage')
+        if not dates:
+            messages.warning(request, "Aucune date trouvée.")
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/admin/pointage/pointage/'))
         
+        date_debut = dates[0]
+        date_fin = dates.last()
+        
+        # Construire les données par employé et par jour
+        emp_data = defaultdict(lambda: defaultdict(lambda: {'matin': None, 'apres_midi': None, 'nuit': None}))
+        emp_info = {}
+        
+        for p in queryset:
+            emp_info[p.employe.id] = (p.employe.id, p.employe.get_nom_complet(), p.employe.matricule)
+            emp_data[p.employe.id][p.date_pointage][p.periode] = p
+        
+        # Générer la liste des jours
+        def work_days(d1, d2):
+            days, d = [], d1
+            while d <= d2:
+                days.append(d)
+                d += timedelta(days=1)
+            return days
+        
+        days = work_days(date_debut, date_fin)
+        JOURS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+        
+        def fmt_duree(pointage):
+            if not pointage or not pointage.heures_travaillees:
+                return '—'
+            return pointage.get_duree_formatee()
+        
+        def fmt_time(t):
+            return t.strftime('%H:%M') if t else '—'
+        
+        # Palette de couleurs
         BLUE = '1E3A5F'
+        BLUE_LIGHT = 'D6E4F0'
+        ORANGE_BG = 'FEF3C7'
+        ORANGE_FG = 'D97706'
+        GREEN_BG = 'DCFCE7'
+        GREEN_FG = '15803D'
+        RED_BG = 'FEE2E2'
+        RED_FG = 'B91C1C'
+        PURPLE_BG = 'EDE9FE'
+        PURPLE_FG = '7C3AED'
+        PURPLE_MED = '4C1D95'
+        NIGHT_BG = '1E1B4B'
+        NIGHT_MID = '2D1F4E'
+        NIGHT_FG = 'A5B4FC'
+        DARK = '1A1A1A'
+        GREY_LIGHT = 'F5F5F7'
+        GREY_MID = 'E5E5E5'
+        WHITE = 'FFFFFF'
         TOTAL_BG = 'EEF2FF'
         
-        headers = ['Employé', 'Matricule', 'Date', 'Période', 'Type', 'Arrivée', 'Départ', 'Site', 'Statut', 'Retard (min)', 'Heures']
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=header)
-            cell.font = Font(bold=True, color="FFFFFF")
-            cell.fill = PatternFill(start_color=BLUE, end_color=BLUE, fill_type="solid")
-            cell.alignment = Alignment(horizontal="center")
+        def sd(color=GREY_MID, style='thin'):
+            return Side(style=style, color=color)
         
-        for row, pointage in enumerate(queryset, 2):
-            ws.cell(row=row, column=1, value=str(pointage.employe))
-            ws.cell(row=row, column=2, value=pointage.employe.matricule)
-            ws.cell(row=row, column=3, value=pointage.date_pointage.strftime('%d/%m/%Y'))
-            ws.cell(row=row, column=4, value=pointage.get_periode_display())
-            ws.cell(row=row, column=5, value=pointage.get_type_journee_display())
-            ws.cell(row=row, column=6, value=pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else '')
-            ws.cell(row=row, column=7, value=pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else '')
-            ws.cell(row=row, column=8, value=str(pointage.site) if pointage.site else '')
-            ws.cell(row=row, column=9, value=pointage.get_statut_display())
-            ws.cell(row=row, column=10, value=pointage.get_retard_minutes() if pointage.retard else 0)
+        def b_all(color=GREY_MID):
+            s = sd(color)
+            return Border(left=s, right=s, top=s, bottom=s)
+        
+        def b_outer(color=BLUE):
+            s = Side(style='medium', color=color)
+            return Border(left=s, right=s, top=s, bottom=s)
+        
+        def b_bottom(color=BLUE):
+            return Border(left=sd(), right=sd(), top=sd(),
+                          bottom=Side(style='medium', color=color))
+        
+        def sc(c, value='', bg=WHITE, fg=DARK, bold=False, size=9,
+               halign='center', valign='center', wrap=False, border=None, italic=False):
+            c.value = value
+            c.font = Font(name='Arial', bold=bold, color=fg, size=size, italic=italic)
+            c.fill = PatternFill('solid', start_color=bg)
+            c.alignment = Alignment(horizontal=halign, vertical=valign, wrap_text=wrap)
+            if border:
+                c.border = border
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Résumé Pointages"
+        ws.sheet_view.showGridLines = False
+        ws.page_setup.orientation = 'landscape'
+        ws.page_setup.fitToPage = True
+        ws.page_setup.fitToWidth = 1
+        
+        COL_EMP = 1
+        COL_DAYS = 2
+        COL_TOTAL = COL_DAYS + len(days)
+        
+        ws.column_dimensions[get_column_letter(COL_EMP)].width = 15
+        for i in range(len(days)):
+            ws.column_dimensions[get_column_letter(COL_DAYS + i)].width = 14
+        ws.column_dimensions[get_column_letter(COL_TOTAL)].width = 18
+        
+        # Titre
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=COL_TOTAL)
+        sc(ws['A1'],
+           value=f"RÉSUMÉ DES POINTAGES  ·  Du {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}",
+           bg=BLUE, fg=WHITE, bold=True, size=13)
+        ws.row_dimensions[1].height = 36
+        
+        # En-têtes
+        HEADER_ROW = 2
+        sc(ws.cell(row=HEADER_ROW, column=COL_EMP), value='Employé',
+           bg=BLUE, fg=WHITE, bold=True, size=9, border=b_all(BLUE))
+        for i, d in enumerate(days):
+            label = f"{JOURS_FR[d.weekday()]}\n{d.strftime('%d/%m/%Y')}"
+            sc(ws.cell(row=HEADER_ROW, column=COL_DAYS + i), value=label,
+               bg=BLUE, fg=WHITE, bold=True, size=8, wrap=True, border=b_all(BLUE))
+        sc(ws.cell(row=HEADER_ROW, column=COL_TOTAL), value='TOTAL',
+           bg=DARK, fg=WHITE, bold=True, size=10, border=b_all(DARK))
+        ws.row_dimensions[HEADER_ROW].height = 28
+        
+        ROWS_PER_EMP = 8
+        SUB_H = [8, 14, 18, 14, 18, 16, 16, 6]
+        START_ROW = 3
+        
+        for emp_idx, (emp_id, day_map) in enumerate(emp_data.items()):
+            base = START_ROW + emp_idx * ROWS_PER_EMP
+            _, nom_complet, matricule = emp_info[emp_id]
             
-            if pointage.heures_travaillees and pointage.heures_travaillees.total_seconds() > 0:
-                total_seconds = pointage.heures_travaillees.total_seconds()
-                hours = int(total_seconds // 3600)
-                minutes = int((total_seconds % 3600) // 60)
-                ws.cell(row=row, column=11, value=f"{hours}h{minutes:02d}")
-            else:
-                ws.cell(row=row, column=11, value="0h00")
+            for i, h in enumerate(SUB_H):
+                ws.row_dimensions[base + i].height = h
+            
+            ws.merge_cells(start_row=base, start_column=COL_EMP,
+                           end_row=base + 6, end_column=COL_EMP)
+            sc(ws.cell(row=base, column=COL_EMP),
+               value=f"{nom_complet}\n{matricule}",
+               bg=GREY_LIGHT, fg=DARK, bold=True, size=9,
+               wrap=True, halign='center', valign='center', border=b_outer())
+            ws.cell(row=base + 7, column=COL_EMP).fill = PatternFill('solid', start_color=GREY_MID)
+            ws.cell(row=base + 7, column=COL_EMP).border = b_bottom()
+            
+            tot_retard = timedelta()
+            tot_trav = timedelta()
+            tot_sup = timedelta()
+            tot_gardes = 0
+            
+            for i, d in enumerate(days):
+                col = COL_DAYS + i
+                pt_map = day_map.get(d, {})
+                matin = pt_map.get('matin')
+                apm = pt_map.get('apres_midi')
+                nuit = pt_map.get('nuit')
+                bg_day = WHITE if i % 2 == 0 else 'FAFAFA'
+                
+                if nuit and nuit.type_journee == 'garde':
+                    tot_gardes += 1
+                    h_garde = nuit.heures_travaillees or timedelta()
+                    tot_trav += h_garde
+                    terminee = bool(nuit.heure_depart)
+                    
+                    sc(ws.cell(row=base, column=col), bg=NIGHT_MID,
+                       border=Border(top=Side(style='medium', color=PURPLE_FG),
+                                     left=sd(), right=sd()))
+                    ws.merge_cells(start_row=base + 1, start_column=col,
+                                   end_row=base + 2, end_column=col)
+                    sc(ws.cell(row=base + 1, column=col),
+                       value='🌙 Garde de nuit',
+                       bg=PURPLE_BG, fg=PURPLE_FG, bold=True, size=9,
+                       wrap=True, halign='center', valign='center',
+                       border=b_all(PURPLE_FG))
+                    sc(ws.cell(row=base + 3, column=col),
+                       value='Début  →  Fin',
+                       bg=NIGHT_MID, fg=NIGHT_FG, bold=True, size=8,
+                       border=b_all(PURPLE_MED))
+                    arr_g = fmt_time(nuit.heure_arrivee)
+                    dep_g = fmt_time(nuit.heure_depart)
+                    sc(ws.cell(row=base + 4, column=col),
+                       value=f"{arr_g}  →  {dep_g}",
+                       bg=NIGHT_BG, fg=WHITE, bold=True, size=9,
+                       border=b_all(PURPLE_MED))
+                    sc(ws.cell(row=base + 5, column=col),
+                       value=f"Durée : {fmt_duree(nuit)}",
+                       bg=PURPLE_BG, fg=PURPLE_FG, bold=True, size=8,
+                       border=b_all(PURPLE_FG))
+                    if terminee:
+                        sc(ws.cell(row=base + 6, column=col),
+                           value='✓ Terminée', bg=GREEN_BG, fg=GREEN_FG,
+                           bold=True, size=8, border=b_all())
+                    else:
+                        sc(ws.cell(row=base + 6, column=col),
+                           value='⏳ En cours', bg=ORANGE_BG, fg=ORANGE_FG,
+                           bold=True, size=8, border=b_all())
+                    sc(ws.cell(row=base + 7, column=col), bg=GREY_LIGHT,
+                       border=Border(bottom=Side(style='medium', color=PURPLE_FG),
+                                     left=sd(), right=sd()))
+                else:
+                    has_data = matin or apm
+                    h_trav = timedelta()
+                    h_ret = timedelta()
+                    if matin:
+                        h_trav += matin.heures_travaillees or timedelta()
+                        h_ret += matin.retard or timedelta()
+                    if apm:
+                        h_trav += apm.heures_travaillees or timedelta()
+                        h_ret += apm.retard or timedelta()
+                    h_sup = max(timedelta(), h_trav - timedelta(hours=8))
+                    
+                    tot_trav += h_trav
+                    tot_retard += h_ret
+                    tot_sup += h_sup
+                    
+                    sc(ws.cell(row=base, column=col),
+                       bg=bg_day if has_data else GREY_LIGHT,
+                       border=Border(top=Side(style='medium', color=BLUE),
+                                     left=sd(), right=sd()))
+                    sc(ws.cell(row=base + 1, column=col),
+                       value='Matin', bg=ORANGE_BG, fg=ORANGE_FG,
+                       bold=True, size=8, border=b_all())
+                    arr_m = fmt_time(matin.heure_arrivee if matin else None)
+                    dep_m = fmt_time(matin.heure_depart if matin else None)
+                    sc(ws.cell(row=base + 2, column=col),
+                       value=f"{arr_m}  →  {dep_m}" if has_data else '—',
+                       bg=bg_day, fg=DARK, bold=True, size=9, border=b_all())
+                    sc(ws.cell(row=base + 3, column=col),
+                       value='Après-midi', bg=BLUE_LIGHT, fg=BLUE,
+                       bold=True, size=8, border=b_all())
+                    arr_s = fmt_time(apm.heure_arrivee if apm else None)
+                    dep_s = fmt_time(apm.heure_depart if apm else None)
+                    sc(ws.cell(row=base + 4, column=col),
+                       value=f"{arr_s}  →  {dep_s}" if has_data else '—',
+                       bg=bg_day, fg=DARK, bold=True, size=9, border=b_all())
+                    sc(ws.cell(row=base + 5, column=col),
+                       value=f"Retard : {matin.get_retard_minutes if matin else 0}min" if h_ret.total_seconds() > 0 else '—',
+                       bg=RED_BG if h_ret.total_seconds() > 0 else bg_day,
+                       fg=RED_FG if h_ret.total_seconds() > 0 else '999999',
+                       size=8, italic=True, border=b_all())
+                    sc(ws.cell(row=base + 6, column=col),
+                       value=f"H.sup : {fmt_duree(Pointage(heures_travaillees=h_sup))}" if h_sup.total_seconds() > 0 else '—',
+                       bg=GREEN_BG if h_sup.total_seconds() > 0 else bg_day,
+                       fg=GREEN_FG if h_sup.total_seconds() > 0 else '999999',
+                       size=8, italic=True, border=b_all())
+                    sc(ws.cell(row=base + 7, column=col), bg=GREY_LIGHT,
+                       border=Border(bottom=Side(style='medium', color=BLUE),
+                                     left=sd(), right=sd()))
+            
+            # Colonne TOTAL
+            ws.merge_cells(start_row=base, start_column=COL_TOTAL,
+                           end_row=base + 6, end_column=COL_TOTAL)
+            
+            total_lines = [
+                f"Retards :\n{Pointage(heures_travaillees=tot_retard).get_duree_formatee()}" if tot_retard.total_seconds() > 0 else "Retards :\n0h00",
+                f"\nH. Travaillées :\n{Pointage(heures_travaillees=tot_trav).get_duree_formatee()}",
+                f"\nH. Supp :\n{Pointage(heures_travaillees=tot_sup).get_duree_formatee()}" if tot_sup.total_seconds() > 0 else "\nH. Supp :\n0h00",
+            ]
+            if tot_gardes > 0:
+                total_lines.append(f"\nGardes :\n{tot_gardes}")
+            
+            sc(ws.cell(row=base, column=COL_TOTAL),
+               value="\n".join(total_lines),
+               bg=TOTAL_BG, fg=DARK, size=9,
+               wrap=True, halign='center', valign='center',
+               border=b_outer(BLUE))
+            ws.cell(row=base + 7, column=COL_TOTAL).fill = PatternFill('solid', start_color=GREY_MID)
+            ws.cell(row=base + 7, column=COL_TOTAL).border = b_bottom()
         
-        for col in range(1, len(headers) + 1):
-            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
+        ws.freeze_panes = f'{get_column_letter(COL_DAYS)}{HEADER_ROW + 1}'
         
-        total_row = queryset.count() + 2
-        ws.cell(row=total_row, column=1, value="TOTAL").font = Font(bold=True)
-        ws.cell(row=total_row, column=10, value=queryset.filter(retard__gt=timedelta(0)).count())
-        ws.cell(row=total_row, column=1).fill = PatternFill('solid', start_color=TOTAL_BG)
-        ws.cell(row=total_row, column=10).fill = PatternFill('solid', start_color=TOTAL_BG)
-        
+        filename = f"resume_pointages_{date_debut.strftime('%Y%m%d')}_{date_fin.strftime('%Y%m%d')}.xlsx"
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
-        filename = f"pointages_export_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         wb.save(response)
         return response
