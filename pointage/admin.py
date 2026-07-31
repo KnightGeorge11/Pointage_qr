@@ -10,6 +10,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
 from django.db.models import Q, Count, Sum, Avg
 from django.shortcuts import render
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
@@ -326,126 +327,29 @@ class PointageAdmin(admin.ModelAdmin):
         return Site.objects.all().order_by('nom')
     
     # ============================================================
-    # CONTEXTE PERSONNALISÉ POUR LE CHANGELIST
+    # CHANGELIST VIEW PERSONNALISÉE
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
         # ============================================================
-        # INTERCEPTER L'EXPORT EXCEL AVANT TOUT
+        # RÉCUPÉRER TOUS LES PARAMÈTRES
         # ============================================================
-        if 'export_excel' in request.GET:
-            params = request.GET.copy()
+        params = request.GET.copy()
+        
+        # Vérifier si c'est une demande d'export Excel
+        if 'export_excel' in params:
             params.pop('export_excel', None)
-            
-            new_request = request
-            new_request.GET = params
-            
-            cl = self.get_changelist_instance(new_request)
-            queryset = cl.get_queryset(new_request)
-            
-            # Appliquer les filtres personnalisés
-            if params.get('date_debut'):
-                try:
-                    from datetime import datetime
-                    date_debut = datetime.strptime(params['date_debut'], '%Y-%m-%d').date()
-                    queryset = queryset.filter(date_pointage__gte=date_debut)
-                except ValueError:
-                    pass
-            
-            if params.get('date_fin'):
-                try:
-                    from datetime import datetime
-                    date_fin = datetime.strptime(params['date_fin'], '%Y-%m-%d').date()
-                    queryset = queryset.filter(date_pointage__lte=date_fin)
-                except ValueError:
-                    pass
-            
-            if params.get('employe'):
-                try:
-                    queryset = queryset.filter(employe_id=params['employe'])
-                except ValueError:
-                    pass
-            
-            if params.get('site'):
-                try:
-                    queryset = queryset.filter(site_id=params['site'])
-                except ValueError:
-                    pass
-            
-            if params.get('periode_type') == 'jour':
-                queryset = queryset.filter(type_journee='normal')
-            elif params.get('periode_type') == 'nuit':
-                queryset = queryset.filter(type_journee='garde')
-            
+            queryset = self.get_filtered_queryset(params)
             return self.export_excel(request, queryset)
         
         # ============================================================
-        # NETTOYER LES PARAMÈTRES GET POUR ÉVITER LES ERREURS
+        # CONSTRUIRE LE QUERYSET AVEC FILTRES PERSONNALISÉS
         # ============================================================
-        get_params = request.GET.copy()
-        
-        # Paramètres personnalisés à supprimer car Django Admin ne les connaît pas
-        custom_params = ['date_debut', 'date_fin', 'employe', 'site', 'periode_type']
-        
-        # Sauvegarder les valeurs pour les utiliser plus tard
-        filter_values = {}
-        for key in custom_params:
-            if key in get_params:
-                filter_values[key] = get_params[key]
-                get_params.pop(key, None)
-        
-        # Supprimer les paramètres vides
-        params_to_remove = []
-        for key, value in get_params.items():
-            if value == '' or value is None:
-                params_to_remove.append(key)
-        
-        for key in params_to_remove:
-            get_params.pop(key, None)
-        
-        # Mettre à jour la requête
-        request.GET = get_params
-        
-        # Récupérer le queryset via la méthode standard de Django Admin
-        cl = self.get_changelist_instance(request)
-        queryset = cl.get_queryset(request)
-        
-        # Appliquer les filtres personnalisés sur le queryset
-        if filter_values.get('date_debut'):
-            try:
-                from datetime import datetime
-                date_debut = datetime.strptime(filter_values['date_debut'], '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__gte=date_debut)
-            except ValueError:
-                pass
-        
-        if filter_values.get('date_fin'):
-            try:
-                from datetime import datetime
-                date_fin = datetime.strptime(filter_values['date_fin'], '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__lte=date_fin)
-            except ValueError:
-                pass
-        
-        if filter_values.get('employe'):
-            try:
-                queryset = queryset.filter(employe_id=filter_values['employe'])
-            except ValueError:
-                pass
-        
-        if filter_values.get('site'):
-            try:
-                queryset = queryset.filter(site_id=filter_values['site'])
-            except ValueError:
-                pass
-        
-        if filter_values.get('periode_type') == 'jour':
-            queryset = queryset.filter(type_journee='normal')
-        elif filter_values.get('periode_type') == 'nuit':
-            queryset = queryset.filter(type_journee='garde')
+        queryset = self.get_filtered_queryset(params)
+        queryset = queryset.order_by('-date_pointage', 'employe__nom')
         
         # ============================================================
-        # RÉCUPÉRER LE QUERYSET FILTRÉ POUR LES STATISTIQUES
+        # CALCULER LES STATISTIQUES
         # ============================================================
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
@@ -456,21 +360,48 @@ class PointageAdmin(admin.ModelAdmin):
             Q(statut='absent')
         ).count()
         
-        # Calcul des heures totales
         total_heures = timedelta()
-        for p in queryset:
+        for p in queryset[:500]:  # Limiter pour la performance
             if p.heures_travaillees:
                 total_heures += p.heures_travaillees
         
-        # Récupérer la liste des sites et employés pour les filtres
+        # ============================================================
+        # PAGINATION
+        # ============================================================
+        paginator = Paginator(queryset, 20)
+        page = request.GET.get('page', 1)
+        try:
+            page_obj = paginator.page(page)
+        except PageNotAnInteger:
+            page_obj = paginator.page(1)
+        except EmptyPage:
+            page_obj = paginator.page(paginator.num_pages)
+        
+        # ============================================================
+        # PRÉPARER LE CONTEXTE POUR LE TEMPLATE
+        # ============================================================
         sites_list = Site.objects.all().order_by('nom')
         employes_list = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         
+        # Récupérer les valeurs des filtres
+        date_debut = params.get('date_debut', '')
+        date_fin = params.get('date_fin', '')
+        employe_id = params.get('employe', '')
+        site_id = params.get('site', '')
+        periode_type = params.get('periode_type', '')
+        
         # Construire la chaîne de paramètres pour l'export
-        request_get_params = []
-        for key, value in filter_values.items():
-            if value:
-                request_get_params.append(f"{key}={value}")
+        export_params = []
+        if date_debut:
+            export_params.append(f"date_debut={date_debut}")
+        if date_fin:
+            export_params.append(f"date_fin={date_fin}")
+        if employe_id:
+            export_params.append(f"employe={employe_id}")
+        if site_id:
+            export_params.append(f"site={site_id}")
+        if periode_type:
+            export_params.append(f"periode_type={periode_type}")
         
         extra_context = extra_context or {}
         extra_context.update({
@@ -485,16 +416,114 @@ class PointageAdmin(admin.ModelAdmin):
             'sites_list': sites_list,
             'employes_list': employes_list,
             # Valeurs des filtres pour les afficher dans le template
-            'filter_date_debut': filter_values.get('date_debut', ''),
-            'filter_date_fin': filter_values.get('date_fin', ''),
-            'filter_employe': filter_values.get('employe', ''),
-            'filter_site': filter_values.get('site', ''),
-            'filter_periode_type': filter_values.get('periode_type', ''),
-            # Paramètres GET pour l'export
-            'request_get': '&'.join(request_get_params),
+            'filter_date_debut': date_debut,
+            'filter_date_fin': date_fin,
+            'filter_employe': employe_id,
+            'filter_site': site_id,
+            'filter_periode_type': periode_type,
+            # Paramètres pour l'export
+            'request_get': '&'.join(export_params),
         })
         
+        # Modifier le context du changelist pour utiliser notre queryset paginé
+        # On remplace le queryset par défaut
+        request._changelist_queryset = page_obj
+        
         return super().changelist_view(request, extra_context=extra_context)
+    
+    def get_filtered_queryset(self, params):
+        """Construit le queryset avec tous les filtres"""
+        queryset = Pointage.objects.select_related('employe', 'site')
+        
+        # Récupérer les valeurs des filtres
+        date_debut = params.get('date_debut', '')
+        date_fin = params.get('date_fin', '')
+        employe_id = params.get('employe', '')
+        site_id = params.get('site', '')
+        periode_type = params.get('periode_type', '')
+        search_query = params.get('q', '')
+        
+        # Filtre date début
+        if date_debut:
+            try:
+                date_debut_obj = datetime.strptime(date_debut, '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__gte=date_debut_obj)
+            except ValueError:
+                pass
+        
+        # Filtre date fin
+        if date_fin:
+            try:
+                date_fin_obj = datetime.strptime(date_fin, '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__lte=date_fin_obj)
+            except ValueError:
+                pass
+        
+        # Filtre employé
+        if employe_id:
+            try:
+                queryset = queryset.filter(employe_id=int(employe_id))
+            except (ValueError, TypeError):
+                pass
+        
+        # Filtre site
+        if site_id:
+            try:
+                queryset = queryset.filter(site_id=int(site_id))
+            except (ValueError, TypeError):
+                pass
+        
+        # Filtre type de période
+        if periode_type == 'jour':
+            queryset = queryset.filter(type_journee='normal')
+        elif periode_type == 'nuit':
+            queryset = queryset.filter(type_journee='garde')
+        
+        # Recherche
+        if search_query:
+            queryset = queryset.filter(
+                Q(employe__nom__icontains=search_query) |
+                Q(employe__prenom__icontains=search_query) |
+                Q(employe__matricule__icontains=search_query)
+            )
+        
+        # Appliquer les filtres Jazzmin (statut, periode, site, date_pointage, type_journee)
+        # Ces filtres sont dans l'URL avec des noms comme statut__exact, periode__exact, etc.
+        for key, value in params.items():
+            if key.endswith('__exact') and value:
+                try:
+                    queryset = queryset.filter(**{key: value})
+                except (ValueError, TypeError):
+                    pass
+            elif key == 'date_pointage__gte' and value:
+                try:
+                    date_obj = datetime.strptime(value, '%Y-%m-%d').date()
+                    queryset = queryset.filter(date_pointage__gte=date_obj)
+                except ValueError:
+                    pass
+            elif key == 'date_pointage__lte' and value:
+                try:
+                    date_obj = datetime.strptime(value, '%Y-%m-%d').date()
+                    queryset = queryset.filter(date_pointage__lte=date_obj)
+                except ValueError:
+                    pass
+            elif key == 'date_pointage__year' and value:
+                try:
+                    queryset = queryset.filter(date_pointage__year=int(value))
+                except ValueError:
+                    pass
+            elif key == 'date_pointage__month' and value:
+                try:
+                    queryset = queryset.filter(date_pointage__month=int(value))
+                except ValueError:
+                    pass
+            elif key == 'date_pointage__day' and value:
+                try:
+                    queryset = queryset.filter(date_pointage__day=int(value))
+                except ValueError:
+                    pass
+        
+        return queryset
     
     def _format_timedelta(self, td):
         if td and td.total_seconds() > 0:
@@ -513,7 +542,6 @@ class PointageAdmin(admin.ModelAdmin):
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from django.http import HttpResponse
-        from collections import defaultdict
         
         if not queryset.exists():
             messages.warning(request, "Aucun pointage à exporter.")
@@ -526,13 +554,9 @@ class PointageAdmin(admin.ModelAdmin):
         # Palette de couleurs (identique à l'export utilisateur)
         BLUE = '1E3A5F'
         WHITE = 'FFFFFF'
-        GREY_LIGHT = 'F5F5F7'
         GREY_MID = 'E5E5E5'
         DARK = '1A1A1A'
         TOTAL_BG = 'EEF2FF'
-        GREEN_BG = 'DCFCE7'
-        RED_BG = 'FEE2E2'
-        ORANGE_BG = 'FEF3C7'
         
         def sd(color=GREY_MID, style='thin'):
             return Side(style=style, color=color)
