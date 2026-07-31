@@ -48,7 +48,7 @@
             margin-top: 2px;
         }
 
-        /* ── Barre de filtres (identique à l'interface utilisateur) ── */
+        /* ── Barre de filtres ── */
         .filter-bar {
             background: #fff;
             border: 1px solid #E2E8F0;
@@ -158,13 +158,6 @@
             background: #1D4ED8;
         }
 
-        /* ── Export buttons ── */
-        .export-btn-group {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-
         /* ── Graphique ── */
         .chart-inline {
             background: #fff;
@@ -246,18 +239,18 @@
             <div class="filter-grid">
                 <div class="filter-group">
                     <label class="filter-group-label">Date début</label>
-                    <input type="date" class="filter-group-input" name="date_debut" value="{{ request.GET.date_debut|default:'' }}">
+                    <input type="date" class="filter-group-input" name="date_debut" value="{{ filter_date_debut|default:'' }}">
                 </div>
                 <div class="filter-group">
                     <label class="filter-group-label">Date fin</label>
-                    <input type="date" class="filter-group-input" name="date_fin" value="{{ request.GET.date_fin|default:'' }}">
+                    <input type="date" class="filter-group-input" name="date_fin" value="{{ filter_date_fin|default:'' }}">
                 </div>
                 <div class="filter-group">
                     <label class="filter-group-label">Employé</label>
                     <select class="filter-group-input" name="employe">
                         <option value="">Tous les employés</option>
                         {% for employe in employes_list %}
-                            <option value="{{ employe.id }}" {% if request.GET.employe == employe.id|stringformat:"s" %}selected{% endif %}>
+                            <option value="{{ employe.id }}" {% if filter_employe|stringformat:"s" == employe.id|stringformat:"s" %}selected{% endif %}>
                                 {{ employe.prenom }} {{ employe.nom }} ({{ employe.matricule }})
                             </option>
                         {% endfor %}
@@ -268,7 +261,7 @@
                     <select class="filter-group-input" name="site">
                         <option value="">Tous les sites</option>
                         {% for site in sites_list %}
-                            <option value="{{ site.id }}" {% if request.GET.site == site.id|stringformat:"s" %}selected{% endif %}>
+                            <option value="{{ site.id }}" {% if filter_site|stringformat:"s" == site.id|stringformat:"s" %}selected{% endif %}>
                                 {{ site.nom }}
                             </option>
                         {% endfor %}
@@ -278,8 +271,8 @@
                     <label class="filter-group-label">Type de période</label>
                     <select class="filter-group-input" name="periode_type">
                         <option value="">Tous (Jour + Nuit)</option>
-                        <option value="jour" {% if request.GET.periode_type == 'jour' %}selected{% endif %}>Jour seulement</option>
-                        <option value="nuit" {% if request.GET.periode_type == 'nuit' %}selected{% endif %}>Nuit (Gardes) seulement</option>
+                        <option value="jour" {% if filter_periode_type == 'jour' %}selected{% endif %}>Jour seulement</option>
+                        <option value="nuit" {% if filter_periode_type == 'nuit' %}selected{% endif %}>Nuit (Gardes) seulement</option>
                     </select>
                 </div>
             </div>
@@ -287,7 +280,7 @@
                 <a href="{% url 'admin:pointage_pointage_changelist' %}" class="btn btn-outline-secondary">
                     <i class="fas fa-times"></i> Réinitialiser
                 </a>
-                <a href="{% url 'admin:pointage_pointage_changelist' %}?export_excel=1{{ request.GET.urlencode }}" class="btn btn-success" onclick="return exportExcel();">
+                <a href="{% url 'admin:pointage_pointage_changelist' %}?export_excel=1&{{ request_get|default:'' }}" class="btn btn-success">
                     <i class="fas fa-file-excel"></i> Exporter Excel
                 </a>
                 <button type="submit" class="btn btn-primary">
@@ -377,18 +370,5 @@
             }
         });
     });
-
-    // ============================================================
-    // FONCTION POUR L'EXPORT EXCEL
-    // ============================================================
-    function exportExcel() {
-        // Récupérer tous les paramètres GET actuels
-        var params = new URLSearchParams(window.location.search);
-        // Ajouter le paramètre d'export
-        params.set('export_excel', '1');
-        // Rediriger vers la même page avec le paramètre
-        window.location.href = window.location.pathname + '?' + params.toString();
-        return false;
-    }
     </script>
 {% endblock %}

@@ -343,6 +343,7 @@ class PointageAdmin(admin.ModelAdmin):
             cl = self.get_changelist_instance(new_request)
             queryset = cl.get_queryset(new_request)
             
+            # Appliquer les filtres personnalisés
             if params.get('date_debut'):
                 try:
                     from datetime import datetime
@@ -391,7 +392,7 @@ class PointageAdmin(admin.ModelAdmin):
         for key in custom_params:
             if key in get_params:
                 filter_values[key] = get_params[key]
-                get_params.pop(key, None)  # Supprimer de la requête
+                get_params.pop(key, None)
         
         # Supprimer les paramètres vides
         params_to_remove = []
@@ -443,7 +444,9 @@ class PointageAdmin(admin.ModelAdmin):
         elif filter_values.get('periode_type') == 'nuit':
             queryset = queryset.filter(type_journee='garde')
         
-        # Calcul des statistiques
+        # ============================================================
+        # RÉCUPÉRER LE QUERYSET FILTRÉ POUR LES STATISTIQUES
+        # ============================================================
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
         retards = queryset.filter(statut='retard').count()
@@ -463,6 +466,12 @@ class PointageAdmin(admin.ModelAdmin):
         sites_list = Site.objects.all().order_by('nom')
         employes_list = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         
+        # Construire la chaîne de paramètres pour l'export
+        request_get_params = []
+        for key, value in filter_values.items():
+            if value:
+                request_get_params.append(f"{key}={value}")
+        
         extra_context = extra_context or {}
         extra_context.update({
             'total': total,
@@ -475,12 +484,14 @@ class PointageAdmin(admin.ModelAdmin):
             'total_employes': Employe.objects.filter(actif=True).count(),
             'sites_list': sites_list,
             'employes_list': employes_list,
-            # Conserver les valeurs pour les afficher dans les filtres
+            # Valeurs des filtres pour les afficher dans le template
             'filter_date_debut': filter_values.get('date_debut', ''),
             'filter_date_fin': filter_values.get('date_fin', ''),
             'filter_employe': filter_values.get('employe', ''),
             'filter_site': filter_values.get('site', ''),
             'filter_periode_type': filter_values.get('periode_type', ''),
+            # Paramètres GET pour l'export
+            'request_get': '&'.join(request_get_params),
         })
         
         return super().changelist_view(request, extra_context=extra_context)
