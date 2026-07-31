@@ -246,17 +246,17 @@
                 <!-- Date début -->
                 <div class="filter-group">
                     <label>Date début</label>
-                    <input type="date" name="date_pointage__gte" value="{{ request.GET.date_pointage__gte|default:'' }}">
+                    <input type="date" name="date_pointage__gte" value="{{ request.GET.date_pointage__gte|default:'' }}" onchange="if(this.value==''){this.name='dummy'}else{this.name='date_pointage__gte'}">
                 </div>
                 <!-- Date fin -->
                 <div class="filter-group">
                     <label>Date fin</label>
-                    <input type="date" name="date_pointage__lte" value="{{ request.GET.date_pointage__lte|default:'' }}">
+                    <input type="date" name="date_pointage__lte" value="{{ request.GET.date_pointage__lte|default:'' }}" onchange="if(this.value==''){this.name='dummy'}else{this.name='date_pointage__lte'}">
                 </div>
                 <!-- Statut -->
                 <div class="filter-group">
                     <label>Statut</label>
-                    <select name="statut__exact">
+                    <select name="statut__exact" onchange="if(this.value==''){this.name='dummy'}else{this.name='statut__exact'}">
                         <option value="">Tous</option>
                         <option value="present" {% if request.GET.statut__exact == 'present' %}selected{% endif %}>Présent</option>
                         <option value="absent" {% if request.GET.statut__exact == 'absent' %}selected{% endif %}>Absent</option>
@@ -266,7 +266,7 @@
                 <!-- Période -->
                 <div class="filter-group">
                     <label>Période</label>
-                    <select name="periode__exact">
+                    <select name="periode__exact" onchange="if(this.value==''){this.name='dummy'}else{this.name='periode__exact'}">
                         <option value="">Toutes</option>
                         <option value="matin" {% if request.GET.periode__exact == 'matin' %}selected{% endif %}>Matin</option>
                         <option value="apres_midi" {% if request.GET.periode__exact == 'apres_midi' %}selected{% endif %}>Après-midi</option>
@@ -276,7 +276,7 @@
                 <!-- Site -->
                 <div class="filter-group">
                     <label>Site</label>
-                    <select name="site__id__exact">
+                    <select name="site__id__exact" onchange="if(this.value==''){this.name='dummy'}else{this.name='site__id__exact'}">
                         <option value="">Tous</option>
                         {% for site in sites_list %}
                             <option value="{{ site.id }}" {% if request.GET.site__id__exact == site.id|stringformat:"s" %}selected{% endif %}>
