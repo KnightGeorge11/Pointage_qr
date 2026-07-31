@@ -1,17 +1,16 @@
-# pointage/admin.py
+# pointage/admin.py - Version Nettoyée
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
 from django.utils.safestring import mark_safe
-from django.utils.html import format_html, escape
+from django.utils.html import format_html
 from django.urls import path
 from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
-from django.db.models import Q, Count, Sum, Avg
+from django.db.models import Q
 from django.shortcuts import render
-from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
@@ -24,84 +23,11 @@ from datetime import timedelta, datetime
 
 
 # ============================================================
-# FILTRES PERSONNALISÉS POUR JAZZMIN
+# FILTRES PERSONNALISÉS SIMPLES
 # ============================================================
 
-class DateDebutFilter(SimpleListFilter):
-    title = 'Date début'
-    parameter_name = 'date_debut'
-
-    def lookups(self, request, model_admin):
-        today = timezone.localtime(timezone.now()).date()
-        return [
-            ('today', "Aujourd'hui"),
-            ('yesterday', 'Hier'),
-            ('week', 'Cette semaine'),
-            ('month', 'Ce mois-ci'),
-        ]
-
-    def queryset(self, request, queryset):
-        today = timezone.localtime(timezone.now()).date()
-        if self.value() == 'today':
-            return queryset.filter(date_pointage=today)
-        if self.value() == 'yesterday':
-            yesterday = today - timedelta(days=1)
-            return queryset.filter(date_pointage=yesterday)
-        if self.value() == 'week':
-            start_of_week = today - timedelta(days=today.weekday())
-            return queryset.filter(date_pointage__gte=start_of_week)
-        if self.value() == 'month':
-            return queryset.filter(date_pointage__month=today.month, date_pointage__year=today.year)
-        return queryset
-
-
-class DateFinFilter(SimpleListFilter):
-    title = 'Date fin'
-    parameter_name = 'date_fin'
-
-    def lookups(self, request, model_admin):
-        today = timezone.localtime(timezone.now()).date()
-        return [
-            ('today', "Aujourd'hui"),
-            ('yesterday', 'Hier'),
-            ('week', 'Cette semaine'),
-            ('month', 'Ce mois-ci'),
-        ]
-
-    def queryset(self, request, queryset):
-        today = timezone.localtime(timezone.now()).date()
-        if self.value() == 'today':
-            return queryset.filter(date_pointage=today)
-        if self.value() == 'yesterday':
-            yesterday = today - timedelta(days=1)
-            return queryset.filter(date_pointage=yesterday)
-        if self.value() == 'week':
-            start_of_week = today - timedelta(days=today.weekday())
-            return queryset.filter(date_pointage__gte=start_of_week)
-        if self.value() == 'month':
-            return queryset.filter(date_pointage__month=today.month, date_pointage__year=today.year)
-        return queryset
-
-
-class EmployeFilter(SimpleListFilter):
-    title = 'Employé'
-    parameter_name = 'employe'
-
-    def lookups(self, request, model_admin):
-        employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
-        return [(str(e.id), f"{e.prenom} {e.nom} ({e.matricule})") for e in employes]
-
-    def queryset(self, request, queryset):
-        if self.value():
-            try:
-                return queryset.filter(employe_id=int(self.value()))
-            except ValueError:
-                return queryset
-        return queryset
-
-
-class PeriodeTypeFilter(SimpleListFilter):
-    title = 'Type de période'
+class PeriodeFilter(SimpleListFilter):
+    title = 'Période'
     parameter_name = 'periode_type'
 
     def lookups(self, request, model_admin):
@@ -308,7 +234,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - VERSION AMÉLIORÉE AVEC FILTRES PERSONNALISÉS
+# POINTAGE - VERSION NETTOYÉE
 # ============================================================
 
 @admin.register(Pointage)
@@ -320,42 +246,35 @@ class PointageAdmin(admin.ModelAdmin):
     change_list_template = "admin/pointage/pointage_changelist.html"
     
     list_display = [
-        'id',
         'employe',
         'date_pointage',
         'periode',
-        'type_journee',
         'heure_arrivee',
         'heure_depart',
         'site',
         'statut',
         'get_retard_display',
         'get_heures_display',
-        'date_creation',
     ]
     
     # ============================================================
-    # FILTRES - INCLURE LES FILTRES PERSONNALISÉS
+    # FILTRES - Jazzmin avec les filtres existants
     # ============================================================
     list_filter = [
-        DateDebutFilter,
-        DateFinFilter,
-        EmployeFilter,
-        PeriodeTypeFilter,
         'statut',
         'periode',
         'site',
-        'type_journee',
+        'date_pointage',
+        PeriodeFilter,  # Jour / Nuit
     ]
     
     search_fields = [
         'employe__nom',
         'employe__prenom',
         'employe__matricule',
-        'site__nom',
     ]
     
-    readonly_fields = ('date_creation', 'date_modification', 'retard', 'heures_travaillees')
+    readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
     date_hierarchy = 'date_pointage'
     
     # ============================================================
@@ -428,11 +347,10 @@ class PointageAdmin(admin.ModelAdmin):
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
-        # Récupérer le queryset via Django Admin (les filtres sont déjà appliqués)
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
         
-        # Vérifier l'export Excel
+        # Export Excel
         if 'export_excel' in request.GET:
             return self.export_excel(request, queryset)
         
@@ -441,19 +359,11 @@ class PointageAdmin(admin.ModelAdmin):
         presents = queryset.filter(statut='present').count()
         retards = queryset.filter(statut='retard').count()
         absents = queryset.filter(statut='absent').count()
-        anomalies = queryset.filter(
-            Q(retard__gte=timedelta(minutes=30)) |
-            Q(statut='absent')
-        ).count()
         
         total_heures = timedelta()
         for p in queryset[:100]:
             if p.heures_travaillees:
                 total_heures += p.heures_travaillees
-        
-        # Listes pour les filtres (si nécessaire dans le template)
-        sites_list = Site.objects.all().order_by('nom')
-        employes_list = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         
         extra_context = extra_context or {}
         extra_context.update({
@@ -461,12 +371,7 @@ class PointageAdmin(admin.ModelAdmin):
             'presents_count': presents,
             'retards_count': retards,
             'absents_count': absents,
-            'anomalies_count': anomalies,
             'total_heures': self._format_timedelta(total_heures),
-            'employes_count': queryset.values('employe').distinct().count(),
-            'total_employes': Employe.objects.filter(actif=True).count(),
-            'sites_list': sites_list,
-            'employes_list': employes_list,
         })
         
         return super().changelist_view(request, extra_context=extra_context)
@@ -484,9 +389,8 @@ class PointageAdmin(admin.ModelAdmin):
     # ============================================================
     
     def export_excel(self, request, queryset):
-        """Exporte les pointages en Excel"""
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.styles import Font, PatternFill, Alignment
         from django.http import HttpResponse
         
         if not queryset.exists():
@@ -497,11 +401,9 @@ class PointageAdmin(admin.ModelAdmin):
         ws = wb.active
         ws.title = "Pointages"
         
-        # Couleurs
         BLUE = '1E3A5F'
         TOTAL_BG = 'EEF2FF'
         
-        # En-têtes
         headers = ['Employé', 'Matricule', 'Date', 'Période', 'Type', 'Arrivée', 'Départ', 'Site', 'Statut', 'Retard (min)', 'Heures']
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
@@ -509,7 +411,6 @@ class PointageAdmin(admin.ModelAdmin):
             cell.fill = PatternFill(start_color=BLUE, end_color=BLUE, fill_type="solid")
             cell.alignment = Alignment(horizontal="center")
         
-        # Données
         for row, pointage in enumerate(queryset, 2):
             ws.cell(row=row, column=1, value=str(pointage.employe))
             ws.cell(row=row, column=2, value=pointage.employe.matricule)
@@ -520,9 +421,7 @@ class PointageAdmin(admin.ModelAdmin):
             ws.cell(row=row, column=7, value=pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else '')
             ws.cell(row=row, column=8, value=str(pointage.site) if pointage.site else '')
             ws.cell(row=row, column=9, value=pointage.get_statut_display())
-            
-            retard_minutes = pointage.get_retard_minutes() if pointage.retard else 0
-            ws.cell(row=row, column=10, value=retard_minutes)
+            ws.cell(row=row, column=10, value=pointage.get_retard_minutes() if pointage.retard else 0)
             
             if pointage.heures_travaillees and pointage.heures_travaillees.total_seconds() > 0:
                 total_seconds = pointage.heures_travaillees.total_seconds()
@@ -532,11 +431,9 @@ class PointageAdmin(admin.ModelAdmin):
             else:
                 ws.cell(row=row, column=11, value="0h00")
         
-        # Ajuster les colonnes
         for col in range(1, len(headers) + 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
         
-        # Total
         total_row = queryset.count() + 2
         ws.cell(row=total_row, column=1, value="TOTAL").font = Font(bold=True)
         ws.cell(row=total_row, column=10, value=queryset.filter(retard__gt=timedelta(0)).count())
@@ -558,25 +455,15 @@ class PointageAdmin(admin.ModelAdmin):
 
 @admin.register(Scan)
 class ScanAdmin(admin.ModelAdmin):
-    list_display = ('employe', 'site', 'timestamp_local', 'type_scan_display', 'get_pointage_info')
+    list_display = ('employe', 'site', 'timestamp_local', 'type_scan_display')
     list_filter = ('type_scan', 'site', 'timestamp')
     search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule')
-    readonly_fields = ('timestamp', 'timestamp_local_display')
+    readonly_fields = ('timestamp',)
     date_hierarchy = 'timestamp'
 
     def timestamp_local(self, obj):
         return obj.get_timestamp_local().strftime('%d/%m/%Y %H:%M:%S')
     timestamp_local.short_description = 'Heure locale'
-
-    def timestamp_local_display(self, obj):
-        return obj.get_timestamp_local().strftime('%d/%m/%Y %H:%M:%S')
-    timestamp_local_display.short_description = 'Heure locale'
-
-    def get_pointage_info(self, obj):
-        if obj.pointage:
-            return f"{obj.pointage.get_periode_display()} - {obj.pointage.date_pointage}"
-        return "-"
-    get_pointage_info.short_description = 'Pointage associé'
 
     def type_scan_display(self, obj):
         colors = {
@@ -597,7 +484,7 @@ class ScanAdmin(admin.ModelAdmin):
     type_scan_display.short_description = 'Type de scan'
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related('employe', 'site', 'pointage')
+        return super().get_queryset(request).select_related('employe', 'site')
 
 
 # ============================================================
@@ -606,16 +493,14 @@ class ScanAdmin(admin.ModelAdmin):
 
 @admin.register(DemandeModification)
 class DemandeModificationAdmin(admin.ModelAdmin):
-    list_display = ('demandeur', 'type_action', 'cible', 'statut_badge', 'date_creation', 'boutons_action')
+    list_display = ('demandeur', 'type_action', 'cible', 'statut_badge', 'date_creation')
     list_filter = ('statut', 'type_action', 'cible')
     search_fields = ('demandeur__username',)
-    actions = ['approuver_demandes', 'refuser_demandes']
 
     readonly_fields = (
         'demandeur', 'type_action', 'cible',
         'donnees_formatees', 'statut_badge',
         'date_creation', 'traitee_par', 'date_traitement',
-        'boutons_fiche',
     )
 
     fieldsets = (
@@ -650,124 +535,6 @@ class DemandeModificationAdmin(admin.ModelAdmin):
         )
     statut_badge.short_description = 'Statut'
 
-    def boutons_action(self, obj):
-        from django.urls import reverse
-        if obj.statut != 'en_attente':
-            return mark_safe(
-                '<span style="color:rgba(232,234,240,.3);font-size:12px;font-style:italic;">Traitée</span>'
-            )
-        url_approuver = reverse('admin:demande_approuver', args=[obj.pk])
-        url_refuser = reverse('admin:demande_refuser', args=[obj.pk])
-        return mark_safe(
-            f'<div style="display:flex;gap:6px;">'
-            f'<a href="{url_approuver}" style="background:rgba(74,222,128,.12);color:#4ade80;'
-            f'border:1px solid rgba(74,222,128,.3);padding:4px 12px;border-radius:6px;'
-            f'font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap;">✅ Accepter</a>'
-            f'<a href="{url_refuser}" style="background:rgba(248,113,113,.12);color:#f87171;'
-            f'border:1px solid rgba(248,113,113,.3);padding:4px 12px;border-radius:6px;'
-            f'font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap;">❌ Refuser</a>'
-            f'</div>'
-        )
-    boutons_action.short_description = 'Actions'
-
-    def boutons_fiche(self, obj):
-        btn_retour = (
-            '<a href="../" style="display:inline-flex;align-items:center;gap:6px;'
-            'background:rgba(255,255,255,.06);color:#e8eaf0;'
-            'border:1px solid rgba(255,255,255,.15);padding:8px 18px;'
-            'border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">'
-            '← Retour</a>'
-        )
-        if obj.statut != 'en_attente':
-            return mark_safe(btn_retour)
-
-        return mark_safe(
-            '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">'
-            '<button type="submit" name="_accepter" value="1" '
-            'style="background:rgba(74,222,128,.15);color:#4ade80;'
-            'border:1px solid rgba(74,222,128,.35);padding:8px 20px;'
-            'border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">'
-            '✅ Accepter</button>'
-            '<button type="submit" name="_refuser" value="1" '
-            'style="background:rgba(248,113,113,.15);color:#f87171;'
-            'border:1px solid rgba(248,113,113,.35);padding:8px 20px;'
-            'border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">'
-            '❌ Refuser</button>'
-            + btn_retour +
-            '</div>'
-        )
-    boutons_fiche.short_description = ''
-
-    def get_urls(self):
-        urls = super().get_urls()
-        custom = [
-            path('<int:pk>/approuver/', self.admin_site.admin_view(self.approuver_view), name='demande_approuver'),
-            path('<int:pk>/refuser/', self.admin_site.admin_view(self.refuser_view), name='demande_refuser'),
-        ]
-        return custom + urls
-
-    def approuver_view(self, request, pk):
-        from django.shortcuts import get_object_or_404
-        demande = get_object_or_404(DemandeModification, pk=pk)
-        if demande.statut == 'en_attente':
-            try:
-                self._appliquer_demande(demande)
-                demande.statut = 'approuvee'
-                demande.traitee_par = request.user
-                demande.date_traitement = timezone.now()
-                demande.save()
-                self.message_user(request, f"✅ Demande #{pk} approuvée et appliquée.")
-            except Exception as e:
-                self.message_user(request, f"❌ Erreur : {e}", level='error')
-        return HttpResponseRedirect("../../")
-
-    def refuser_view(self, request, pk):
-        from django.shortcuts import get_object_or_404
-        demande = get_object_or_404(DemandeModification, pk=pk)
-        if demande.statut == 'en_attente':
-            demande.statut = 'refusee'
-            demande.traitee_par = request.user
-            demande.date_traitement = timezone.now()
-            demande.save()
-            self.message_user(request, f"❌ Demande #{pk} refusée.")
-        return HttpResponseRedirect("../../")
-
-    def response_change(self, request, obj):
-        if '_accepter' in request.POST and obj.statut == 'en_attente':
-            try:
-                self._appliquer_demande(obj)
-                obj.statut = 'approuvee'
-                obj.traitee_par = request.user
-                obj.date_traitement = timezone.now()
-                obj.save()
-                self.message_user(request, f"✅ Demande #{obj.pk} approuvée et appliquée.")
-            except Exception as e:
-                self.message_user(request, f"❌ Erreur : {e}", level='error')
-            return HttpResponseRedirect("../")
-
-        if '_refuser' in request.POST and obj.statut == 'en_attente':
-            obj.statut = 'refusee'
-            obj.traitee_par = request.user
-            obj.date_traitement = timezone.now()
-            obj.save()
-            self.message_user(request, f"❌ Demande #{obj.pk} refusée.")
-            return HttpResponseRedirect("../")
-
-        return super().response_change(request, obj)
-
-    def save_model(self, request, obj, form, change):
-        if change:
-            original = DemandeModification.objects.get(pk=obj.pk)
-            obj.demandeur = original.demandeur
-            obj.type_action = original.type_action
-            obj.cible = original.cible
-            obj.cible_id = original.cible_id
-            obj.donnees = original.donnees
-            obj.statut = original.statut
-            obj.traitee_par = original.traitee_par
-            obj.date_traitement = original.date_traitement
-        super().save_model(request, obj, form, change)
-
     def donnees_formatees(self, obj):
         if not obj.donnees:
             return '—'
@@ -790,85 +557,6 @@ class DemandeModificationAdmin(admin.ModelAdmin):
         )
     donnees_formatees.short_description = "Données de la demande"
 
-    @admin.action(description="✅ Approuver les demandes sélectionnées")
-    def approuver_demandes(self, request, queryset):
-        for demande in queryset.filter(statut='en_attente'):
-            try:
-                self._appliquer_demande(demande)
-                demande.statut = 'approuvee'
-                demande.traitee_par = request.user
-                demande.date_traitement = timezone.now()
-                demande.save()
-            except Exception as e:
-                self.message_user(request, f"❌ Erreur demande #{demande.pk} : {e}", level='error')
-        self.message_user(request, "✅ Demandes approuvées et appliquées.")
-
-    @admin.action(description="❌ Refuser les demandes sélectionnées")
-    def refuser_demandes(self, request, queryset):
-        for demande in queryset.filter(statut='en_attente'):
-            demande.statut = 'refusee'
-            demande.traitee_par = request.user
-            demande.date_traitement = timezone.now()
-            demande.save()
-        self.message_user(request, "❌ Demandes refusées.")
-
-    def _appliquer_demande(self, demande):
-        d = demande.donnees
-
-        if demande.cible == 'employe':
-            if demande.type_action == 'create':
-                Employe.objects.create(
-                    nom=d['nom'], prenom=d['prenom'],
-                    matricule=d['matricule'],
-                    poste_id=d.get('poste'),
-                    actif=d.get('actif', True)
-                )
-            elif demande.type_action == 'update':
-                Employe.objects.filter(pk=demande.cible_id).update(
-                    nom=d['nom'], prenom=d['prenom'],
-                    matricule=d['matricule'],
-                    poste_id=d.get('poste'),
-                    actif=d.get('actif', True)
-                )
-            elif demande.type_action == 'delete':
-                Employe.objects.filter(pk=demande.cible_id).update(actif=False)
-
-        elif demande.cible == 'site':
-            if demande.type_action == 'create':
-                Site.objects.create(
-                    nom=d['nom'], adresse=d.get('adresse', ''),
-                    heure_ouverture_matin=d['heure_ouverture_matin'],
-                    heure_fermeture_matin=d['heure_fermeture_matin'],
-                    heure_ouverture_apres_midi=d['heure_ouverture_apres_midi'],
-                    heure_fermeture_apres_midi=d['heure_fermeture_apres_midi'],
-                )
-            elif demande.type_action == 'update':
-                Site.objects.filter(pk=demande.cible_id).update(
-                    nom=d['nom'], adresse=d.get('adresse', ''),
-                    heure_ouverture_matin=d['heure_ouverture_matin'],
-                    heure_fermeture_matin=d['heure_fermeture_matin'],
-                    heure_ouverture_apres_midi=d['heure_ouverture_apres_midi'],
-                    heure_fermeture_apres_midi=d['heure_fermeture_apres_midi'],
-                )
-            elif demande.type_action == 'delete':
-                Site.objects.filter(pk=demande.cible_id).delete()
-
-        elif demande.cible == 'poste':
-            if demande.type_action == 'create':
-                Poste.objects.create(
-                    nom=d['nom'],
-                    description=d.get('description', ''),
-                    couleur=d.get('couleur', '#4361ee')
-                )
-            elif demande.type_action == 'update':
-                Poste.objects.filter(pk=demande.cible_id).update(
-                    nom=d['nom'],
-                    description=d.get('description', ''),
-                    couleur=d.get('couleur', '#4361ee')
-                )
-            elif demande.type_action == 'delete':
-                Poste.objects.filter(pk=demande.cible_id).delete()
-
 
 # ============================================================
 # ANOMALIES DE POINTAGE
@@ -879,29 +567,29 @@ class AnomalieTraitementInline(admin.StackedInline):
     can_delete = False
     extra = 0
     max_num = 1
-    fields = ('administrateur', 'date_traitement', 'commentaire', 'pointage_concerne', 'corrections')
+    fields = ('administrateur', 'date_traitement', 'commentaire')
     readonly_fields = ('administrateur', 'date_traitement')
 
 
 @admin.register(AnomaliePointage)
 class AnomaliePointageAdmin(admin.ModelAdmin):
-    list_display = ('type_display', 'employe_ou_matricule', 'gravite_badge', 'statut_badge', 'site', 'date_pointage', 'created_at')
-    list_filter = ('statut', 'type', 'site')
-    search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule', 'matricule_scanne', 'message')
+    list_display = ('type_display', 'employe_ou_matricule', 'gravite_badge', 'statut_badge', 'created_at')
+    list_filter = ('statut', 'type')
+    search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule', 'matricule_scanne')
     date_hierarchy = 'created_at'
     inlines = [AnomalieTraitementInline]
     actions = ['marquer_traitees', 'marquer_cloturees']
     ordering = ('-created_at',)
 
     readonly_fields = (
-        'type', 'employe', 'matricule_scanne', 'site', 'date_pointage',
+        'type', 'employe', 'matricule_scanne', 'site',
         'message', 'contexte_formate', 'gravite_badge', 'statut_badge',
         'cloturee_par', 'date_cloture', 'created_at',
     )
 
     fieldsets = (
-        ("Anomalie détectée", {
-            'fields': ('type', 'gravite_badge', 'employe', 'matricule_scanne', 'site', 'date_pointage', 'created_at')
+        ("Anomalie", {
+            'fields': ('type', 'gravite_badge', 'employe', 'matricule_scanne', 'site', 'created_at')
         }),
         ("Détails", {'fields': ('message', 'contexte_formate')}),
         ("Statut", {'fields': ('statut_badge', 'cloturee_par', 'date_cloture')}),
@@ -916,7 +604,6 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
     def type_display(self, obj):
         return obj.get_type_display()
     type_display.short_description = 'Type'
-    type_display.admin_order_field = 'type'
 
     def employe_ou_matricule(self, obj):
         if obj.employe:
@@ -961,23 +648,20 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
             'white-space:pre-wrap;">{}</pre>',
             json.dumps(obj.contexte, indent=2, ensure_ascii=False, default=str)
         )
-    contexte_formate.short_description = "Contexte (technique)"
+    contexte_formate.short_description = "Contexte"
 
-    @admin.action(description="✅ Marquer les anomalies sélectionnées comme traitées")
+    @admin.action(description="✅ Marquer comme traitées")
     def marquer_traitees(self, request, queryset):
         count = 0
         for anomalie in queryset.exclude(statut=AnomaliePointage.STATUT_CLOTUREE):
             try:
-                marquer_traitee(
-                    anomalie, request.user,
-                    commentaire="Marquée traitée depuis l'administration."
-                )
+                marquer_traitee(anomalie, request.user, commentaire="Marquée traitée depuis l'administration.")
                 count += 1
             except ValueError as e:
                 self.message_user(request, f"❌ Anomalie #{anomalie.pk} : {e}", level=messages.ERROR)
         self.message_user(request, f"✅ {count} anomalie(s) marquée(s) comme traitée(s).")
 
-    @admin.action(description="🔒 Clôturer les anomalies sélectionnées")
+    @admin.action(description="🔒 Clôturer")
     def marquer_cloturees(self, request, queryset):
         count = 0
         for anomalie in queryset:
