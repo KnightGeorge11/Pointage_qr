@@ -331,55 +331,62 @@ class PointageAdmin(admin.ModelAdmin):
     
     def changelist_view(self, request, extra_context=None):
         # ============================================================
-        # NETTOYER LES PARAMÈTRES GET POUR ÉVITER LES ERREURS
+        # INTERCEPTER L'EXPORT EXCEL AVANT TOUT
         # ============================================================
-        get_params = request.GET.copy()
-        
-        # Vérifier si c'est une demande d'export Excel
-        if get_params.get('export_excel') == '1':
-            # Supprimer le paramètre d'export pour ne pas interférer
-            get_params.pop('export_excel', None)
+        if 'export_excel' in request.GET:
+            # Récupérer tous les paramètres sans 'export_excel'
+            params = request.GET.copy()
+            params.pop('export_excel', None)
             
-            # Récupérer le queryset
-            cl = self.get_changelist_instance(request)
-            queryset = cl.get_queryset(request)
+            # Construire une nouvelle requête sans le paramètre export_excel
+            new_request = request
+            new_request.GET = params
             
-            # Appliquer les filtres manuellement (comme l'interface utilisateur)
-            if get_params.get('date_debut'):
+            # Récupérer le queryset via la méthode standard de Django Admin
+            cl = self.get_changelist_instance(new_request)
+            queryset = cl.get_queryset(new_request)
+            
+            # Appliquer les filtres manuellement
+            if params.get('date_debut'):
                 try:
                     from datetime import datetime
-                    date_debut = datetime.strptime(get_params['date_debut'], '%Y-%m-%d').date()
+                    date_debut = datetime.strptime(params['date_debut'], '%Y-%m-%d').date()
                     queryset = queryset.filter(date_pointage__gte=date_debut)
                 except ValueError:
                     pass
             
-            if get_params.get('date_fin'):
+            if params.get('date_fin'):
                 try:
                     from datetime import datetime
-                    date_fin = datetime.strptime(get_params['date_fin'], '%Y-%m-%d').date()
+                    date_fin = datetime.strptime(params['date_fin'], '%Y-%m-%d').date()
                     queryset = queryset.filter(date_pointage__lte=date_fin)
                 except ValueError:
                     pass
             
-            if get_params.get('employe'):
+            if params.get('employe'):
                 try:
-                    queryset = queryset.filter(employe_id=get_params['employe'])
+                    queryset = queryset.filter(employe_id=params['employe'])
                 except ValueError:
                     pass
             
-            if get_params.get('site'):
+            if params.get('site'):
                 try:
-                    queryset = queryset.filter(site_id=get_params['site'])
+                    queryset = queryset.filter(site_id=params['site'])
                 except ValueError:
                     pass
             
-            if get_params.get('periode_type') == 'jour':
+            if params.get('periode_type') == 'jour':
                 queryset = queryset.filter(type_journee='normal')
-            elif get_params.get('periode_type') == 'nuit':
+            elif params.get('periode_type') == 'nuit':
                 queryset = queryset.filter(type_journee='garde')
             
             # Exporter en Excel
             return self.export_excel(request, queryset)
+        
+        # ============================================================
+        # NETTOYER LES PARAMÈTRES GET POUR ÉVITER LES ERREURS
+        # ============================================================
+        get_params = request.GET.copy()
         
         # Supprimer les paramètres vides
         params_to_remove = []
@@ -428,7 +435,6 @@ class PointageAdmin(admin.ModelAdmin):
             'total_employes': Employe.objects.filter(actif=True).count(),
             'sites_list': sites_list,
             'employes_list': employes_list,
-            # Transmettre les paramètres pour les conserver dans le template
             'filter_date_debut': request.GET.get('date_debut', ''),
             'filter_date_fin': request.GET.get('date_fin', ''),
             'filter_employe': request.GET.get('employe', ''),
