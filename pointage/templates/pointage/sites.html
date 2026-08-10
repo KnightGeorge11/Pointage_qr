@@ -409,10 +409,13 @@
         <span class="count">{{ sites_configures|default:sites|length }}</span>
     </span>
 </div>
+
+<!-- ===== BARRE DE RECHERCHE ===== -->
 <div style="margin-bottom: 16px;">
     <input type="text" id="searchInput" placeholder="Rechercher un site..." 
            style="width: 100%; max-width: 300px; padding: 8px 14px; border: 1px solid #E2E8F0; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 13px;">
 </div>
+
 <!-- ===== TABLEAU ===== -->
 <div class="table-container">
     <div class="table-wrapper">
@@ -423,7 +426,7 @@
                     <th style="min-width:180px;">Adresse</th>
                     <th style="min-width:160px;">Horaires matin</th>
                     <th style="min-width:160px;">Horaires après-midi</th>
-                    <th style="text-align:center;min-width:80px;">Actions</th>
+                    <th style="text-align:center;min-width:100px;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -462,10 +465,13 @@
                             <a href="{% url 'site_update' site.pk %}" class="btn btn-edit" title="Modifier">
                                 <i class="fas fa-pen"></i>
                             </a>
-                            <!-- Suppression via la vue update avec paramètre -->
-                            <a href="{% url 'site_update' site.pk %}?delete=true" class="btn btn-delete" title="Supprimer">
+                            <!-- ============================================================ -->
+                            <!-- BOUTON DE SUPPRESSION AJOUTÉ -->
+                            <!-- ============================================================ -->
+                            <a href="{% url 'site_delete' site.pk %}" class="btn btn-delete" title="Supprimer">
                                 <i class="fas fa-trash"></i>
                             </a>
+                            <!-- ============================================================ -->
                         </div>
                     </td>
                 </tr>
@@ -553,8 +559,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-});
-document.addEventListener('DOMContentLoaded', function() {
+    // ─── Barre de recherche ──
     const searchInput = document.getElementById('searchInput');
     const table = document.querySelector('table tbody');
     const rows = table ? table.querySelectorAll('tr') : [];
@@ -566,6 +571,7 @@ document.addEventListener('DOMContentLoaded', function() {
             row.style.display = text.includes(searchTerm) ? '' : 'none';
         });
     });
+
 });
 </script>
 {% endblock %}
