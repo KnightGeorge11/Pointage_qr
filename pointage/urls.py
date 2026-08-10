@@ -79,4 +79,5 @@ urlpatterns = [
     # Demandes de modification (Admin)
     path('admin/demande/<int:pk>/approuver/', views.approuver_demande_view, name='demande_approuver'),
     path('admin/demande/<int:pk>/refuser/', views.refuser_demande_view, name='demande_refuser'),
+    path('api/admin-badge-counts/', views.admin_badge_counts_api, name='admin_badge_counts_api'),
 ]

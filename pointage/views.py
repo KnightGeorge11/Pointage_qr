@@ -1503,3 +1503,22 @@ def get_charts_data(request):
         'weekly':    {'labels': jours_labels, 'presents': jours_presents, 'retards': jours_retards},
         'evolution': {'labels': semaines_labels, 'taux_presence': semaines_taux},
     })
+# pointage/views.py
+
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from .models import DemandeModification, AnomaliePointage
+
+
+@login_required
+def admin_badge_counts_api(request):
+    """API pour les compteurs de badges admin"""
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    return JsonResponse({
+        'demandes_attente': DemandeModification.objects.filter(statut='en_attente').count(),
+        'anomalies_ouvertes': AnomaliePointage.objects.filter(
+            statut=AnomaliePointage.STATUT_OUVERTE
+        ).count(),
+    })
