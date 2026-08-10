@@ -1,0 +1,64 @@
+{% load jazzmin i18n %}
+{% get_jazzmin_settings as jazzmin_settings %}
+
+<aside class="main-sidebar sidebar-{{ jazzmin_settings.sidebar }} elevation-4 {{ jazzmin_settings.sidebar }}">
+    <a href="{% url 'admin:index' %}" class="brand-link {{ jazzmin_settings.brand_colour }}">
+        <span class="brand-text font-weight-light">{{ jazzmin_settings.site_brand }}</span>
+    </a>
+
+    <div class="sidebar">
+        <nav class="mt-2">
+            <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                {% if jazzmin_settings.navigation %}
+                    {% for item in jazzmin_settings.navigation %}
+                        {% render_navigation_item item request %}
+                    {% endfor %}
+                {% else %}
+                    {% get_admin_app_list as app_list %}
+                    {% for app in app_list %}
+                        <li class="nav-header">{{ app.name }}</li>
+                        {% for model in app.models %}
+                            {% if model.admin_url %}
+                                <li class="nav-item">
+                                    <a href="{{ model.admin_url }}" class="nav-link">
+                                        <i class="nav-icon {{ model.icon }}"></i>
+                                        <p>
+                                            {{ model.name }}
+                                            
+                                            <!-- ============================================================ -->
+                                            <!-- BADGE POUR DEMANDES DE MODIFICATION -->
+                                            <!-- ============================================================ -->
+                                            {% if model.name == "Demandes de modification" and demandes_attente > 0 %}
+                                                <span class="badge badge-danger right" style="background: #EF4444; border-radius: 9999px; padding: 2px 8px; font-size: 10px; animation: pulse-badge 2s ease-in-out infinite;">
+                                                    {{ demandes_attente }}
+                                                </span>
+                                            {% endif %}
+                                            
+                                            <!-- ============================================================ -->
+                                            <!-- BADGE POUR ANOMALIES -->
+                                            <!-- ============================================================ -->
+                                            {% if model.name == "Anomalies de pointage" and anomalies_ouvertes > 0 %}
+                                                <span class="badge badge-danger right" style="background: #EF4444; border-radius: 9999px; padding: 2px 8px; font-size: 10px; animation: pulse-badge 2s ease-in-out infinite;">
+                                                    {{ anomalies_ouvertes }}
+                                                </span>
+                                            {% endif %}
+                                            <!-- ============================================================ -->
+                                            
+                                        </p>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+</aside>
+
+<style>
+@keyframes pulse-badge {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(0.95); }
+}
+</style>
