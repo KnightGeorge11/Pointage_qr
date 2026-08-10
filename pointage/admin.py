@@ -1,4 +1,4 @@
-# pointage/admin.py
+# pointage/admin.py - Version avec filtres horizontaux (pas de filtres sidebar)
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -24,34 +24,6 @@ from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-
-
-# ============================================================
-# FILTRE PÉRIODE UNIQUE (pour la sidebar Jazzmin)
-# ============================================================
-
-class PeriodeFusionFilter(SimpleListFilter):
-    title = 'Période'
-    parameter_name = 'periode'
-
-    def lookups(self, request, model_admin):
-        return [
-            ('matin', 'Matin'),
-            ('apres_midi', 'Après-midi'),
-            ('nuit', 'Nuit'),
-            ('garde', 'Garde de nuit'),
-        ]
-
-    def queryset(self, request, queryset):
-        if self.value() == 'matin':
-            return queryset.filter(periode='matin')
-        if self.value() == 'apres_midi':
-            return queryset.filter(periode='apres_midi')
-        if self.value() == 'nuit':
-            return queryset.filter(periode='nuit', type_journee='normal')
-        if self.value() == 'garde':
-            return queryset.filter(periode='nuit', type_journee='garde')
-        return queryset
 
 
 # ============================================================
@@ -227,7 +199,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - VERSION AVEC FILTRES HORIZONTAUX
+# POINTAGE - AVEC FILTRES HORIZONTAUX (PAS DE FILTRES SIDEBAR)
 # ============================================================
 
 @admin.register(Pointage)
@@ -247,13 +219,10 @@ class PointageAdmin(admin.ModelAdmin):
         'get_heures_display',
     ]
     
-    # Filtres dans la sidebar Jazzmin (conservés)
-    list_filter = [
-        'statut',
-        PeriodeFusionFilter,
-        'site',
-        'date_pointage',
-    ]
+    # ============================================================
+    # SUPPRIMER LES FILTRES DE LA SIDEBAR
+    # ============================================================
+    list_filter = []  # ← PLUS DE FILTRES DANS LA SIDEBAR
     
     search_fields = [
         'employe__nom',
@@ -640,7 +609,7 @@ class PointageAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# DEMANDE DE MODIFICATION - AVEC BOUTONS ACCEPTER/REFUSER
+# DEMANDE DE MODIFICATION
 # ============================================================
 
 @admin.register(DemandeModification)
@@ -849,12 +818,6 @@ class DemandeModificationAdmin(admin.ModelAdmin):
         self.message_user(request, "❌ Demandes refusées.")
 
     def _appliquer_demande(self, demande):
-        """
-        Applique une demande approuvée.
-        - CREATE : crée l'objet
-        - UPDATE : met à jour l'objet
-        - DELETE : supprime l'objet
-        """
         d = demande.donnees
 
         if demande.cible == 'employe':
