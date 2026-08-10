@@ -465,13 +465,9 @@
                             <a href="{% url 'site_update' site.pk %}" class="btn btn-edit" title="Modifier">
                                 <i class="fas fa-pen"></i>
                             </a>
-                            <!-- ============================================================ -->
-                            <!-- BOUTON DE SUPPRESSION AJOUTÉ -->
-                            <!-- ============================================================ -->
                             <a href="{% url 'site_delete' site.pk %}" class="btn btn-delete" title="Supprimer">
                                 <i class="fas fa-trash"></i>
                             </a>
-                            <!-- ============================================================ -->
                         </div>
                     </td>
                 </tr>
@@ -547,18 +543,6 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-
-    // ─── Confirmation de suppression ──
-    document.querySelectorAll('.btn-delete').forEach(function(btn) {
-        btn.addEventListener('click', function(e) {
-            const row = this.closest('tr');
-            const siteName = row?.querySelector('.site-name')?.textContent?.trim() || 'ce site';
-            if (!confirm('Êtes-vous sûr de vouloir supprimer le site "' + siteName + '" ?\n\nCette action est irréversible.')) {
-                e.preventDefault();
-            }
-        });
-    });
-
     // ─── Barre de recherche ──
     const searchInput = document.getElementById('searchInput');
     const table = document.querySelector('table tbody');

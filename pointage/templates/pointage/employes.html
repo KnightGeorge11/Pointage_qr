@@ -612,18 +612,6 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-
-    // ─── Confirmation de suppression ──
-    document.querySelectorAll('.btn-delete').forEach(function(btn) {
-        btn.addEventListener('click', function(e) {
-            if (!confirm('Êtes-vous sûr de vouloir supprimer cet employé ? Cette action est irréversible.')) {
-                e.preventDefault();
-            }
-        });
-    });
-
-});
-document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     const table = document.querySelector('table tbody');
     const rows = table ? table.querySelectorAll('tr') : [];
