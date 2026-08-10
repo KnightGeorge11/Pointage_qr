@@ -814,6 +814,12 @@ class DemandeModificationAdmin(admin.ModelAdmin):
         self.message_user(request, "❌ Demandes refusées.")
 
     def _appliquer_demande(self, demande):
+        """
+        Applique une demande approuvée.
+        - CREATE : crée l'objet
+        - UPDATE : met à jour l'objet
+        - DELETE : supprime l'objet (ou le désactive pour les employés)
+        """
         d = demande.donnees
 
         if demande.cible == 'employe':
@@ -832,7 +838,16 @@ class DemandeModificationAdmin(admin.ModelAdmin):
                     actif=d.get('actif', True)
                 )
             elif demande.type_action == 'delete':
-                Employe.objects.filter(pk=demande.cible_id).update(actif=False)
+                # ============================================================
+                # CORRECTION : Suppression réelle au lieu de désactivation
+                # ============================================================
+                try:
+                    employe = Employe.objects.get(pk=demande.cible_id)
+                    # Supprimer l'employé (cascade supprime aussi les pointages)
+                    employe.delete()
+                except Employe.DoesNotExist:
+                    pass
+                # ============================================================
 
         elif demande.cible == 'site':
             if demande.type_action == 'create':
@@ -912,8 +927,6 @@ class ScanAdmin(admin.ModelAdmin):
 # ============================================================
 # ANOMALIES DE POINTAGE
 # ============================================================
-
-# pointage/admin.py
 
 class AnomalieTraitementInline(admin.StackedInline):
     model = AnomalieTraitement
