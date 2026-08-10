@@ -2,11 +2,11 @@
 from django.urls import path, include
 from . import views
 from .views import (
-    dashboard, index, scanner_view,export_resume_excel,
+    dashboard, index, scanner_view, export_resume_excel,
 
     # ✅ Fonctions (remplacent les anciennes classes)
     employe_create_view, employe_update_view, employe_delete_view,
-    site_create_view, site_update_view,
+    site_create_view, site_update_view, site_delete_view,   # ← site_delete_view AJOUTÉ
     poste_create_view, poste_update_view, poste_delete_view,
 
     # ✅ Classes conservées
@@ -31,6 +31,7 @@ from .views_mobile import (
     MobilePointagesAPIView,
     MobileTestAPIView
 )
+
 router = DefaultRouter()
 router.register(r'employes', views.EmployeViewSet, basename='employe')
 router.register(r'sites',    views.SiteViewSet,    basename='site')
@@ -53,6 +54,7 @@ urlpatterns = [
     path('sites/',                      SiteListView.as_view(),     name='sites'),
     path('sites/nouveau/',              site_create_view,           name='site_create'),
     path('sites/<int:pk>/modifier/',    site_update_view,           name='site_update'),
+    path('sites/<int:pk>/supprimer/',   site_delete_view,           name='site_delete'),   # ← AJOUTÉ
 
     # Pointages
     path('pointages/',                          PointageListView.as_view(),   name='pointages'),
@@ -81,6 +83,8 @@ urlpatterns = [
     path('api/prochain-scan/<int:employe_id>/',       get_prochain_scan,           name='prochain_scan'),
     path('api/dashboard-stats/',                      get_dashboard_stats,         name='dashboard_stats'),
     path('api/charts-data/',                          get_charts_data,             name='charts_data'),
+    
+    # Demandes de modification (Admin)
     path('admin/demande/<int:pk>/approuver/', views.approuver_demande_view, name='demande_approuver'),
     path('admin/demande/<int:pk>/refuser/', views.refuser_demande_view, name='demande_refuser'),
 ]

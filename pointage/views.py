@@ -409,20 +409,26 @@ def employe_update_view(request, pk):
 @login_required
 def employe_delete_view(request, pk):
     employe = get_object_or_404(Employe, pk=pk)
-    if request.method == 'POST':
-        if request.user.is_staff:
+    
+    if request.user.is_staff:
+        if request.method == 'POST':
             nom = employe.get_nom_complet()
             employe.delete()
             messages.success(request, f"✅ Employé {nom} supprimé avec succès.")
             return redirect('employes')
-        else:
+        return render(request, 'pointage/employe_confirm_delete.html', {
+            'object': employe,
+            'mode': 'suppression',
+        })
+    else:
+        if request.method == 'POST':
             _creer_demande(request, 'delete', 'employe', cible_id=pk)
             messages.success(request, "✅ Votre demande de suppression a été envoyée à l'administrateur.")
             return redirect('employes')
-    return render(request, 'pointage/employe_confirm_delete.html', {
-        'object': employe,
-        'mode': 'demande' if not request.user.is_staff else 'suppression',
-    })
+        return render(request, 'pointage/employe_confirm_delete.html', {
+            'object': employe,
+            'mode': 'demande',
+        })
 
 
 # ---------------------------
@@ -486,6 +492,30 @@ def site_update_view(request, pk):
         'mode': 'demande' if not request.user.is_staff else 'modification',
         'titre': f'Modification de {site.nom}' if request.user.is_staff else f'Demande de modification — {site.nom}',
     })
+
+@login_required
+def site_delete_view(request, pk):
+    site = get_object_or_404(Site, pk=pk)
+    
+    if request.user.is_staff:
+        if request.method == 'POST':
+            nom = site.nom
+            site.delete()
+            messages.success(request, f"✅ Site {nom} supprimé avec succès.")
+            return redirect('sites')
+        return render(request, 'pointage/site_confirm_delete.html', {
+            'object': site,
+            'mode': 'suppression',
+        })
+    else:
+        if request.method == 'POST':
+            _creer_demande(request, 'delete', 'site', cible_id=pk)
+            messages.success(request, "✅ Votre demande de suppression a été envoyée à l'administrateur.")
+            return redirect('sites')
+        return render(request, 'pointage/site_confirm_delete.html', {
+            'object': site,
+            'mode': 'demande',
+        })
 
 
 # ---------------------------
@@ -554,20 +584,26 @@ def poste_update_view(request, pk):
 @login_required
 def poste_delete_view(request, pk):
     poste = get_object_or_404(Poste, pk=pk)
-    if request.method == 'POST':
-        if request.user.is_staff:
+    
+    if request.user.is_staff:
+        if request.method == 'POST':
             nom = poste.nom
             poste.delete()
             messages.success(request, f"✅ Poste {nom} supprimé avec succès.")
             return redirect('postes')
-        else:
+        return render(request, 'pointage/poste_confirm_delete.html', {
+            'object': poste,
+            'mode': 'suppression',
+        })
+    else:
+        if request.method == 'POST':
             _creer_demande(request, 'delete', 'poste', cible_id=pk)
             messages.success(request, "✅ Votre demande de suppression a été envoyée à l'administrateur.")
             return redirect('postes')
-    return render(request, 'pointage/poste_confirm_delete.html', {
-        'object': poste,
-        'mode': 'demande' if not request.user.is_staff else 'suppression',
-    })
+        return render(request, 'pointage/poste_confirm_delete.html', {
+            'object': poste,
+            'mode': 'demande',
+        })
 
 
 # ---------------------------
