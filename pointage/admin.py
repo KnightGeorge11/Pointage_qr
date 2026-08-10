@@ -1,4 +1,4 @@
-# pointage/admin.py - Version complète avec les filtres UI
+# pointage/admin.py - Version complète avec tous les filtres UI
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -27,11 +27,73 @@ from openpyxl.utils import get_column_letter
 
 
 # ============================================================
-# FILTRES PERSONNALISÉS (comme l'interface utilisateur)
+# FILTRES EXACTEMENT COMME L'INTERFACE UTILISATEUR
 # ============================================================
 
+class DateDebutFilter(SimpleListFilter):
+    """Date début - comme dans l'UI"""
+    title = 'Date début'
+    parameter_name = 'date_debut'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('today', "Aujourd'hui"),
+            ('yesterday', 'Hier'),
+            ('week', 'Cette semaine'),
+            ('month', 'Ce mois-ci'),
+            ('custom', 'Personnalisée...'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'today':
+            today = timezone.localtime(timezone.now()).date()
+            return queryset.filter(date_pointage=today)
+        if self.value() == 'yesterday':
+            yesterday = timezone.localtime(timezone.now()).date() - timedelta(days=1)
+            return queryset.filter(date_pointage=yesterday)
+        if self.value() == 'week':
+            today = timezone.localtime(timezone.now()).date()
+            start_of_week = today - timedelta(days=today.weekday())
+            return queryset.filter(date_pointage__gte=start_of_week)
+        if self.value() == 'month':
+            today = timezone.localtime(timezone.now()).date()
+            return queryset.filter(date_pointage__year=today.year, date_pointage__month=today.month)
+        return queryset
+
+
+class DateFinFilter(SimpleListFilter):
+    """Date fin - comme dans l'UI"""
+    title = 'Date fin'
+    parameter_name = 'date_fin'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('today', "Aujourd'hui"),
+            ('yesterday', 'Hier'),
+            ('week', 'Cette semaine'),
+            ('month', 'Ce mois-ci'),
+            ('custom', 'Personnalisée...'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'today':
+            today = timezone.localtime(timezone.now()).date()
+            return queryset.filter(date_pointage=today)
+        if self.value() == 'yesterday':
+            yesterday = timezone.localtime(timezone.now()).date() - timedelta(days=1)
+            return queryset.filter(date_pointage=yesterday)
+        if self.value() == 'week':
+            today = timezone.localtime(timezone.now()).date()
+            start_of_week = today - timedelta(days=today.weekday())
+            return queryset.filter(date_pointage__gte=start_of_week)
+        if self.value() == 'month':
+            today = timezone.localtime(timezone.now()).date()
+            return queryset.filter(date_pointage__year=today.year, date_pointage__month=today.month)
+        return queryset
+
+
 class EmployeFilter(SimpleListFilter):
-    """Filtre par employé - comme dans l'UI"""
+    """Employé - comme dans l'UI"""
     title = 'Employé'
     parameter_name = 'employe'
 
@@ -48,15 +110,33 @@ class EmployeFilter(SimpleListFilter):
         return queryset
 
 
+class SiteFilter(SimpleListFilter):
+    """Site - comme dans l'UI"""
+    title = 'Site'
+    parameter_name = 'site'
+
+    def lookups(self, request, model_admin):
+        sites = Site.objects.all().order_by('nom')
+        return [(str(s.id), s.nom) for s in sites]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            try:
+                return queryset.filter(site_id=int(self.value()))
+            except (ValueError, TypeError):
+                return queryset
+        return queryset
+
+
 class PeriodeTypeFilter(SimpleListFilter):
-    """Filtre type de période (Jour/Nuit) - comme dans l'UI"""
+    """Type de période - comme dans l'UI (Jour/Nuit)"""
     title = 'Type de période'
     parameter_name = 'periode_type'
 
     def lookups(self, request, model_admin):
         return [
             ('jour', 'Jour'),
-            ('nuit', 'Nuit (Garde)'),
+            ('nuit', 'Nuit (Gardes)'),
         ]
 
     def queryset(self, request, queryset):
@@ -240,7 +320,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - AVEC FILTRES COMME L'INTERFACE UTILISATEUR
+# POINTAGE - AVEC FILTRES EXACTEMENT COMME L'UI
 # ============================================================
 
 @admin.register(Pointage)
@@ -261,18 +341,16 @@ class PointageAdmin(admin.ModelAdmin):
     ]
     
     # ============================================================
-    # FILTRES - MÊMES CHAMPS QUE L'INTERFACE UTILISATEUR
+    # FILTRES EXACTEMENT COMME L'INTERFACE UTILISATEUR
     # ============================================================
     list_filter = [
-        'date_pointage',          # Date
-        EmployeFilter,            # Employé
-        'site',                   # Site
-        PeriodeTypeFilter,        # Type de période (Jour/Nuit)
+        DateDebutFilter,      # Date début
+        DateFinFilter,        # Date fin
+        EmployeFilter,        # Employé
+        SiteFilter,           # Site
+        PeriodeTypeFilter,    # Type de période (Jour/Nuit)
     ]
     
-    # ============================================================
-    # RECHERCHE
-    # ============================================================
     search_fields = [
         'employe__nom',
         'employe__prenom',
