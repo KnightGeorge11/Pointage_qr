@@ -274,6 +274,50 @@
         </div>
     </div>
 
+
+    <!-- ===== CARTES DE STATISTIQUES ===== -->
+    <div class="row" style="margin-top: 20px;">
+        <div class="col-lg-3 col-6">
+            <div class="stat-card primary">
+                <div class="stat-icon"><i class="fas fa-users"></i></div>
+                <div class="stat-value">{{ total_employes|default:"0" }}</div>
+                <div class="stat-label">Employés total</div>
+                <a href="{% url 'admin:pointage_employe_changelist' %}" class="stat-link">
+                    Voir la liste <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="stat-card success">
+                <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+                <div class="stat-value">{{ presents_aujourdhui|default:"0" }}</div>
+                <div class="stat-label">Présents aujourd'hui</div>
+                <a href="{% url 'admin:pointage_pointage_changelist' %}?date_pointage__exact={% now 'Y-m-d' %}" class="stat-link">
+                    Voir les pointages <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="stat-card warning">
+                <div class="stat-icon"><i class="fas fa-triangle-exclamation"></i></div>
+                <div class="stat-value">{{ anomalies_ouvertes|default:"0" }}</div>
+                <div class="stat-label">Anomalies ouvertes</div>
+                <a href="{% url 'admin:pointage_anomaliepointage_changelist' %}?statut__exact=ouverte" class="stat-link">
+                    Voir les anomalies <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="stat-card info">
+                <div class="stat-icon"><i class="fas fa-moon"></i></div>
+                <div class="stat-value">{{ gardes_en_cours|default:"0" }}</div>
+                <div class="stat-label">Gardes en cours</div>
+                <a href="{% url 'admin:pointage_pointage_changelist' %}?periode__exact=nuit&type_journee__exact=garde" class="stat-link">
+                    Voir les gardes <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
     <!-- ============================================================ -->
     <!-- NOTIFICATIONS - DEMANDES ET ANOMALIES -->
     <!-- ============================================================ -->
@@ -338,51 +382,6 @@
         </a>
 
     </div>
-
-    <!-- ===== CARTES DE STATISTIQUES ===== -->
-    <div class="row" style="margin-top: 20px;">
-        <div class="col-lg-3 col-6">
-            <div class="stat-card primary">
-                <div class="stat-icon"><i class="fas fa-users"></i></div>
-                <div class="stat-value">{{ total_employes|default:"0" }}</div>
-                <div class="stat-label">Employés total</div>
-                <a href="{% url 'admin:pointage_employe_changelist' %}" class="stat-link">
-                    Voir la liste <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-        <div class="col-lg-3 col-6">
-            <div class="stat-card success">
-                <div class="stat-icon"><i class="fas fa-user-check"></i></div>
-                <div class="stat-value">{{ presents_aujourdhui|default:"0" }}</div>
-                <div class="stat-label">Présents aujourd'hui</div>
-                <a href="{% url 'admin:pointage_pointage_changelist' %}?date_pointage__exact={% now 'Y-m-d' %}" class="stat-link">
-                    Voir les pointages <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-        <div class="col-lg-3 col-6">
-            <div class="stat-card warning">
-                <div class="stat-icon"><i class="fas fa-triangle-exclamation"></i></div>
-                <div class="stat-value">{{ anomalies_ouvertes|default:"0" }}</div>
-                <div class="stat-label">Anomalies ouvertes</div>
-                <a href="{% url 'admin:pointage_anomaliepointage_changelist' %}?statut__exact=ouverte" class="stat-link">
-                    Voir les anomalies <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-        <div class="col-lg-3 col-6">
-            <div class="stat-card info">
-                <div class="stat-icon"><i class="fas fa-moon"></i></div>
-                <div class="stat-value">{{ gardes_en_cours|default:"0" }}</div>
-                <div class="stat-label">Gardes en cours</div>
-                <a href="{% url 'admin:pointage_pointage_changelist' %}?periode__exact=nuit&type_journee__exact=garde" class="stat-link">
-                    Voir les gardes <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-    </div>
-
     <!-- ===== GRAPHIQUES ===== -->
     <div class="row" style="margin-top: 20px;">
         
