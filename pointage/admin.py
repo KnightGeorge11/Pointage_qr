@@ -27,7 +27,7 @@ from openpyxl.utils import get_column_letter
 
 
 # ============================================================
-# FILTRE PÉRIODE UNIQUE
+# FILTRE PÉRIODE UNIQUE (pour la sidebar Jazzmin)
 # ============================================================
 
 class PeriodeFusionFilter(SimpleListFilter):
@@ -227,7 +227,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - VERSION NETTOYÉE
+# POINTAGE - VERSION AVEC FILTRES HORIZONTAUX
 # ============================================================
 
 @admin.register(Pointage)
@@ -247,6 +247,7 @@ class PointageAdmin(admin.ModelAdmin):
         'get_heures_display',
     ]
     
+    # Filtres dans la sidebar Jazzmin (conservés)
     list_filter = [
         'statut',
         PeriodeFusionFilter,
@@ -311,13 +312,36 @@ class PointageAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return Pointage.objects.select_related('employe', 'site')
     
+    # ============================================================
+    # CHANGELIST VIEW AVEC CONTEXTE POUR LES FILTRES HORIZONTAUX
+    # ============================================================
     def changelist_view(self, request, extra_context=None):
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
         
+        # Vérifier l'export Excel
         if 'export_excel' in request.GET:
             return self.export_excel(request, queryset)
         
+        # ============================================================
+        # RÉCUPÉRER LES VALEURS DES FILTRES POUR LE TEMPLATE
+        # ============================================================
+        filter_date_debut = request.GET.get('date_debut', '')
+        filter_date_fin = request.GET.get('date_fin', '')
+        filter_employe = request.GET.get('employe', '')
+        filter_site = request.GET.get('site', '')
+        filter_periode_type = request.GET.get('periode_type', '')
+        filter_statut = request.GET.get('statut', '')
+        
+        # ============================================================
+        # LISTES POUR LES FILTRES
+        # ============================================================
+        sites_list = Site.objects.all().order_by('nom')
+        employes_list = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
+        
+        # ============================================================
+        # STATISTIQUES
+        # ============================================================
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
         retards = queryset.filter(statut='retard').count()
@@ -329,10 +353,21 @@ class PointageAdmin(admin.ModelAdmin):
             'presents_count': presents,
             'retards_count': retards,
             'absents_count': absents,
+            'sites_list': sites_list,
+            'employes_list': employes_list,
+            'filter_date_debut': filter_date_debut,
+            'filter_date_fin': filter_date_fin,
+            'filter_employe': filter_employe,
+            'filter_site': filter_site,
+            'filter_periode_type': filter_periode_type,
+            'filter_statut': filter_statut,
         })
         
         return super().changelist_view(request, extra_context=extra_context)
     
+    # ============================================================
+    # EXPORT EXCEL
+    # ============================================================
     def export_excel(self, request, queryset):
         """Export Excel au même format que l'interface utilisateur"""
         if not queryset.exists():
@@ -818,7 +853,7 @@ class DemandeModificationAdmin(admin.ModelAdmin):
         Applique une demande approuvée.
         - CREATE : crée l'objet
         - UPDATE : met à jour l'objet
-        - DELETE : supprime l'objet (ou le désactive pour les employés)
+        - DELETE : supprime l'objet
         """
         d = demande.donnees
 
@@ -838,16 +873,11 @@ class DemandeModificationAdmin(admin.ModelAdmin):
                     actif=d.get('actif', True)
                 )
             elif demande.type_action == 'delete':
-                # ============================================================
-                # CORRECTION : Suppression réelle au lieu de désactivation
-                # ============================================================
                 try:
                     employe = Employe.objects.get(pk=demande.cible_id)
-                    # Supprimer l'employé (cascade supprime aussi les pointages)
                     employe.delete()
                 except Employe.DoesNotExist:
                     pass
-                # ============================================================
 
         elif demande.cible == 'site':
             if demande.type_action == 'create':
