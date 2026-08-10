@@ -70,6 +70,86 @@
         .stat-card.danger .stat-value { color: #EF4444; }
         .stat-card.info .stat-value { color: #3B82F6; }
         
+        /* ── Notifications cards ── */
+        .notification-card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 16px 20px;
+            border: 1px solid #E2E8F0;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+            transition: all 200ms ease;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            text-decoration: none;
+            color: inherit;
+        }
+        .notification-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08);
+            transform: translateY(-2px);
+        }
+        .notification-card .notif-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .notification-card .notif-icon.pending {
+            background: #FEE2E2;
+            color: #EF4444;
+        }
+        .notification-card .notif-icon.zero {
+            background: #DCFCE7;
+            color: #22C55E;
+        }
+        .notification-card .notif-icon.anomalies {
+            background: #FEF3C7;
+            color: #F59E0B;
+        }
+        .notification-card .notif-content {
+            flex: 1;
+        }
+        .notification-card .notif-number {
+            font-size: 22px;
+            font-weight: 700;
+            color: #0F172A;
+            line-height: 1;
+        }
+        .notification-card .notif-number .badge-pulse {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #EF4444;
+            margin-right: 6px;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+        .notification-card .notif-label {
+            font-size: 13px;
+            color: #64748B;
+        }
+        .notification-card .notif-sub {
+            font-size: 11px;
+            color: #94A3B8;
+            margin-top: 2px;
+        }
+        .notification-card .notif-arrow {
+            color: #94A3B8;
+            font-size: 14px;
+            transition: color 150ms ease;
+        }
+        .notification-card:hover .notif-arrow {
+            color: #2563EB;
+        }
+        
         .activity-item {
             padding: 10px 16px;
             border-left: 3px solid #2563EB;
@@ -194,6 +274,71 @@
         </div>
     </div>
 
+    <!-- ============================================================ -->
+    <!-- NOTIFICATIONS - DEMANDES ET ANOMALIES -->
+    <!-- ============================================================ -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px;">
+        
+        <!-- Demandes en attente -->
+        <a href="{% url 'admin:pointage_demandemodification_changelist' %}" class="notification-card">
+            <div class="notif-icon {% if demandes_attente > 0 %}pending{% else %}zero{% endif %}">
+                <i class="fas fa-inbox"></i>
+            </div>
+            <div class="notif-content">
+                <div class="notif-number">
+                    {% if demandes_attente > 0 %}
+                        <span class="badge-pulse"></span>
+                    {% endif %}
+                    {{ demandes_attente|default:0 }}
+                </div>
+                <div class="notif-label">
+                    <i class="fas fa-pen-to-square" style="font-size: 11px; margin-right: 4px; color: #64748B;"></i>
+                    Demandes de modification
+                </div>
+                <div class="notif-sub">
+                    {% if demandes_attente > 0 %}
+                        {{ demandes_attente }} demande{{ demandes_attente|pluralize }} en attente
+                    {% else %}
+                        ✅ Aucune demande en attente
+                    {% endif %}
+                </div>
+            </div>
+            <div class="notif-arrow">
+                <i class="fas fa-chevron-right"></i>
+            </div>
+        </a>
+
+        <!-- Anomalies ouvertes -->
+        <a href="{% url 'admin:pointage_anomaliepointage_changelist' %}?statut__exact=ouverte" class="notification-card">
+            <div class="notif-icon {% if anomalies_ouvertes > 0 %}anomalies{% else %}zero{% endif %}">
+                <i class="fas fa-triangle-exclamation"></i>
+            </div>
+            <div class="notif-content">
+                <div class="notif-number">
+                    {% if anomalies_ouvertes > 0 %}
+                        <span class="badge-pulse"></span>
+                    {% endif %}
+                    {{ anomalies_ouvertes|default:0 }}
+                </div>
+                <div class="notif-label">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 11px; margin-right: 4px; color: #64748B;"></i>
+                    Anomalies de pointage
+                </div>
+                <div class="notif-sub">
+                    {% if anomalies_ouvertes > 0 %}
+                        {{ anomalies_ouvertes }} anomalie{{ anomalies_ouvertes|pluralize }} à traiter
+                    {% else %}
+                        ✅ Aucune anomalie ouverte
+                    {% endif %}
+                </div>
+            </div>
+            <div class="notif-arrow">
+                <i class="fas fa-chevron-right"></i>
+            </div>
+        </a>
+
+    </div>
+
     <!-- ===== CARTES DE STATISTIQUES ===== -->
     <div class="row" style="margin-top: 20px;">
         <div class="col-lg-3 col-6">
@@ -301,11 +446,9 @@
                         <i class="fas fa-clock"></i>
                         Historique des activités
                     </h5>
-                    <!-- ===== LIEN CORRIGÉ ===== -->
                     <span style="font-size: 11px; color: #64748B;">
                         <i class="fas fa-clock"></i> Activités récentes
                     </span>
-                    <!-- ========================= -->
                 </div>
                 <div class="chart-body" style="padding: 0; max-height: 280px; overflow-y: auto;">
                     {% for log in logs_detailed|slice:":15" %}

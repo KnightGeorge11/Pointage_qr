@@ -146,7 +146,7 @@ LOGOUT_REDIRECT_URL = '/login/'
 # ============================================================
 JAZZMIN_SETTINGS = {
     "custom_css": "admin/css/jazzmin-badges.css",
-    "custom_js": "admin/js/jazzmin-badges.js", 
+    "custom_js": "admin/js/jazzmin-badges.js",
     # ── Identité ──
     "site_title": "Pointage Admin",
     "site_header": "Pointage QR",
