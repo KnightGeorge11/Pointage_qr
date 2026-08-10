@@ -1,3 +1,5 @@
+# pointage/views.py
+
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -55,7 +57,6 @@ def approuver_demande_view(request, pk):
         return redirect('admin:pointage_demandemodification_changelist')
     
     try:
-        # Utiliser la méthode existante pour appliquer la demande
         admin_instance = DemandeModificationAdmin(DemandeModification, None)
         admin_instance._appliquer_demande(demande)
         
@@ -146,7 +147,6 @@ def dashboard(request):
 
     total_employes = Employe.objects.filter(actif=True).count()
 
-    # Stats du jour en 2 requêtes (au lieu de 4)
     today_pointages = Pointage.objects.filter(date_pointage=today)
     presents_aujourdhui = today_pointages.values('employe').distinct().count()
     retards = today_pointages.filter(
@@ -160,7 +160,6 @@ def dashboard(request):
     demandes_en_attente = DemandeModification.objects.filter(statut='en_attente').count()
     anomalies_ouvertes = compter_anomalies_ouvertes()
 
-    # Stats journalières (7 jours) en 2 requêtes agrégées
     week_ago = today - timedelta(days=6)
     daily_stats = Pointage.objects.filter(
         date_pointage__gte=week_ago, date_pointage__lte=today
@@ -181,7 +180,6 @@ def dashboard(request):
         jours_absents.append(total_employes - p)
         jours_retards.append(r)
 
-    # Stats hebdomadaires (4 semaines) en 2 requêtes
     four_weeks_ago = today - timedelta(days=today.weekday() + 21)
     all_weekly = Pointage.objects.filter(
         date_pointage__gte=four_weeks_ago, date_pointage__lte=today
@@ -201,7 +199,6 @@ def dashboard(request):
         semaines_taux_presence.append(round(taux_presence, 1))
         semaines_taux_punctualite.append(round(taux_punctualite, 1))
 
-    # Stats postes en 1 requête (au lieu de 1+N)
     postes_qs = Poste.objects.annotate(
         employes_count=Count('employes', filter=Q(employes__actif=True))
     ).filter(employes_count__gt=0)
@@ -341,7 +338,7 @@ def _creer_demande(request, type_action, cible, form=None, cible_id=None):
 
 
 # ---------------------------
-# VUES POUR LES EMPLOYÉS - CORRIGÉES (Admin crée directement)
+# VUES POUR LES EMPLOYÉS
 # ---------------------------
 
 class EmployeListView(LoginRequiredMixin, ListView):
@@ -408,23 +405,32 @@ def employe_update_view(request, pk):
 
 @login_required
 def employe_delete_view(request, pk):
+    """
+    Suppression d'un employé.
+    - Admin (is_staff) : supprime directement avec confirmation
+    - Utilisateur normal : crée une demande de suppression
+    """
     employe = get_object_or_404(Employe, pk=pk)
     
     if request.user.is_staff:
+        # ADMIN : Suppression directe
         if request.method == 'POST':
             nom = employe.get_nom_complet()
             employe.delete()
             messages.success(request, f"✅ Employé {nom} supprimé avec succès.")
             return redirect('employes')
+        # GET : Afficher la confirmation
         return render(request, 'pointage/employe_confirm_delete.html', {
             'object': employe,
             'mode': 'suppression',
         })
     else:
+        # UTILISATEUR NORMAL : Demande de suppression
         if request.method == 'POST':
             _creer_demande(request, 'delete', 'employe', cible_id=pk)
             messages.success(request, "✅ Votre demande de suppression a été envoyée à l'administrateur.")
             return redirect('employes')
+        # GET : Afficher la confirmation de demande
         return render(request, 'pointage/employe_confirm_delete.html', {
             'object': employe,
             'mode': 'demande',
@@ -432,7 +438,7 @@ def employe_delete_view(request, pk):
 
 
 # ---------------------------
-# VUES POUR LES SITES - CORRIGÉES (Admin crée directement)
+# VUES POUR LES SITES
 # ---------------------------
 
 class SiteListView(LoginRequiredMixin, ListView):
@@ -493,25 +499,35 @@ def site_update_view(request, pk):
         'titre': f'Modification de {site.nom}' if request.user.is_staff else f'Demande de modification — {site.nom}',
     })
 
+
 @login_required
 def site_delete_view(request, pk):
+    """
+    Suppression d'un site.
+    - Admin (is_staff) : supprime directement avec confirmation
+    - Utilisateur normal : crée une demande de suppression
+    """
     site = get_object_or_404(Site, pk=pk)
     
     if request.user.is_staff:
+        # ADMIN : Suppression directe
         if request.method == 'POST':
             nom = site.nom
             site.delete()
             messages.success(request, f"✅ Site {nom} supprimé avec succès.")
             return redirect('sites')
+        # GET : Afficher la confirmation
         return render(request, 'pointage/site_confirm_delete.html', {
             'object': site,
             'mode': 'suppression',
         })
     else:
+        # UTILISATEUR NORMAL : Demande de suppression
         if request.method == 'POST':
             _creer_demande(request, 'delete', 'site', cible_id=pk)
             messages.success(request, "✅ Votre demande de suppression a été envoyée à l'administrateur.")
             return redirect('sites')
+        # GET : Afficher la confirmation de demande
         return render(request, 'pointage/site_confirm_delete.html', {
             'object': site,
             'mode': 'demande',
@@ -519,7 +535,7 @@ def site_delete_view(request, pk):
 
 
 # ---------------------------
-# VUES POUR LES POSTES - CORRIGÉES (Admin crée directement)
+# VUES POUR LES POSTES
 # ---------------------------
 
 class PosteListView(LoginRequiredMixin, ListView):
@@ -583,23 +599,32 @@ def poste_update_view(request, pk):
 
 @login_required
 def poste_delete_view(request, pk):
+    """
+    Suppression d'un poste.
+    - Admin (is_staff) : supprime directement avec confirmation
+    - Utilisateur normal : crée une demande de suppression
+    """
     poste = get_object_or_404(Poste, pk=pk)
     
     if request.user.is_staff:
+        # ADMIN : Suppression directe
         if request.method == 'POST':
             nom = poste.nom
             poste.delete()
             messages.success(request, f"✅ Poste {nom} supprimé avec succès.")
             return redirect('postes')
+        # GET : Afficher la confirmation
         return render(request, 'pointage/poste_confirm_delete.html', {
             'object': poste,
             'mode': 'suppression',
         })
     else:
+        # UTILISATEUR NORMAL : Demande de suppression
         if request.method == 'POST':
             _creer_demande(request, 'delete', 'poste', cible_id=pk)
             messages.success(request, "✅ Votre demande de suppression a été envoyée à l'administrateur.")
             return redirect('postes')
+        # GET : Afficher la confirmation de demande
         return render(request, 'pointage/poste_confirm_delete.html', {
             'object': poste,
             'mode': 'demande',

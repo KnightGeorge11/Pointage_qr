@@ -4,33 +4,25 @@ from . import views
 from .views import (
     dashboard, index, scanner_view, export_resume_excel,
 
-    # ✅ Fonctions (remplacent les anciennes classes)
+    # Fonctions
     employe_create_view, employe_update_view, employe_delete_view,
-    site_create_view, site_update_view, site_delete_view,   # ← site_delete_view AJOUTÉ
+    site_create_view, site_update_view, site_delete_view,
     poste_create_view, poste_update_view, poste_delete_view,
 
-    # ✅ Classes conservées
+    # Classes
     EmployeListView,
     SiteListView,
     PointageListView, PointageDetailView, PointageDeleteView,
     PosteListView,
 
-    # ✅ API
+    # API
     scan_api_view, get_statut_journee, get_prochain_scan,
     get_dashboard_stats, get_charts_data, employe_qr_data,
 
-    # ✅ Anomalies (Phase 4)
+    # Anomalies
     alertes_rh_view,
 )
 from rest_framework.routers import DefaultRouter
-from .views_mobile import (
-    MobileSitesAPIView,
-    MobileCheckFirstScanAPIView,
-    MobileRecordScanAPIView,
-    MobileCurrentPeriodAPIView,
-    MobilePointagesAPIView,
-    MobileTestAPIView
-)
 
 router = DefaultRouter()
 router.register(r'employes', views.EmployeViewSet, basename='employe')
@@ -54,7 +46,7 @@ urlpatterns = [
     path('sites/',                      SiteListView.as_view(),     name='sites'),
     path('sites/nouveau/',              site_create_view,           name='site_create'),
     path('sites/<int:pk>/modifier/',    site_update_view,           name='site_update'),
-    path('sites/<int:pk>/supprimer/',   site_delete_view,           name='site_delete'),   # ← AJOUTÉ
+    path('sites/<int:pk>/supprimer/',   site_delete_view,           name='site_delete'),
 
     # Pointages
     path('pointages/',                          PointageListView.as_view(),   name='pointages'),
@@ -71,7 +63,7 @@ urlpatterns = [
     # Scanner
     path('scanner/', scanner_view, name='scanner'),
 
-    # Anomalies (Phase 4)
+    # Anomalies
     path('anomalies/', alertes_rh_view, name='alertes_rh'),
 
     # API
