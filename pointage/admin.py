@@ -1,4 +1,4 @@
-# pointage/admin.py
+# pointage/admin.py - Version complète avec les filtres UI
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -27,36 +27,11 @@ from openpyxl.utils import get_column_letter
 
 
 # ============================================================
-# FILTRES PERSONNALISÉS AMÉLIORÉS
+# FILTRES PERSONNALISÉS (comme l'interface utilisateur)
 # ============================================================
 
-class PeriodeFusionFilter(SimpleListFilter):
-    """Filtre de période amélioré avec plus d'options"""
-    title = 'Période'
-    parameter_name = 'periode'
-
-    def lookups(self, request, model_admin):
-        return [
-            ('matin', '🌅 Matin'),
-            ('apres_midi', '☀️ Après-midi'),
-            ('nuit', '🌙 Nuit'),
-            ('garde', '🌙 Garde de nuit'),
-        ]
-
-    def queryset(self, request, queryset):
-        if self.value() == 'matin':
-            return queryset.filter(periode='matin')
-        if self.value() == 'apres_midi':
-            return queryset.filter(periode='apres_midi')
-        if self.value() == 'nuit':
-            return queryset.filter(periode='nuit', type_journee='normal')
-        if self.value() == 'garde':
-            return queryset.filter(periode='nuit', type_journee='garde')
-        return queryset
-
-
 class EmployeFilter(SimpleListFilter):
-    """Filtre par employé avec liste déroulante"""
+    """Filtre par employé - comme dans l'UI"""
     title = 'Employé'
     parameter_name = 'employe'
 
@@ -73,25 +48,22 @@ class EmployeFilter(SimpleListFilter):
         return queryset
 
 
-class StatutFilter(SimpleListFilter):
-    """Filtre par statut avec icônes"""
-    title = 'Statut'
-    parameter_name = 'statut'
+class PeriodeTypeFilter(SimpleListFilter):
+    """Filtre type de période (Jour/Nuit) - comme dans l'UI"""
+    title = 'Type de période'
+    parameter_name = 'periode_type'
 
     def lookups(self, request, model_admin):
         return [
-            ('present', '✅ Présent'),
-            ('retard', '⚠️ Retard'),
-            ('absent', '❌ Absent'),
+            ('jour', 'Jour'),
+            ('nuit', 'Nuit (Garde)'),
         ]
 
     def queryset(self, request, queryset):
-        if self.value() == 'present':
-            return queryset.filter(statut='present')
-        if self.value() == 'retard':
-            return queryset.filter(statut='retard')
-        if self.value() == 'absent':
-            return queryset.filter(statut='absent')
+        if self.value() == 'jour':
+            return queryset.filter(type_journee='normal')
+        if self.value() == 'nuit':
+            return queryset.filter(type_journee='garde')
         return queryset
 
 
@@ -268,7 +240,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - VERSION AVEC FILTRES AMÉLIORÉS
+# POINTAGE - AVEC FILTRES COMME L'INTERFACE UTILISATEUR
 # ============================================================
 
 @admin.register(Pointage)
@@ -289,19 +261,17 @@ class PointageAdmin(admin.ModelAdmin):
     ]
     
     # ============================================================
-    # FILTRES AMÉLIORÉS DANS LA SIDEBAR JAZZMIN
+    # FILTRES - MÊMES CHAMPS QUE L'INTERFACE UTILISATEUR
     # ============================================================
     list_filter = [
-        'statut',                    # Statut (Présent, Retard, Absent)
-        PeriodeFusionFilter,          # Période améliorée (Matin/Après-midi/Nuit/Garde)
-        'site',                      # Site (existant)
-        'date_pointage',             # Date (existant)
-        'type_journee',              # Type de journée (Normal / Garde)
-        EmployeFilter,               # Employé (NOUVEAU)
+        'date_pointage',          # Date
+        EmployeFilter,            # Employé
+        'site',                   # Site
+        PeriodeTypeFilter,        # Type de période (Jour/Nuit)
     ]
     
     # ============================================================
-    # RECHERCHE AMÉLIORÉE
+    # RECHERCHE
     # ============================================================
     search_fields = [
         'employe__nom',
@@ -374,20 +344,16 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW AVEC CONTEXTE POUR LE TEMPLATE
+    # CHANGELIST VIEW
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
         
-        # Vérifier l'export Excel
         if 'export_excel' in request.GET:
             return self.export_excel(request, queryset)
         
-        # ============================================================
-        # STATISTIQUES
-        # ============================================================
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
         retards = queryset.filter(statut='retard').count()
