@@ -237,20 +237,22 @@ def dashboard_context(request):
         'anomalies_recentes': anomalies_recentes,
     }
  
+
+
+
 def admin_badge_counts(request):
     """
     Fournit les compteurs pour les badges de la sidebar Jazzmin.
-    Ces compteurs sont utilisés par la navigation personnalisée.
     """
     # Demandes en attente
     demandes_attente = DemandeModification.objects.filter(statut='en_attente').count()
     
-    # Anomalies ouvertes
+    # Anomalies ouvertes (non traitées)
     anomalies_ouvertes = AnomaliePointage.objects.filter(
         statut=AnomaliePointage.STATUT_OUVERTE
     ).count()
     
     return {
-        'demandes_attente': demandes_attente if demandes_attente > 0 else None,
-        'anomalies_ouvertes': anomalies_ouvertes if anomalies_ouvertes > 0 else None,
+        'demandes_attente': demandes_attente,
+        'anomalies_ouvertes': anomalies_ouvertes,
     }
