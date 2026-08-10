@@ -1,4 +1,4 @@
-# pointage/admin.py - Version avec filtres horizontaux (pas de filtres sidebar)
+# pointage/admin.py
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -24,6 +24,196 @@ from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+class EmployeFilter(SimpleListFilter):
+    title = 'Employé'
+    parameter_name = 'employe'
+
+    def lookups(self, request, model_admin):
+        employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
+        return [(str(e.id), f"{e.prenom} {e.nom} ({e.matricule})") for e in employes]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            try:
+                return queryset.filter(employe_id=int(self.value()))
+            except ValueError:
+                return queryset
+        return queryset
+
+
+class SiteFilter(SimpleListFilter):
+    title = 'Site'
+    parameter_name = 'site'
+
+    def lookups(self, request, model_admin):
+        sites = Site.objects.all().order_by('nom')
+        return [(str(s.id), s.nom) for s in sites]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            try:
+                return queryset.filter(site_id=int(self.value()))
+            except ValueError:
+                return queryset
+        return queryset
+
+
+class PeriodeFilter(SimpleListFilter):
+    title = 'Période'
+    parameter_name = 'periode'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('matin', 'Matin'),
+            ('apres_midi', 'Après-midi'),
+            ('nuit', 'Nuit'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(periode=self.value())
+        return queryset
+
+
+class TypeJourneeFilter(SimpleListFilter):
+    title = 'Type de journée'
+    parameter_name = 'type_journee'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('normal', 'Journée normale'),
+            ('garde', 'Garde de nuit'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(type_journee=self.value())
+        return queryset
+
+
+class StatutFilter(SimpleListFilter):
+    title = 'Statut'
+    parameter_name = 'statut'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('present', '✅ Présent'),
+            ('retard', '⚠️ Retard'),
+            ('absent', '❌ Absent'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(statut=self.value())
+        return queryset
+
+
+class RetardFilter(SimpleListFilter):
+    title = 'Retard'
+    parameter_name = 'retard'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('15', '> 15 min'),
+            ('30', '> 30 min'),
+            ('60', '> 1 heure'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            try:
+                minutes = int(self.value())
+                return queryset.filter(retard__gte=timedelta(minutes=minutes))
+            except ValueError:
+                return queryset
+        return queryset
+
+
+class DateDebutFilter(SimpleListFilter):
+    title = 'Date début'
+    parameter_name = 'date_debut'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('today', "Aujourd'hui"),
+            ('yesterday', 'Hier'),
+            ('week', 'Cette semaine'),
+            ('month', 'Ce mois-ci'),
+            ('custom', 'Personnalisée...'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'today':
+            today = timezone.localtime(timezone.now()).date()
+            return queryset.filter(date_pointage=today)
+        if self.value() == 'yesterday':
+            yesterday = timezone.localtime(timezone.now()).date() - timedelta(days=1)
+            return queryset.filter(date_pointage=yesterday)
+        if self.value() == 'week':
+            today = timezone.localtime(timezone.now()).date()
+            start_of_week = today - timedelta(days=today.weekday())
+            return queryset.filter(date_pointage__gte=start_of_week)
+        if self.value() == 'month':
+            today = timezone.localtime(timezone.now()).date()
+            return queryset.filter(date_pointage__year=today.year, date_pointage__month=today.month)
+        return queryset
+
+
+class DateFinFilter(SimpleListFilter):
+    title = 'Date fin'
+    parameter_name = 'date_fin'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('today', "Aujourd'hui"),
+            ('yesterday', 'Hier'),
+            ('week', 'Cette semaine'),
+            ('month', 'Ce mois-ci'),
+            ('custom', 'Personnalisée...'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'today':
+            today = timezone.localtime(timezone.now()).date()
+            return queryset.filter(date_pointage=today)
+        if self.value() == 'yesterday':
+            yesterday = timezone.localtime(timezone.now()).date() - timedelta(days=1)
+            return queryset.filter(date_pointage=yesterday)
+        if self.value() == 'week':
+            today = timezone.localtime(timezone.now()).date()
+            start_of_week = today - timedelta(days=today.weekday())
+            return queryset.filter(date_pointage__gte=start_of_week)
+        if self.value() == 'month':
+            today = timezone.localtime(timezone.now()).date()
+            return queryset.filter(date_pointage__year=today.year, date_pointage__month=today.month)
+        return queryset
+
+# ============================================================
+# FILTRE PÉRIODE UNIQUE
+# ============================================================
+
+class PeriodeFusionFilter(SimpleListFilter):
+    title = 'Période'
+    parameter_name = 'periode'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('matin', 'Matin'),
+            ('apres_midi', 'Après-midi'),
+            ('nuit', 'Nuit'),
+            ('garde', 'Garde de nuit'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'matin':
+            return queryset.filter(periode='matin')
+        if self.value() == 'apres_midi':
+            return queryset.filter(periode='apres_midi')
+        if self.value() == 'nuit':
+            return queryset.filter(periode='nuit', type_journee='normal')
+        if self.value() == 'garde':
+            return queryset.filter(periode='nuit', type_journee='garde')
+        return queryset
 
 
 # ============================================================
@@ -199,7 +389,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - AVEC FILTRES HORIZONTAUX (PAS DE FILTRES SIDEBAR)
+# POINTAGE - VERSION NETTOYÉE
 # ============================================================
 
 @admin.register(Pointage)
@@ -219,10 +409,12 @@ class PointageAdmin(admin.ModelAdmin):
         'get_heures_display',
     ]
     
-    # ============================================================
-    # SUPPRIMER LES FILTRES DE LA SIDEBAR
-    # ============================================================
-    list_filter = []  # ← PLUS DE FILTRES DANS LA SIDEBAR
+    list_filter = [
+        'statut',
+        PeriodeFusionFilter,
+        'site',
+        'date_pointage',
+    ]
     
     search_fields = [
         'employe__nom',
@@ -281,36 +473,13 @@ class PointageAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return Pointage.objects.select_related('employe', 'site')
     
-    # ============================================================
-    # CHANGELIST VIEW AVEC CONTEXTE POUR LES FILTRES HORIZONTAUX
-    # ============================================================
     def changelist_view(self, request, extra_context=None):
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
         
-        # Vérifier l'export Excel
         if 'export_excel' in request.GET:
             return self.export_excel(request, queryset)
         
-        # ============================================================
-        # RÉCUPÉRER LES VALEURS DES FILTRES POUR LE TEMPLATE
-        # ============================================================
-        filter_date_debut = request.GET.get('date_debut', '')
-        filter_date_fin = request.GET.get('date_fin', '')
-        filter_employe = request.GET.get('employe', '')
-        filter_site = request.GET.get('site', '')
-        filter_periode_type = request.GET.get('periode_type', '')
-        filter_statut = request.GET.get('statut', '')
-        
-        # ============================================================
-        # LISTES POUR LES FILTRES
-        # ============================================================
-        sites_list = Site.objects.all().order_by('nom')
-        employes_list = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
-        
-        # ============================================================
-        # STATISTIQUES
-        # ============================================================
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
         retards = queryset.filter(statut='retard').count()
@@ -322,21 +491,10 @@ class PointageAdmin(admin.ModelAdmin):
             'presents_count': presents,
             'retards_count': retards,
             'absents_count': absents,
-            'sites_list': sites_list,
-            'employes_list': employes_list,
-            'filter_date_debut': filter_date_debut,
-            'filter_date_fin': filter_date_fin,
-            'filter_employe': filter_employe,
-            'filter_site': filter_site,
-            'filter_periode_type': filter_periode_type,
-            'filter_statut': filter_statut,
         })
         
         return super().changelist_view(request, extra_context=extra_context)
     
-    # ============================================================
-    # EXPORT EXCEL
-    # ============================================================
     def export_excel(self, request, queryset):
         """Export Excel au même format que l'interface utilisateur"""
         if not queryset.exists():
@@ -609,7 +767,7 @@ class PointageAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# DEMANDE DE MODIFICATION
+# DEMANDE DE MODIFICATION - AVEC BOUTONS ACCEPTER/REFUSER
 # ============================================================
 
 @admin.register(DemandeModification)
@@ -818,6 +976,12 @@ class DemandeModificationAdmin(admin.ModelAdmin):
         self.message_user(request, "❌ Demandes refusées.")
 
     def _appliquer_demande(self, demande):
+        """
+        Applique une demande approuvée.
+        - CREATE : crée l'objet
+        - UPDATE : met à jour l'objet
+        - DELETE : supprime l'objet (ou le désactive pour les employés)
+        """
         d = demande.donnees
 
         if demande.cible == 'employe':
@@ -836,11 +1000,16 @@ class DemandeModificationAdmin(admin.ModelAdmin):
                     actif=d.get('actif', True)
                 )
             elif demande.type_action == 'delete':
+                # ============================================================
+                # CORRECTION : Suppression réelle au lieu de désactivation
+                # ============================================================
                 try:
                     employe = Employe.objects.get(pk=demande.cible_id)
+                    # Supprimer l'employé (cascade supprime aussi les pointages)
                     employe.delete()
                 except Employe.DoesNotExist:
                     pass
+                # ============================================================
 
         elif demande.cible == 'site':
             if demande.type_action == 'create':
