@@ -320,8 +320,10 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - AVEC FILTRES EXACTEMENT COMME L'UI
+# POINTAGE - AVEC FILTRES
 # ============================================================
+
+# pointage/admin.py - PointageAdmin
 
 @admin.register(Pointage)
 class PointageAdmin(admin.ModelAdmin):
@@ -341,14 +343,12 @@ class PointageAdmin(admin.ModelAdmin):
     ]
     
     # ============================================================
-    # FILTRES EXACTEMENT COMME L'INTERFACE UTILISATEUR
+    # FILTRES - Moins de filtres dans la sidebar (on les met dans le template)
     # ============================================================
     list_filter = [
-        DateDebutFilter,      # Date début
-        DateFinFilter,        # Date fin
-        EmployeFilter,        # Employé
-        SiteFilter,           # Site
-        PeriodeTypeFilter,    # Type de période (Jour/Nuit)
+        'statut',
+        'site',
+        'type_journee',
     ]
     
     search_fields = [
@@ -361,81 +361,80 @@ class PointageAdmin(admin.ModelAdmin):
     readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
     date_hierarchy = 'date_pointage'
     
-    # ============================================================
-    # CHAMPS PERSONNALISÉS
-    # ============================================================
-    
-    def get_retard_display(self, obj):
-        if obj.retard and obj.retard.total_seconds() > 0:
-            minutes = obj.get_retard_minutes()
-            if minutes >= 30:
-                return format_html(
-                    '<span style="background:#FEE2E2;color:#B91C1C;padding:2px 10px;border-radius:9999px;font-weight:600;font-size:10px;">⚠️ {} min</span>',
-                    minutes
-                )
-            return f"{minutes} min"
-        return "—"
-    get_retard_display.short_description = "Retard"
-    
-    def get_heures_display(self, obj):
-        if obj.heures_travaillees and obj.heures_travaillees.total_seconds() > 0:
-            total_seconds = obj.heures_travaillees.total_seconds()
-            hours = int(total_seconds // 3600)
-            minutes = int((total_seconds % 3600) // 60)
-            return f"{hours}h{minutes:02d}"
-        return "—"
-    get_heures_display.short_description = "Heures travaillées"
+    # ... le reste du code ...
     
     # ============================================================
-    # ACTIONS EN MASSE
+    # CHANGELIST VIEW - Traiter les filtres de date
     # ============================================================
-    
-    actions = ['marquer_present', 'marquer_retard', 'marquer_absent', 'supprimer_selection']
-    
-    def marquer_present(self, request, queryset):
-        queryset.update(statut='present')
-        self.message_user(request, f"✅ {queryset.count()} pointage(s) marqué(s) comme présent.")
-    marquer_present.short_description = "✅ Marquer comme présent"
-    
-    def marquer_retard(self, request, queryset):
-        queryset.update(statut='retard')
-        self.message_user(request, f"⚠️ {queryset.count()} pointage(s) marqué(s) comme retard.")
-    marquer_retard.short_description = "⚠️ Marquer comme retard"
-    
-    def marquer_absent(self, request, queryset):
-        queryset.update(statut='absent')
-        self.message_user(request, f"❌ {queryset.count()} pointage(s) marqué(s) comme absent.")
-    marquer_absent.short_description = "❌ Marquer comme absent"
-    
-    def supprimer_selection(self, request, queryset):
-        count = queryset.count()
-        if count > 0:
-            queryset.delete()
-            self.message_user(request, f"🗑️ {count} pointage(s) supprimé(s).")
-    supprimer_selection.short_description = "🗑️ Supprimer"
-    
-    # ============================================================
-    # GET QUERYSET
-    # ============================================================
-    
-    def get_queryset(self, request):
-        return Pointage.objects.select_related('employe', 'site')
-    
-    # ============================================================
-    # CHANGELIST VIEW
-    # ============================================================
-    
     def changelist_view(self, request, extra_context=None):
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
         
+        # ============================================================
+        # APPLIQUER LES FILTRES DE DATE
+        # ============================================================
+        date_debut = request.GET.get('date_debut', '')
+        date_fin = request.GET.get('date_fin', '')
+        employe = request.GET.get('employe', '')
+        site = request.GET.get('site', '')
+        periode_type = request.GET.get('periode_type', '')
+        statut = request.GET.get('statut', '')
+        
+        # Appliquer les filtres de date
+        if date_debut:
+            try:
+                date_debut_obj = datetime.strptime(date_debut, '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__gte=date_debut_obj)
+            except ValueError:
+                pass
+        
+        if date_fin:
+            try:
+                date_fin_obj = datetime.strptime(date_fin, '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__lte=date_fin_obj)
+            except ValueError:
+                pass
+        
+        # Appliquer les autres filtres
+        if employe:
+            try:
+                queryset = queryset.filter(employe_id=int(employe))
+            except (ValueError, TypeError):
+                pass
+        
+        if site:
+            try:
+                queryset = queryset.filter(site_id=int(site))
+            except (ValueError, TypeError):
+                pass
+        
+        if periode_type == 'jour':
+            queryset = queryset.filter(type_journee='normal')
+        elif periode_type == 'nuit':
+            queryset = queryset.filter(type_journee='garde')
+        
+        if statut:
+            queryset = queryset.filter(statut=statut)
+        
+        # ============================================================
+        # EXPORT EXCEL
+        # ============================================================
         if 'export_excel' in request.GET:
             return self.export_excel(request, queryset)
         
+        # ============================================================
+        # STATISTIQUES
+        # ============================================================
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
         retards = queryset.filter(statut='retard').count()
         absents = queryset.filter(statut='absent').count()
+        
+        # ============================================================
+        # LISTES POUR LES FILTRES
+        # ============================================================
+        sites_list = Site.objects.all().order_by('nom')
+        employes_list = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         
         extra_context = extra_context or {}
         extra_context.update({
@@ -443,283 +442,17 @@ class PointageAdmin(admin.ModelAdmin):
             'presents_count': presents,
             'retards_count': retards,
             'absents_count': absents,
+            'sites_list': sites_list,
+            'employes_list': employes_list,
+            'filter_date_debut': date_debut,
+            'filter_date_fin': date_fin,
+            'filter_employe': employe,
+            'filter_site': site,
+            'filter_periode_type': periode_type,
+            'filter_statut': statut,
         })
         
         return super().changelist_view(request, extra_context=extra_context)
-    
-    # ============================================================
-    # EXPORT EXCEL
-    # ============================================================
-    
-    def export_excel(self, request, queryset):
-        """Export Excel au même format que l'interface utilisateur"""
-        if not queryset.exists():
-            messages.warning(request, "Aucun pointage à exporter.")
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/admin/pointage/pointage/'))
-        
-        dates = queryset.values_list('date_pointage', flat=True).distinct().order_by('date_pointage')
-        if not dates:
-            messages.warning(request, "Aucune date trouvée.")
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/admin/pointage/pointage/'))
-        
-        date_debut = dates[0]
-        date_fin = dates.last()
-        
-        emp_data = defaultdict(lambda: defaultdict(lambda: {'matin': None, 'apres_midi': None, 'nuit': None}))
-        emp_info = {}
-        
-        for p in queryset:
-            emp_info[p.employe.id] = (p.employe.id, p.employe.get_nom_complet(), p.employe.matricule)
-            emp_data[p.employe.id][p.date_pointage][p.periode] = p
-        
-        def work_days(d1, d2):
-            days, d = [], d1
-            while d <= d2:
-                days.append(d)
-                d += timedelta(days=1)
-            return days
-        
-        days = work_days(date_debut, date_fin)
-        JOURS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
-        
-        def fmt_duree(pointage):
-            if not pointage or not pointage.heures_travaillees:
-                return '—'
-            return pointage.get_duree_formatee()
-        
-        def fmt_time(t):
-            return t.strftime('%H:%M') if t else '—'
-        
-        BLUE = '1E3A5F'
-        BLUE_LIGHT = 'D6E4F0'
-        ORANGE_BG = 'FEF3C7'
-        ORANGE_FG = 'D97706'
-        GREEN_BG = 'DCFCE7'
-        GREEN_FG = '15803D'
-        RED_BG = 'FEE2E2'
-        RED_FG = 'B91C1C'
-        PURPLE_BG = 'EDE9FE'
-        PURPLE_FG = '7C3AED'
-        PURPLE_MED = '4C1D95'
-        NIGHT_BG = '1E1B4B'
-        NIGHT_MID = '2D1F4E'
-        NIGHT_FG = 'A5B4FC'
-        DARK = '1A1A1A'
-        GREY_LIGHT = 'F5F5F7'
-        GREY_MID = 'E5E5E5'
-        WHITE = 'FFFFFF'
-        TOTAL_BG = 'EEF2FF'
-        
-        def sd(color=GREY_MID, style='thin'):
-            return Side(style=style, color=color)
-        
-        def b_all(color=GREY_MID):
-            s = sd(color)
-            return Border(left=s, right=s, top=s, bottom=s)
-        
-        def b_outer(color=BLUE):
-            s = Side(style='medium', color=color)
-            return Border(left=s, right=s, top=s, bottom=s)
-        
-        def b_bottom(color=BLUE):
-            return Border(left=sd(), right=sd(), top=sd(),
-                          bottom=Side(style='medium', color=color))
-        
-        def sc(c, value='', bg=WHITE, fg=DARK, bold=False, size=9,
-               halign='center', valign='center', wrap=False, border=None, italic=False):
-            c.value = value
-            c.font = Font(name='Arial', bold=bold, color=fg, size=size, italic=italic)
-            c.fill = PatternFill('solid', start_color=bg)
-            c.alignment = Alignment(horizontal=halign, vertical=valign, wrap_text=wrap)
-            if border:
-                c.border = border
-        
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Résumé Pointages"
-        ws.sheet_view.showGridLines = False
-        ws.page_setup.orientation = 'landscape'
-        ws.page_setup.fitToPage = True
-        ws.page_setup.fitToWidth = 1
-        
-        COL_EMP = 1
-        COL_DAYS = 2
-        COL_TOTAL = COL_DAYS + len(days)
-        
-        ws.column_dimensions[get_column_letter(COL_EMP)].width = 15
-        for i in range(len(days)):
-            ws.column_dimensions[get_column_letter(COL_DAYS + i)].width = 14
-        ws.column_dimensions[get_column_letter(COL_TOTAL)].width = 18
-        
-        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=COL_TOTAL)
-        sc(ws['A1'],
-           value=f"RÉSUMÉ DES POINTAGES  ·  Du {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}",
-           bg=BLUE, fg=WHITE, bold=True, size=13)
-        ws.row_dimensions[1].height = 36
-        
-        HEADER_ROW = 2
-        sc(ws.cell(row=HEADER_ROW, column=COL_EMP), value='Employé',
-           bg=BLUE, fg=WHITE, bold=True, size=9, border=b_all(BLUE))
-        for i, d in enumerate(days):
-            label = f"{JOURS_FR[d.weekday()]}\n{d.strftime('%d/%m/%Y')}"
-            sc(ws.cell(row=HEADER_ROW, column=COL_DAYS + i), value=label,
-               bg=BLUE, fg=WHITE, bold=True, size=8, wrap=True, border=b_all(BLUE))
-        sc(ws.cell(row=HEADER_ROW, column=COL_TOTAL), value='TOTAL',
-           bg=DARK, fg=WHITE, bold=True, size=10, border=b_all(DARK))
-        ws.row_dimensions[HEADER_ROW].height = 28
-        
-        ROWS_PER_EMP = 8
-        SUB_H = [8, 14, 18, 14, 18, 16, 16, 6]
-        START_ROW = 3
-        
-        for emp_idx, (emp_id, day_map) in enumerate(emp_data.items()):
-            base = START_ROW + emp_idx * ROWS_PER_EMP
-            _, nom_complet, matricule = emp_info[emp_id]
-            
-            for i, h in enumerate(SUB_H):
-                ws.row_dimensions[base + i].height = h
-            
-            ws.merge_cells(start_row=base, start_column=COL_EMP,
-                           end_row=base + 6, end_column=COL_EMP)
-            sc(ws.cell(row=base, column=COL_EMP),
-               value=f"{nom_complet}\n{matricule}",
-               bg=GREY_LIGHT, fg=DARK, bold=True, size=9,
-               wrap=True, halign='center', valign='center', border=b_outer())
-            ws.cell(row=base + 7, column=COL_EMP).fill = PatternFill('solid', start_color=GREY_MID)
-            ws.cell(row=base + 7, column=COL_EMP).border = b_bottom()
-            
-            tot_retard = timedelta()
-            tot_trav = timedelta()
-            tot_sup = timedelta()
-            tot_gardes = 0
-            
-            for i, d in enumerate(days):
-                col = COL_DAYS + i
-                pt_map = day_map.get(d, {})
-                matin = pt_map.get('matin')
-                apm = pt_map.get('apres_midi')
-                nuit = pt_map.get('nuit')
-                bg_day = WHITE if i % 2 == 0 else 'FAFAFA'
-                
-                if nuit and nuit.type_journee == 'garde':
-                    tot_gardes += 1
-                    h_garde = nuit.heures_travaillees or timedelta()
-                    tot_trav += h_garde
-                    terminee = bool(nuit.heure_depart)
-                    
-                    sc(ws.cell(row=base, column=col), bg=NIGHT_MID,
-                       border=Border(top=Side(style='medium', color=PURPLE_FG),
-                                     left=sd(), right=sd()))
-                    ws.merge_cells(start_row=base + 1, start_column=col,
-                                   end_row=base + 2, end_column=col)
-                    sc(ws.cell(row=base + 1, column=col),
-                       value='🌙 Garde de nuit',
-                       bg=PURPLE_BG, fg=PURPLE_FG, bold=True, size=9,
-                       wrap=True, halign='center', valign='center',
-                       border=b_all(PURPLE_FG))
-                    sc(ws.cell(row=base + 3, column=col),
-                       value='Début  →  Fin',
-                       bg=NIGHT_MID, fg=NIGHT_FG, bold=True, size=8,
-                       border=b_all(PURPLE_MED))
-                    arr_g = fmt_time(nuit.heure_arrivee)
-                    dep_g = fmt_time(nuit.heure_depart)
-                    sc(ws.cell(row=base + 4, column=col),
-                       value=f"{arr_g}  →  {dep_g}",
-                       bg=NIGHT_BG, fg=WHITE, bold=True, size=9,
-                       border=b_all(PURPLE_MED))
-                    sc(ws.cell(row=base + 5, column=col),
-                       value=f"Durée : {fmt_duree(nuit)}",
-                       bg=PURPLE_BG, fg=PURPLE_FG, bold=True, size=8,
-                       border=b_all(PURPLE_FG))
-                    if terminee:
-                        sc(ws.cell(row=base + 6, column=col),
-                           value='✓ Terminée', bg=GREEN_BG, fg=GREEN_FG,
-                           bold=True, size=8, border=b_all())
-                    else:
-                        sc(ws.cell(row=base + 6, column=col),
-                           value='⏳ En cours', bg=ORANGE_BG, fg=ORANGE_FG,
-                           bold=True, size=8, border=b_all())
-                    sc(ws.cell(row=base + 7, column=col), bg=GREY_LIGHT,
-                       border=Border(bottom=Side(style='medium', color=PURPLE_FG),
-                                     left=sd(), right=sd()))
-                else:
-                    has_data = matin or apm
-                    h_trav = timedelta()
-                    h_ret = timedelta()
-                    if matin:
-                        h_trav += matin.heures_travaillees or timedelta()
-                        h_ret += matin.retard or timedelta()
-                    if apm:
-                        h_trav += apm.heures_travaillees or timedelta()
-                        h_ret += apm.retard or timedelta()
-                    h_sup = max(timedelta(), h_trav - timedelta(hours=8))
-                    
-                    tot_trav += h_trav
-                    tot_retard += h_ret
-                    tot_sup += h_sup
-                    
-                    sc(ws.cell(row=base, column=col),
-                       bg=bg_day if has_data else GREY_LIGHT,
-                       border=Border(top=Side(style='medium', color=BLUE),
-                                     left=sd(), right=sd()))
-                    sc(ws.cell(row=base + 1, column=col),
-                       value='Matin', bg=ORANGE_BG, fg=ORANGE_FG,
-                       bold=True, size=8, border=b_all())
-                    arr_m = fmt_time(matin.heure_arrivee if matin else None)
-                    dep_m = fmt_time(matin.heure_depart if matin else None)
-                    sc(ws.cell(row=base + 2, column=col),
-                       value=f"{arr_m}  →  {dep_m}" if has_data else '—',
-                       bg=bg_day, fg=DARK, bold=True, size=9, border=b_all())
-                    sc(ws.cell(row=base + 3, column=col),
-                       value='Après-midi', bg=BLUE_LIGHT, fg=BLUE,
-                       bold=True, size=8, border=b_all())
-                    arr_s = fmt_time(apm.heure_arrivee if apm else None)
-                    dep_s = fmt_time(apm.heure_depart if apm else None)
-                    sc(ws.cell(row=base + 4, column=col),
-                       value=f"{arr_s}  →  {dep_s}" if has_data else '—',
-                       bg=bg_day, fg=DARK, bold=True, size=9, border=b_all())
-                    sc(ws.cell(row=base + 5, column=col),
-                       value=f"Retard : {matin.get_retard_minutes if matin else 0}min" if h_ret.total_seconds() > 0 else '—',
-                       bg=RED_BG if h_ret.total_seconds() > 0 else bg_day,
-                       fg=RED_FG if h_ret.total_seconds() > 0 else '999999',
-                       size=8, italic=True, border=b_all())
-                    sc(ws.cell(row=base + 6, column=col),
-                       value=f"H.sup : {fmt_duree(Pointage(heures_travaillees=h_sup))}" if h_sup.total_seconds() > 0 else '—',
-                       bg=GREEN_BG if h_sup.total_seconds() > 0 else bg_day,
-                       fg=GREEN_FG if h_sup.total_seconds() > 0 else '999999',
-                       size=8, italic=True, border=b_all())
-                    sc(ws.cell(row=base + 7, column=col), bg=GREY_LIGHT,
-                       border=Border(bottom=Side(style='medium', color=BLUE),
-                                     left=sd(), right=sd()))
-            
-            ws.merge_cells(start_row=base, start_column=COL_TOTAL,
-                           end_row=base + 6, end_column=COL_TOTAL)
-            
-            total_lines = [
-                f"Retards :\n{Pointage(heures_travaillees=tot_retard).get_duree_formatee()}" if tot_retard.total_seconds() > 0 else "Retards :\n0h00",
-                f"\nH. Travaillées :\n{Pointage(heures_travaillees=tot_trav).get_duree_formatee()}",
-                f"\nH. Supp :\n{Pointage(heures_travaillees=tot_sup).get_duree_formatee()}" if tot_sup.total_seconds() > 0 else "\nH. Supp :\n0h00",
-            ]
-            if tot_gardes > 0:
-                total_lines.append(f"\nGardes :\n{tot_gardes}")
-            
-            sc(ws.cell(row=base, column=COL_TOTAL),
-               value="\n".join(total_lines),
-               bg=TOTAL_BG, fg=DARK, size=9,
-               wrap=True, halign='center', valign='center',
-               border=b_outer(BLUE))
-            ws.cell(row=base + 7, column=COL_TOTAL).fill = PatternFill('solid', start_color=GREY_MID)
-            ws.cell(row=base + 7, column=COL_TOTAL).border = b_bottom()
-        
-        ws.freeze_panes = f'{get_column_letter(COL_DAYS)}{HEADER_ROW + 1}'
-        
-        filename = f"resume_pointages_{date_debut.strftime('%Y%m%d')}_{date_fin.strftime('%Y%m%d')}.xlsx"
-        response = HttpResponse(
-            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        wb.save(response)
-        return response
 
 
 # ============================================================
