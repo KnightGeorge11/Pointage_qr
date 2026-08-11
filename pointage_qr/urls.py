@@ -5,9 +5,6 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from pointage.views_login import login_view, logout_view
-from django.urls import path
-from .admin import HistoriquePointagesView
-
 
 urlpatterns = [
     # ── Auth ──────────────────────────────────────────────────────────────
@@ -23,10 +20,6 @@ urlpatterns = [
 
     # ── App principale (dashboard, scanner, historique…) ──────────────────
     path('', include('pointage.urls')),
-
-    path('admin/historique-pointages/',
-         HistoriquePointagesView.as_view(),
-         name='admin:historique_pointages'),
 ]
 
 if settings.DEBUG:

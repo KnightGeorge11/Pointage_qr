@@ -23,6 +23,8 @@ from .views import (
     alertes_rh_view,
 )
 from rest_framework.routers import DefaultRouter
+from django.urls import path
+from .admin import HistoriquePointagesView
 
 router = DefaultRouter()
 router.register(r'employes', views.EmployeViewSet, basename='employe')
@@ -80,4 +82,8 @@ urlpatterns = [
     path('admin/demande/<int:pk>/approuver/', views.approuver_demande_view, name='demande_approuver'),
     path('admin/demande/<int:pk>/refuser/', views.refuser_demande_view, name='demande_refuser'),
     path('api/admin-badge-counts/', views.admin_badge_counts_api, name='admin_badge_counts_api'),
+
+    path('admin/historique-pointages/',
+         HistoriquePointagesView.as_view(),
+         name='admin:historique_pointages'),
 ]
