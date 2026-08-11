@@ -1,4 +1,4 @@
-# pointage/admin.py - Version complète avec tous les filtres UI
+# pointage/admin.py - Version complète et corrigée
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -11,6 +11,10 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
+from django.views.generic import TemplateView
+from django.contrib.admin.views.decorators import staff_member_required
+from django.utils.decorators import method_decorator
+from django.core.paginator import Paginator
 import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
@@ -24,18 +28,15 @@ from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-# pointage/admin.py
 
-from django.shortcuts import render
-from django.contrib.admin.views.decorators import staff_member_required
-from django.utils.decorators import method_decorator
-from django.views.generic import TemplateView
-from django.db.models import Q, Sum, Count
-from datetime import datetime, timedelta
-from .models import Pointage, Employe, Site
+
+# ============================================================
+# VUE PERSONNALISÉE : HISTORIQUE DES POINTAGES (JAZZMIN)
+# ============================================================
 
 @method_decorator(staff_member_required, name='dispatch')
 class HistoriquePointagesView(TemplateView):
+    """Vue pour l'historique des pointages dans l'interface Jazzmin"""
     template_name = 'admin/pointage/historique_pointages.html'
     
     def get_context_data(self, **kwargs):
@@ -50,7 +51,7 @@ class HistoriquePointagesView(TemplateView):
         periode_type = request.GET.get('periode_type')
         
         # Construire la requête
-        queryset = Pointage.objects.select_related('employe', 'site')
+        queryset = Pointage.objects.select_related('employe', 'site', 'employe__poste')
         
         if date_debut:
             queryset = queryset.filter(date_pointage__gte=date_debut)
@@ -66,7 +67,6 @@ class HistoriquePointagesView(TemplateView):
             queryset = queryset.filter(type_journee='garde')
         
         # Grouper par employé et date
-        from collections import defaultdict
         journees = defaultdict(lambda: {
             'employe': None,
             'date': None,
@@ -148,14 +148,13 @@ class HistoriquePointagesView(TemplateView):
                 'retard_total': retard_total,
                 'heures_sup': heures_sup,
                 'statut_global': statut_global,
-                'scan_map': {},  # À remplir si besoin
+                'scan_map': {},
             })
         
         # Trier par date décroissante
         jours_list.sort(key=lambda x: x['date'], reverse=True)
         
         # Pagination
-        from django.core.paginator import Paginator
         paginator = Paginator(jours_list, 20)
         page_number = request.GET.get('page', 1)
         page_obj = paginator.get_page(page_number)
@@ -174,6 +173,7 @@ class HistoriquePointagesView(TemplateView):
         })
         
         return context
+
 
 # ============================================================
 # FILTRES EXACTEMENT COMME L'INTERFACE UTILISATEUR
@@ -489,15 +489,12 @@ class PointageAdmin(admin.ModelAdmin):
         'get_heures_display',
     ]
     
-    # ============================================================
-    # FILTRES EXACTEMENT COMME L'INTERFACE UTILISATEUR
-    # ============================================================
     list_filter = [
-        DateDebutFilter,      # Date début
-        DateFinFilter,        # Date fin
-        EmployeFilter,        # Employé
-        SiteFilter,           # Site
-        PeriodeTypeFilter,    # Type de période (Jour/Nuit)
+        DateDebutFilter,
+        DateFinFilter,
+        EmployeFilter,
+        SiteFilter,
+        PeriodeTypeFilter,
     ]
     
     search_fields = [
@@ -509,10 +506,6 @@ class PointageAdmin(admin.ModelAdmin):
     
     readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
     date_hierarchy = 'date_pointage'
-    
-    # ============================================================
-    # CHAMPS PERSONNALISÉS
-    # ============================================================
     
     def get_retard_display(self, obj):
         if obj.retard and obj.retard.total_seconds() > 0:
@@ -534,10 +527,6 @@ class PointageAdmin(admin.ModelAdmin):
             return f"{hours}h{minutes:02d}"
         return "—"
     get_heures_display.short_description = "Heures travaillées"
-    
-    # ============================================================
-    # ACTIONS EN MASSE
-    # ============================================================
     
     actions = ['marquer_present', 'marquer_retard', 'marquer_absent', 'supprimer_selection']
     
@@ -563,16 +552,8 @@ class PointageAdmin(admin.ModelAdmin):
             self.message_user(request, f"🗑️ {count} pointage(s) supprimé(s).")
     supprimer_selection.short_description = "🗑️ Supprimer"
     
-    # ============================================================
-    # GET QUERYSET
-    # ============================================================
-    
     def get_queryset(self, request):
         return Pointage.objects.select_related('employe', 'site')
-    
-    # ============================================================
-    # CHANGELIST VIEW
-    # ============================================================
     
     def changelist_view(self, request, extra_context=None):
         cl = self.get_changelist_instance(request)
@@ -595,10 +576,6 @@ class PointageAdmin(admin.ModelAdmin):
         })
         
         return super().changelist_view(request, extra_context=extra_context)
-    
-    # ============================================================
-    # EXPORT EXCEL
-    # ============================================================
     
     def export_excel(self, request, queryset):
         """Export Excel au même format que l'interface utilisateur"""
