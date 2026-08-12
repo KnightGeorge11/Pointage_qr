@@ -1,11 +1,45 @@
 {% extends "admin/change_list.html" %}
-{% load static i18n admin_list jazzmin %}
+{% load static i18n admin_list jazzmin pointage_filters %}
 
 {% block extrahead %}
     {{ block.super }}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        /* =====================================================
+           Design tokens repris du design system utilisateur
+           (pointage/templates/pointage/base.html), préfixés
+           pqr- pour ne jamais entrer en collision avec le CSS
+           de Jazzmin / AdminLTE.
+           ===================================================== */
+        .pqr-view {
+            --pqr-bg-surface:   #F8FAFC;
+            --pqr-bg-white:     #FFFFFF;
+            --pqr-text-primary: #0F172A;
+            --pqr-text-secondary: #334155;
+            --pqr-text-muted:   #64748B;
+            --pqr-blue-50:      #EFF6FF;
+            --pqr-blue-500:     #3B82F6;
+            --pqr-blue-600:     #2563EB;
+            --pqr-blue-700:     #1D4ED8;
+            --pqr-green-50:     #F0FDF4;
+            --pqr-green-500:    #22C55E;
+            --pqr-green-700:    #15803D;
+            --pqr-amber-50:     #FFFBEB;
+            --pqr-amber-500:    #F59E0B;
+            --pqr-amber-600:    #D97706;
+            --pqr-red-50:       #FEF2F2;
+            --pqr-red-500:      #EF4444;
+            --pqr-red-600:      #DC2626;
+            --pqr-border-light: #E2E8F0;
+            --pqr-shadow-sm:    0 1px 2px rgba(15, 23, 42, 0.05);
+            --pqr-shadow-md:    0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -1px rgba(15, 23, 42, 0.04);
+            --pqr-radius-sm:    6px;
+            --pqr-radius-lg:    14px;
+            --pqr-radius-full:  9999px;
+            --pqr-transition:   180ms ease;
+        }
+
         .stats-mini {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -87,15 +121,170 @@
             max-height: 120px;
         }
 
+        /* ── Toggle Vue cartes / Vue tableau ── */
+        .pqr-toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .pqr-toggle {
+            display: inline-flex;
+            background: #F1F5F9;
+            border-radius: var(--pqr-radius-sm, 6px);
+            padding: 3px;
+            gap: 2px;
+        }
+        .pqr-toggle button {
+            border: none;
+            background: transparent;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 5px;
+            color: #64748B;
+            cursor: pointer;
+            transition: all 150ms ease;
+        }
+        .pqr-toggle button.active {
+            background: #fff;
+            color: #0F172A;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+        }
+        #pqr-table-view { display: none; }
+        #pqr-table-view.active { display: block; }
+        #pqr-cards-view { display: none; }
+        #pqr-cards-view.active { display: block; }
+
+        /* ── Cartes de pointage (reprises et adaptées de l'UI) ── */
+        .pqr-view .pqr-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .pqr-view .pqr-card {
+            background: var(--pqr-bg-white);
+            border: 1px solid var(--pqr-border-light);
+            border-radius: var(--pqr-radius-lg);
+            overflow: hidden;
+            transition: all var(--pqr-transition);
+            box-shadow: var(--pqr-shadow-sm);
+        }
+        .pqr-view .pqr-card:hover {
+            box-shadow: var(--pqr-shadow-md);
+            transform: translateY(-2px);
+        }
+        .pqr-view .pqr-card.is-garde { border-color: rgba(139, 92, 246, 0.3); }
+        .pqr-view .pqr-card-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--pqr-border-light);
+            background: var(--pqr-bg-surface);
+            gap: 12px;
+        }
+        .pqr-view .pqr-avatar {
+            width: 36px; height: 36px;
+            border-radius: var(--pqr-radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+        }
+        .pqr-view .pqr-employee { flex: 1; min-width: 0; }
+        .pqr-view .pqr-employee-name {
+            font-size: 14px; font-weight: 700; color: var(--pqr-text-primary);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .pqr-view .pqr-employee-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
+        .pqr-view .pqr-matricule {
+            font-family: monospace; font-size: 10px; color: var(--pqr-text-muted);
+            background: var(--pqr-bg-surface); padding: 1px 8px; border-radius: var(--pqr-radius-sm);
+            border: 1px solid var(--pqr-border-light);
+        }
+        .pqr-view .pqr-poste {
+            font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+            padding: 1px 8px; border-radius: var(--pqr-radius-sm);
+        }
+        .pqr-view .pqr-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+        .pqr-view .pqr-date { font-size: 12px; font-weight: 700; color: var(--pqr-text-primary); }
+        .pqr-view .pqr-day { font-size: 10px; color: var(--pqr-text-muted); }
+        .pqr-view .pqr-badges { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+        .pqr-view .pqr-badge {
+            display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.06em; padding: 3px 10px;
+            border-radius: var(--pqr-radius-full); white-space: nowrap;
+        }
+        .pqr-view .pqr-badge.garde { background: #EEEDFE; color: #5B21B6; }
+        .pqr-view .pqr-badge.present { background: var(--pqr-green-50); color: var(--pqr-green-700); }
+        .pqr-view .pqr-badge.partiel { background: var(--pqr-amber-50); color: var(--pqr-amber-600); }
+        .pqr-view .pqr-badge.absent { background: var(--pqr-red-50); color: var(--pqr-red-600); }
+        .pqr-view .pqr-badge.multisite { background: var(--pqr-blue-50); color: var(--pqr-blue-700); }
+
+        .pqr-view .pqr-scans-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+        .pqr-view .pqr-scan-cell {
+            padding: 10px 12px; border-right: 1px solid var(--pqr-border-light);
+            min-height: 76px; transition: background 120ms ease;
+        }
+        .pqr-view .pqr-scan-cell:last-child { border-right: none; }
+        .pqr-view .pqr-scan-cell.missing { background: #FFFBFA; }
+        .pqr-view .pqr-scan-cell.active { background: #F0FDF7; }
+        .pqr-view .pqr-scan-type {
+            font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--pqr-text-muted); margin-bottom: 3px;
+        }
+        .pqr-view .pqr-scan-time { font-family: monospace; font-size: 16px; font-weight: 600; color: var(--pqr-text-primary); }
+        .pqr-view .pqr-scan-time.empty { color: #D1D5DB; font-size: 13px; }
+        .pqr-view .pqr-scan-site { font-size: 10px; color: var(--pqr-text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pqr-view .pqr-scan-status { font-size: 10px; font-weight: 600; margin-top: 2px; }
+        .pqr-view .pqr-scan-status.ok { color: var(--pqr-green-700); }
+        .pqr-view .pqr-scan-status.warn { color: var(--pqr-amber-600); }
+        .pqr-view .pqr-scan-status.miss { color: #D1D5DB; }
+
+        .pqr-view .pqr-night-band { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: #1E1B4B; flex-wrap: wrap; }
+        .pqr-view .pqr-night-block { display: flex; flex-direction: column; gap: 2px; }
+        .pqr-view .pqr-night-label { font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.3); }
+        .pqr-view .pqr-night-time { font-family: monospace; font-size: 16px; font-weight: 600; color: #A5B4FC; }
+        .pqr-view .pqr-night-site { font-size: 10px; color: rgba(255,255,255,0.3); }
+        .pqr-view .pqr-night-arrow { font-size: 18px; color: rgba(255,255,255,0.15); }
+        .pqr-view .pqr-night-total { margin-left: auto; background: #EEEDFE; color: #5B21B6; font-size: 11px; font-weight: 700; padding: 4px 14px; border-radius: var(--pqr-radius-sm); }
+
+        .pqr-view .pqr-card-footer { border-top: 1px solid var(--pqr-border-light); }
+        .pqr-view .pqr-footer-totals { display: flex; gap: 16px; padding: 8px 16px; background: var(--pqr-bg-surface); flex-wrap: wrap; }
+        .pqr-view .pqr-footer-total-item { font-size: 11px; color: var(--pqr-text-muted); display: flex; align-items: center; gap: 6px; }
+        .pqr-view .pqr-footer-total-item strong { font-weight: 700; color: var(--pqr-text-primary); }
+        .pqr-view .pqr-tdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .pqr-view .pqr-tdot.ok { background: var(--pqr-green-500); }
+        .pqr-view .pqr-tdot.warn { background: var(--pqr-amber-500); }
+        .pqr-view .pqr-footer-action { padding: 10px 16px; display: flex; justify-content: flex-end; background: var(--pqr-bg-white); }
+        .pqr-view .pqr-btn-edit {
+            background: #0F172A; color: rgba(255,255,255,0.85); border: none; border-radius: var(--pqr-radius-sm);
+            padding: 6px 16px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 150ms ease;
+            text-decoration: none;
+        }
+        .pqr-view .pqr-btn-edit:hover { background: var(--pqr-blue-600); color: #fff; transform: translateY(-1px); box-shadow: var(--pqr-shadow-md); }
+
+        .pqr-view .pqr-empty {
+            grid-column: 1 / -1; text-align: center; padding: 48px 24px;
+            background: var(--pqr-bg-white); border: 2px dashed var(--pqr-border-light); border-radius: var(--pqr-radius-lg);
+            color: var(--pqr-text-muted); font-size: 13px;
+        }
+        .pqr-view .pqr-pagination { display: flex; justify-content: center; gap: 8px; margin: 16px 0; }
+        .pqr-view .pqr-pagination a, .pqr-view .pqr-pagination span {
+            font-size: 12px; padding: 6px 12px; border-radius: var(--pqr-radius-sm);
+            border: 1px solid var(--pqr-border-light); color: var(--pqr-text-secondary); text-decoration: none;
+        }
+        .pqr-view .pqr-pagination .current { background: #0F172A; color: #fff; border-color: #0F172A; }
+
         @media (max-width: 768px) {
-            .stats-mini {
-                grid-template-columns: repeat(2, 1fr);
-            }
+            .stats-mini { grid-template-columns: repeat(2, 1fr); }
+            .pqr-view .pqr-cards-grid { grid-template-columns: 1fr; }
+            .pqr-view .pqr-scans-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 480px) {
-            .stats-mini {
-                grid-template-columns: 1fr 1fr;
-            }
+            .stats-mini { grid-template-columns: 1fr 1fr; }
         }
     </style>
 {% endblock %}
@@ -128,9 +317,17 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- EXPORT EXCEL -->
+    <!-- BASCULE VUE CARTES / VUE TABLEAU -->
     <!-- ============================================================ -->
-    <div style="display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+    <div class="pqr-toggle-row">
+        <div class="pqr-toggle" role="tablist" aria-label="Mode d'affichage">
+            <button type="button" id="pqr-btn-cards" class="active" onclick="pqrSwitchView('cards')">
+                <i class="fas fa-grip"></i> Vue cartes
+            </button>
+            <button type="button" id="pqr-btn-table" onclick="pqrSwitchView('table')">
+                <i class="fas fa-table"></i> Vue tableau
+            </button>
+        </div>
         <div class="export-btn-group">
             <a href="?export_excel=1{% for key, value in request.GET.items %}{% if key != 'export_excel' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="btn btn-excel">
                 <i class="fas fa-file-excel"></i> Exporter Excel
@@ -142,9 +339,203 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- TABLEAU PRINCIPAL (Jazzmin) -->
+    <!-- VUE CARTES — même logique d'affichage que l'interface -->
+    <!-- utilisateur (regroupement par employé/jour), avec en plus : -->
+    <!-- statut "Incomplet" réellement calculé, et un lien direct -->
+    <!-- vers la fiche admin pour corriger un pointage.            -->
     <!-- ============================================================ -->
+    <div id="pqr-cards-view" class="pqr-view active">
+        <div class="pqr-cards-grid">
+        {% for jour in jours_cards %}
+            <div class="pqr-card {% if jour.is_garde %}is-garde{% endif %}">
+                <div class="pqr-card-header">
+                    <div class="pqr-avatar" style="background:{% if jour.employe.id|divisibleby:7 %}#8B5CF6{% else %}#2563EB{% endif %};">
+                        {{ jour.employe.prenom|slice:":1" }}{{ jour.employe.nom|slice:":1" }}
+                    </div>
+                    <div class="pqr-employee">
+                        <div class="pqr-employee-name">{{ jour.employe.prenom }} {{ jour.employe.nom }}</div>
+                        <div class="pqr-employee-meta">
+                            <span class="pqr-matricule">{{ jour.employe.matricule }}</span>
+                            {% if jour.employe.poste %}
+                            <span class="pqr-poste" style="background:{{ jour.employe.poste.couleur }}22;color:{{ jour.employe.poste.couleur }}">
+                                {{ jour.employe.poste.nom }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="pqr-right">
+                        <div class="pqr-date">{{ jour.date|date:"d M Y" }}</div>
+                        <div class="pqr-day">{{ jour.date|date:"l" }}</div>
+                        <div class="pqr-badges">
+                            {% if jour.is_garde %}<span class="pqr-badge garde"><i class="fas fa-moon"></i> Garde</span>{% endif %}
+                            {% if jour.statut_global == 'present' %}
+                                <span class="pqr-badge present">✓ Présent</span>
+                            {% elif jour.statut_global == 'partiel' %}
+                                <span class="pqr-badge partiel">~ Incomplet</span>
+                            {% else %}
+                                <span class="pqr-badge absent">✗ Absent</span>
+                            {% endif %}
+                            {% if jour.multisite %}<span class="pqr-badge multisite"><i class="fas fa-arrows-alt-h"></i> Multi-site</span>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if jour.is_garde %}
+                <div class="pqr-night-band">
+                    <div class="pqr-night-block">
+                        <span class="pqr-night-label">Début garde</span>
+                        <span class="pqr-night-time">{{ jour.nuit.heure_arrivee|time:"H:i"|default:"—" }}</span>
+                        <span class="pqr-night-site">{{ jour.nuit.site.nom }}</span>
+                    </div>
+                    <span class="pqr-night-arrow">→</span>
+                    <div class="pqr-night-block">
+                        <span class="pqr-night-label">Fin garde</span>
+                        <span class="pqr-night-time">{{ jour.nuit.heure_depart|time:"H:i"|default:"—" }}</span>
+                        <span class="pqr-night-site">{{ jour.nuit.site.nom }}</span>
+                    </div>
+                    {% if jour.nuit.heures_travaillees %}
+                    <span class="pqr-night-total">{{ jour.nuit.heures_travaillees|timedelta_format }} travaillées</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="pqr-scans-grid">
+                    <div class="pqr-scan-cell {% if not jour.matin or not jour.matin.heure_arrivee %}missing{% else %}active{% endif %}">
+                        <div class="pqr-scan-type">Entrée matin</div>
+                        {% if jour.matin and jour.matin.heure_arrivee %}
+                            <div class="pqr-scan-time">{{ jour.matin.heure_arrivee|time:"H:i" }}</div>
+                            <div class="pqr-scan-site">{{ jour.matin.site.nom|default:jour.site.nom }}</div>
+                            <div class="pqr-scan-status {% if jour.matin.retard.total_seconds > 0 %}warn{% else %}ok{% endif %}">
+                                {% if jour.matin.retard.total_seconds > 0 %}+{{ jour.matin.retard|timedelta_format }}{% else %}À l'heure{% endif %}
+                            </div>
+                        {% else %}
+                            <div class="pqr-scan-time empty">—</div>
+                            <div class="pqr-scan-site">—</div>
+                            <div class="pqr-scan-status miss">Absent</div>
+                        {% endif %}
+                    </div>
+                    <div class="pqr-scan-cell {% if not jour.matin or not jour.matin.heure_depart %}missing{% endif %}">
+                        <div class="pqr-scan-type">Sortie matin</div>
+                        {% if jour.matin and jour.matin.heure_depart %}
+                            <div class="pqr-scan-time">{{ jour.matin.heure_depart|time:"H:i" }}</div>
+                            <div class="pqr-scan-site">{{ jour.matin.site.nom|default:jour.site.nom }}</div>
+                            <div class="pqr-scan-status ok">{% if jour.matin.heures_travaillees %}{{ jour.matin.heures_travaillees|timedelta_format }} trav.{% else %}Pointé{% endif %}</div>
+                        {% else %}
+                            <div class="pqr-scan-time empty">—</div>
+                            <div class="pqr-scan-site">—</div>
+                            <div class="pqr-scan-status miss">Non pointé</div>
+                        {% endif %}
+                    </div>
+                    <div class="pqr-scan-cell {% if not jour.apres_midi or not jour.apres_midi.heure_arrivee %}missing{% else %}active{% endif %}">
+                        <div class="pqr-scan-type">Entrée après-midi</div>
+                        {% if jour.apres_midi and jour.apres_midi.heure_arrivee %}
+                            <div class="pqr-scan-time">{{ jour.apres_midi.heure_arrivee|time:"H:i" }}</div>
+                            <div class="pqr-scan-site">{{ jour.apres_midi.site.nom|default:jour.site.nom }}</div>
+                            <div class="pqr-scan-status {% if jour.apres_midi.retard.total_seconds > 0 %}warn{% else %}ok{% endif %}">
+                                {% if jour.apres_midi.retard.total_seconds > 0 %}+{{ jour.apres_midi.retard|timedelta_format }}{% else %}À l'heure{% endif %}
+                            </div>
+                        {% else %}
+                            <div class="pqr-scan-time empty">—</div>
+                            <div class="pqr-scan-site">—</div>
+                            <div class="pqr-scan-status miss">En attente</div>
+                        {% endif %}
+                    </div>
+                    <div class="pqr-scan-cell {% if not jour.apres_midi or not jour.apres_midi.heure_depart %}missing{% endif %}">
+                        <div class="pqr-scan-type">Sortie après-midi</div>
+                        {% if jour.apres_midi and jour.apres_midi.heure_depart %}
+                            <div class="pqr-scan-time">{{ jour.apres_midi.heure_depart|time:"H:i" }}</div>
+                            <div class="pqr-scan-site">{{ jour.apres_midi.site.nom|default:jour.site.nom }}</div>
+                            <div class="pqr-scan-status ok">{% if jour.apres_midi.heures_travaillees %}{{ jour.apres_midi.heures_travaillees|timedelta_format }} trav.{% else %}Pointé{% endif %}</div>
+                        {% else %}
+                            <div class="pqr-scan-time empty">—</div>
+                            <div class="pqr-scan-site">—</div>
+                            <div class="pqr-scan-status miss">Non pointé</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="pqr-card-footer">
+                    <div class="pqr-footer-totals">
+                        <span class="pqr-footer-total-item">
+                            <span class="pqr-tdot ok"></span>
+                            Travaillées : <strong>{{ jour.heures_total|timedelta_format }}</strong>
+                        </span>
+                        {% if jour.retard_total.total_seconds > 0 %}
+                        <span class="pqr-footer-total-item">
+                            <span class="pqr-tdot warn"></span>
+                            Retard : <strong>{{ jour.retard_total|timedelta_format }}</strong>
+                        </span>
+                        {% endif %}
+                        {% if jour.heures_sup.total_seconds > 0 %}
+                        <span class="pqr-footer-total-item">
+                            <span class="pqr-tdot ok"></span>
+                            H. sup : <strong>{{ jour.heures_sup|timedelta_format }}</strong>
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="pqr-footer-action">
+                        {% if jour.admin_pointage_id %}
+                        <a class="pqr-btn-edit" href="{% url 'admin:pointage_pointage_change' jour.admin_pointage_id %}">
+                            <i class="fas fa-pen"></i> Corriger dans l'admin
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="pqr-empty">
+                <i class="fas fa-inbox" style="font-size:28px;display:block;margin-bottom:8px;color:#CBD5E1;"></i>
+                Aucun pointage ne correspond à ces filtres.
+            </div>
+        {% endfor %}
+        </div>
+
+        {% if jours_cards.paginator.num_pages > 1 %}
+        <div class="pqr-pagination">
+            {% if jours_cards.has_previous %}
+            <a href="?{% for key, value in request.GET.items %}{% if key != 'cards_page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}cards_page={{ jours_cards.previous_page_number }}">‹ Précédent</a>
+            {% endif %}
+            <span class="current">Page {{ jours_cards.number }} / {{ jours_cards.paginator.num_pages }}</span>
+            {% if jours_cards.has_next %}
+            <a href="?{% for key, value in request.GET.items %}{% if key != 'cards_page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}cards_page={{ jours_cards.next_page_number }}">Suivant ›</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TABLEAU PRINCIPAL (Jazzmin) — actions groupées, tri, édition -->
+    <!-- rapide : toujours disponible, masqué par défaut.            -->
+    <!-- ============================================================ -->
+    <div id="pqr-table-view">
     {{ block.super }}
+    </div>
+
+    <script>
+    function pqrSwitchView(mode) {
+        var cards = document.getElementById('pqr-cards-view');
+        var table = document.getElementById('pqr-table-view');
+        var btnCards = document.getElementById('pqr-btn-cards');
+        var btnTable = document.getElementById('pqr-btn-table');
+        if (mode === 'table') {
+            cards.classList.remove('active');
+            table.classList.add('active');
+            btnTable.classList.add('active');
+            btnCards.classList.remove('active');
+        } else {
+            table.classList.remove('active');
+            cards.classList.add('active');
+            btnCards.classList.add('active');
+            btnTable.classList.remove('active');
+        }
+        try { localStorage.setItem('pqr_pointages_view', mode); } catch (e) {}
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var saved = null;
+        try { saved = localStorage.getItem('pqr_pointages_view'); } catch (e) {}
+        if (saved === 'table') { pqrSwitchView('table'); }
+    });
+    </script>
 
     <!-- ============================================================ -->
     <!-- GRAPHIQUE DES STATUTS -->

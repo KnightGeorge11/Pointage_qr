@@ -1,0 +1,19 @@
+{% load i18n %}
+<div class="date-input-filter">
+    <h3>{{ title }}</h3>
+    {% for choice in choices %}
+    <form method="get" class="date-input-filter-form" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:0 0 8px 0;">
+        {% for key, value in choice.hidden_fields %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endfor %}
+        <input type="date"
+               name="{{ choice.parameter_name }}"
+               value="{{ choice.value }}"
+               style="padding:4px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">
+        <button type="submit" class="button" style="padding:4px 10px;font-size:12px;">OK</button>
+        {% if choice.value %}
+        <a href="?{{ choice.reset_query_string }}" title="{% trans 'Réinitialiser' %}" style="font-size:12px;">✕</a>
+        {% endif %}
+    </form>
+    {% endfor %}
+</div>

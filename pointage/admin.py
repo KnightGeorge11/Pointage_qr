@@ -1,4 +1,4 @@
-# pointage/admin.py - Version complète et corrigée
+# pointage/admin.py - Version complète avec tous les filtres UI
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -11,10 +11,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
-from django.views.generic import TemplateView
-from django.contrib.admin.views.decorators import staff_member_required
-from django.utils.decorators import method_decorator
-from django.core.paginator import Paginator
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
@@ -31,214 +28,72 @@ from openpyxl.utils import get_column_letter
 
 
 # ============================================================
-# VUE PERSONNALISÉE : HISTORIQUE DES POINTAGES (JAZZMIN)
-# ============================================================
-
-@method_decorator(staff_member_required, name='dispatch')
-class HistoriquePointagesView(TemplateView):
-    """Vue pour l'historique des pointages dans l'interface Jazzmin"""
-    template_name = 'admin/pointage/historique_pointages.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        request = self.request
-        
-        # Récupérer les filtres
-        date_debut = request.GET.get('date_debut')
-        date_fin = request.GET.get('date_fin')
-        employe_id = request.GET.get('employe')
-        site_id = request.GET.get('site')
-        periode_type = request.GET.get('periode_type')
-        
-        # Construire la requête
-        queryset = Pointage.objects.select_related('employe', 'site', 'employe__poste')
-        
-        if date_debut:
-            queryset = queryset.filter(date_pointage__gte=date_debut)
-        if date_fin:
-            queryset = queryset.filter(date_pointage__lte=date_fin)
-        if employe_id:
-            queryset = queryset.filter(employe_id=employe_id)
-        if site_id:
-            queryset = queryset.filter(site_id=site_id)
-        if periode_type == 'jour':
-            queryset = queryset.filter(type_journee='normal')
-        elif periode_type == 'nuit':
-            queryset = queryset.filter(type_journee='garde')
-        
-        # Grouper par employé et date
-        journees = defaultdict(lambda: {
-            'employe': None,
-            'date': None,
-            'matin': None,
-            'apres_midi': None,
-            'nuit': None,
-            'site': None,
-        })
-        
-        for p in queryset:
-            key = (p.employe_id, p.date_pointage)
-            if not journees[key]['employe']:
-                journees[key]['employe'] = p.employe
-                journees[key]['date'] = p.date_pointage
-                journees[key]['site'] = p.site
-            
-            if p.periode == 'matin':
-                journees[key]['matin'] = p
-            elif p.periode == 'apres_midi':
-                journees[key]['apres_midi'] = p
-            elif p.periode == 'nuit':
-                journees[key]['nuit'] = p
-        
-        # Convertir en liste et enrichir
-        jours_list = []
-        total_heures = timedelta()
-        total_retard = timedelta()
-        employes_set = set()
-        
-        for (emp_id, date), data in journees.items():
-            matin = data['matin']
-            apm = data['apres_midi']
-            nuit = data['nuit']
-            employe = data['employe']
-            employes_set.add(employe.id)
-            
-            # Calcul des totaux
-            heures_total = timedelta()
-            retard_total = timedelta()
-            heures_sup = timedelta()
-            
-            if matin:
-                if matin.heures_travaillees:
-                    heures_total += matin.heures_travaillees
-                if matin.retard:
-                    retard_total += matin.retard
-            if apm:
-                if apm.heures_travaillees:
-                    heures_total += apm.heures_travaillees
-                if apm.retard:
-                    retard_total += apm.retard
-            if nuit:
-                if nuit.heures_travaillees:
-                    heures_total += nuit.heures_travaillees
-            
-            # Heures supplémentaires (au-delà de 8h)
-            if heures_total > timedelta(hours=8):
-                heures_sup = heures_total - timedelta(hours=8)
-            
-            total_heures += heures_total
-            total_retard += retard_total
-            
-            # Statut global
-            if matin and apm:
-                statut_global = 'present'
-            elif matin or apm or nuit:
-                statut_global = 'partiel'
-            else:
-                statut_global = 'absent'
-            
-            jours_list.append({
-                'employe': employe,
-                'date': date,
-                'matin': matin,
-                'apres_midi': apm,
-                'nuit': nuit,
-                'site': data['site'],
-                'heures_total': heures_total,
-                'retard_total': retard_total,
-                'heures_sup': heures_sup,
-                'statut_global': statut_global,
-                'scan_map': {},
-            })
-        
-        # Trier par date décroissante
-        jours_list.sort(key=lambda x: x['date'], reverse=True)
-        
-        # Pagination
-        paginator = Paginator(jours_list, 20)
-        page_number = request.GET.get('page', 1)
-        page_obj = paginator.get_page(page_number)
-        
-        # Contexte
-        context.update({
-            'jours': page_obj,
-            'total_journees': len(jours_list),
-            'total_heures': total_heures,
-            'total_retard': total_retard,
-            'unique_employes_count': len(employes_set),
-            'employes': Employe.objects.filter(actif=True).order_by('nom', 'prenom'),
-            'sites': Site.objects.all().order_by('nom'),
-            'filter_date_debut': date_debut or '',
-            'filter_date_fin': date_fin or '',
-        })
-        
-        return context
-
-
-# ============================================================
 # FILTRES EXACTEMENT COMME L'INTERFACE UTILISATEUR
 # ============================================================
 
-class DateDebutFilter(SimpleListFilter):
-    """Date début - comme dans l'UI"""
+class DateInputFilterMixin:
+    """Filtre admin affichant un champ <input type="date"> au lieu d'une liste
+    de choix prédéfinis, pour permettre une date arbitraire (comme dans l'UI).
+
+    IMPORTANT : SimpleListFilter n'affiche la sidebar / n'appelle queryset()
+    que si has_output() renvoie True. Par défaut has_output() renvoie
+    `len(self.lookup_choices) > 0`, donc avec lookups() vide (nécessaire ici
+    puisqu'on ne veut pas de liste de choix), Django ignore silencieusement
+    le filtre. On force donc has_output() à True.
+    """
+    template = 'admin/pointage/date_input_filter.html'
+
+    def lookups(self, request, model_admin):
+        return ()
+
+    def has_output(self):
+        return True
+
+    def choices(self, changelist):
+        hidden_fields = [
+            (key, value) for key, value in changelist.params.items()
+            if key != self.parameter_name
+        ]
+        yield {
+            'value': self.value() or '',
+            'parameter_name': self.parameter_name,
+            'hidden_fields': hidden_fields,
+            'reset_query_string': changelist.get_query_string(remove=[self.parameter_name]),
+        }
+
+
+class DateDebutFilter(DateInputFilterMixin, SimpleListFilter):
+    """Date début - retourne les pointages à partir de cette date (incluse)."""
     title = 'Date début'
     parameter_name = 'date_debut'
 
-    def lookups(self, request, model_admin):
-        return [
-            ('today', "Aujourd'hui"),
-            ('yesterday', 'Hier'),
-            ('week', 'Cette semaine'),
-            ('month', 'Ce mois-ci'),
-            ('custom', 'Personnalisée...'),
-        ]
-
     def queryset(self, request, queryset):
-        if self.value() == 'today':
-            today = timezone.localtime(timezone.now()).date()
-            return queryset.filter(date_pointage=today)
-        if self.value() == 'yesterday':
-            yesterday = timezone.localtime(timezone.now()).date() - timedelta(days=1)
-            return queryset.filter(date_pointage=yesterday)
-        if self.value() == 'week':
-            today = timezone.localtime(timezone.now()).date()
-            start_of_week = today - timedelta(days=today.weekday())
-            return queryset.filter(date_pointage__gte=start_of_week)
-        if self.value() == 'month':
-            today = timezone.localtime(timezone.now()).date()
-            return queryset.filter(date_pointage__year=today.year, date_pointage__month=today.month)
-        return queryset
+        value = self.value()
+        if not value:
+            return queryset
+        try:
+            date_debut = datetime.strptime(value, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            return queryset
+        # date_pointage est un DateField (pas DateTimeField) : gte est déjà
+        # inclusif sur la journée entière, aucun souci de fuseau horaire ici.
+        return queryset.filter(date_pointage__gte=date_debut)
 
 
-class DateFinFilter(SimpleListFilter):
-    """Date fin - comme dans l'UI"""
+class DateFinFilter(DateInputFilterMixin, SimpleListFilter):
+    """Date fin - retourne les pointages jusqu'à cette date (incluse)."""
     title = 'Date fin'
     parameter_name = 'date_fin'
 
-    def lookups(self, request, model_admin):
-        return [
-            ('today', "Aujourd'hui"),
-            ('yesterday', 'Hier'),
-            ('week', 'Cette semaine'),
-            ('month', 'Ce mois-ci'),
-            ('custom', 'Personnalisée...'),
-        ]
-
     def queryset(self, request, queryset):
-        if self.value() == 'today':
-            today = timezone.localtime(timezone.now()).date()
-            return queryset.filter(date_pointage=today)
-        if self.value() == 'yesterday':
-            yesterday = timezone.localtime(timezone.now()).date() - timedelta(days=1)
-            return queryset.filter(date_pointage=yesterday)
-        if self.value() == 'week':
-            today = timezone.localtime(timezone.now()).date()
-            start_of_week = today - timedelta(days=today.weekday())
-            return queryset.filter(date_pointage__gte=start_of_week)
-        if self.value() == 'month':
-            today = timezone.localtime(timezone.now()).date()
-            return queryset.filter(date_pointage__year=today.year, date_pointage__month=today.month)
-        return queryset
+        value = self.value()
+        if not value:
+            return queryset
+        try:
+            date_fin = datetime.strptime(value, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            return queryset
+        return queryset.filter(date_pointage__lte=date_fin)
 
 
 class EmployeFilter(SimpleListFilter):
@@ -489,12 +344,15 @@ class PointageAdmin(admin.ModelAdmin):
         'get_heures_display',
     ]
     
+    # ============================================================
+    # FILTRES EXACTEMENT COMME L'INTERFACE UTILISATEUR
+    # ============================================================
     list_filter = [
-        DateDebutFilter,
-        DateFinFilter,
-        EmployeFilter,
-        SiteFilter,
-        PeriodeTypeFilter,
+        DateDebutFilter,      # Date début
+        DateFinFilter,        # Date fin
+        EmployeFilter,        # Employé
+        SiteFilter,           # Site
+        PeriodeTypeFilter,    # Type de période (Jour/Nuit)
     ]
     
     search_fields = [
@@ -506,6 +364,10 @@ class PointageAdmin(admin.ModelAdmin):
     
     readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
     date_hierarchy = 'date_pointage'
+    
+    # ============================================================
+    # CHAMPS PERSONNALISÉS
+    # ============================================================
     
     def get_retard_display(self, obj):
         if obj.retard and obj.retard.total_seconds() > 0:
@@ -527,6 +389,10 @@ class PointageAdmin(admin.ModelAdmin):
             return f"{hours}h{minutes:02d}"
         return "—"
     get_heures_display.short_description = "Heures travaillées"
+    
+    # ============================================================
+    # ACTIONS EN MASSE
+    # ============================================================
     
     actions = ['marquer_present', 'marquer_retard', 'marquer_absent', 'supprimer_selection']
     
@@ -552,8 +418,16 @@ class PointageAdmin(admin.ModelAdmin):
             self.message_user(request, f"🗑️ {count} pointage(s) supprimé(s).")
     supprimer_selection.short_description = "🗑️ Supprimer"
     
+    # ============================================================
+    # GET QUERYSET
+    # ============================================================
+    
     def get_queryset(self, request):
         return Pointage.objects.select_related('employe', 'site')
+    
+    # ============================================================
+    # CHANGELIST VIEW
+    # ============================================================
     
     def changelist_view(self, request, extra_context=None):
         cl = self.get_changelist_instance(request)
@@ -573,9 +447,88 @@ class PointageAdmin(admin.ModelAdmin):
             'presents_count': presents,
             'retards_count': retards,
             'absents_count': absents,
+            'jours_cards': self._build_jours_cards(request, queryset),
         })
         
         return super().changelist_view(request, extra_context=extra_context)
+
+    def _build_jours_cards(self, request, queryset):
+        """Regroupe le queryset (déjà filtré par la sidebar admin) par
+        (employé, jour), comme l'affichage 'Historique' côté utilisateur —
+        avec quelques améliorations : statut 'partiel' réellement calculé
+        (pas seulement présent/absent), et prefetch pour éviter le N+1.
+        """
+        pointages = list(
+            queryset.select_related('employe', 'employe__poste', 'site')
+            .prefetch_related('scans', 'scans__site')
+            .order_by('-date_pointage', 'employe__nom')[:500]
+        )
+
+        jours_dict = {}
+        for pointage in pointages:
+            key = (pointage.employe_id, pointage.date_pointage)
+            if key not in jours_dict:
+                jours_dict[key] = {
+                    'date': pointage.date_pointage, 'employe': pointage.employe, 'site': pointage.site,
+                    'matin': None, 'apres_midi': None, 'nuit': None,
+                }
+            jours_dict[key][pointage.periode] = pointage
+
+        jours_list = []
+        for jour in jours_dict.values():
+            heures_total = timedelta()
+            retard_total = timedelta()
+            segments_attendus = 0
+            segments_complets = 0
+            for cle in ('matin', 'apres_midi'):
+                p = jour[cle]
+                if p:
+                    segments_attendus += 1
+                    heures_total += p.heures_travaillees or timedelta()
+                    retard_total += p.retard or timedelta()
+                    if p.heure_arrivee and p.heure_depart:
+                        segments_complets += 1
+            if jour['nuit']:
+                heures_total += jour['nuit'].heures_travaillees or timedelta()
+
+            if jour['nuit']:
+                statut_global = 'present' if (jour['nuit'].heure_arrivee and jour['nuit'].heure_depart) else 'partiel'
+            elif segments_attendus == 0:
+                statut_global = 'absent'
+            elif segments_complets == segments_attendus:
+                statut_global = 'present'
+            else:
+                statut_global = 'partiel'
+
+            jour['heures_total']  = heures_total
+            jour['retard_total']  = retard_total
+            jour['heures_sup']    = max(heures_total - timedelta(hours=8), timedelta())
+            jour['statut_global'] = statut_global
+            jour['is_garde']      = bool(jour['nuit'] and jour['nuit'].type_journee == 'garde')
+            jour['multisite']     = bool(
+                jour['matin'] and jour['apres_midi'] and jour['matin'].site_id != jour['apres_midi'].site_id
+            )
+            # ID du Pointage à utiliser pour le lien "Voir dans l'admin"
+            ref = jour['nuit'] or jour['matin'] or jour['apres_midi']
+            jour['admin_pointage_id'] = ref.id if ref else None
+            jours_list.append(jour)
+
+        jours_list.sort(key=lambda j: (j['date'], j['employe'].nom), reverse=True)
+
+        paginator = Paginator(jours_list, 12)
+        try:
+            page_number = int(request.GET.get('cards_page', 1))
+        except (TypeError, ValueError):
+            page_number = 1
+        try:
+            jours_page = paginator.page(page_number)
+        except (EmptyPage, PageNotAnInteger):
+            jours_page = paginator.page(1)
+        return jours_page
+    
+    # ============================================================
+    # EXPORT EXCEL
+    # ============================================================
     
     def export_excel(self, request, queryset):
         """Export Excel au même format que l'interface utilisateur"""

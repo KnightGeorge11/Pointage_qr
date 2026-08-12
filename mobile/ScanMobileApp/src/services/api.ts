@@ -40,11 +40,17 @@ export interface ConnectionTestResult {
 }
 
 export interface CheckFirstScanResponse {
-  first_scan: boolean;
-  periode: string;
-  date: string;
-  garde_planifiee: boolean;
-  garde_en_cours: boolean;
+  prochain_scan?: string;
+  mode_attendu?: string;
+  first_scan?: boolean;
+  periode?: string;
+  date?: string;
+  garde_planifiee?: boolean;
+  garde_en_cours?: {
+    id: number;
+    date_pointage: string;
+    heure_arrivee: string;
+  };
   employe: Employee;
   site: {
     id: number;
