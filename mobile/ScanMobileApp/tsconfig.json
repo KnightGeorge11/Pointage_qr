@@ -2,7 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "jsx": "react-native"
   }

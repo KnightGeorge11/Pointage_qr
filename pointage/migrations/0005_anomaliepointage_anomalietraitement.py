@@ -1,12 +1,19 @@
 # Phase 4 — Gestion des anomalies de pointage
 #
-# CORRECTIF : CustomUser est défini et reste sous l'app_label 'pointage'
-# (cf. 0001_initial). Les FK ci-dessous référencent donc 'pointage.customuser'.
-# db_constraint=False est conservé par prudence sur les deux FK vers
-# l'utilisateur : la table physique a par le passé été renommée manuellement
-# en base ('auth_customuser' -> 'pointage_customuser'), et omettre la
-# contrainte SQL physique évite de dépendre du nom de table exact pendant
-# la transition. La relation reste 100% fonctionnelle côté ORM/Python.
+# CORRECTIF (v2) : sur ce projet, CustomUser a été retiré de l'état de
+# migration de l'app 'pointage' (cf. 0002_alerterh_...) et son état de
+# migration se trouve sous 'auth.customuser' (migration auth/0013_customuser).
+# Mais la TABLE PHYSIQUE réelle a ensuite été renommée manuellement en
+# base ('auth_customuser' -> 'pointage_customuser'), sans mise à jour de
+# l'état des migrations. Toute nouvelle contrainte FK créée par Django en
+# se basant sur l'état ('auth_customuser') échoue donc, alors que les
+# anciennes contraintes (créées avant le renommage) continuent de
+# fonctionner car PostgreSQL les fait suivre automatiquement.
+#
+# Solution : db_constraint=False sur les deux FK vers l'utilisateur.
+# La relation reste 100% fonctionnelle côté ORM/Python (jointures,
+# related_name, etc.) ; seule la contrainte SQL physique est omise,
+# ce qui évite de dépendre du nom de table exact.
 
 import django.db.models.deletion
 from django.db import migrations, models
@@ -16,6 +23,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("pointage", "0004_pointage_date_depart"),
+        ("auth", "0013_customuser"),
     ]
 
     operations = [
@@ -111,7 +119,7 @@ class Migration(migrations.Migration):
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
                         related_name="anomalies_cloturees",
-                        to="pointage.customuser",
+                        to="auth.customuser",
                         db_constraint=False,
                     ),
                 ),
@@ -180,7 +188,7 @@ class Migration(migrations.Migration):
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
                         related_name="anomalies_traitees",
-                        to="pointage.customuser",
+                        to="auth.customuser",
                         db_constraint=False,
                     ),
                 ),

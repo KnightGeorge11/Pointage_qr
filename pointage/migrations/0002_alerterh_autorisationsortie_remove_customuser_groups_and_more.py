@@ -7,6 +7,9 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
+        ('admin', '0004_alter_logentry_user'),
+        ('auth', '0013_customuser'),
+        ('authtoken', '0005_alter_token_user'),
         ('pointage', '0001_initial'),
     ]
 
@@ -55,12 +58,12 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='demandemodification',
             name='demandeur',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='demandes', to='pointage.customuser'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='demandes', to='auth.customuser'),
         ),
         migrations.AlterField(
             model_name='demandemodification',
             name='traitee_par',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='demandes_traitees', to='pointage.customuser'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='demandes_traitees', to='auth.customuser'),
         ),
         migrations.AddIndex(
             model_name='employe',
@@ -90,12 +93,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='alerterh',
             name='traitee_par',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='alertes_traitees', to='pointage.customuser'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='alertes_traitees', to='auth.customuser'),
         ),
         migrations.AddField(
             model_name='autorisationsortie',
             name='confirme_par',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='autorisations_confirmees', to='pointage.customuser'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='autorisations_confirmees', to='auth.customuser'),
         ),
         migrations.AddField(
             model_name='autorisationsortie',
@@ -106,6 +109,9 @@ class Migration(migrations.Migration):
             model_name='autorisationsortie',
             name='pointage',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='autorisation_sortie', to='pointage.pointage'),
+        ),
+        migrations.DeleteModel(
+            name='CustomUser',
         ),
         migrations.AddIndex(
             model_name='alerterh',

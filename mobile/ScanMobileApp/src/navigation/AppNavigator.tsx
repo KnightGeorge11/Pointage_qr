@@ -1,7 +1,7 @@
 // src/navigation/AppNavigator.tsx
 
 import React from 'react'
-import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { createStackNavigator } from '@react-navigation/stack'
 import { NavigationContainer } from '@react-navigation/native'
 
 // 🔥 IMPORT DES SCREENS
@@ -12,7 +12,7 @@ import HistoryScreen from '../screens/HistoryScreen'
 import ConfigScreen from '../screens/ConfigScreen'
 import { colors } from '../theme/colors'
 
-const Stack = createNativeStackNavigator()
+const Stack = createStackNavigator()
 
 const AppNavigator = () => {
   return (
@@ -20,8 +20,7 @@ const AppNavigator = () => {
       <Stack.Navigator
         initialRouteName="Home"
         screenOptions={{
-          headerStyle: { backgroundColor: colors.white },
-          headerShadowVisible: false,
+          headerStyle: { backgroundColor: colors.white, shadowOpacity: 0, elevation: 0, borderBottomWidth: 1, borderBottomColor: colors.line },
           headerTintColor: colors.ink,
           headerTitleStyle: { fontWeight: 'bold' },
         }}
@@ -36,8 +35,7 @@ const AppNavigator = () => {
           component={ScanScreen}
           options={{
             title: 'Scanner',
-            headerStyle: { backgroundColor: colors.ink },
-            headerShadowVisible: false,
+            headerStyle: { backgroundColor: colors.ink, borderBottomWidth: 0 },
             headerTintColor: colors.white,
           }}
         />
