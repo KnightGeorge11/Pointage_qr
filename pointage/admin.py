@@ -1,4 +1,4 @@
-# pointage/admin.py - SOLUTION DEFINITIVE
+# pointage/admin.py - VERSION QUI MARCHE AVEC JAZZMIN
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -200,51 +200,53 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - SOLUTION DEFINITIVE
+# POINTAGE - VERSION QUI MARCHE AVEC JAZZMIN
 # ============================================================
 
 @admin.register(Pointage)
 class PointageAdmin(admin.ModelAdmin):
     change_list_template = "admin/pointage/pointage_changelist.html"
-    
+
+    # Garder les attributs de base pour Jazzmin
     list_display = [
         'employe',
         'date_pointage',
         'periode',
         'type_journee',
     ]
-    
-    # ============================================================
-    # ON GARDE LES FILTRES DANS LA BARRE LATERALE
-    # ============================================================
-    list_filter = [
-        'employe',
-        'site',
-        'statut',
-    ]
-    search_fields = ['employe__nom', 'employe__prenom', 'employe__matricule']
-    date_hierarchy = 'date_pointage'
-    
+
+    # PAS de list_filter pour éviter l'erreur
+    list_filter = []
+    search_fields = []
+    date_hierarchy = None
+
     def get_queryset(self, request):
         return Pointage.objects.select_related('employe', 'site')
-    
+
+    # ============================================================
+    # CHANGELIST VIEW - TOUT EST GERER ICI
+    # ============================================================
+
     def changelist_view(self, request, extra_context=None):
-        # ============================================================
-        # Récupérer les dates depuis l'URL (pas depuis GET)
-        # ============================================================
+        # Récupérer les filtres depuis GET
         date_debut = request.GET.get('date_debut', '')
         date_fin = request.GET.get('date_fin', '')
-        
-        # ============================================================
-        # Construire les cartes avec les dates filtrées
-        # ============================================================
+        employe_id = request.GET.get('employe', '')
+        site_id = request.GET.get('site', '')
+        periode_type = request.GET.get('periode_type', '')
+
+        # Construire le queryset avec tous les filtres
         queryset = Pointage.objects.select_related('employe', 'site')
-        
+
+        # Filtre date
         if date_debut and date_fin:
             try:
                 debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
                 fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__gte=debut, date_pointage__lte=fin)
+                queryset = queryset.filter(
+                    date_pointage__gte=debut,
+                    date_pointage__lte=fin
+                )
             except ValueError:
                 pass
         elif date_debut:
@@ -259,12 +261,33 @@ class PointageAdmin(admin.ModelAdmin):
                 queryset = queryset.filter(date_pointage__lte=fin)
             except ValueError:
                 pass
-        
-        # Construire les cartes
+
+        # Filtre employé
+        if employe_id:
+            try:
+                queryset = queryset.filter(employe_id=int(employe_id))
+            except ValueError:
+                pass
+
+        # Filtre site
+        if site_id:
+            try:
+                queryset = queryset.filter(site_id=int(site_id))
+            except ValueError:
+                pass
+
+        # Filtre type de période
+        if periode_type == 'jour':
+            queryset = queryset.filter(type_journee='normal')
+        elif periode_type == 'nuit':
+            queryset = queryset.filter(type_journee='garde')
+
+        # Construire les données pour les cartes
         cards = []
         employes_info = {}
+
         jour_data = defaultdict(lambda: defaultdict(lambda: {'matin': None, 'apres_midi': None, 'nuit': None}))
-        
+
         for p in queryset:
             employes_info[p.employe.id] = {
                 'id': p.employe.id,
@@ -275,17 +298,17 @@ class PointageAdmin(admin.ModelAdmin):
                 'poste_couleur': p.employe.poste.couleur if p.employe.poste else '#4361ee',
             }
             jour_data[p.employe.id][p.date_pointage][p.periode] = p
-        
+
         for emp_id, dates in jour_data.items():
             for date, periods in dates.items():
                 matin = periods.get('matin')
                 apm = periods.get('apres_midi')
                 nuit = periods.get('nuit')
-                
+
                 heures_total = timedelta()
                 retard_total = timedelta()
                 heures_sup = timedelta()
-                
+
                 if matin:
                     heures_total += matin.heures_travaillees or timedelta()
                     retard_total += matin.retard or timedelta()
@@ -295,19 +318,19 @@ class PointageAdmin(admin.ModelAdmin):
                 if nuit:
                     heures_total += nuit.heures_travaillees or timedelta()
                     retard_total += nuit.retard or timedelta()
-                
+
                 if heures_total > timedelta(hours=8):
                     heures_sup = heures_total - timedelta(hours=8)
-                
+
                 if matin and apm and matin.heure_arrivee and matin.heure_depart and apm.heure_arrivee and apm.heure_depart:
                     statut_global = 'present'
                 elif matin or apm or nuit:
                     statut_global = 'partiel'
                 else:
                     statut_global = 'absent'
-                
+
                 is_garde = nuit and nuit.type_journee == 'garde'
-                
+
                 cards.append({
                     'employe': employes_info[emp_id],
                     'date': date,
@@ -320,25 +343,48 @@ class PointageAdmin(admin.ModelAdmin):
                     'retard_total': retard_total,
                     'heures_sup': heures_sup,
                 })
-        
+
         cards.sort(key=lambda x: x['date'], reverse=True)
-        
+
         # Pagination
         from django.core.paginator import Paginator
         paginator = Paginator(cards, 20)
         page_number = request.GET.get('page', 1)
         page_obj = paginator.get_page(page_number)
-        
+
         # Statistiques
         total_journees = len(cards)
         total_heures = sum((c['heures_total'] for c in cards), timedelta())
         total_retard = sum((c['retard_total'] for c in cards), timedelta())
         unique_employes = len(set(c['employe']['id'] for c in cards))
-        
+
+        # Liste pour les filtres
         employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         sites = Site.objects.all().order_by('nom')
-        
-        # Contexte
+
+        # ============================================================
+        # CONTEXTE POUR LE TEMPLATE - AVEC TOUT CE DONT JAZZMIN A BESOIN
+        # ============================================================
+        #
+        # NOTE IMPORTANTE :
+        # On n'utilise plus un DummyChangeList fabriqué à la main. Un
+        # ChangeList incomplet (attributs manquants) est ce qui casse le
+        # rendu du layout hérité (navbar/sidebar Jazzmin) car ces blocs
+        # lisent des attributs du `cl` que Django construit normalement
+        # (get_filters_params, filter_specs, result_count, spec, etc.).
+        #
+        # get_changelist_instance() est la méthode native Django : elle
+        # construit un ChangeList entièrement valide à partir de
+        # list_display / list_filter / search_fields / date_hierarchy
+        # déjà définis sur cette classe. Ce `cl` ne sert QU'à nourrir le
+        # layout Jazzmin (breadcrumbs, sidebar, titre) — le filtrage réel
+        # de tes données reste géré à 100% par la logique manuelle
+        # ci-dessus (queryset -> cards).
+        try:
+            cl = self.get_changelist_instance(request)
+        except Exception:
+            cl = None
+
         extra_context = extra_context or {}
         extra_context.update({
             'cards': page_obj,
@@ -351,12 +397,14 @@ class PointageAdmin(admin.ModelAdmin):
             'filter_date_debut': date_debut,
             'filter_date_fin': date_fin,
             'has_add_permission': self.has_add_permission(request),
+            'cl': cl,
+            'is_popup': False,
+            'opts': self.model._meta,
+            'app_label': self.model._meta.app_label,
+            'model_name': self.model._meta.model_name,
         })
-        
-        # ============================================================
-        # Appeler super() SANS MODIFIER request.GET
-        # ============================================================
-        return super().changelist_view(request, extra_context=extra_context)
+
+        return TemplateResponse(request, self.change_list_template, extra_context)
 
 
 # ============================================================
