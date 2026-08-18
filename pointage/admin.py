@@ -1,4 +1,4 @@
-# pointage/admin.py - VERSION COMPLETE CORRIGEE (filtre + navbar)
+# pointage/admin.py - VERSION CORRECTE (filtre + navbar)
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -12,7 +12,6 @@ from django.utils import timezone
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
 from django.template.response import TemplateResponse
-from django.http import QueryDict
 import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
@@ -201,7 +200,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - VERSION CORRIGEE (filtre + navbar)
+# POINTAGE - VERSION CORRECTE
 # ============================================================
 
 @admin.register(Pointage)
@@ -233,15 +232,11 @@ class PointageAdmin(admin.ModelAdmin):
         # 2. Construire le queryset avec tous les filtres
         queryset = Pointage.objects.select_related('employe', 'site')
         
-        # Filtre date
         if date_debut and date_fin:
             try:
                 debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
                 fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
-                queryset = queryset.filter(
-                    date_pointage__gte=debut,
-                    date_pointage__lte=fin
-                )
+                queryset = queryset.filter(date_pointage__gte=debut, date_pointage__lte=fin)
             except ValueError:
                 pass
         elif date_debut:
@@ -257,30 +252,26 @@ class PointageAdmin(admin.ModelAdmin):
             except ValueError:
                 pass
         
-        # Filtre employé
         if employe_id:
             try:
                 queryset = queryset.filter(employe_id=int(employe_id))
             except ValueError:
                 pass
         
-        # Filtre site
         if site_id:
             try:
                 queryset = queryset.filter(site_id=int(site_id))
             except ValueError:
                 pass
         
-        # Filtre type de période
         if periode_type == 'jour':
             queryset = queryset.filter(type_journee='normal')
         elif periode_type == 'nuit':
             queryset = queryset.filter(type_journee='garde')
         
-        # 3. Construire les données pour les cartes
+        # 3. Construire les cartes
         cards = []
         employes_info = {}
-        
         jour_data = defaultdict(lambda: defaultdict(lambda: {'matin': None, 'apres_midi': None, 'nuit': None}))
         
         for p in queryset:
@@ -353,10 +344,41 @@ class PointageAdmin(admin.ModelAdmin):
         total_retard = sum((c['retard_total'] for c in cards), timedelta())
         unique_employes = len(set(c['employe']['id'] for c in cards))
         
-        # Liste pour les filtres
         employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         sites = Site.objects.all().order_by('nom')
         
+        # 6. Créer un ChangeList factice pour Jazzmin
+        from django.contrib.admin.views.main import ChangeList
+        class DummyChangeList(ChangeList):
+            def __init__(self):
+                self.list_display = []
+                self.list_display_links = []
+                self.list_filter = []
+                self.date_hierarchy = None
+                self.search_fields = []
+                self.list_select_related = None
+                self.list_per_page = 100
+                self.list_max_show_all = 200
+                self.list_editable = []
+                self.model_admin = None
+                self.sortable_by = None
+                self.search_help_text = None
+                self.has_filters = False
+                self.has_actions = False
+                self.show_all = False
+                self.multi_page = False
+                self.paginator = paginator
+                self.page_num = page_number
+                self.paginator_show_all = False
+                self.show_admin_actions = False
+                self.title = 'Pointages'
+                self.root_queryset = queryset
+                self.query = request.GET.get('q', '')
+                self.is_popup = False
+        
+        dummy_cl = DummyChangeList()
+        
+        # 7. Contexte avec TOUT ce dont Jazzmin a besoin
         extra_context = extra_context or {}
         extra_context.update({
             'cards': page_obj,
@@ -369,29 +391,16 @@ class PointageAdmin(admin.ModelAdmin):
             'filter_date_debut': date_debut,
             'filter_date_fin': date_fin,
             'has_add_permission': self.has_add_permission(request),
+            'cl': dummy_cl,
+            'is_popup': False,
+            'opts': self.model._meta,
+            'app_label': self.model._meta.app_label,
+            'model_name': self.model._meta.model_name,
+            'title': 'Sélectionner un pointage à modifier' if request.GET.get('_popup') else 'Pointages',
+            'request': request,
         })
         
-        # ============================================================
-        # 6. NETTOYER request.GET avant d'appeler super()
-        # ============================================================
-        
-        # Créer une copie propre sans date_debut et date_fin
-        cleaned_get = QueryDict('', mutable=True)
-        for key, value in request.GET.items():
-            if key not in ['date_debut', 'date_fin']:
-                cleaned_get[key] = value
-        
-        # Sauvegarder l'original et remplacer
-        original_get = request.GET
-        request.GET = cleaned_get
-        
-        # Appeler super() avec le GET nettoyé
-        response = super().changelist_view(request, extra_context=extra_context)
-        
-        # Restaurer request.GET
-        request.GET = original_get
-        
-        return response
+        return TemplateResponse(request, self.change_list_template, extra_context)
 
 
 # ============================================================
