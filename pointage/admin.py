@@ -11,6 +11,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
+from django import forms
 import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
@@ -27,8 +28,60 @@ from openpyxl.utils import get_column_letter
 
 
 # ============================================================
-# FILTRES POINTAGE - INTERFACE ADMIN JAZZMIN
+# FILTRE DE RECHERCHE PAR PLAGE DE DATES
 # ============================================================
+
+class DateRangeFilter(SimpleListFilter):
+    """
+    Filtre personnalisé pour rechercher par plage de dates précises.
+    
+    Permet de filtrer les pointages entre deux dates spécifiques.
+    """
+    
+    title = 'Plage de dates'
+    parameter_name = 'date_range'
+    
+    def lookups(self, request, model_admin):
+        return (
+            ('custom', 'Choisir une plage de dates'),
+        )
+    
+    def queryset(self, request, queryset):
+        if self.value() != 'custom':
+            return queryset
+        
+        # Récupérer les dates depuis les paramètres GET
+        date_debut = request.GET.get('date_debut', '')
+        date_fin = request.GET.get('date_fin', '')
+        
+        if date_debut and date_fin:
+            try:
+                # Convertir les dates en objets datetime
+                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
+                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
+                
+                # Filtrer le queryset
+                return queryset.filter(
+                    date_pointage__gte=debut,
+                    date_pointage__lte=fin
+                )
+            except ValueError:
+                return queryset
+        elif date_debut:
+            try:
+                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
+                return queryset.filter(date_pointage__gte=debut)
+            except ValueError:
+                return queryset
+        elif date_fin:
+            try:
+                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
+                return queryset.filter(date_pointage__lte=fin)
+            except ValueError:
+                return queryset
+        
+        return queryset
+
 
 class DatePeriodeFilter(SimpleListFilter):
     """
@@ -41,7 +94,7 @@ class DatePeriodeFilter(SimpleListFilter):
     - Ce mois-ci
     """
 
-    title = 'Période'
+    title = 'Periode'
     parameter_name = 'periode_date'
 
     def lookups(self, request, model_admin):
@@ -89,10 +142,10 @@ class EmployeFilter(SimpleListFilter):
     Filtre par employé.
 
     Affiche :
-    Prénom Nom (Matricule)
+    Prenom Nom (Matricule)
     """
 
-    title = 'Employé'
+    title = 'Employe'
     parameter_name = 'employe'
 
     def lookups(self, request, model_admin):
@@ -170,13 +223,13 @@ class PeriodeTypeFilter(SimpleListFilter):
     Nuit  -> type_journee = garde
     """
 
-    title = 'Type de période'
+    title = 'Type de periode'
     parameter_name = 'periode_type'
 
     def lookups(self, request, model_admin):
         return (
-            ('jour', '☀️ Jour'),
-            ('nuit', '🌙 Nuit (Gardes)'),
+            ('jour', 'Jour'),
+            ('nuit', 'Nuit (Gardes)'),
         )
 
     def queryset(self, request, queryset):
@@ -205,7 +258,7 @@ class StatutPointageFilter(SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
-            ('present', 'Présent'),
+            ('present', 'Present'),
             ('retard', 'En retard'),
             ('absent', 'Absent'),
         )
@@ -233,10 +286,10 @@ class CustomUserAdmin(UserAdmin):
     ordering = ('username',)
 
     fieldsets = UserAdmin.fieldsets + (
-        ('Rôle & Permissions', {'fields': ('role',)}),
+        ('Role & Permissions', {'fields': ('role',)}),
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
-        ('Rôle & Permissions', {'fields': ('role',)}),
+        ('Role & Permissions', {'fields': ('role',)}),
     )
 
     def save_model(self, request, obj, form, change):
@@ -279,7 +332,7 @@ class SiteAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# EMPLOYÉ
+# EMPLOYE
 # ============================================================
 
 @admin.register(Employe)
@@ -314,7 +367,7 @@ class EmployeAdmin(admin.ModelAdmin):
                 '</a>',
                 obj.qr_code.url, obj.qr_code.url
             )
-        return mark_safe('<span style="color:#f87171;font-size:12px;">Non généré</span>')
+        return mark_safe('<span style="color:#f87171;font-size:12px;">Non genere</span>')
     qr_code_preview.short_description = 'QR Code'
 
     def qr_code_display(self, obj):
@@ -327,7 +380,7 @@ class EmployeAdmin(admin.ModelAdmin):
                 '</div>',
                 obj.qr_code.url
             )
-        return mark_safe('<div style="color:#f87171;padding:14px;text-align:center;">Non généré</div>')
+        return mark_safe('<div style="color:#f87171;padding:14px;text-align:center;">Non genere</div>')
     qr_code_display.short_description = 'Visualisation QR Code'
 
     def info_qr_code(self, obj):
@@ -340,10 +393,10 @@ class EmployeAdmin(admin.ModelAdmin):
                 'font-size:12px;color:#e8eaf0;display:inline-block;margin-bottom:14px;">'
                 'EMPLOYE:{}:{}</code>'
                 '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-                '<a href="{}" download class="button" style="text-decoration:none;">Télécharger</a>'
+                '<a href="{}" download class="button" style="text-decoration:none;">Telecharger</a>'
                 '<a href="{}" target="_blank" class="button" style="text-decoration:none;">Ouvrir</a>'
                 '<button type="submit" name="_generate_qr" value="1" class="button" '
-                'style="background:#28a745;border-color:#28a745;">Régénérer</button>'
+                'style="background:#28a745;border-color:#28a745;">Regenerer</button>'
                 '</div></div>',
                 obj.matricule, obj.qr_code_token, obj.qr_code.url, obj.qr_code.url
             )
@@ -351,13 +404,13 @@ class EmployeAdmin(admin.ModelAdmin):
             '<div style="background:rgba(251,191,36,.08);padding:14px;border-radius:8px;'
             'border:1px solid rgba(251,191,36,.2);">'
             '<button type="submit" name="_generate_qr" value="1" class="button" '
-            'style="background:#4f8ef7;border-color:#4f8ef7;color:white;">Générer QR Code</button>'
+            'style="background:#4f8ef7;border-color:#4f8ef7;color:white;">Generer QR Code</button>'
             '</div>'
         )
     info_qr_code.short_description = 'Actions QR Code'
 
     def get_poste(self, obj):
-        return obj.poste.nom if obj.poste else "Non défini"
+        return obj.poste.nom if obj.poste else "Non defini"
     get_poste.short_description = 'Poste'
 
     def response_change(self, request, obj):
@@ -365,7 +418,7 @@ class EmployeAdmin(admin.ModelAdmin):
             obj.qr_code_token = uuid.uuid4()
             obj.generer_qr_code()
             obj.save()
-            self.message_user(request, "✅ QR code régénéré avec succès !", messages.SUCCESS)
+            self.message_user(request, "QR code regenere avec succes !", messages.SUCCESS)
             return HttpResponseRedirect(".")
         return super().response_change(request, obj)
 
@@ -376,18 +429,18 @@ class EmployeAdmin(admin.ModelAdmin):
             employe.generer_qr_code()
             employe.save()
             count += 1
-        self.message_user(request, f"✅ {count} QR code(s) régénéré(s).", messages.SUCCESS)
-    regenerer_qr_codes.short_description = "🔄 Régénérer les QR codes"
+        self.message_user(request, f"{count} QR code(s) regenere(s).", messages.SUCCESS)
+    regenerer_qr_codes.short_description = "Regenerer les QR codes"
 
     def activer_employes(self, request, queryset):
         updated = queryset.update(actif=True)
-        self.message_user(request, f"✅ {updated} employé(s) activé(s).", messages.SUCCESS)
-    activer_employes.short_description = "✅ Activer"
+        self.message_user(request, f"{updated} employe(s) active(s).", messages.SUCCESS)
+    activer_employes.short_description = "Activer"
 
     def desactiver_employes(self, request, queryset):
         updated = queryset.update(actif=False)
-        self.message_user(request, f"⛔ {updated} employé(s) désactivé(s).", messages.SUCCESS)
-    desactiver_employes.short_description = "⛔ Désactiver"
+        self.message_user(request, f"{updated} employe(s) desactive(s).", messages.SUCCESS)
+    desactiver_employes.short_description = "Desactiver"
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('poste')
@@ -418,6 +471,7 @@ class PointageAdmin(admin.ModelAdmin):
     # FILTRES EXACTEMENT COMME L'INTERFACE UTILISATEUR
     # ============================================================
     list_filter = [
+        DateRangeFilter,
         DatePeriodeFilter,
         EmployeFilter,
         SiteFilter,
@@ -436,18 +490,18 @@ class PointageAdmin(admin.ModelAdmin):
     date_hierarchy = 'date_pointage'
 
     # ============================================================
-    # CHAMPS PERSONNALISÉS
+    # CHAMPS PERSONNALISES
     # ============================================================
     def get_retard_display(self, obj):
         if obj.retard and obj.retard.total_seconds() > 0:
             minutes = obj.get_retard_minutes()
             if minutes >= 30:
                 return format_html(
-                    '<span style="background:#FEE2E2;color:#B91C1C;padding:2px 10px;border-radius:9999px;font-weight:600;font-size:10px;">⚠️ {} min</span>',
+                    '<span style="background:#FEE2E2;color:#B91C1C;padding:2px 10px;border-radius:9999px;font-weight:600;font-size:10px;">[!] {} min</span>',
                     minutes
                 )
             return f"{minutes} min"
-        return "—"
+        return "-"
     get_retard_display.short_description = "Retard"
     
     def get_heures_display(self, obj):
@@ -456,8 +510,8 @@ class PointageAdmin(admin.ModelAdmin):
             hours = int(total_seconds // 3600)
             minutes = int((total_seconds % 3600) // 60)
             return f"{hours}h{minutes:02d}"
-        return "—"
-    get_heures_display.short_description = "Heures travaillées"
+        return "-"
+    get_heures_display.short_description = "Heures travaillees"
     
     # ============================================================
     # ACTIONS EN MASSE
@@ -466,26 +520,26 @@ class PointageAdmin(admin.ModelAdmin):
     actions = ['marquer_present', 'marquer_retard', 'marquer_absent', 'supprimer_selection']
     
     def marquer_present(self, request, queryset):
-        queryset.update(statut='present')
-        self.message_user(request, f"✅ {queryset.count()} pointage(s) marqué(s) comme présent.")
-    marquer_present.short_description = "✅ Marquer comme présent"
+        count = queryset.update(statut='present')
+        self.message_user(request, f"{count} pointage(s) marque(s) comme present.")
+    marquer_present.short_description = "Marquer comme present"
     
     def marquer_retard(self, request, queryset):
-        queryset.update(statut='retard')
-        self.message_user(request, f"⚠️ {queryset.count()} pointage(s) marqué(s) comme retard.")
-    marquer_retard.short_description = "⚠️ Marquer comme retard"
+        count = queryset.update(statut='retard')
+        self.message_user(request, f"{count} pointage(s) marque(s) comme retard.")
+    marquer_retard.short_description = "Marquer comme retard"
     
     def marquer_absent(self, request, queryset):
-        queryset.update(statut='absent')
-        self.message_user(request, f"❌ {queryset.count()} pointage(s) marqué(s) comme absent.")
-    marquer_absent.short_description = "❌ Marquer comme absent"
+        count = queryset.update(statut='absent')
+        self.message_user(request, f"{count} pointage(s) marque(s) comme absent.")
+    marquer_absent.short_description = "Marquer comme absent"
     
     def supprimer_selection(self, request, queryset):
         count = queryset.count()
         if count > 0:
             queryset.delete()
-            self.message_user(request, f"🗑️ {count} pointage(s) supprimé(s).")
-    supprimer_selection.short_description = "🗑️ Supprimer"
+            self.message_user(request, f"{count} pointage(s) supprime(s).")
+    supprimer_selection.short_description = "Supprimer"
     
     # ============================================================
     # GET QUERYSET
@@ -525,14 +579,14 @@ class PointageAdmin(admin.ModelAdmin):
     # ============================================================
     
     def export_excel(self, request, queryset):
-        """Export Excel au même format que l'interface utilisateur"""
+        """Export Excel au meme format que l'interface utilisateur"""
         if not queryset.exists():
-            messages.warning(request, "Aucun pointage à exporter.")
+            messages.warning(request, "Aucun pointage a exporter.")
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/admin/pointage/pointage/'))
         
         dates = queryset.values_list('date_pointage', flat=True).distinct().order_by('date_pointage')
         if not dates:
-            messages.warning(request, "Aucune date trouvée.")
+            messages.warning(request, "Aucune date trouvee.")
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/admin/pointage/pointage/'))
         
         date_debut = dates[0]
@@ -557,11 +611,11 @@ class PointageAdmin(admin.ModelAdmin):
         
         def fmt_duree(pointage):
             if not pointage or not pointage.heures_travaillees:
-                return '—'
+                return '-'
             return pointage.get_duree_formatee()
         
         def fmt_time(t):
-            return t.strftime('%H:%M') if t else '—'
+            return t.strftime('%H:%M') if t else '-'
         
         BLUE = '1E3A5F'
         BLUE_LIGHT = 'D6E4F0'
@@ -609,7 +663,7 @@ class PointageAdmin(admin.ModelAdmin):
         
         wb = Workbook()
         ws = wb.active
-        ws.title = "Résumé Pointages"
+        ws.title = "Resume Pointages"
         ws.sheet_view.showGridLines = False
         ws.page_setup.orientation = 'landscape'
         ws.page_setup.fitToPage = True
@@ -626,12 +680,12 @@ class PointageAdmin(admin.ModelAdmin):
         
         ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=COL_TOTAL)
         sc(ws['A1'],
-           value=f"RÉSUMÉ DES POINTAGES  ·  Du {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}",
+           value=f"RESUME DES POINTAGES  -  Du {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}",
            bg=BLUE, fg=WHITE, bold=True, size=13)
         ws.row_dimensions[1].height = 36
         
         HEADER_ROW = 2
-        sc(ws.cell(row=HEADER_ROW, column=COL_EMP), value='Employé',
+        sc(ws.cell(row=HEADER_ROW, column=COL_EMP), value='Employe',
            bg=BLUE, fg=WHITE, bold=True, size=9, border=b_all(BLUE))
         for i, d in enumerate(days):
             label = f"{JOURS_FR[d.weekday()]}\n{d.strftime('%d/%m/%Y')}"
@@ -686,31 +740,31 @@ class PointageAdmin(admin.ModelAdmin):
                     ws.merge_cells(start_row=base + 1, start_column=col,
                                    end_row=base + 2, end_column=col)
                     sc(ws.cell(row=base + 1, column=col),
-                       value='🌙 Garde de nuit',
+                       value='Garde de nuit',
                        bg=PURPLE_BG, fg=PURPLE_FG, bold=True, size=9,
                        wrap=True, halign='center', valign='center',
                        border=b_all(PURPLE_FG))
                     sc(ws.cell(row=base + 3, column=col),
-                       value='Début  →  Fin',
+                       value='Debut  ->  Fin',
                        bg=NIGHT_MID, fg=NIGHT_FG, bold=True, size=8,
                        border=b_all(PURPLE_MED))
                     arr_g = fmt_time(nuit.heure_arrivee)
                     dep_g = fmt_time(nuit.heure_depart)
                     sc(ws.cell(row=base + 4, column=col),
-                       value=f"{arr_g}  →  {dep_g}",
+                       value=f"{arr_g}  ->  {dep_g}",
                        bg=NIGHT_BG, fg=WHITE, bold=True, size=9,
                        border=b_all(PURPLE_MED))
                     sc(ws.cell(row=base + 5, column=col),
-                       value=f"Durée : {fmt_duree(nuit)}",
+                       value=f"Duree : {fmt_duree(nuit)}",
                        bg=PURPLE_BG, fg=PURPLE_FG, bold=True, size=8,
                        border=b_all(PURPLE_FG))
                     if terminee:
                         sc(ws.cell(row=base + 6, column=col),
-                           value='✓ Terminée', bg=GREEN_BG, fg=GREEN_FG,
+                           value='Terminee', bg=GREEN_BG, fg=GREEN_FG,
                            bold=True, size=8, border=b_all())
                     else:
                         sc(ws.cell(row=base + 6, column=col),
-                           value='⏳ En cours', bg=ORANGE_BG, fg=ORANGE_FG,
+                           value='En cours', bg=ORANGE_BG, fg=ORANGE_FG,
                            bold=True, size=8, border=b_all())
                     sc(ws.cell(row=base + 7, column=col), bg=GREY_LIGHT,
                        border=Border(bottom=Side(style='medium', color=PURPLE_FG),
@@ -741,23 +795,23 @@ class PointageAdmin(admin.ModelAdmin):
                     arr_m = fmt_time(matin.heure_arrivee if matin else None)
                     dep_m = fmt_time(matin.heure_depart if matin else None)
                     sc(ws.cell(row=base + 2, column=col),
-                       value=f"{arr_m}  →  {dep_m}" if has_data else '—',
+                       value=f"{arr_m}  ->  {dep_m}" if has_data else '-',
                        bg=bg_day, fg=DARK, bold=True, size=9, border=b_all())
                     sc(ws.cell(row=base + 3, column=col),
-                       value='Après-midi', bg=BLUE_LIGHT, fg=BLUE,
+                       value='Apres-midi', bg=BLUE_LIGHT, fg=BLUE,
                        bold=True, size=8, border=b_all())
                     arr_s = fmt_time(apm.heure_arrivee if apm else None)
                     dep_s = fmt_time(apm.heure_depart if apm else None)
                     sc(ws.cell(row=base + 4, column=col),
-                       value=f"{arr_s}  →  {dep_s}" if has_data else '—',
+                       value=f"{arr_s}  ->  {dep_s}" if has_data else '-',
                        bg=bg_day, fg=DARK, bold=True, size=9, border=b_all())
                     sc(ws.cell(row=base + 5, column=col),
-                       value=f"Retard : {matin.get_retard_minutes if matin else 0}min" if h_ret.total_seconds() > 0 else '—',
+                       value=f"Retard : {matin.get_retard_minutes if matin else 0}min" if h_ret.total_seconds() > 0 else '-',
                        bg=RED_BG if h_ret.total_seconds() > 0 else bg_day,
                        fg=RED_FG if h_ret.total_seconds() > 0 else '999999',
                        size=8, italic=True, border=b_all())
                     sc(ws.cell(row=base + 6, column=col),
-                       value=f"H.sup : {fmt_duree(Pointage(heures_travaillees=h_sup))}" if h_sup.total_seconds() > 0 else '—',
+                       value=f"H.sup : {fmt_duree(Pointage(heures_travaillees=h_sup))}" if h_sup.total_seconds() > 0 else '-',
                        bg=GREEN_BG if h_sup.total_seconds() > 0 else bg_day,
                        fg=GREEN_FG if h_sup.total_seconds() > 0 else '999999',
                        size=8, italic=True, border=b_all())
@@ -770,7 +824,7 @@ class PointageAdmin(admin.ModelAdmin):
             
             total_lines = [
                 f"Retards :\n{Pointage(heures_travaillees=tot_retard).get_duree_formatee()}" if tot_retard.total_seconds() > 0 else "Retards :\n0h00",
-                f"\nH. Travaillées :\n{Pointage(heures_travaillees=tot_trav).get_duree_formatee()}",
+                f"\nH. Travaillees :\n{Pointage(heures_travaillees=tot_trav).get_duree_formatee()}",
                 f"\nH. Supp :\n{Pointage(heures_travaillees=tot_sup).get_duree_formatee()}" if tot_sup.total_seconds() > 0 else "\nH. Supp :\n0h00",
             ]
             if tot_gardes > 0:
@@ -817,7 +871,7 @@ class DemandeModificationAdmin(admin.ModelAdmin):
         ('Informations', {
             'fields': ('demandeur', 'type_action', 'cible', 'date_creation')
         }),
-        ('Données soumises', {
+        ('Donnees soumises', {
             'fields': ('donnees_formatees',)
         }),
         ('Statut', {
@@ -833,9 +887,9 @@ class DemandeModificationAdmin(admin.ModelAdmin):
 
     def statut_badge(self, obj):
         styles = {
-            'en_attente': ('rgba(251,191,36,.12)', '#fbbf24', '⏳ En attente'),
-            'approuvee': ('rgba(74,222,128,.12)', '#4ade80', '✅ Approuvée'),
-            'refusee': ('rgba(248,113,113,.12)', '#f87171', '❌ Refusée'),
+            'en_attente': ('rgba(251,191,36,.12)', '#fbbf24', 'En attente'),
+            'approuvee': ('rgba(74,222,128,.12)', '#4ade80', 'Approuvee'),
+            'refusee': ('rgba(248,113,113,.12)', '#f87171', 'Refusee'),
         }
         bg, color, label = styles.get(obj.statut, ('rgba(255,255,255,.07)', '#e8eaf0', obj.statut))
         return mark_safe(
@@ -848,7 +902,7 @@ class DemandeModificationAdmin(admin.ModelAdmin):
     def boutons_action(self, obj):
         if obj.statut != 'en_attente':
             return mark_safe(
-                '<span style="color:rgba(232,234,240,.3);font-size:12px;font-style:italic;">Traitée</span>'
+                '<span style="color:rgba(232,234,240,.3);font-size:12px;font-style:italic;">Traitee</span>'
             )
         url_approuver = reverse('admin:demande_approuver', args=[obj.pk])
         url_refuser = reverse('admin:demande_refuser', args=[obj.pk])
@@ -856,10 +910,10 @@ class DemandeModificationAdmin(admin.ModelAdmin):
             f'<div style="display:flex;gap:6px;">'
             f'<a href="{url_approuver}" style="background:rgba(74,222,128,.12);color:#4ade80;'
             f'border:1px solid rgba(74,222,128,.3);padding:4px 12px;border-radius:6px;'
-            f'font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap;">✅ Accepter</a>'
+            f'font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap;">Accepter</a>'
             f'<a href="{url_refuser}" style="background:rgba(248,113,113,.12);color:#f87171;'
             f'border:1px solid rgba(248,113,113,.3);padding:4px 12px;border-radius:6px;'
-            f'font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap;">❌ Refuser</a>'
+            f'font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap;">Refuser</a>'
             f'</div>'
         )
     boutons_action.short_description = 'Actions'
@@ -870,7 +924,7 @@ class DemandeModificationAdmin(admin.ModelAdmin):
             'background:rgba(255,255,255,.06);color:#e8eaf0;'
             'border:1px solid rgba(255,255,255,.15);padding:8px 18px;'
             'border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">'
-            '← Retour</a>'
+            '<- Retour</a>'
         )
         if obj.statut != 'en_attente':
             return mark_safe(btn_retour)
@@ -881,12 +935,12 @@ class DemandeModificationAdmin(admin.ModelAdmin):
             'style="background:rgba(74,222,128,.15);color:#4ade80;'
             'border:1px solid rgba(74,222,128,.35);padding:8px 20px;'
             'border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">'
-            '✅ Accepter</button>'
+            'Accepter</button>'
             '<button type="submit" name="_refuser" value="1" '
             'style="background:rgba(248,113,113,.15);color:#f87171;'
             'border:1px solid rgba(248,113,113,.35);padding:8px 20px;'
             'border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">'
-            '❌ Refuser</button>'
+            'Refuser</button>'
             + btn_retour +
             '</div>'
         )
@@ -909,9 +963,9 @@ class DemandeModificationAdmin(admin.ModelAdmin):
                 demande.traitee_par = request.user
                 demande.date_traitement = timezone.now()
                 demande.save()
-                self.message_user(request, f"✅ Demande #{pk} approuvée et appliquée.")
+                self.message_user(request, f"Demande #{pk} approuvee et appliquee.")
             except Exception as e:
-                self.message_user(request, f"❌ Erreur : {e}", level='error')
+                self.message_user(request, f"Erreur : {e}", level='error')
         return HttpResponseRedirect("../../")
 
     def refuser_view(self, request, pk):
@@ -921,7 +975,7 @@ class DemandeModificationAdmin(admin.ModelAdmin):
             demande.traitee_par = request.user
             demande.date_traitement = timezone.now()
             demande.save()
-            self.message_user(request, f"❌ Demande #{pk} refusée.")
+            self.message_user(request, f"Demande #{pk} refusee.")
         return HttpResponseRedirect("../../")
 
     def response_change(self, request, obj):
@@ -932,9 +986,9 @@ class DemandeModificationAdmin(admin.ModelAdmin):
                 obj.traitee_par = request.user
                 obj.date_traitement = timezone.now()
                 obj.save()
-                self.message_user(request, f"✅ Demande #{obj.pk} approuvée et appliquée.")
+                self.message_user(request, f"Demande #{obj.pk} approuvee et appliquee.")
             except Exception as e:
-                self.message_user(request, f"❌ Erreur : {e}", level='error')
+                self.message_user(request, f"Erreur : {e}", level='error')
             return HttpResponseRedirect("../")
 
         if '_refuser' in request.POST and obj.statut == 'en_attente':
@@ -942,7 +996,7 @@ class DemandeModificationAdmin(admin.ModelAdmin):
             obj.traitee_par = request.user
             obj.date_traitement = timezone.now()
             obj.save()
-            self.message_user(request, f"❌ Demande #{obj.pk} refusée.")
+            self.message_user(request, f"Demande #{obj.pk} refusee.")
             return HttpResponseRedirect("../")
 
         return super().response_change(request, obj)
@@ -962,7 +1016,7 @@ class DemandeModificationAdmin(admin.ModelAdmin):
 
     def donnees_formatees(self, obj):
         if not obj.donnees:
-            return '—'
+            return '-'
         lignes = []
         for cle, valeur in obj.donnees.items():
             lignes.append(format_html(
@@ -980,9 +1034,9 @@ class DemandeModificationAdmin(admin.ModelAdmin):
             'border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">{}</table>',
             mark_safe(''.join(lignes))
         )
-    donnees_formatees.short_description = "Données de la demande"
+    donnees_formatees.short_description = "Donnees de la demande"
 
-    @admin.action(description="✅ Approuver les demandes sélectionnées")
+    @admin.action(description="Approuver les demandes selectionnees")
     def approuver_demandes(self, request, queryset):
         for demande in queryset.filter(statut='en_attente'):
             try:
@@ -992,17 +1046,17 @@ class DemandeModificationAdmin(admin.ModelAdmin):
                 demande.date_traitement = timezone.now()
                 demande.save()
             except Exception as e:
-                self.message_user(request, f"❌ Erreur demande #{demande.pk} : {e}", level='error')
-        self.message_user(request, "✅ Demandes approuvées et appliquées.")
+                self.message_user(request, f"Erreur demande #{demande.pk} : {e}", level='error')
+        self.message_user(request, "Demandes approuvees et appliquees.")
 
-    @admin.action(description="❌ Refuser les demandes sélectionnées")
+    @admin.action(description="Refuser les demandes selectionnees")
     def refuser_demandes(self, request, queryset):
         for demande in queryset.filter(statut='en_attente'):
             demande.statut = 'refusee'
             demande.traitee_par = request.user
             demande.date_traitement = timezone.now()
             demande.save()
-        self.message_user(request, "❌ Demandes refusées.")
+        self.message_user(request, "Demandes refusees.")
 
     def _appliquer_demande(self, demande):
         d = demande.donnees
@@ -1137,7 +1191,7 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
         ("Anomalie", {
             'fields': ('type', 'gravite_badge', 'employe', 'matricule_scanne', 'site', 'created_at')
         }),
-        ("Détails", {'fields': ('message', 'contexte_formate')}),
+        ("Details", {'fields': ('message', 'contexte_formate')}),
         ("Statut", {'fields': ('statut_badge', 'cloturee_par', 'date_cloture')}),
     )
 
@@ -1154,14 +1208,14 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
     def employe_ou_matricule(self, obj):
         if obj.employe:
             return obj.employe.get_nom_complet()
-        return obj.matricule_scanne or '—'
-    employe_ou_matricule.short_description = 'Employé'
+        return obj.matricule_scanne or '-'
+    employe_ou_matricule.short_description = 'Employe'
 
     def gravite_badge(self, obj):
         styles = {
-            'info': ('rgba(96,165,250,.12)', '#60a5fa', 'ℹ️ Info'),
-            'warning': ('rgba(251,191,36,.12)', '#fbbf24', '⚠️ Avertissement'),
-            'critique': ('rgba(248,113,113,.12)', '#f87171', '🚨 Critique'),
+            'info': ('rgba(96,165,250,.12)', '#60a5fa', 'Info'),
+            'warning': ('rgba(251,191,36,.12)', '#fbbf24', 'Avertissement'),
+            'critique': ('rgba(248,113,113,.12)', '#f87171', 'Critique'),
         }
         bg, color, label = styles.get(obj.gravite, ('rgba(255,255,255,.07)', '#e8eaf0', obj.gravite))
         return mark_safe(
@@ -1169,13 +1223,13 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
             f'border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;">'
             f'{label}</span>'
         )
-    gravite_badge.short_description = 'Gravité'
+    gravite_badge.short_description = 'Gravite'
 
     def statut_badge(self, obj):
         styles = {
-            AnomaliePointage.STATUT_OUVERTE: ('rgba(248,113,113,.12)', '#f87171', '🔴 Ouverte'),
-            AnomaliePointage.STATUT_TRAITEE: ('rgba(251,191,36,.12)', '#fbbf24', '🟡 Traitée'),
-            AnomaliePointage.STATUT_CLOTUREE: ('rgba(74,222,128,.12)', '#4ade80', '✅ Clôturée'),
+            AnomaliePointage.STATUT_OUVERTE: ('rgba(248,113,113,.12)', '#f87171', 'Ouverte'),
+            AnomaliePointage.STATUT_TRAITEE: ('rgba(251,191,36,.12)', '#fbbf24', 'Traitee'),
+            AnomaliePointage.STATUT_CLOTUREE: ('rgba(74,222,128,.12)', '#4ade80', 'Cloturee'),
         }
         bg, color, label = styles.get(obj.statut, ('rgba(255,255,255,.07)', '#e8eaf0', obj.statut))
         return mark_safe(
@@ -1187,7 +1241,7 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
 
     def contexte_formate(self, obj):
         if not obj.contexte:
-            return '—'
+            return '-'
         return format_html(
             '<pre style="background:#1c2236;border:1px solid rgba(255,255,255,.07);'
             'border-radius:8px;padding:12px 14px;font-size:12px;color:#e8eaf0;'
@@ -1196,18 +1250,18 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
         )
     contexte_formate.short_description = "Contexte"
 
-    @admin.action(description="✅ Marquer comme traitées")
+    @admin.action(description="Marquer comme traitees")
     def marquer_traitees(self, request, queryset):
         count = 0
         for anomalie in queryset.exclude(statut=AnomaliePointage.STATUT_CLOTUREE):
             try:
-                marquer_traitee(anomalie, request.user, commentaire="Marquée traitée depuis l'administration.")
+                marquer_traitee(anomalie, request.user, commentaire="Marquee traitee depuis l'administration.")
                 count += 1
             except ValueError as e:
-                self.message_user(request, f"❌ Anomalie #{anomalie.pk} : {e}", level=messages.ERROR)
-        self.message_user(request, f"✅ {count} anomalie(s) marquée(s) comme traitée(s).")
+                self.message_user(request, f"Anomalie #{anomalie.pk} : {e}", level=messages.ERROR)
+        self.message_user(request, f"{count} anomalie(s) marquee(s) comme traitee(s).")
 
-    @admin.action(description="🔒 Clôturer")
+    @admin.action(description="Cloturer")
     def marquer_cloturees(self, request, queryset):
         count = 0
         for anomalie in queryset:
@@ -1215,14 +1269,14 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
                 marquer_cloturee(anomalie, request.user)
                 count += 1
             except ValueError as e:
-                self.message_user(request, f"❌ Anomalie #{anomalie.pk} : {e}", level=messages.ERROR)
-        self.message_user(request, f"🔒 {count} anomalie(s) clôturée(s).")
+                self.message_user(request, f"Anomalie #{anomalie.pk} : {e}", level=messages.ERROR)
+        self.message_user(request, f"{count} anomalie(s) cloturee(s).")
 
 
 # ============================================================
 # CONFIGURATION DU SITE ADMIN
 # ============================================================
 
-admin.site.site_header = "Pointage QR — Administration"
+admin.site.site_header = "Pointage QR - Administration"
 admin.site.site_title = "Pointage QR"
 admin.site.index_title = "Tableau de bord d'administration"
