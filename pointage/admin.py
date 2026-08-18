@@ -27,124 +27,428 @@ from openpyxl.utils import get_column_letter
 
 
 # ============================================================
-# FILTRES EXACTEMENT COMME L'INTERFACE UTILISATEUR
+# FILTRES POINTAGE - INTERFACE ADMIN JAZZMIN
 # ============================================================
 
-class DateDebutFilter(SimpleListFilter):
-    """Date début - comme dans l'UI"""
-    title = 'Date début'
-    parameter_name = 'date_debut'
+class DatePeriodeFilter(SimpleListFilter):
+    """
+    Filtre rapide par période.
+
+    Permet de filtrer les pointages selon :
+    - Aujourd'hui
+    - Hier
+    - Cette semaine
+    - Ce mois-ci
+    """
+
+    title = 'Période'
+    parameter_name = 'periode_date'
 
     def lookups(self, request, model_admin):
-        return [
+        return (
             ('today', "Aujourd'hui"),
             ('yesterday', 'Hier'),
             ('week', 'Cette semaine'),
             ('month', 'Ce mois-ci'),
-            ('custom', 'Personnalisée...'),
-        ]
+        )
 
     def queryset(self, request, queryset):
-        if self.value() == 'today':
-            today = timezone.localtime(timezone.now()).date()
-            return queryset.filter(date_pointage=today)
-        if self.value() == 'yesterday':
-            yesterday = timezone.localtime(timezone.now()).date() - timedelta(days=1)
-            return queryset.filter(date_pointage=yesterday)
-        if self.value() == 'week':
-            today = timezone.localtime(timezone.now()).date()
+        value = self.value()
+
+        today = timezone.localtime(timezone.now()).date()
+
+        if value == 'today':
+            return queryset.filter(
+                date_pointage=today
+            )
+
+        if value == 'yesterday':
+            yesterday = today - timedelta(days=1)
+            return queryset.filter(
+                date_pointage=yesterday
+            )
+
+        if value == 'week':
             start_of_week = today - timedelta(days=today.weekday())
-            return queryset.filter(date_pointage__gte=start_of_week)
-        if self.value() == 'month':
-            today = timezone.localtime(timezone.now()).date()
-            return queryset.filter(date_pointage__year=today.year, date_pointage__month=today.month)
-        return queryset
+            return queryset.filter(
+                date_pointage__gte=start_of_week,
+                date_pointage__lte=today,
+            )
 
+        if value == 'month':
+            return queryset.filter(
+                date_pointage__year=today.year,
+                date_pointage__month=today.month,
+            )
 
-class DateFinFilter(SimpleListFilter):
-    """Date fin - comme dans l'UI"""
-    title = 'Date fin'
-    parameter_name = 'date_fin'
-
-    def lookups(self, request, model_admin):
-        return [
-            ('today', "Aujourd'hui"),
-            ('yesterday', 'Hier'),
-            ('week', 'Cette semaine'),
-            ('month', 'Ce mois-ci'),
-            ('custom', 'Personnalisée...'),
-        ]
-
-    def queryset(self, request, queryset):
-        if self.value() == 'today':
-            today = timezone.localtime(timezone.now()).date()
-            return queryset.filter(date_pointage=today)
-        if self.value() == 'yesterday':
-            yesterday = timezone.localtime(timezone.now()).date() - timedelta(days=1)
-            return queryset.filter(date_pointage=yesterday)
-        if self.value() == 'week':
-            today = timezone.localtime(timezone.now()).date()
-            start_of_week = today - timedelta(days=today.weekday())
-            return queryset.filter(date_pointage__gte=start_of_week)
-        if self.value() == 'month':
-            today = timezone.localtime(timezone.now()).date()
-            return queryset.filter(date_pointage__year=today.year, date_pointage__month=today.month)
         return queryset
 
 
 class EmployeFilter(SimpleListFilter):
-    """Employé - comme dans l'UI"""
+    """
+    Filtre par employé.
+
+    Affiche :
+    Prénom Nom (Matricule)
+    """
+
     title = 'Employé'
     parameter_name = 'employe'
 
     def lookups(self, request, model_admin):
-        employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
-        return [(str(e.id), f"{e.prenom} {e.nom} ({e.matricule})") for e in employes]
+        employes = (
+            Employe.objects
+            .filter(actif=True)
+            .select_related('poste')
+            .order_by('nom', 'prenom')
+        )
+
+        return [
+            (
+                str(employe.pk),
+                f"{employe.prenom} {employe.nom} ({employe.matricule})"
+            )
+            for employe in employes
+        ]
 
     def queryset(self, request, queryset):
-        if self.value():
-            try:
-                return queryset.filter(employe_id=int(self.value()))
-            except (ValueError, TypeError):
-                return queryset
-        return queryset
+        value = self.value()
+
+        if not value:
+            return queryset
+
+        try:
+            employe_id = int(value)
+        except (ValueError, TypeError):
+            return queryset
+
+        return queryset.filter(
+            employe_id=employe_id
+        )
 
 
 class SiteFilter(SimpleListFilter):
-    """Site - comme dans l'UI"""
+    """
+    Filtre par site.
+    """
+
     title = 'Site'
     parameter_name = 'site'
 
     def lookups(self, request, model_admin):
         sites = Site.objects.all().order_by('nom')
-        return [(str(s.id), s.nom) for s in sites]
+
+        return [
+            (
+                str(site.pk),
+                site.nom
+            )
+            for site in sites
+        ]
 
     def queryset(self, request, queryset):
-        if self.value():
-            try:
-                return queryset.filter(site_id=int(self.value()))
-            except (ValueError, TypeError):
-                return queryset
-        return queryset
+        value = self.value()
+
+        if not value:
+            return queryset
+
+        try:
+            site_id = int(value)
+        except (ValueError, TypeError):
+            return queryset
+
+        return queryset.filter(
+            site_id=site_id
+        )
 
 
 class PeriodeTypeFilter(SimpleListFilter):
-    """Type de période - comme dans l'UI (Jour/Nuit)"""
+    """
+    Filtre Jour / Nuit.
+
+    Jour  -> type_journee = normal
+    Nuit  -> type_journee = garde
+    """
+
     title = 'Type de période'
     parameter_name = 'periode_type'
 
     def lookups(self, request, model_admin):
-        return [
-            ('jour', 'Jour'),
-            ('nuit', 'Nuit (Gardes)'),
-        ]
+        return (
+            ('jour', '☀️ Jour'),
+            ('nuit', '🌙 Nuit (Gardes)'),
+        )
 
     def queryset(self, request, queryset):
-        if self.value() == 'jour':
-            return queryset.filter(type_journee='normal')
-        if self.value() == 'nuit':
-            return queryset.filter(type_journee='garde')
+        value = self.value()
+
+        if value == 'jour':
+            return queryset.filter(
+                type_journee='normal'
+            )
+
+        if value == 'nuit':
+            return queryset.filter(
+                type_journee='garde'
+            )
+
         return queryset
+
+
+class StatutPointageFilter(SimpleListFilter):
+    """
+    Filtre par statut du pointage.
+    """
+
+    title = 'Statut'
+    parameter_name = 'statut'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('present', 'Présent'),
+            ('retard', 'En retard'),
+            ('absent', 'Absent'),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+
+        if value in ('present', 'retard', 'absent'):
+            return queryset.filter(
+                statut=value
+            )
+
+        return queryset
+
+
+# ============================================================
+# POINTAGE - ADMIN JAZZMIN
+# ============================================================
+
+@admin.register(Pointage)
+class PointageAdmin(admin.ModelAdmin):
+
+    # --------------------------------------------------------
+    # TEMPLATE PERSONNALISÉ EXISTANT
+    # --------------------------------------------------------
+
+    change_list_template = "admin/pointage/pointage_changelist.html"
+
+    # --------------------------------------------------------
+    # COLONNES DU TABLEAU
+    # --------------------------------------------------------
+
+    list_display = [
+        'employe',
+        'date_pointage',
+        'periode',
+        'type_journee',
+        'heure_arrivee',
+        'heure_depart',
+        'site',
+        'statut',
+        'get_retard_display',
+        'get_heures_display',
+    ]
+
+    # --------------------------------------------------------
+    # FILTRES JAZZMIN
+    # --------------------------------------------------------
+
+    list_filter = [
+        DatePeriodeFilter,
+        EmployeFilter,
+        SiteFilter,
+        PeriodeTypeFilter,
+        StatutPointageFilter,
+    ]
+
+    # --------------------------------------------------------
+    # BARRE DE RECHERCHE
+    # --------------------------------------------------------
+    #
+    # La recherche fonctionne sur :
+    #
+    # - nom employé
+    # - prénom employé
+    # - matricule
+    # - nom du site
+    #
+    # Exemple :
+    #
+    # "Rakoto"
+    # "Jean"
+    # "EMP001"
+    # "Site Principal"
+    #
+    # Plusieurs termes peuvent également être utilisés.
+    # --------------------------------------------------------
+
+    search_fields = [
+        'employe__nom',
+        'employe__prenom',
+        'employe__matricule',
+        'site__nom',
+    ]
+
+    # --------------------------------------------------------
+    # CHAMPS NON MODIFIABLES
+    # --------------------------------------------------------
+
+    readonly_fields = (
+        'retard',
+        'heures_travaillees',
+        'date_creation',
+        'date_modification',
+    )
+
+    # --------------------------------------------------------
+    # NAVIGATION PAR DATE
+    # --------------------------------------------------------
+
+    date_hierarchy = 'date_pointage'
+
+    # --------------------------------------------------------
+    # ACTIONS EN MASSE
+    # --------------------------------------------------------
+
+    actions = [
+        'marquer_present',
+        'marquer_retard',
+        'marquer_absent',
+        'supprimer_selection',
+    ]
+
+    # ========================================================
+    # AFFICHAGE DU RETARD
+    # ========================================================
+
+    def get_retard_display(self, obj):
+        if obj.retard and obj.retard.total_seconds() > 0:
+            minutes = obj.get_retard_minutes()
+
+            if minutes >= 30:
+                return format_html(
+                    '<span style="'
+                    'background:#FEE2E2;'
+                    'color:#B91C1C;'
+                    'padding:2px 10px;'
+                    'border-radius:9999px;'
+                    'font-weight:600;'
+                    'font-size:10px;'
+                    '">'
+                    '⚠️ {} min'
+                    '</span>',
+                    minutes
+                )
+
+            return f"{minutes} min"
+
+        return "—"
+
+    get_retard_display.short_description = "Retard"
+
+    # ========================================================
+    # AFFICHAGE DES HEURES TRAVAILLÉES
+    # ========================================================
+
+    def get_heures_display(self, obj):
+        if (
+            obj.heures_travaillees
+            and obj.heures_travaillees.total_seconds() > 0
+        ):
+            total_seconds = obj.heures_travaillees.total_seconds()
+
+            hours = int(total_seconds // 3600)
+            minutes = int((total_seconds % 3600) // 60)
+
+            return f"{hours}h{minutes:02d}"
+
+        return "—"
+
+    get_heures_display.short_description = "Heures travaillées"
+
+    # ========================================================
+    # ACTION : PRÉSENT
+    # ========================================================
+
+    def marquer_present(self, request, queryset):
+        count = queryset.update(
+            statut='present'
+        )
+
+        self.message_user(
+            request,
+            f"✅ {count} pointage(s) marqué(s) comme présent.",
+            messages.SUCCESS,
+        )
+
+    marquer_present.short_description = "✅ Marquer comme présent"
+
+    # ========================================================
+    # ACTION : RETARD
+    # ========================================================
+
+    def marquer_retard(self, request, queryset):
+        count = queryset.update(
+            statut='retard'
+        )
+
+        self.message_user(
+            request,
+            f"⚠️ {count} pointage(s) marqué(s) comme retard.",
+            messages.SUCCESS,
+        )
+
+    marquer_retard.short_description = "⚠️ Marquer comme retard"
+
+    # ========================================================
+    # ACTION : ABSENT
+    # ========================================================
+
+    def marquer_absent(self, request, queryset):
+        count = queryset.update(
+            statut='absent'
+        )
+
+        self.message_user(
+            request,
+            f"❌ {count} pointage(s) marqué(s) comme absent.",
+            messages.SUCCESS,
+        )
+
+    marquer_absent.short_description = "❌ Marquer comme absent"
+
+    # ========================================================
+    # ACTION : SUPPRESSION
+    # ========================================================
+
+    def supprimer_selection(self, request, queryset):
+        count = queryset.count()
+
+        if count > 0:
+            queryset.delete()
+
+            self.message_user(
+                request,
+                f"🗑️ {count} pointage(s) supprimé(s).",
+                messages.SUCCESS,
+            )
+
+    supprimer_selection.short_description = "🗑️ Supprimer"
+
+    # ========================================================
+    # QUERYSET OPTIMISÉ
+    # ========================================================
+
+    def get_queryset(self, request):
+        return (
+            Pointage.objects
+            .select_related(
+                'employe',
+                'site',
+            )
+        )
 
 
 # ============================================================
