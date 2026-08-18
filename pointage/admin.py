@@ -654,22 +654,22 @@ list_filter = [
     PeriodeTypeFilter,
     StatutPointageFilter,
 ]
-    
-    search_fields = [
+
+search_fields = [
         'employe__nom',
         'employe__prenom',
         'employe__matricule',
         'site__nom',
     ]
-    
-    readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
-    date_hierarchy = 'date_pointage'
-    
+
+readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
+date_hierarchy = 'date_pointage'
+
     # ============================================================
     # CHAMPS PERSONNALISÉS
     # ============================================================
-    
-    def get_retard_display(self, obj):
+
+def get_retard_display(self, obj):
         if obj.retard and obj.retard.total_seconds() > 0:
             minutes = obj.get_retard_minutes()
             if minutes >= 30:
@@ -679,16 +679,16 @@ list_filter = [
                 )
             return f"{minutes} min"
         return "—"
-    get_retard_display.short_description = "Retard"
+get_retard_display.short_description = "Retard"
     
-    def get_heures_display(self, obj):
+def get_heures_display(self, obj):
         if obj.heures_travaillees and obj.heures_travaillees.total_seconds() > 0:
             total_seconds = obj.heures_travaillees.total_seconds()
             hours = int(total_seconds // 3600)
             minutes = int((total_seconds % 3600) // 60)
             return f"{hours}h{minutes:02d}"
         return "—"
-    get_heures_display.short_description = "Heures travaillées"
+get_heures_display.short_description = "Heures travaillées"
     
     # ============================================================
     # ACTIONS EN MASSE
