@@ -1,4 +1,4 @@
-# pointage/admin.py - VERSION FINALE AVEC TABLEAU MIS A JOUR
+# pointage/admin.py - VERSION FINALE QUI MARCHE VRAIMENT
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -41,7 +41,10 @@ class PointageChangeList(ChangeList):
         self.date_debut = request.GET.get('date_debut', '')
         self.date_fin = request.GET.get('date_fin', '')
         
-        # Nettoyer request.GET - Supprimer date_debut et date_fin
+        # Sauvegarder le request.GET original
+        original_get = request.GET
+        
+        # Créer une copie sans date_debut et date_fin
         from django.http import QueryDict
         cleaned_get = QueryDict('', mutable=True)
         for key, value in request.GET.items():
@@ -58,7 +61,7 @@ class PointageChangeList(ChangeList):
                         search_help_text)
         
         # Restaurer request.GET original
-        request.GET = self._original_get
+        request.GET = original_get
         
         # Appliquer les filtres de date sur le queryset
         if self.date_debut and self.date_fin:
@@ -340,7 +343,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - SOLUTION FINALE AVEC TABLEAU MIS A JOUR
+# POINTAGE - SOLUTION FINALE
 # ============================================================
 
 @admin.register(Pointage)
@@ -428,7 +431,7 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW - MODIFIEE POUR UTILISER LE QUERYSET FILTRE
+    # CHANGELIST VIEW
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
