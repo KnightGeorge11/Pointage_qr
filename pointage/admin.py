@@ -1,4 +1,4 @@
-# pointage/admin.py - Version avec formulaire de date corrigé
+# pointage/admin.py - Version avec formulaire de date CORRIGE
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -388,50 +388,40 @@ class PointageAdmin(admin.ModelAdmin):
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
-        # IMPORTANT: Supprimer les paramètres date_debut et date_fin du GET
-        # pour qu'ils ne soient pas interprétés comme des filtres de champ
-        get_copy = request.GET.copy()
+        # Récupérer les dates depuis GET
+        date_debut = request.GET.get('date_debut', '')
+        date_fin = request.GET.get('date_fin', '')
         
-        # Récupérer les dates avant de les supprimer
-        date_debut = get_copy.pop('date_debut', [None])[0]
-        date_fin = get_copy.pop('date_fin', [None])[0]
+        # Créer le formulaire avec les dates
+        form = DateSearchForm({'date_debut': date_debut, 'date_fin': date_fin})
         
-        # Recréer un objet GET sans les paramètres de date
-        request.GET = get_copy
-        
-        # Initialiser le formulaire avec les dates récupérées
-        form_data = {}
-        if date_debut:
-            form_data['date_debut'] = date_debut
-        if date_fin:
-            form_data['date_fin'] = date_fin
-        
-        form = DateSearchForm(form_data)
-        
-        # Obtenir la liste des changements
+        # Obtenir le queryset de base
         cl = self.get_changelist_instance(request)
+        queryset = cl.get_queryset(request)
         
-        # Appliquer les filtres de date si le formulaire est valide
-        if form.is_valid():
-            date_debut_val = form.cleaned_data.get('date_debut')
-            date_fin_val = form.cleaned_data.get('date_fin')
-            
-            # Si des dates sont présentes, on filtre manuellement
-            queryset = cl.get_queryset(request)
-            
-            if date_debut_val and date_fin_val:
+        # Appliquer les filtres de date si présentes
+        if date_debut and date_fin:
+            try:
+                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
+                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
                 queryset = queryset.filter(
-                    date_pointage__gte=date_debut_val,
-                    date_pointage__lte=date_fin_val
+                    date_pointage__gte=debut,
+                    date_pointage__lte=fin
                 )
-            elif date_debut_val:
-                queryset = queryset.filter(date_pointage__gte=date_debut_val)
-            elif date_fin_val:
-                queryset = queryset.filter(date_pointage__lte=date_fin_val)
-            else:
-                queryset = cl.get_queryset(request)
-        else:
-            queryset = cl.get_queryset(request)
+            except ValueError:
+                pass
+        elif date_debut:
+            try:
+                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__gte=debut)
+            except ValueError:
+                pass
+        elif date_fin:
+            try:
+                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__lte=fin)
+            except ValueError:
+                pass
         
         # Vérifier l'export Excel
         if 'export_excel' in request.GET:
