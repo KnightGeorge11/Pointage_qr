@@ -1,11 +1,11 @@
-# pointage/admin.py - SOLUTION FINALE (navbar + filtre)
+# pointage/admin.py - VERSION QUI MARCHE AVEC JAZZMIN
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 from django.urls import path, reverse
-from django.http import HttpResponse, HttpResponseRedirect, QueryDict
+from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
@@ -200,13 +200,14 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - SOLUTION FINALE
+# POINTAGE - VERSION QUI MARCHE AVEC JAZZMIN
 # ============================================================
 
 @admin.register(Pointage)
 class PointageAdmin(admin.ModelAdmin):
     change_list_template = "admin/pointage/pointage_changelist.html"
     
+    # Garder les attributs de base pour Jazzmin
     list_display = [
         'employe',
         'date_pointage',
@@ -214,6 +215,7 @@ class PointageAdmin(admin.ModelAdmin):
         'type_journee',
     ]
     
+    # PAS de list_filter pour éviter l'erreur
     list_filter = []
     search_fields = []
     date_hierarchy = None
@@ -221,10 +223,14 @@ class PointageAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return Pointage.objects.select_related('employe', 'site')
     
+    # ============================================================
+    # CHANGELIST VIEW - TOUT EST GERER ICI
+    # ============================================================
+    
     def changelist_view(self, request, extra_context=None):
-        # Récupérer les dates depuis GET (maintenant d_debut et d_fin)
-        date_debut = request.GET.get('d_debut', '')
-        date_fin = request.GET.get('d_fin', '')
+        # Récupérer les filtres depuis GET
+        date_debut = request.GET.get('date_debut', '')
+        date_fin = request.GET.get('date_fin', '')
         employe_id = request.GET.get('employe', '')
         site_id = request.GET.get('site', '')
         periode_type = request.GET.get('periode_type', '')
@@ -237,7 +243,10 @@ class PointageAdmin(admin.ModelAdmin):
             try:
                 debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
                 fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__gte=debut, date_pointage__lte=fin)
+                queryset = queryset.filter(
+                    date_pointage__gte=debut,
+                    date_pointage__lte=fin
+                )
             except ValueError:
                 pass
         elif date_debut:
@@ -273,9 +282,10 @@ class PointageAdmin(admin.ModelAdmin):
         elif periode_type == 'nuit':
             queryset = queryset.filter(type_journee='garde')
         
-        # Construire les cartes
+        # Construire les données pour les cartes
         cards = []
         employes_info = {}
+        
         jour_data = defaultdict(lambda: defaultdict(lambda: {'matin': None, 'apres_midi': None, 'nuit': None}))
         
         for p in queryset:
@@ -348,8 +358,40 @@ class PointageAdmin(admin.ModelAdmin):
         total_retard = sum((c['retard_total'] for c in cards), timedelta())
         unique_employes = len(set(c['employe']['id'] for c in cards))
         
+        # Liste pour les filtres
         employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         sites = Site.objects.all().order_by('nom')
+        
+        # ============================================================
+        # CONTEXTE POUR LE TEMPLATE - AVEC TOUT CE DONT JAZZMIN A BESOIN
+        # ============================================================
+        
+        # Créer un objet ChangeList factice pour Jazzmin
+        from django.contrib.admin.views.main import ChangeList
+        class DummyChangeList(ChangeList):
+            def __init__(self):
+                self.list_display = []
+                self.list_display_links = []
+                self.list_filter = []
+                self.date_hierarchy = None
+                self.search_fields = []
+                self.list_select_related = None
+                self.list_per_page = 100
+                self.list_max_show_all = 200
+                self.list_editable = []
+                self.model_admin = None
+                self.sortable_by = None
+                self.search_help_text = None
+                self.has_filters = False
+                self.has_actions = False
+                self.show_all = False
+                self.multi_page = False
+                self.paginator = paginator
+                self.page_num = page_number
+                self.paginator_show_all = False
+                self.show_admin_actions = False
+        
+        dummy_cl = DummyChangeList()
         
         extra_context = extra_context or {}
         extra_context.update({
@@ -363,28 +405,14 @@ class PointageAdmin(admin.ModelAdmin):
             'filter_date_debut': date_debut,
             'filter_date_fin': date_fin,
             'has_add_permission': self.has_add_permission(request),
+            'cl': dummy_cl,
+            'is_popup': False,
+            'opts': self.model._meta,
+            'app_label': self.model._meta.app_label,
+            'model_name': self.model._meta.model_name,
         })
         
-        # ============================================================
-        # NETTOYER request.GET pour super()
-        # ============================================================
-        original_get = request.GET
-        
-        # Créer une copie propre sans d_debut et d_fin
-        cleaned_get = QueryDict('', mutable=True)
-        for key, value in request.GET.items():
-            if key not in ['d_debut', 'd_fin']:
-                cleaned_get[key] = value
-        
-        request.GET = cleaned_get
-        
-        # Appeler super() avec le GET nettoyé
-        response = super().changelist_view(request, extra_context=extra_context)
-        
-        # Restaurer request.GET
-        request.GET = original_get
-        
-        return response
+        return TemplateResponse(request, self.change_list_template, extra_context)
 
 
 # ============================================================
