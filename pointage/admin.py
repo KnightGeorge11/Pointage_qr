@@ -1,4 +1,4 @@
-# pointage/admin.py - VERSION FINALE
+# pointage/admin.py - VERSION FINALE QUI MARCHE
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -34,7 +34,8 @@ from openpyxl.utils import get_column_letter
 class PointageChangeList(ChangeList):
     def __init__(self, request, model, list_display, list_display_links, list_filter,
                  date_hierarchy, search_fields, list_select_related, list_per_page,
-                 list_max_show_all, list_editable, model_admin, sortable_by):
+                 list_max_show_all, list_editable, model_admin, sortable_by,
+                 search_help_text):  # <-- AJOUT DE search_help_text
         
         # Nettoyer request.GET - Supprimer date_debut et date_fin
         # pour que Django ne les utilise pas comme filtres
@@ -53,7 +54,8 @@ class PointageChangeList(ChangeList):
         # Appeler le parent avec le GET nettoyé
         super().__init__(request, model, list_display, list_display_links, list_filter,
                         date_hierarchy, search_fields, list_select_related, list_per_page,
-                        list_max_show_all, list_editable, model_admin, sortable_by)
+                        list_max_show_all, list_editable, model_admin, sortable_by,
+                        search_help_text)  # <-- AJOUT DE search_help_text
         
         # Restaurer request.GET original
         request.GET = self._original_get
