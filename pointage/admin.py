@@ -1,4 +1,4 @@
-# pointage/admin.py - VERSION FINALE QUI MARCHE
+# pointage/admin.py - VERSION FINALE AVEC TABLEAU MIS A JOUR
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -35,13 +35,13 @@ class PointageChangeList(ChangeList):
     def __init__(self, request, model, list_display, list_display_links, list_filter,
                  date_hierarchy, search_fields, list_select_related, list_per_page,
                  list_max_show_all, list_editable, model_admin, sortable_by,
-                 search_help_text):  # <-- AJOUT DE search_help_text
+                 search_help_text):
+        
+        # Sauvegarder les dates originales
+        self.date_debut = request.GET.get('date_debut', '')
+        self.date_fin = request.GET.get('date_fin', '')
         
         # Nettoyer request.GET - Supprimer date_debut et date_fin
-        # pour que Django ne les utilise pas comme filtres
-        self._original_get = request.GET
-        
-        # Créer une copie sans date_debut et date_fin
         from django.http import QueryDict
         cleaned_get = QueryDict('', mutable=True)
         for key, value in request.GET.items():
@@ -55,10 +55,34 @@ class PointageChangeList(ChangeList):
         super().__init__(request, model, list_display, list_display_links, list_filter,
                         date_hierarchy, search_fields, list_select_related, list_per_page,
                         list_max_show_all, list_editable, model_admin, sortable_by,
-                        search_help_text)  # <-- AJOUT DE search_help_text
+                        search_help_text)
         
         # Restaurer request.GET original
         request.GET = self._original_get
+        
+        # Appliquer les filtres de date sur le queryset
+        if self.date_debut and self.date_fin:
+            try:
+                debut = datetime.strptime(self.date_debut, '%Y-%m-%d').date()
+                fin = datetime.strptime(self.date_fin, '%Y-%m-%d').date()
+                self.queryset = self.queryset.filter(
+                    date_pointage__gte=debut,
+                    date_pointage__lte=fin
+                )
+            except ValueError:
+                pass
+        elif self.date_debut:
+            try:
+                debut = datetime.strptime(self.date_debut, '%Y-%m-%d').date()
+                self.queryset = self.queryset.filter(date_pointage__gte=debut)
+            except ValueError:
+                pass
+        elif self.date_fin:
+            try:
+                fin = datetime.strptime(self.date_fin, '%Y-%m-%d').date()
+                self.queryset = self.queryset.filter(date_pointage__lte=fin)
+            except ValueError:
+                pass
 
 
 # ============================================================
@@ -316,7 +340,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - SOLUTION FINALE
+# POINTAGE - SOLUTION FINALE AVEC TABLEAU MIS A JOUR
 # ============================================================
 
 @admin.register(Pointage)
@@ -404,7 +428,7 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW
+    # CHANGELIST VIEW - MODIFIEE POUR UTILISER LE QUERYSET FILTRE
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
@@ -412,33 +436,9 @@ class PointageAdmin(admin.ModelAdmin):
         date_debut = request.GET.get('date_debut', '')
         date_fin = request.GET.get('date_fin', '')
         
-        # Obtenir le ChangeList (qui a nettoyé request.GET)
+        # Obtenir le ChangeList (qui a nettoyé request.GET ET filtré le queryset)
         cl = self.get_changelist_instance(request)
-        queryset = cl.get_queryset(request)
-        
-        # Appliquer les filtres de date sur le queryset
-        if date_debut and date_fin:
-            try:
-                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
-                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
-                queryset = queryset.filter(
-                    date_pointage__gte=debut,
-                    date_pointage__lte=fin
-                )
-            except ValueError:
-                pass
-        elif date_debut:
-            try:
-                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__gte=debut)
-            except ValueError:
-                pass
-        elif date_fin:
-            try:
-                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
-                queryset = queryset.filter(date_pointage__lte=fin)
-            except ValueError:
-                pass
+        queryset = cl.queryset  # Utiliser le queryset déjà filtré par le ChangeList
         
         # Vérifier l'export Excel
         if 'export_excel' in request.GET:
