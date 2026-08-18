@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
 from django import forms
+from django.template.response import TemplateResponse
 import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
@@ -25,6 +26,23 @@ from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+
+
+# ============================================================
+# FORMULAIRE POUR LA PLAGE DE DATES
+# ============================================================
+
+class DateRangeForm(forms.Form):
+    date_debut = forms.DateField(
+        label='Date de début',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'vDateField'}),
+        required=False
+    )
+    date_fin = forms.DateField(
+        label='Date de fin',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'vDateField'}),
+        required=False
+    )
 
 
 # ============================================================
@@ -42,6 +60,20 @@ class DateRangeFilter(SimpleListFilter):
     parameter_name = 'date_range'
     
     def lookups(self, request, model_admin):
+        # Récupérer les dates depuis les paramètres GET
+        date_debut = request.GET.get('date_debut', '')
+        date_fin = request.GET.get('date_fin', '')
+        
+        if date_debut and date_fin:
+            try:
+                debut = datetime.strptime(date_debut, '%Y-%m-%d').strftime('%d/%m/%Y')
+                fin = datetime.strptime(date_fin, '%Y-%m-%d').strftime('%d/%m/%Y')
+                return (
+                    ('custom', f'Du {debut} au {fin}'),
+                )
+            except ValueError:
+                pass
+        
         return (
             ('custom', 'Choisir une plage de dates'),
         )
@@ -549,7 +581,7 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW
+    # CHANGELIST VIEW AVEC FORMULAIRE DE PLAGE DE DATES
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
@@ -558,6 +590,22 @@ class PointageAdmin(admin.ModelAdmin):
         
         if 'export_excel' in request.GET:
             return self.export_excel(request, queryset)
+        
+        # Gérer le formulaire de plage de dates
+        form = DateRangeForm(request.GET or None)
+        if form.is_valid():
+            date_debut = form.cleaned_data.get('date_debut')
+            date_fin = form.cleaned_data.get('date_fin')
+            
+            if date_debut and date_fin:
+                queryset = queryset.filter(
+                    date_pointage__gte=date_debut,
+                    date_pointage__lte=date_fin
+                )
+            elif date_debut:
+                queryset = queryset.filter(date_pointage__gte=date_debut)
+            elif date_fin:
+                queryset = queryset.filter(date_pointage__lte=date_fin)
         
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
@@ -570,6 +618,7 @@ class PointageAdmin(admin.ModelAdmin):
             'presents_count': presents,
             'retards_count': retards,
             'absents_count': absents,
+            'date_range_form': form,
         })
         
         return super().changelist_view(request, extra_context=extra_context)
