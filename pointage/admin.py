@@ -200,7 +200,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - VERSION CORRIGEE POUR JAZZMIN
+# POINTAGE - VERSION CORRIGEE - UTILISE base_site.html
 # ============================================================
 
 @admin.register(Pointage)
@@ -368,6 +368,8 @@ class PointageAdmin(admin.ModelAdmin):
             'model_name': self.model._meta.model_name,
             'changelist_url': request.path,
             'title': 'Pointages',
+            'site_header': admin.site.site_header,
+            'site_title': admin.site.site_title,
         })
         
         return TemplateResponse(request, self.change_list_template, extra_context)
