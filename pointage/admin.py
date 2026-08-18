@@ -1,16 +1,14 @@
-# pointage/admin.py - VERSION CORRIGEE POUR JAZZMIN
+# pointage/admin.py
 
 from django.contrib import admin
-from django.contrib.admin import SimpleListFilter
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 from django.urls import path, reverse
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
-from django.db.models import Q
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 import json
 from .models import (
@@ -22,9 +20,6 @@ from .anomalies import marquer_traitee, marquer_cloturee
 import uuid
 from datetime import timedelta, datetime
 from collections import defaultdict
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
 
 
 # ============================================================
@@ -200,7 +195,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - VERSION CORRIGEE - UTILISE base_site.html
+# POINTAGE - VERSION FINALE
 # ============================================================
 
 @admin.register(Pointage)
@@ -350,7 +345,6 @@ class PointageAdmin(admin.ModelAdmin):
         employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         sites = Site.objects.all().order_by('nom')
         
-        # CONTEXTE POUR LE TEMPLATE
         extra_context = extra_context or {}
         extra_context.update({
             'cards': page_obj,
@@ -363,13 +357,8 @@ class PointageAdmin(admin.ModelAdmin):
             'filter_date_debut': date_debut,
             'filter_date_fin': date_fin,
             'has_add_permission': self.has_add_permission(request),
-            'opts': self.model._meta,
-            'app_label': self.model._meta.app_label,
-            'model_name': self.model._meta.model_name,
             'changelist_url': request.path,
             'title': 'Pointages',
-            'site_header': admin.site.site_header,
-            'site_title': admin.site.site_title,
         })
         
         return TemplateResponse(request, self.change_list_template, extra_context)
