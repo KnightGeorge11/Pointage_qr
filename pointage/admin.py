@@ -1,7 +1,8 @@
-# pointage/admin.py - Version FINALE QUI MARCHE
+# pointage/admin.py - VERSION QUI FONCTIONNE ENFIN
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
+from django.contrib.admin.views.main import ChangeList
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 from django.urls import path, reverse
@@ -25,6 +26,35 @@ from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+
+
+# ============================================================
+# CHANGELIST PERSONNALISE POUR NETTOYER LES PARAMETRES
+# ============================================================
+
+class PointageChangeList(ChangeList):
+    def get_queryset(self, request):
+        # Nettoyer request.GET avant de l'utiliser
+        # Créer une copie des paramètres sans date_debut et date_fin
+        filtered_params = {}
+        for key, value in request.GET.items():
+            if key not in ['date_debut', 'date_fin']:
+                filtered_params[key] = value
+        
+        # Remplacer temporairement request.GET
+        from django.http import QueryDict
+        original_get = request.GET
+        request.GET = QueryDict('', mutable=True)
+        for key, value in filtered_params.items():
+            request.GET[key] = value
+        
+        # Appeler la méthode parent avec le GET nettoyé
+        queryset = super().get_queryset(request)
+        
+        # Restaurer request.GET
+        request.GET = original_get
+        
+        return queryset
 
 
 # ============================================================
@@ -282,7 +312,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - SOLUTION FINALE
+# POINTAGE - SOLUTION DEFINITIVE
 # ============================================================
 
 @admin.register(Pointage)
@@ -317,6 +347,9 @@ class PointageAdmin(admin.ModelAdmin):
     ]
 
     readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
+
+    def get_changelist(self, request, **kwargs):
+        return PointageChangeList
 
     def get_retard_display(self, obj):
         if obj.retard and obj.retard.total_seconds() > 0:
@@ -367,33 +400,22 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # LA SOLUTION - Ne pas utiliser request.GET directement
+    # CHANGELIST VIEW - MODIFIEE
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
-        # 1. Récupérer les dates depuis GET avant de les supprimer
+        # Récupérer les dates depuis GET
         date_debut = request.GET.get('date_debut', '')
         date_fin = request.GET.get('date_fin', '')
         
-        # 2. Créer un dictionnaire avec les paramètres filtrés
-        # On garde tous les paramètres SAUF date_debut et date_fin
-        filtered_params = {}
-        for key, value in request.GET.items():
-            if key not in ['date_debut', 'date_fin']:
-                filtered_params[key] = value
+        # Créer le formulaire avec les dates
+        form = DateSearchForm({'date_debut': date_debut, 'date_fin': date_fin})
         
-        # 3. Créer un nouvel objet GET avec les paramètres filtrés
-        # et l'assigner à request.GET
-        from django.http import QueryDict
-        request.GET = QueryDict('', mutable=True)
-        for key, value in filtered_params.items():
-            request.GET[key] = value
-        
-        # 4. Maintenant request.GET est propre, on peut l'utiliser normalement
+        # Obtenir le queryset de base (le nettoyage est fait dans PointageChangeList)
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
         
-        # 5. Appliquer les filtres de date manuellement
+        # Appliquer les filtres de date manuellement
         if date_debut and date_fin:
             try:
                 debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
@@ -417,20 +439,17 @@ class PointageAdmin(admin.ModelAdmin):
             except ValueError:
                 pass
         
-        # 6. Vérifier l'export Excel
+        # Vérifier l'export Excel
         if 'export_excel' in request.GET:
             return self.export_excel(request, queryset)
         
-        # 7. Statistiques
+        # Statistiques
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
         retards = queryset.filter(statut='retard').count()
         absents = queryset.filter(statut='absent').count()
         
-        # 8. Formulaire pour l'affichage
-        form = DateSearchForm({'date_debut': date_debut, 'date_fin': date_fin})
-        
-        # 9. Contexte
+        # Contexte
         extra_context = extra_context or {}
         extra_context.update({
             'total': total,
