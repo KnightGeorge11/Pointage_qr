@@ -1,4 +1,4 @@
-# pointage/admin.py - Version FINALE avec formulaire de date
+# pointage/admin.py - Version FINALE QUI MARCHE
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -282,7 +282,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - FORMULAIRE DE DATE FINAL
+# POINTAGE - SOLUTION FINALE
 # ============================================================
 
 @admin.register(Pointage)
@@ -302,9 +302,6 @@ class PointageAdmin(admin.ModelAdmin):
         'get_heures_display',
     ]
     
-    # ============================================================
-    # FILTRES DE LA BARRE LATERALE - PAS DE FILTRE DATE
-    # ============================================================
     list_filter = [
         EmployeFilter,
         SiteFilter,
@@ -320,10 +317,7 @@ class PointageAdmin(admin.ModelAdmin):
     ]
 
     readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
-    
-    # ============================================================
-    # CHAMPS PERSONNALISES
-    # ============================================================
+
     def get_retard_display(self, obj):
         if obj.retard and obj.retard.total_seconds() > 0:
             minutes = obj.get_retard_minutes()
@@ -344,10 +338,6 @@ class PointageAdmin(admin.ModelAdmin):
             return f"{hours}h{minutes:02d}"
         return "-"
     get_heures_display.short_description = "Heures travaillees"
-    
-    # ============================================================
-    # ACTIONS EN MASSE
-    # ============================================================
     
     actions = ['marquer_present', 'marquer_retard', 'marquer_absent', 'supprimer_selection']
     
@@ -373,41 +363,37 @@ class PointageAdmin(admin.ModelAdmin):
             self.message_user(request, f"{count} pointage(s) supprime(s).")
     supprimer_selection.short_description = "Supprimer"
     
-    # ============================================================
-    # GET QUERYSET
-    # ============================================================
-    
     def get_queryset(self, request):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW - FINAL
+    # LA SOLUTION - Ne pas utiliser request.GET directement
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
-        # 1. Récupérer les dates depuis GET
+        # 1. Récupérer les dates depuis GET avant de les supprimer
         date_debut = request.GET.get('date_debut', '')
         date_fin = request.GET.get('date_fin', '')
         
-        # 2. Créer une copie propre de GET sans les paramètres de date
-        get_copy = request.GET.copy()
-        # Supprimer les paramètres de date de la copie
-        if 'date_debut' in get_copy:
-            del get_copy['date_debut']
-        if 'date_fin' in get_copy:
-            del get_copy['date_fin']
+        # 2. Créer un dictionnaire avec les paramètres filtrés
+        # On garde tous les paramètres SAUF date_debut et date_fin
+        filtered_params = {}
+        for key, value in request.GET.items():
+            if key not in ['date_debut', 'date_fin']:
+                filtered_params[key] = value
         
-        # 3. Remplacer request.GET par la copie nettoyée
-        request.GET = get_copy
+        # 3. Créer un nouvel objet GET avec les paramètres filtrés
+        # et l'assigner à request.GET
+        from django.http import QueryDict
+        request.GET = QueryDict('', mutable=True)
+        for key, value in filtered_params.items():
+            request.GET[key] = value
         
-        # 4. Créer le formulaire avec les dates récupérées
-        form = DateSearchForm({'date_debut': date_debut, 'date_fin': date_fin})
-        
-        # 5. Obtenir le queryset de base avec la copie nettoyée de GET
+        # 4. Maintenant request.GET est propre, on peut l'utiliser normalement
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
         
-        # 6. Appliquer les filtres de date manuellement
+        # 5. Appliquer les filtres de date manuellement
         if date_debut and date_fin:
             try:
                 debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
@@ -431,15 +417,18 @@ class PointageAdmin(admin.ModelAdmin):
             except ValueError:
                 pass
         
-        # 7. Vérifier l'export Excel
+        # 6. Vérifier l'export Excel
         if 'export_excel' in request.GET:
             return self.export_excel(request, queryset)
         
-        # 8. Statistiques
+        # 7. Statistiques
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
         retards = queryset.filter(statut='retard').count()
         absents = queryset.filter(statut='absent').count()
+        
+        # 8. Formulaire pour l'affichage
+        form = DateSearchForm({'date_debut': date_debut, 'date_fin': date_fin})
         
         # 9. Contexte
         extra_context = extra_context or {}
