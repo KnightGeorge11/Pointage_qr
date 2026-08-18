@@ -1,18 +1,8 @@
 <!-- templates/admin/pointage/pointage_changelist.html -->
-{% extends "admin/base_site.html" %}
+{% extends "admin/index.html" %}
 {% load static i18n pointage_filters %}
 
 {% block title %}Pointages | {{ site_title|default:_('Django site admin') }}{% endblock %}
-
-{% block branding %}
-    <h1 id="site-name">
-        <a href="{% url 'admin:index' %}">
-            {{ site_header|default:_('Django administration') }}
-        </a>
-    </h1>
-{% endblock %}
-
-{% block nav-global %}{% endblock %}
 
 {% block extrastyle %}
     {{ block.super }}
@@ -57,6 +47,11 @@
             --red-600: #B91C1C;
             --purple-50: #EEEDFE;
             --purple-500: #8B5CF6;
+        }
+
+        /* Cacher le contenu du tableau de bord par défaut */
+        #content-main .dashboard {
+            display: none !important;
         }
 
         /* Conteneur principal */
