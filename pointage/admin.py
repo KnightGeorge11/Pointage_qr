@@ -1,4 +1,4 @@
-# pointage/admin.py - VERSION CORRECTE (filtre + navbar)
+# pointage/admin.py - SOLUTION DEFINITIVE
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -200,7 +200,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - VERSION CORRECTE
+# POINTAGE - SOLUTION DEFINITIVE
 # ============================================================
 
 @admin.register(Pointage)
@@ -214,22 +214,30 @@ class PointageAdmin(admin.ModelAdmin):
         'type_journee',
     ]
     
-    list_filter = []
-    search_fields = []
-    date_hierarchy = None
+    # ============================================================
+    # ON GARDE LES FILTRES DANS LA BARRE LATERALE
+    # ============================================================
+    list_filter = [
+        'employe',
+        'site',
+        'statut',
+    ]
+    search_fields = ['employe__nom', 'employe__prenom', 'employe__matricule']
+    date_hierarchy = 'date_pointage'
     
     def get_queryset(self, request):
         return Pointage.objects.select_related('employe', 'site')
     
     def changelist_view(self, request, extra_context=None):
-        # 1. Récupérer les filtres depuis GET
+        # ============================================================
+        # Récupérer les dates depuis l'URL (pas depuis GET)
+        # ============================================================
         date_debut = request.GET.get('date_debut', '')
         date_fin = request.GET.get('date_fin', '')
-        employe_id = request.GET.get('employe', '')
-        site_id = request.GET.get('site', '')
-        periode_type = request.GET.get('periode_type', '')
         
-        # 2. Construire le queryset avec tous les filtres
+        # ============================================================
+        # Construire les cartes avec les dates filtrées
+        # ============================================================
         queryset = Pointage.objects.select_related('employe', 'site')
         
         if date_debut and date_fin:
@@ -252,24 +260,7 @@ class PointageAdmin(admin.ModelAdmin):
             except ValueError:
                 pass
         
-        if employe_id:
-            try:
-                queryset = queryset.filter(employe_id=int(employe_id))
-            except ValueError:
-                pass
-        
-        if site_id:
-            try:
-                queryset = queryset.filter(site_id=int(site_id))
-            except ValueError:
-                pass
-        
-        if periode_type == 'jour':
-            queryset = queryset.filter(type_journee='normal')
-        elif periode_type == 'nuit':
-            queryset = queryset.filter(type_journee='garde')
-        
-        # 3. Construire les cartes
+        # Construire les cartes
         cards = []
         employes_info = {}
         jour_data = defaultdict(lambda: defaultdict(lambda: {'matin': None, 'apres_midi': None, 'nuit': None}))
@@ -332,13 +323,13 @@ class PointageAdmin(admin.ModelAdmin):
         
         cards.sort(key=lambda x: x['date'], reverse=True)
         
-        # 4. Pagination
+        # Pagination
         from django.core.paginator import Paginator
         paginator = Paginator(cards, 20)
         page_number = request.GET.get('page', 1)
         page_obj = paginator.get_page(page_number)
         
-        # 5. Statistiques
+        # Statistiques
         total_journees = len(cards)
         total_heures = sum((c['heures_total'] for c in cards), timedelta())
         total_retard = sum((c['retard_total'] for c in cards), timedelta())
@@ -347,38 +338,7 @@ class PointageAdmin(admin.ModelAdmin):
         employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         sites = Site.objects.all().order_by('nom')
         
-        # 6. Créer un ChangeList factice pour Jazzmin
-        from django.contrib.admin.views.main import ChangeList
-        class DummyChangeList(ChangeList):
-            def __init__(self):
-                self.list_display = []
-                self.list_display_links = []
-                self.list_filter = []
-                self.date_hierarchy = None
-                self.search_fields = []
-                self.list_select_related = None
-                self.list_per_page = 100
-                self.list_max_show_all = 200
-                self.list_editable = []
-                self.model_admin = None
-                self.sortable_by = None
-                self.search_help_text = None
-                self.has_filters = False
-                self.has_actions = False
-                self.show_all = False
-                self.multi_page = False
-                self.paginator = paginator
-                self.page_num = page_number
-                self.paginator_show_all = False
-                self.show_admin_actions = False
-                self.title = 'Pointages'
-                self.root_queryset = queryset
-                self.query = request.GET.get('q', '')
-                self.is_popup = False
-        
-        dummy_cl = DummyChangeList()
-        
-        # 7. Contexte avec TOUT ce dont Jazzmin a besoin
+        # Contexte
         extra_context = extra_context or {}
         extra_context.update({
             'cards': page_obj,
@@ -391,16 +351,12 @@ class PointageAdmin(admin.ModelAdmin):
             'filter_date_debut': date_debut,
             'filter_date_fin': date_fin,
             'has_add_permission': self.has_add_permission(request),
-            'cl': dummy_cl,
-            'is_popup': False,
-            'opts': self.model._meta,
-            'app_label': self.model._meta.app_label,
-            'model_name': self.model._meta.model_name,
-            'title': 'Sélectionner un pointage à modifier' if request.GET.get('_popup') else 'Pointages',
-            'request': request,
         })
         
-        return TemplateResponse(request, self.change_list_template, extra_context)
+        # ============================================================
+        # Appeler super() SANS MODIFIER request.GET
+        # ============================================================
+        return super().changelist_view(request, extra_context=extra_context)
 
 
 # ============================================================
