@@ -1,4 +1,4 @@
-# pointage/admin.py - Version avec UN SEUL filtre de date
+# pointage/admin.py - Version complète avec tous les filtres UI corrigés
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -27,7 +27,7 @@ from openpyxl.utils import get_column_letter
 
 
 # ============================================================
-# FILTRE DE DATE SIMPLE - UN SEUL FILTRE
+# FILTRE DE DATE UNIQUE - CORRIGE
 # ============================================================
 
 class DateFilter(SimpleListFilter):
@@ -71,7 +71,7 @@ class DateFilter(SimpleListFilter):
     def queryset(self, request, queryset):
         value = self.value()
         
-        if not value or value == 'all':
+        if not value or value == 'all' or value == '__separator__':
             return queryset
         
         # Vérifier si c'est une date spécifique
@@ -421,7 +421,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - AVEC UN SEUL FILTRE DE DATE
+# POINTAGE - AVEC UN SEUL FILTRE DE DATE CORRIGE
 # ============================================================
 
 @admin.register(Pointage)
@@ -442,10 +442,10 @@ class PointageAdmin(admin.ModelAdmin):
     ]
     
     # ============================================================
-    # FILTRES - UN SEUL FILTRE DE DATE
+    # FILTRES - CORRIGES
     # ============================================================
     list_filter = [
-        DateFilter,           # UN SEUL filtre de date !
+        DateFilter,           # UN SEUL filtre de date avec parameter_name='date_filter'
         EmployeFilter,
         SiteFilter,
         PeriodeTypeFilter,
