@@ -11,7 +11,6 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
-from django.template.response import TemplateResponse
 import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
@@ -19,7 +18,7 @@ from .models import (
     AnomaliePointage, AnomalieTraitement,
 )
 from .anomalies import marquer_traitee, marquer_cloturee
-from .forms import DateSearchForm  # <-- IMPORT DU FORMULAIRE
+from .forms import DateSearchForm
 import uuid
 from datetime import timedelta, datetime
 from collections import defaultdict
@@ -283,7 +282,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - AVEC FORMULAIRE DE DATE
+# POINTAGE - AVEC FORMULAIRE DE DATE CORRIGE
 # ============================================================
 
 @admin.register(Pointage)
@@ -385,61 +384,64 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW - AVEC LE FORMULAIRE DE DATE
+    # CHANGELIST VIEW - CORRIGE
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
-        # Initialiser le formulaire avec les données GET
-        form = DateSearchForm(request.GET or None)
+        # IMPORTANT: Supprimer les paramètres date_debut et date_fin du GET
+        # pour qu'ils ne soient pas interprétés comme des filtres de champ
+        get_copy = request.GET.copy()
+        
+        # Récupérer les dates avant de les supprimer
+        date_debut = get_copy.pop('date_debut', [None])[0]
+        date_fin = get_copy.pop('date_fin', [None])[0]
+        
+        # Recréer un objet GET sans les paramètres de date
+        request.GET = get_copy
+        
+        # Initialiser le formulaire avec les dates récupérées
+        form_data = {}
+        if date_debut:
+            form_data['date_debut'] = date_debut
+        if date_fin:
+            form_data['date_fin'] = date_fin
+        
+        form = DateSearchForm(form_data)
         
         # Obtenir la liste des changements
         cl = self.get_changelist_instance(request)
         
         # Appliquer les filtres de date si le formulaire est valide
         if form.is_valid():
-            date_debut = form.cleaned_data.get('date_debut')
-            date_fin = form.cleaned_data.get('date_fin')
+            date_debut_val = form.cleaned_data.get('date_debut')
+            date_fin_val = form.cleaned_data.get('date_fin')
             
             # Si des dates sont présentes, on filtre manuellement
-            if date_debut or date_fin:
-                queryset = cl.get_queryset(request)
-                if date_debut and date_fin:
-                    queryset = queryset.filter(
-                        date_pointage__gte=date_debut,
-                        date_pointage__lte=date_fin
-                    )
-                elif date_debut:
-                    queryset = queryset.filter(date_pointage__gte=date_debut)
-                elif date_fin:
-                    queryset = queryset.filter(date_pointage__lte=date_fin)
-                
-                # Remplacer le queryset original par le queryset filtré
-                # On stocke les paramètres dans l'objet request pour les récupérer dans le template
-                request._date_filtered_queryset = queryset
-                
-                # On met à jour les statistiques
-                total = queryset.count()
-                presents = queryset.filter(statut='present').count()
-                retards = queryset.filter(statut='retard').count()
-                absents = queryset.filter(statut='absent').count()
-            else:
-                # Pas de filtre date, on utilise le queryset normal
-                queryset = cl.get_queryset(request)
-                total = queryset.count()
-                presents = queryset.filter(statut='present').count()
-                retards = queryset.filter(statut='retard').count()
-                absents = queryset.filter(statut='absent').count()
-        else:
-            # Formulaire invalide, on utilise le queryset normal
             queryset = cl.get_queryset(request)
-            total = queryset.count()
-            presents = queryset.filter(statut='present').count()
-            retards = queryset.filter(statut='retard').count()
-            absents = queryset.filter(statut='absent').count()
+            
+            if date_debut_val and date_fin_val:
+                queryset = queryset.filter(
+                    date_pointage__gte=date_debut_val,
+                    date_pointage__lte=date_fin_val
+                )
+            elif date_debut_val:
+                queryset = queryset.filter(date_pointage__gte=date_debut_val)
+            elif date_fin_val:
+                queryset = queryset.filter(date_pointage__lte=date_fin_val)
+            else:
+                queryset = cl.get_queryset(request)
+        else:
+            queryset = cl.get_queryset(request)
         
         # Vérifier l'export Excel
         if 'export_excel' in request.GET:
             return self.export_excel(request, queryset)
+        
+        # Statistiques
+        total = queryset.count()
+        presents = queryset.filter(statut='present').count()
+        retards = queryset.filter(statut='retard').count()
+        absents = queryset.filter(statut='absent').count()
         
         # Préparer le contexte
         extra_context = extra_context or {}
