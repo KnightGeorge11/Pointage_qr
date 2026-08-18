@@ -647,13 +647,13 @@ class PointageAdmin(admin.ModelAdmin):
     # ============================================================
     # FILTRES EXACTEMENT COMME L'INTERFACE UTILISATEUR
     # ============================================================
-    list_filter = [
-        DateDebutFilter,      # Date début
-        DateFinFilter,        # Date fin
-        EmployeFilter,        # Employé
-        SiteFilter,           # Site
-        PeriodeTypeFilter,    # Type de période (Jour/Nuit)
-    ]
+list_filter = [
+    DatePeriodeFilter,
+    EmployeFilter,
+    SiteFilter,
+    PeriodeTypeFilter,
+    StatutPointageFilter,
+]
     
     search_fields = [
         'employe__nom',
