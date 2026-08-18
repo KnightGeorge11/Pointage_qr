@@ -711,12 +711,9 @@
 
         /* ── Cacher l'ancien tableau tout en gardant la structure ── */
         #changelist .results,
-        #changelist .paginator {
-            display: none !important;
-        }
-        
-        /* Garder les actions mais les cacher si besoin */
-        #changelist .actions {
+        #changelist .paginator,
+        #changelist .actions,
+        #changelist .changelist-actions {
             display: none !important;
         }
         
@@ -729,7 +726,6 @@
             padding: 20px !important;
         }
 
-        /* Ajustement pour que le contenu s'affiche bien */
         #content-main {
             padding: 20px 0 !important;
         }
@@ -847,10 +843,7 @@
 
 {% block content %}
     {{ block.super }}
-    <!-- On garde le contenu original mais on le remplace par nos cartes -->
-    <div style="display: none;">
-        <!-- Ceci cache le contenu original de change_list -->
-    </div>
+    <div style="display: none;"></div>
     
     <!-- Notre contenu personnalisé -->
     <div id="pointage-custom-content">
@@ -949,7 +942,7 @@
                     </div>
                 </div>
                 <div class="filter-actions">
-                    <a href="{% url 'admin:pointage_pointage_changelist' %}" class="btn btn-outline-secondary">
+                    <a href="{{ changelist_url }}" class="btn btn-outline-secondary">
                         <i class="fas fa-times"></i> Réinitialiser
                     </a>
                     <button type="submit" class="btn btn-primary">
@@ -1136,7 +1129,7 @@
             <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
             <h3>Aucun pointage trouvé</h3>
             <p>Aucun pointage ne correspond aux filtres sélectionnés.<br>Essayez de modifier vos critères de recherche.</p>
-            <a href="{% url 'admin:pointage_pointage_changelist' %}" class="btn btn-primary">
+            <a href="{{ changelist_url }}" class="btn btn-primary">
                 <i class="fas fa-redo"></i> Réinitialiser
             </a>
         </div>
