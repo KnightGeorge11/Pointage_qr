@@ -1,4 +1,4 @@
-# pointage/admin.py - Version avec filtre calendrier fonctionnel
+# pointage/admin.py - Version avec UN SEUL filtre de date
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -11,8 +11,6 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
-from django import forms
-from django.template.response import TemplateResponse
 import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
@@ -29,105 +27,118 @@ from openpyxl.utils import get_column_letter
 
 
 # ============================================================
-# FILTRE DE DATE AVEC CALENDRIER INTEGRE
+# FILTRE DE DATE SIMPLE - UN SEUL FILTRE
 # ============================================================
 
-class DateFilterWithCalendar(SimpleListFilter):
+class DateFilter(SimpleListFilter):
     """
-    Filtre de date avec calendrier intégré.
-    Affiche un sélecteur de date dans la barre latérale.
-    """
-    
-    title = 'Date'
-    parameter_name = 'date'
-    
-    def lookups(self, request, model_admin):
-        # Récupérer la date depuis les paramètres GET
-        date_value = request.GET.get('date', '')
-        
-        # Retourner les options du filtre
-        options = [
-            ('', 'Toutes les dates'),
-        ]
-        
-        # Ajouter la date sélectionnée si elle existe
-        if date_value:
-            try:
-                date_obj = datetime.strptime(date_value, '%Y-%m-%d').date()
-                options.append((date_value, f'📅 {date_obj.strftime("%d/%m/%Y")}'))
-            except ValueError:
-                pass
-        
-        # Ajouter les dates récentes
-        today = timezone.localtime(timezone.now()).date()
-        for i in range(1, 8):
-            date = today - timedelta(days=i)
-            options.append((date.strftime('%Y-%m-%d'), date.strftime('%d/%m/%Y')))
-        
-        return options
-    
-    def queryset(self, request, queryset):
-        date_value = request.GET.get('date', '')
-        
-        if not date_value:
-            return queryset
-        
-        try:
-            date_obj = datetime.strptime(date_value, '%Y-%m-%d').date()
-            return queryset.filter(date_pointage=date_obj)
-        except ValueError:
-            return queryset
-
-
-class DatePeriodeFilter(SimpleListFilter):
-    """
-    Filtre rapide par période.
-
-    Permet de filtrer les pointages selon :
+    Filtre de date unique avec les options :
+    - Toutes les dates
     - Aujourd'hui
     - Hier
     - Cette semaine
     - Ce mois-ci
+    - Dates disponibles (dernières dates avec pointages)
     """
-
-    title = 'Periode'
-    parameter_name = 'periode_date'
-
+    
+    title = 'Date'
+    parameter_name = 'date_filter'
+    
     def lookups(self, request, model_admin):
-        return (
+        options = [
+            ('all', 'Toutes les dates'),
             ('today', "Aujourd'hui"),
             ('yesterday', 'Hier'),
             ('week', 'Cette semaine'),
             ('month', 'Ce mois-ci'),
-        )
-
+        ]
+        
+        # Ajouter les 5 dernières dates avec des pointages
+        dates = Pointage.objects.values_list('date_pointage', flat=True).distinct().order_by('-date_pointage')[:5]
+        
+        separator_added = False
+        for date in dates:
+            if not separator_added:
+                options.append(('__separator__', '— Dernières dates —'))
+                separator_added = True
+            options.append((
+                date.strftime('%Y-%m-%d'),
+                date.strftime('%d/%m/%Y')
+            ))
+        
+        return options
+    
     def queryset(self, request, queryset):
         value = self.value()
-
+        
+        if not value or value == 'all':
+            return queryset
+        
+        # Vérifier si c'est une date spécifique
+        try:
+            date_obj = datetime.strptime(value, '%Y-%m-%d').date()
+            return queryset.filter(date_pointage=date_obj)
+        except ValueError:
+            pass
+        
+        # Sinon, c'est une option prédéfinie
         today = timezone.localtime(timezone.now()).date()
-
+        
         if value == 'today':
-            return queryset.filter(
-                date_pointage=today
-            )
-
+            return queryset.filter(date_pointage=today)
+        
         if value == 'yesterday':
             yesterday = today - timedelta(days=1)
-            return queryset.filter(
-                date_pointage=yesterday
-            )
-
+            return queryset.filter(date_pointage=yesterday)
+        
         if value == 'week':
             start_of_week = today - timedelta(days=today.weekday())
             return queryset.filter(
                 date_pointage__gte=start_of_week,
                 date_pointage__lte=today,
             )
-
+        
         if value == 'month':
             return queryset.filter(
                 date_pointage__year=today.year,
                 date_pointage__month=today.month,
+            )
+        
+        return queryset
+
+
+# ============================================================
+# FILTRE PAR PERIODE (JOUR/NUIT)
+# ============================================================
+
+class PeriodeTypeFilter(SimpleListFilter):
+    """
+    Filtre Jour / Nuit.
+
+    Jour  -> type_journee = normal
+    Nuit  -> type_journee = garde
+    """
+
+    title = 'Type de periode'
+    parameter_name = 'periode_type'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('jour', 'Jour'),
+            ('nuit', 'Nuit (Gardes)'),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+
+        if value == 'jour':
+            return queryset.filter(
+                type_journee='normal'
+            )
+
+        if value == 'nuit':
+            return queryset.filter(
+                type_journee='garde'
             )
 
         return queryset
@@ -209,39 +220,6 @@ class SiteFilter(SimpleListFilter):
         return queryset.filter(
             site_id=site_id
         )
-
-
-class PeriodeTypeFilter(SimpleListFilter):
-    """
-    Filtre Jour / Nuit.
-
-    Jour  -> type_journee = normal
-    Nuit  -> type_journee = garde
-    """
-
-    title = 'Type de periode'
-    parameter_name = 'periode_type'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('jour', 'Jour'),
-            ('nuit', 'Nuit (Gardes)'),
-        )
-
-    def queryset(self, request, queryset):
-        value = self.value()
-
-        if value == 'jour':
-            return queryset.filter(
-                type_journee='normal'
-            )
-
-        if value == 'nuit':
-            return queryset.filter(
-                type_journee='garde'
-            )
-
-        return queryset
 
 
 class StatutPointageFilter(SimpleListFilter):
@@ -443,7 +421,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - AVEC FILTRES EXACTEMENT COMME L'UI
+# POINTAGE - AVEC UN SEUL FILTRE DE DATE
 # ============================================================
 
 @admin.register(Pointage)
@@ -464,11 +442,10 @@ class PointageAdmin(admin.ModelAdmin):
     ]
     
     # ============================================================
-    # FILTRES EXACTEMENT COMME L'INTERFACE UTILISATEUR
+    # FILTRES - UN SEUL FILTRE DE DATE
     # ============================================================
     list_filter = [
-        DateFilterWithCalendar,
-        DatePeriodeFilter,
+        DateFilter,           # UN SEUL filtre de date !
         EmployeFilter,
         SiteFilter,
         PeriodeTypeFilter,
