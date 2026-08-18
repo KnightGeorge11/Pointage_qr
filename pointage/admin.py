@@ -1,4 +1,4 @@
-# pointage/admin.py - Version avec filtre calendrier
+# pointage/admin.py - Version avec filtre calendrier fonctionnel
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -29,13 +29,13 @@ from openpyxl.utils import get_column_letter
 
 
 # ============================================================
-# FILTRE DE DATE AVEC CALENDRIER
+# FILTRE DE DATE AVEC CALENDRIER INTEGRE
 # ============================================================
 
 class DateFilterWithCalendar(SimpleListFilter):
     """
     Filtre de date avec calendrier intégré.
-    Utilise les widgets de date de Django Admin.
+    Affiche un sélecteur de date dans la barre latérale.
     """
     
     title = 'Date'
@@ -45,18 +45,26 @@ class DateFilterWithCalendar(SimpleListFilter):
         # Récupérer la date depuis les paramètres GET
         date_value = request.GET.get('date', '')
         
+        # Retourner les options du filtre
+        options = [
+            ('', 'Toutes les dates'),
+        ]
+        
+        # Ajouter la date sélectionnée si elle existe
         if date_value:
             try:
                 date_obj = datetime.strptime(date_value, '%Y-%m-%d').date()
-                return (
-                    ('selected', f'📅 {date_obj.strftime("%d/%m/%Y")}'),
-                )
+                options.append((date_value, f'📅 {date_obj.strftime("%d/%m/%Y")}'))
             except ValueError:
                 pass
         
-        return (
-            ('', 'Selectionner une date'),
-        )
+        # Ajouter les dates récentes
+        today = timezone.localtime(timezone.now()).date()
+        for i in range(1, 8):
+            date = today - timedelta(days=i)
+            options.append((date.strftime('%Y-%m-%d'), date.strftime('%d/%m/%Y')))
+        
+        return options
     
     def queryset(self, request, queryset):
         date_value = request.GET.get('date', '')
