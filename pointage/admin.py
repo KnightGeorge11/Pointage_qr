@@ -1,4 +1,4 @@
-# pointage/admin.py - SOLUTION DEFINITIVE QUI MARCHE
+# pointage/admin.py - VERSION FINALE QUI FONCTIONNE VRAIMENT
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -281,7 +281,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - SOLUTION SIMPLE ET EFFICACE
+# POINTAGE - SOLUTION DEFINITIVE
 # ============================================================
 
 @admin.register(Pointage)
@@ -366,18 +366,19 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # LA SOLUTION : Ne pas utiliser date_debut et date_fin comme paramètres
-    # On utilise un paramètre unique 'date_range' encodé en JSON
+    # LA VRAIE SOLUTION - On ne touche PAS à request.GET
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
-        # Récupérer les dates depuis GET
+        # Récupérer les dates depuis GET (sans modifier request.GET)
         date_debut = request.GET.get('date_debut', '')
         date_fin = request.GET.get('date_fin', '')
         
-        # Si des dates sont présentes, on filtre le queryset
-        queryset = self.get_queryset(request)
+        # Obtenir le ChangeList standard
+        cl = self.get_changelist_instance(request)
+        queryset = cl.get_queryset(request)
         
+        # Appliquer les filtres de date sur le queryset
         if date_debut and date_fin:
             try:
                 debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
