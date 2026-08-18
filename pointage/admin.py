@@ -1,4 +1,4 @@
-# pointage/admin.py - VERSION QUI MARCHE (sans changer le filtre)
+# pointage/admin.py - VERSION SIMPLIFIEE QUI MARCHE
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -9,7 +9,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
-from django.db.models import Q, Sum, Count
+from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
 from django.template.response import TemplateResponse
 import json
@@ -25,88 +25,6 @@ from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-
-
-# ============================================================
-# FILTRES DE LA BARRE LATERALE
-# ============================================================
-
-class PeriodeTypeFilter(SimpleListFilter):
-    title = 'Type de periode'
-    parameter_name = 'periode_type'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('jour', 'Jour'),
-            ('nuit', 'Nuit (Gardes)'),
-        )
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value == 'jour':
-            return queryset.filter(type_journee='normal')
-        if value == 'nuit':
-            return queryset.filter(type_journee='garde')
-        return queryset
-
-
-class EmployeFilter(SimpleListFilter):
-    title = 'Employe'
-    parameter_name = 'employe'
-
-    def lookups(self, request, model_admin):
-        employes = Employe.objects.filter(actif=True).select_related('poste').order_by('nom', 'prenom')
-        return [
-            (str(employe.pk), f"{employe.prenom} {employe.nom} ({employe.matricule})")
-            for employe in employes
-        ]
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if not value:
-            return queryset
-        try:
-            employe_id = int(value)
-            return queryset.filter(employe_id=employe_id)
-        except (ValueError, TypeError):
-            return queryset
-
-
-class SiteFilter(SimpleListFilter):
-    title = 'Site'
-    parameter_name = 'site'
-
-    def lookups(self, request, model_admin):
-        sites = Site.objects.all().order_by('nom')
-        return [(str(site.pk), site.nom) for site in sites]
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if not value:
-            return queryset
-        try:
-            site_id = int(value)
-            return queryset.filter(site_id=site_id)
-        except (ValueError, TypeError):
-            return queryset
-
-
-class StatutPointageFilter(SimpleListFilter):
-    title = 'Statut'
-    parameter_name = 'statut'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('present', 'Present'),
-            ('retard', 'En retard'),
-            ('absent', 'Absent'),
-        )
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value in ('present', 'retard', 'absent'):
-            return queryset.filter(statut=value)
-        return queryset
 
 
 # ============================================================
@@ -282,43 +200,28 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - AVEC CHANGELIST PERSONNALISE ET FILTRE QUI MARCHE
+# POINTAGE - VERSION SIMPLIFIEE QUI MARCHE
 # ============================================================
 
 @admin.register(Pointage)
 class PointageAdmin(admin.ModelAdmin):
     change_list_template = "admin/pointage/pointage_changelist.html"
     
+    # Liste des champs affichés (pour la compatibilité)
     list_display = [
         'employe',
         'date_pointage',
         'periode',
         'type_journee',
-        'heure_arrivee',
-        'heure_depart',
-        'site',
-        'statut',
-        'get_retard_display',
-        'get_heures_display',
     ]
     
-    list_filter = [
-        EmployeFilter,
-        SiteFilter,
-        PeriodeTypeFilter,
-        StatutPointageFilter,
-    ]
-
-    search_fields = [
-        'employe__nom',
-        'employe__prenom',
-        'employe__matricule',
-        'site__nom',
-    ]
-
-    readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
-    date_hierarchy = 'date_pointage'
-
+    # ============================================================
+    # PAS DE list_filter ! On gère tout nous-mêmes
+    # ============================================================
+    list_filter = []
+    search_fields = []
+    date_hierarchy = None
+    
     def get_retard_display(self, obj):
         if obj.retard and obj.retard.total_seconds() > 0:
             minutes = obj.get_retard_minutes()
@@ -340,54 +243,81 @@ class PointageAdmin(admin.ModelAdmin):
         return "-"
     get_heures_display.short_description = "Heures travaillees"
     
-    actions = ['marquer_present', 'marquer_retard', 'marquer_absent', 'supprimer_selection']
-    
-    def marquer_present(self, request, queryset):
-        count = queryset.update(statut='present')
-        self.message_user(request, f"{count} pointage(s) marque(s) comme present.")
-    marquer_present.short_description = "Marquer comme present"
-    
-    def marquer_retard(self, request, queryset):
-        count = queryset.update(statut='retard')
-        self.message_user(request, f"{count} pointage(s) marque(s) comme retard.")
-    marquer_retard.short_description = "Marquer comme retard"
-    
-    def marquer_absent(self, request, queryset):
-        count = queryset.update(statut='absent')
-        self.message_user(request, f"{count} pointage(s) marque(s) comme absent.")
-    marquer_absent.short_description = "Marquer comme absent"
-    
-    def supprimer_selection(self, request, queryset):
-        count = queryset.count()
-        if count > 0:
-            queryset.delete()
-            self.message_user(request, f"{count} pointage(s) supprime(s).")
-    supprimer_selection.short_description = "Supprimer"
-    
     def get_queryset(self, request):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW - SURCHARGE POUR AJOUTER LES DONNEES DES CARTES
+    # CHANGELIST VIEW - TOUT EST GERER ICI
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
-        # Récupérer le changelist standard
-        cl = self.get_changelist_instance(request)
+        # ============================================================
+        # 1. Récupérer les filtres depuis GET
+        # ============================================================
+        date_debut = request.GET.get('date_debut', '')
+        date_fin = request.GET.get('date_fin', '')
+        employe_id = request.GET.get('employe', '')
+        site_id = request.GET.get('site', '')
+        periode_type = request.GET.get('periode_type', '')
         
-        # Récupérer le queryset filtré par le changelist
-        queryset = cl.get_queryset(request)
+        # ============================================================
+        # 2. Construire le queryset avec tous les filtres
+        # ============================================================
+        queryset = Pointage.objects.select_related('employe', 'site')
         
-        # Construire les données pour les cartes
+        # Filtre date
+        if date_debut and date_fin:
+            try:
+                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
+                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
+                queryset = queryset.filter(
+                    date_pointage__gte=debut,
+                    date_pointage__lte=fin
+                )
+            except ValueError:
+                pass
+        elif date_debut:
+            try:
+                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__gte=debut)
+            except ValueError:
+                pass
+        elif date_fin:
+            try:
+                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__lte=fin)
+            except ValueError:
+                pass
+        
+        # Filtre employé
+        if employe_id:
+            try:
+                queryset = queryset.filter(employe_id=int(employe_id))
+            except ValueError:
+                pass
+        
+        # Filtre site
+        if site_id:
+            try:
+                queryset = queryset.filter(site_id=int(site_id))
+            except ValueError:
+                pass
+        
+        # Filtre type de période
+        if periode_type == 'jour':
+            queryset = queryset.filter(type_journee='normal')
+        elif periode_type == 'nuit':
+            queryset = queryset.filter(type_journee='garde')
+        
+        # ============================================================
+        # 3. Construire les données pour les cartes
+        # ============================================================
         cards = []
         employes_info = {}
         
-        # Récupérer les pointages groupés par employé et date
-        pointages = queryset.select_related('employe', 'site')
-        
         jour_data = defaultdict(lambda: defaultdict(lambda: {'matin': None, 'apres_midi': None, 'nuit': None}))
         
-        for p in pointages:
+        for p in queryset:
             employes_info[p.employe.id] = {
                 'id': p.employe.id,
                 'nom': p.employe.nom,
@@ -398,14 +328,12 @@ class PointageAdmin(admin.ModelAdmin):
             }
             jour_data[p.employe.id][p.date_pointage][p.periode] = p
         
-        # Construire les cartes
         for emp_id, dates in jour_data.items():
             for date, periods in dates.items():
                 matin = periods.get('matin')
                 apm = periods.get('apres_midi')
                 nuit = periods.get('nuit')
                 
-                # Calculer les totaux
                 heures_total = timedelta()
                 retard_total = timedelta()
                 heures_sup = timedelta()
@@ -445,30 +373,33 @@ class PointageAdmin(admin.ModelAdmin):
                     'heures_sup': heures_sup,
                 })
         
-        # Trier par date décroissante
         cards.sort(key=lambda x: x['date'], reverse=True)
         
-        # Pagination
+        # ============================================================
+        # 4. Pagination
+        # ============================================================
         from django.core.paginator import Paginator
         paginator = Paginator(cards, 20)
         page_number = request.GET.get('page', 1)
         page_obj = paginator.get_page(page_number)
         
-        # Statistiques
+        # ============================================================
+        # 5. Statistiques
+        # ============================================================
         total_journees = len(cards)
         total_heures = sum((c['heures_total'] for c in cards), timedelta())
         total_retard = sum((c['retard_total'] for c in cards), timedelta())
         unique_employes = len(set(c['employe']['id'] for c in cards))
         
-        # Liste des employés et sites pour les filtres
+        # ============================================================
+        # 6. Liste pour les filtres
+        # ============================================================
         employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         sites = Site.objects.all().order_by('nom')
         
-        # Récupérer les dates de filtre
-        filter_date_debut = request.GET.get('date_debut', '')
-        filter_date_fin = request.GET.get('date_fin', '')
-        
-        # Ajouter au contexte
+        # ============================================================
+        # 7. Contexte
+        # ============================================================
         extra_context = extra_context or {}
         extra_context.update({
             'cards': page_obj,
@@ -478,13 +409,12 @@ class PointageAdmin(admin.ModelAdmin):
             'unique_employes_count': unique_employes,
             'employes': employes,
             'sites': sites,
-            'filter_date_debut': filter_date_debut,
-            'filter_date_fin': filter_date_fin,
-            'cl': cl,
+            'filter_date_debut': date_debut,
+            'filter_date_fin': date_fin,
             'has_add_permission': self.has_add_permission(request),
         })
         
-        return super().changelist_view(request, extra_context=extra_context)
+        return TemplateResponse(request, self.change_list_template, extra_context)
 
 
 # ============================================================
