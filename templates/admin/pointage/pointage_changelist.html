@@ -1,9 +1,23 @@
-{% extends "admin/change_list.html" %}
+<!-- templates/admin/pointage/pointage_changelist.html -->
+{% extends "admin/base_site.html" %}
 {% load static i18n admin_list jazzmin pointage_filters %}
 
-{% block extrahead %}
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+    <h1 id="site-name">
+        <a href="{% url 'admin:index' %}">
+            {{ site_header|default:_('Django administration') }}
+        </a>
+    </h1>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block extrastyle %}
     {{ block.super }}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* =====================================================
         POINTAGES ADMIN - STYLE CARTES
