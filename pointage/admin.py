@@ -1,4 +1,4 @@
-# pointage/admin.py - Version finale corrigée
+# pointage/admin.py - Version avec formulaire de date corrigé
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -11,6 +11,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
+from django.template.response import TemplateResponse
 import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
@@ -18,6 +19,7 @@ from .models import (
     AnomaliePointage, AnomalieTraitement,
 )
 from .anomalies import marquer_traitee, marquer_cloturee
+from .forms import DateSearchForm  # <-- IMPORT DU FORMULAIRE
 import uuid
 from datetime import timedelta, datetime
 from collections import defaultdict
@@ -27,91 +29,10 @@ from openpyxl.utils import get_column_letter
 
 
 # ============================================================
-# FILTRE DE DATE UNIQUE - CORRIGE
+# FILTRES DE LA BARRE LATERALE
 # ============================================================
 
-class DateFilter(SimpleListFilter):
-    """
-    Filtre de date unique avec les options :
-    - Toutes les dates
-    - Aujourd'hui
-    - Hier
-    - Cette semaine
-    - Ce mois-ci
-    - Dates disponibles (dernières dates avec pointages)
-    """
-    
-    title = 'Date'
-    parameter_name = 'date_filter'  # <- Changé de 'date' à 'date_filter'
-    
-    def lookups(self, request, model_admin):
-        options = [
-            ('all', 'Toutes les dates'),
-            ('today', "Aujourd'hui"),
-            ('yesterday', 'Hier'),
-            ('week', 'Cette semaine'),
-            ('month', 'Ce mois-ci'),
-        ]
-        
-        # Ajouter les 5 dernières dates avec des pointages
-        dates = Pointage.objects.values_list('date_pointage', flat=True).distinct().order_by('-date_pointage')[:5]
-        
-        separator_added = False
-        for date in dates:
-            if not separator_added:
-                options.append(('__separator__', '— Dernières dates —'))
-                separator_added = True
-            options.append((
-                date.strftime('%Y-%m-%d'),
-                date.strftime('%d/%m/%Y')
-            ))
-        
-        return options
-    
-    def queryset(self, request, queryset):
-        value = self.value()
-        
-        if not value or value == 'all' or value == '__separator__':
-            return queryset
-        
-        # Vérifier si c'est une date spécifique
-        try:
-            date_obj = datetime.strptime(value, '%Y-%m-%d').date()
-            return queryset.filter(date_pointage=date_obj)  # <- Utilise date_pointage
-        except ValueError:
-            pass
-        
-        # Sinon, c'est une option prédéfinie
-        today = timezone.localtime(timezone.now()).date()
-        
-        if value == 'today':
-            return queryset.filter(date_pointage=today)
-        
-        if value == 'yesterday':
-            yesterday = today - timedelta(days=1)
-            return queryset.filter(date_pointage=yesterday)
-        
-        if value == 'week':
-            start_of_week = today - timedelta(days=today.weekday())
-            return queryset.filter(
-                date_pointage__gte=start_of_week,
-                date_pointage__lte=today,
-            )
-        
-        if value == 'month':
-            return queryset.filter(
-                date_pointage__year=today.year,
-                date_pointage__month=today.month,
-            )
-        
-        return queryset
-
-
 class PeriodeTypeFilter(SimpleListFilter):
-    """
-    Filtre Jour / Nuit.
-    """
-
     title = 'Type de periode'
     parameter_name = 'periode_type'
 
@@ -123,7 +44,6 @@ class PeriodeTypeFilter(SimpleListFilter):
 
     def queryset(self, request, queryset):
         value = self.value()
-
         if value == 'jour':
             return queryset.filter(type_journee='normal')
         if value == 'nuit':
@@ -132,10 +52,6 @@ class PeriodeTypeFilter(SimpleListFilter):
 
 
 class EmployeFilter(SimpleListFilter):
-    """
-    Filtre par employé.
-    """
-
     title = 'Employe'
     parameter_name = 'employe'
 
@@ -158,10 +74,6 @@ class EmployeFilter(SimpleListFilter):
 
 
 class SiteFilter(SimpleListFilter):
-    """
-    Filtre par site.
-    """
-
     title = 'Site'
     parameter_name = 'site'
 
@@ -181,10 +93,6 @@ class SiteFilter(SimpleListFilter):
 
 
 class StatutPointageFilter(SimpleListFilter):
-    """
-    Filtre par statut du pointage.
-    """
-
     title = 'Statut'
     parameter_name = 'statut'
 
@@ -375,7 +283,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - AVEC FILTRES CORRIGES
+# POINTAGE - AVEC FORMULAIRE DE DATE
 # ============================================================
 
 @admin.register(Pointage)
@@ -396,10 +304,9 @@ class PointageAdmin(admin.ModelAdmin):
     ]
     
     # ============================================================
-    # FILTRES - CORRIGES
+    # FILTRES DE LA BARRE LATERALE - PAS DE FILTRE DATE
     # ============================================================
     list_filter = [
-        DateFilter,           # <- parameter_name='date_filter'
         EmployeFilter,
         SiteFilter,
         PeriodeTypeFilter,
@@ -415,10 +322,8 @@ class PointageAdmin(admin.ModelAdmin):
 
     readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
     
-    # ============================================================
-    # SUPPRESSION DE date_hierarchy - CAUSE L'ERREUR !
-    # ============================================================
-    # date_hierarchy = 'date_pointage'  # <- SUPPRIMEZ CETTE LIGNE !
+    # SUPPRESSION DE date_hierarchy POUR EVITER LES CONFLITS
+    # date_hierarchy = 'date_pointage'
 
     # ============================================================
     # CHAMPS PERSONNALISES
@@ -480,33 +385,76 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW
+    # CHANGELIST VIEW - AVEC LE FORMULAIRE DE DATE
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
-        cl = self.get_changelist_instance(request)
-        queryset = cl.get_queryset(request)
+        # Initialiser le formulaire avec les données GET
+        form = DateSearchForm(request.GET or None)
         
+        # Obtenir la liste des changements
+        cl = self.get_changelist_instance(request)
+        
+        # Appliquer les filtres de date si le formulaire est valide
+        if form.is_valid():
+            date_debut = form.cleaned_data.get('date_debut')
+            date_fin = form.cleaned_data.get('date_fin')
+            
+            # Si des dates sont présentes, on filtre manuellement
+            if date_debut or date_fin:
+                queryset = cl.get_queryset(request)
+                if date_debut and date_fin:
+                    queryset = queryset.filter(
+                        date_pointage__gte=date_debut,
+                        date_pointage__lte=date_fin
+                    )
+                elif date_debut:
+                    queryset = queryset.filter(date_pointage__gte=date_debut)
+                elif date_fin:
+                    queryset = queryset.filter(date_pointage__lte=date_fin)
+                
+                # Remplacer le queryset original par le queryset filtré
+                # On stocke les paramètres dans l'objet request pour les récupérer dans le template
+                request._date_filtered_queryset = queryset
+                
+                # On met à jour les statistiques
+                total = queryset.count()
+                presents = queryset.filter(statut='present').count()
+                retards = queryset.filter(statut='retard').count()
+                absents = queryset.filter(statut='absent').count()
+            else:
+                # Pas de filtre date, on utilise le queryset normal
+                queryset = cl.get_queryset(request)
+                total = queryset.count()
+                presents = queryset.filter(statut='present').count()
+                retards = queryset.filter(statut='retard').count()
+                absents = queryset.filter(statut='absent').count()
+        else:
+            # Formulaire invalide, on utilise le queryset normal
+            queryset = cl.get_queryset(request)
+            total = queryset.count()
+            presents = queryset.filter(statut='present').count()
+            retards = queryset.filter(statut='retard').count()
+            absents = queryset.filter(statut='absent').count()
+        
+        # Vérifier l'export Excel
         if 'export_excel' in request.GET:
             return self.export_excel(request, queryset)
         
-        total = queryset.count()
-        presents = queryset.filter(statut='present').count()
-        retards = queryset.filter(statut='retard').count()
-        absents = queryset.filter(statut='absent').count()
-        
+        # Préparer le contexte
         extra_context = extra_context or {}
         extra_context.update({
             'total': total,
             'presents_count': presents,
             'retards_count': retards,
             'absents_count': absents,
+            'date_search_form': form,
         })
         
         return super().changelist_view(request, extra_context=extra_context)
     
     # ============================================================
-    # EXPORT EXCEL (raccourci pour gagner de la place)
+    # EXPORT EXCEL
     # ============================================================
     
     def export_excel(self, request, queryset):
@@ -548,15 +496,228 @@ class PointageAdmin(admin.ModelAdmin):
         def fmt_time(t):
             return t.strftime('%H:%M') if t else '-'
         
-        # ... (le reste de la fonction export_excel est inchangé, je le mets en commentaire pour ne pas surcharger)
-        # Mais gardez votre fonction export_excel complète ici
+        BLUE = '1E3A5F'
+        BLUE_LIGHT = 'D6E4F0'
+        ORANGE_BG = 'FEF3C7'
+        ORANGE_FG = 'D97706'
+        GREEN_BG = 'DCFCE7'
+        GREEN_FG = '15803D'
+        RED_BG = 'FEE2E2'
+        RED_FG = 'B91C1C'
+        PURPLE_BG = 'EDE9FE'
+        PURPLE_FG = '7C3AED'
+        PURPLE_MED = '4C1D95'
+        NIGHT_BG = '1E1B4B'
+        NIGHT_MID = '2D1F4E'
+        NIGHT_FG = 'A5B4FC'
+        DARK = '1A1A1A'
+        GREY_LIGHT = 'F5F5F7'
+        GREY_MID = 'E5E5E5'
+        WHITE = 'FFFFFF'
+        TOTAL_BG = 'EEF2FF'
         
-        # Pour gagner de la place, je mets un placeholder, mais vous devez garder votre code complet
+        def sd(color=GREY_MID, style='thin'):
+            return Side(style=style, color=color)
+        
+        def b_all(color=GREY_MID):
+            s = sd(color)
+            return Border(left=s, right=s, top=s, bottom=s)
+        
+        def b_outer(color=BLUE):
+            s = Side(style='medium', color=color)
+            return Border(left=s, right=s, top=s, bottom=s)
+        
+        def b_bottom(color=BLUE):
+            return Border(left=sd(), right=sd(), top=sd(),
+                          bottom=Side(style='medium', color=color))
+        
+        def sc(c, value='', bg=WHITE, fg=DARK, bold=False, size=9,
+               halign='center', valign='center', wrap=False, border=None, italic=False):
+            c.value = value
+            c.font = Font(name='Arial', bold=bold, color=fg, size=size, italic=italic)
+            c.fill = PatternFill('solid', start_color=bg)
+            c.alignment = Alignment(horizontal=halign, vertical=valign, wrap_text=wrap)
+            if border:
+                c.border = border
+        
         wb = Workbook()
         ws = wb.active
         ws.title = "Resume Pointages"
+        ws.sheet_view.showGridLines = False
+        ws.page_setup.orientation = 'landscape'
+        ws.page_setup.fitToPage = True
+        ws.page_setup.fitToWidth = 1
         
-        # ... remplir le reste de l'export
+        COL_EMP = 1
+        COL_DAYS = 2
+        COL_TOTAL = COL_DAYS + len(days)
+        
+        ws.column_dimensions[get_column_letter(COL_EMP)].width = 15
+        for i in range(len(days)):
+            ws.column_dimensions[get_column_letter(COL_DAYS + i)].width = 14
+        ws.column_dimensions[get_column_letter(COL_TOTAL)].width = 18
+        
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=COL_TOTAL)
+        sc(ws['A1'],
+           value=f"RESUME DES POINTAGES  -  Du {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}",
+           bg=BLUE, fg=WHITE, bold=True, size=13)
+        ws.row_dimensions[1].height = 36
+        
+        HEADER_ROW = 2
+        sc(ws.cell(row=HEADER_ROW, column=COL_EMP), value='Employe',
+           bg=BLUE, fg=WHITE, bold=True, size=9, border=b_all(BLUE))
+        for i, d in enumerate(days):
+            label = f"{JOURS_FR[d.weekday()]}\n{d.strftime('%d/%m/%Y')}"
+            sc(ws.cell(row=HEADER_ROW, column=COL_DAYS + i), value=label,
+               bg=BLUE, fg=WHITE, bold=True, size=8, wrap=True, border=b_all(BLUE))
+        sc(ws.cell(row=HEADER_ROW, column=COL_TOTAL), value='TOTAL',
+           bg=DARK, fg=WHITE, bold=True, size=10, border=b_all(DARK))
+        ws.row_dimensions[HEADER_ROW].height = 28
+        
+        ROWS_PER_EMP = 8
+        SUB_H = [8, 14, 18, 14, 18, 16, 16, 6]
+        START_ROW = 3
+        
+        for emp_idx, (emp_id, day_map) in enumerate(emp_data.items()):
+            base = START_ROW + emp_idx * ROWS_PER_EMP
+            _, nom_complet, matricule = emp_info[emp_id]
+            
+            for i, h in enumerate(SUB_H):
+                ws.row_dimensions[base + i].height = h
+            
+            ws.merge_cells(start_row=base, start_column=COL_EMP,
+                           end_row=base + 6, end_column=COL_EMP)
+            sc(ws.cell(row=base, column=COL_EMP),
+               value=f"{nom_complet}\n{matricule}",
+               bg=GREY_LIGHT, fg=DARK, bold=True, size=9,
+               wrap=True, halign='center', valign='center', border=b_outer())
+            ws.cell(row=base + 7, column=COL_EMP).fill = PatternFill('solid', start_color=GREY_MID)
+            ws.cell(row=base + 7, column=COL_EMP).border = b_bottom()
+            
+            tot_retard = timedelta()
+            tot_trav = timedelta()
+            tot_sup = timedelta()
+            tot_gardes = 0
+            
+            for i, d in enumerate(days):
+                col = COL_DAYS + i
+                pt_map = day_map.get(d, {})
+                matin = pt_map.get('matin')
+                apm = pt_map.get('apres_midi')
+                nuit = pt_map.get('nuit')
+                bg_day = WHITE if i % 2 == 0 else 'FAFAFA'
+                
+                if nuit and nuit.type_journee == 'garde':
+                    tot_gardes += 1
+                    h_garde = nuit.heures_travaillees or timedelta()
+                    tot_trav += h_garde
+                    terminee = bool(nuit.heure_depart)
+                    
+                    sc(ws.cell(row=base, column=col), bg=NIGHT_MID,
+                       border=Border(top=Side(style='medium', color=PURPLE_FG),
+                                     left=sd(), right=sd()))
+                    ws.merge_cells(start_row=base + 1, start_column=col,
+                                   end_row=base + 2, end_column=col)
+                    sc(ws.cell(row=base + 1, column=col),
+                       value='Garde de nuit',
+                       bg=PURPLE_BG, fg=PURPLE_FG, bold=True, size=9,
+                       wrap=True, halign='center', valign='center',
+                       border=b_all(PURPLE_FG))
+                    sc(ws.cell(row=base + 3, column=col),
+                       value='Debut  ->  Fin',
+                       bg=NIGHT_MID, fg=NIGHT_FG, bold=True, size=8,
+                       border=b_all(PURPLE_MED))
+                    arr_g = fmt_time(nuit.heure_arrivee)
+                    dep_g = fmt_time(nuit.heure_depart)
+                    sc(ws.cell(row=base + 4, column=col),
+                       value=f"{arr_g}  ->  {dep_g}",
+                       bg=NIGHT_BG, fg=WHITE, bold=True, size=9,
+                       border=b_all(PURPLE_MED))
+                    sc(ws.cell(row=base + 5, column=col),
+                       value=f"Duree : {fmt_duree(nuit)}",
+                       bg=PURPLE_BG, fg=PURPLE_FG, bold=True, size=8,
+                       border=b_all(PURPLE_FG))
+                    if terminee:
+                        sc(ws.cell(row=base + 6, column=col),
+                           value='Terminee', bg=GREEN_BG, fg=GREEN_FG,
+                           bold=True, size=8, border=b_all())
+                    else:
+                        sc(ws.cell(row=base + 6, column=col),
+                           value='En cours', bg=ORANGE_BG, fg=ORANGE_FG,
+                           bold=True, size=8, border=b_all())
+                    sc(ws.cell(row=base + 7, column=col), bg=GREY_LIGHT,
+                       border=Border(bottom=Side(style='medium', color=PURPLE_FG),
+                                     left=sd(), right=sd()))
+                else:
+                    has_data = matin or apm
+                    h_trav = timedelta()
+                    h_ret = timedelta()
+                    if matin:
+                        h_trav += matin.heures_travaillees or timedelta()
+                        h_ret += matin.retard or timedelta()
+                    if apm:
+                        h_trav += apm.heures_travaillees or timedelta()
+                        h_ret += apm.retard or timedelta()
+                    h_sup = max(timedelta(), h_trav - timedelta(hours=8))
+                    
+                    tot_trav += h_trav
+                    tot_retard += h_ret
+                    tot_sup += h_sup
+                    
+                    sc(ws.cell(row=base, column=col),
+                       bg=bg_day if has_data else GREY_LIGHT,
+                       border=Border(top=Side(style='medium', color=BLUE),
+                                     left=sd(), right=sd()))
+                    sc(ws.cell(row=base + 1, column=col),
+                       value='Matin', bg=ORANGE_BG, fg=ORANGE_FG,
+                       bold=True, size=8, border=b_all())
+                    arr_m = fmt_time(matin.heure_arrivee if matin else None)
+                    dep_m = fmt_time(matin.heure_depart if matin else None)
+                    sc(ws.cell(row=base + 2, column=col),
+                       value=f"{arr_m}  ->  {dep_m}" if has_data else '-',
+                       bg=bg_day, fg=DARK, bold=True, size=9, border=b_all())
+                    sc(ws.cell(row=base + 3, column=col),
+                       value='Apres-midi', bg=BLUE_LIGHT, fg=BLUE,
+                       bold=True, size=8, border=b_all())
+                    arr_s = fmt_time(apm.heure_arrivee if apm else None)
+                    dep_s = fmt_time(apm.heure_depart if apm else None)
+                    sc(ws.cell(row=base + 4, column=col),
+                       value=f"{arr_s}  ->  {dep_s}" if has_data else '-',
+                       bg=bg_day, fg=DARK, bold=True, size=9, border=b_all())
+                    sc(ws.cell(row=base + 5, column=col),
+                       value=f"Retard : {matin.get_retard_minutes if matin else 0}min" if h_ret.total_seconds() > 0 else '-',
+                       bg=RED_BG if h_ret.total_seconds() > 0 else bg_day,
+                       fg=RED_FG if h_ret.total_seconds() > 0 else '999999',
+                       size=8, italic=True, border=b_all())
+                    sc(ws.cell(row=base + 6, column=col),
+                       value=f"H.sup : {fmt_duree(Pointage(heures_travaillees=h_sup))}" if h_sup.total_seconds() > 0 else '-',
+                       bg=GREEN_BG if h_sup.total_seconds() > 0 else bg_day,
+                       fg=GREEN_FG if h_sup.total_seconds() > 0 else '999999',
+                       size=8, italic=True, border=b_all())
+                    sc(ws.cell(row=base + 7, column=col), bg=GREY_LIGHT,
+                       border=Border(bottom=Side(style='medium', color=BLUE),
+                                     left=sd(), right=sd()))
+            
+            ws.merge_cells(start_row=base, start_column=COL_TOTAL,
+                           end_row=base + 6, end_column=COL_TOTAL)
+            
+            total_lines = [
+                f"Retards :\n{Pointage(heures_travaillees=tot_retard).get_duree_formatee()}" if tot_retard.total_seconds() > 0 else "Retards :\n0h00",
+                f"\nH. Travaillees :\n{Pointage(heures_travaillees=tot_trav).get_duree_formatee()}",
+                f"\nH. Supp :\n{Pointage(heures_travaillees=tot_sup).get_duree_formatee()}" if tot_sup.total_seconds() > 0 else "\nH. Supp :\n0h00",
+            ]
+            if tot_gardes > 0:
+                total_lines.append(f"\nGardes :\n{tot_gardes}")
+            
+            sc(ws.cell(row=base, column=COL_TOTAL),
+               value="\n".join(total_lines),
+               bg=TOTAL_BG, fg=DARK, size=9,
+               wrap=True, halign='center', valign='center',
+               border=b_outer(BLUE))
+            ws.cell(row=base + 7, column=COL_TOTAL).fill = PatternFill('solid', start_color=GREY_MID)
+            ws.cell(row=base + 7, column=COL_TOTAL).border = b_bottom()
+        
+        ws.freeze_panes = f'{get_column_letter(COL_DAYS)}{HEADER_ROW + 1}'
         
         filename = f"resume_pointages_{date_debut.strftime('%Y%m%d')}_{date_fin.strftime('%Y%m%d')}.xlsx"
         response = HttpResponse(
