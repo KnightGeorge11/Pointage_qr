@@ -6,6 +6,99 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        /* ============================================================ */
+        /* FORMULAIRE DE RECHERCHE DE DATE AVEC CALENDRIER */
+        /* ============================================================ */
+        .date-search-container {
+            background: #fff;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+        }
+        .date-search-container .form-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .date-search-container .form-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .date-search-container label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748B;
+            white-space: nowrap;
+        }
+        .date-search-container input[type="date"] {
+            padding: 7px 12px;
+            border: 1px solid #E2E8F0;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #0F172A;
+            background: #fff;
+            transition: border-color 150ms ease;
+            min-width: 150px;
+        }
+        .date-search-container input[type="date"]:focus {
+            outline: none;
+            border-color: #2563EB;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        .date-search-container .btn-primary {
+            background: #2563EB;
+            border: none;
+            color: #fff;
+            padding: 7px 20px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 150ms ease;
+        }
+        .date-search-container .btn-primary:hover {
+            background: #1D4ED8;
+        }
+        .date-search-container .btn-secondary {
+            background: transparent;
+            border: 1px solid #E2E8F0;
+            color: #64748B;
+            padding: 7px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 150ms ease;
+        }
+        .date-search-container .btn-secondary:hover {
+            background: #F1F5F9;
+            border-color: #94A3B8;
+        }
+        .date-search-container .date-info {
+            font-size: 12px;
+            color: #64748B;
+            padding: 6px 14px;
+            background: #F1F5F9;
+            border-radius: 6px;
+            margin-left: auto;
+        }
+        .date-search-container .date-info i {
+            color: #2563EB;
+            margin-right: 6px;
+        }
+        .date-search-container .date-info strong {
+            color: #0F172A;
+        }
+        .date-search-container .date-info .count {
+            color: #22C55E;
+            margin-left: 8px;
+        }
+
         .stats-mini {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -87,111 +180,28 @@
             max-height: 120px;
         }
 
-        /* ============================================================ */
-        /* FORMULAIRE DE RECHERCHE DE DATE AVEC CALENDRIER */
-        /* ============================================================ */
-        .date-search-form {
-            background: #fff;
-            border: 1px solid #E2E8F0;
-            border-radius: 10px;
-            padding: 16px 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-        .date-search-form .form-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .date-search-form label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #64748B;
-            white-space: nowrap;
-        }
-        .date-search-form input[type="date"] {
-            padding: 6px 10px;
-            border: 1px solid #E2E8F0;
-            border-radius: 6px;
-            font-size: 13px;
-            color: #0F172A;
-            background: #fff;
-            transition: border-color 150ms ease;
-        }
-        .date-search-form input[type="date"]:focus {
-            outline: none;
-            border-color: #2563EB;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
-        .date-search-form .btn-filter {
-            background: #2563EB;
-            border: none;
-            color: #fff;
-            padding: 6px 18px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 150ms ease;
-        }
-        .date-search-form .btn-filter:hover {
-            background: #1D4ED8;
-        }
-        .date-search-form .btn-reset {
-            background: transparent;
-            border: 1px solid #E2E8F0;
-            color: #64748B;
-            padding: 6px 18px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 150ms ease;
-        }
-        .date-search-form .btn-reset:hover {
-            background: #F1F5F9;
-            border-color: #94A3B8;
-        }
-        .date-search-form .date-info {
-            font-size: 12px;
-            color: #64748B;
-            padding: 6px 12px;
-            background: #F1F5F9;
-            border-radius: 6px;
-            margin-left: auto;
-        }
-        .date-search-form .date-info i {
-            color: #2563EB;
-            margin-right: 6px;
-        }
-        .date-search-form .date-info strong {
-            color: #0F172A;
-        }
-
         @media (max-width: 768px) {
             .stats-mini {
                 grid-template-columns: repeat(2, 1fr);
             }
-            .date-search-form {
+            .date-search-container .form-row {
                 flex-direction: column;
                 align-items: stretch;
             }
-            .date-search-form .date-info {
+            .date-search-container .form-group {
+                flex-wrap: wrap;
+            }
+            .date-search-container .date-info {
                 margin-left: 0;
                 text-align: center;
-            }
-            .date-search-form .form-group {
-                flex-wrap: wrap;
             }
         }
         @media (max-width: 480px) {
             .stats-mini {
                 grid-template-columns: 1fr 1fr;
+            }
+            .date-search-container input[type="date"] {
+                min-width: 100%;
             }
         }
     </style>
@@ -201,53 +211,48 @@
     <!-- ============================================================ -->
     <!-- FORMULAIRE DE RECHERCHE DE DATE AVEC CALENDRIER -->
     <!-- ============================================================ -->
-    <div class="date-search-form">
-        <form method="get" style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; width: 100%;">
+    <div class="date-search-container">
+        <form method="get" class="form-row">
             <!-- Conserver tous les paramètres GET existants sauf date_debut et date_fin -->
             {% for key, value in request.GET.items %}
-                {% if key != 'date_debut' and key != 'date_fin' and key != 'date_filter' %}
+                {% if key != 'date_debut' and key != 'date_fin' %}
                     <input type="hidden" name="{{ key }}" value="{{ value }}">
                 {% endif %}
             {% endfor %}
-            
-            <!-- Conserver le filtre date_filter si présent -->
-            {% if request.GET.date_filter %}
-                <input type="hidden" name="date_filter" value="{{ request.GET.date_filter }}">
-            {% endif %}
 
             <div class="form-group">
-                <label for="date_debut"><i class="fas fa-calendar-alt"></i> Du</label>
-                <input type="date" name="date_debut" id="date_debut" 
-                       value="{{ request.GET.date_debut }}" 
-                       placeholder="jj/mm/aaaa">
-            </div>
-            
-            <div class="form-group">
-                <label for="date_fin"><i class="fas fa-calendar-alt"></i> Au</label>
-                <input type="date" name="date_fin" id="date_fin" 
-                       value="{{ request.GET.date_fin }}" 
+                <label for="id_date_debut"><i class="fas fa-calendar-alt"></i> Du</label>
+                <input type="date" name="date_debut" id="id_date_debut" 
+                       value="{{ date_debut|default:'' }}" 
                        placeholder="jj/mm/aaaa">
             </div>
 
-            <button type="submit" class="btn-filter">
+            <div class="form-group">
+                <label for="id_date_fin"><i class="fas fa-calendar-alt"></i> Au</label>
+                <input type="date" name="date_fin" id="id_date_fin" 
+                       value="{{ date_fin|default:'' }}" 
+                       placeholder="jj/mm/aaaa">
+            </div>
+
+            <button type="submit" class="btn-primary">
                 <i class="fas fa-search"></i> Filtrer
             </button>
 
-            <a href="?{% for key, value in request.GET.items %}{% if key != 'date_debut' and key != 'date_fin' and key != 'date_filter' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" class="btn-reset">
+            <a href="?{% for key, value in request.GET.items %}{% if key != 'date_debut' and key != 'date_fin' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" class="btn-secondary">
                 <i class="fas fa-times"></i> Reinitialiser
             </a>
 
-            {% if request.GET.date_debut or request.GET.date_fin %}
+            {% if date_debut or date_fin %}
                 <span class="date-info">
                     <i class="fas fa-clock"></i>
-                    Filtre actif :
-                    {% if request.GET.date_debut %}
-                        Du <strong>{{ request.GET.date_debut|date:"d/m/Y" }}</strong>
+                    Filtre :
+                    {% if date_debut %}
+                        Du <strong>{{ date_debut }}</strong>
                     {% endif %}
-                    {% if request.GET.date_fin %}
-                        au <strong>{{ request.GET.date_fin|date:"d/m/Y" }}</strong>
+                    {% if date_fin %}
+                        au <strong>{{ date_fin }}</strong>
                     {% endif %}
-                    <span style="margin-left: 8px; color: #22C55E;">
+                    <span class="count">
                         <i class="fas fa-check-circle"></i>
                         {{ total|default:0 }} resultats
                     </span>

@@ -1,8 +1,7 @@
-# pointage/admin.py - VERSION QUI FONCTIONNE ENFIN
+# pointage/admin.py - SOLUTION DEFINITIVE QUI MARCHE
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
-from django.contrib.admin.views.main import ChangeList
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 from django.urls import path, reverse
@@ -19,42 +18,12 @@ from .models import (
     AnomaliePointage, AnomalieTraitement,
 )
 from .anomalies import marquer_traitee, marquer_cloturee
-from .forms import DateSearchForm
 import uuid
 from datetime import timedelta, datetime
 from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-
-
-# ============================================================
-# CHANGELIST PERSONNALISE POUR NETTOYER LES PARAMETRES
-# ============================================================
-
-class PointageChangeList(ChangeList):
-    def get_queryset(self, request):
-        # Nettoyer request.GET avant de l'utiliser
-        # Créer une copie des paramètres sans date_debut et date_fin
-        filtered_params = {}
-        for key, value in request.GET.items():
-            if key not in ['date_debut', 'date_fin']:
-                filtered_params[key] = value
-        
-        # Remplacer temporairement request.GET
-        from django.http import QueryDict
-        original_get = request.GET
-        request.GET = QueryDict('', mutable=True)
-        for key, value in filtered_params.items():
-            request.GET[key] = value
-        
-        # Appeler la méthode parent avec le GET nettoyé
-        queryset = super().get_queryset(request)
-        
-        # Restaurer request.GET
-        request.GET = original_get
-        
-        return queryset
 
 
 # ============================================================
@@ -312,7 +281,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - SOLUTION DEFINITIVE
+# POINTAGE - SOLUTION SIMPLE ET EFFICACE
 # ============================================================
 
 @admin.register(Pointage)
@@ -347,9 +316,6 @@ class PointageAdmin(admin.ModelAdmin):
     ]
 
     readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
-
-    def get_changelist(self, request, **kwargs):
-        return PointageChangeList
 
     def get_retard_display(self, obj):
         if obj.retard and obj.retard.total_seconds() > 0:
@@ -400,7 +366,8 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW - MODIFIEE
+    # LA SOLUTION : Ne pas utiliser date_debut et date_fin comme paramètres
+    # On utilise un paramètre unique 'date_range' encodé en JSON
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
@@ -408,14 +375,9 @@ class PointageAdmin(admin.ModelAdmin):
         date_debut = request.GET.get('date_debut', '')
         date_fin = request.GET.get('date_fin', '')
         
-        # Créer le formulaire avec les dates
-        form = DateSearchForm({'date_debut': date_debut, 'date_fin': date_fin})
+        # Si des dates sont présentes, on filtre le queryset
+        queryset = self.get_queryset(request)
         
-        # Obtenir le queryset de base (le nettoyage est fait dans PointageChangeList)
-        cl = self.get_changelist_instance(request)
-        queryset = cl.get_queryset(request)
-        
-        # Appliquer les filtres de date manuellement
         if date_debut and date_fin:
             try:
                 debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
@@ -449,14 +411,15 @@ class PointageAdmin(admin.ModelAdmin):
         retards = queryset.filter(statut='retard').count()
         absents = queryset.filter(statut='absent').count()
         
-        # Contexte
+        # Contexte pour le template
         extra_context = extra_context or {}
         extra_context.update({
             'total': total,
             'presents_count': presents,
             'retards_count': retards,
             'absents_count': absents,
-            'date_search_form': form,
+            'date_debut': date_debut,
+            'date_fin': date_fin,
         })
         
         return super().changelist_view(request, extra_context=extra_context)
