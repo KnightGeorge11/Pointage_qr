@@ -222,236 +222,6 @@ class StatutPointageFilter(SimpleListFilter):
 
 
 # ============================================================
-# POINTAGE - ADMIN JAZZMIN
-# ============================================================
-
-@admin.register(Pointage)
-class PointageAdmin(admin.ModelAdmin):
-
-    # --------------------------------------------------------
-    # TEMPLATE PERSONNALISÉ EXISTANT
-    # --------------------------------------------------------
-
-    change_list_template = "admin/pointage/pointage_changelist.html"
-
-    # --------------------------------------------------------
-    # COLONNES DU TABLEAU
-    # --------------------------------------------------------
-
-    list_display = [
-        'employe',
-        'date_pointage',
-        'periode',
-        'type_journee',
-        'heure_arrivee',
-        'heure_depart',
-        'site',
-        'statut',
-        'get_retard_display',
-        'get_heures_display',
-    ]
-
-    # --------------------------------------------------------
-    # FILTRES JAZZMIN
-    # --------------------------------------------------------
-
-    list_filter = [
-        DatePeriodeFilter,
-        EmployeFilter,
-        SiteFilter,
-        PeriodeTypeFilter,
-        StatutPointageFilter,
-    ]
-
-    # --------------------------------------------------------
-    # BARRE DE RECHERCHE
-    # --------------------------------------------------------
-    #
-    # La recherche fonctionne sur :
-    #
-    # - nom employé
-    # - prénom employé
-    # - matricule
-    # - nom du site
-    #
-    # Exemple :
-    #
-    # "Rakoto"
-    # "Jean"
-    # "EMP001"
-    # "Site Principal"
-    #
-    # Plusieurs termes peuvent également être utilisés.
-    # --------------------------------------------------------
-
-    search_fields = [
-        'employe__nom',
-        'employe__prenom',
-        'employe__matricule',
-        'site__nom',
-    ]
-
-    # --------------------------------------------------------
-    # CHAMPS NON MODIFIABLES
-    # --------------------------------------------------------
-
-    readonly_fields = (
-        'retard',
-        'heures_travaillees',
-        'date_creation',
-        'date_modification',
-    )
-
-    # --------------------------------------------------------
-    # NAVIGATION PAR DATE
-    # --------------------------------------------------------
-
-    date_hierarchy = 'date_pointage'
-
-    # --------------------------------------------------------
-    # ACTIONS EN MASSE
-    # --------------------------------------------------------
-
-    actions = [
-        'marquer_present',
-        'marquer_retard',
-        'marquer_absent',
-        'supprimer_selection',
-    ]
-
-    # ========================================================
-    # AFFICHAGE DU RETARD
-    # ========================================================
-
-    def get_retard_display(self, obj):
-        if obj.retard and obj.retard.total_seconds() > 0:
-            minutes = obj.get_retard_minutes()
-
-            if minutes >= 30:
-                return format_html(
-                    '<span style="'
-                    'background:#FEE2E2;'
-                    'color:#B91C1C;'
-                    'padding:2px 10px;'
-                    'border-radius:9999px;'
-                    'font-weight:600;'
-                    'font-size:10px;'
-                    '">'
-                    '⚠️ {} min'
-                    '</span>',
-                    minutes
-                )
-
-            return f"{minutes} min"
-
-        return "—"
-
-    get_retard_display.short_description = "Retard"
-
-    # ========================================================
-    # AFFICHAGE DES HEURES TRAVAILLÉES
-    # ========================================================
-
-    def get_heures_display(self, obj):
-        if (
-            obj.heures_travaillees
-            and obj.heures_travaillees.total_seconds() > 0
-        ):
-            total_seconds = obj.heures_travaillees.total_seconds()
-
-            hours = int(total_seconds // 3600)
-            minutes = int((total_seconds % 3600) // 60)
-
-            return f"{hours}h{minutes:02d}"
-
-        return "—"
-
-    get_heures_display.short_description = "Heures travaillées"
-
-    # ========================================================
-    # ACTION : PRÉSENT
-    # ========================================================
-
-    def marquer_present(self, request, queryset):
-        count = queryset.update(
-            statut='present'
-        )
-
-        self.message_user(
-            request,
-            f"✅ {count} pointage(s) marqué(s) comme présent.",
-            messages.SUCCESS,
-        )
-
-    marquer_present.short_description = "✅ Marquer comme présent"
-
-    # ========================================================
-    # ACTION : RETARD
-    # ========================================================
-
-    def marquer_retard(self, request, queryset):
-        count = queryset.update(
-            statut='retard'
-        )
-
-        self.message_user(
-            request,
-            f"⚠️ {count} pointage(s) marqué(s) comme retard.",
-            messages.SUCCESS,
-        )
-
-    marquer_retard.short_description = "⚠️ Marquer comme retard"
-
-    # ========================================================
-    # ACTION : ABSENT
-    # ========================================================
-
-    def marquer_absent(self, request, queryset):
-        count = queryset.update(
-            statut='absent'
-        )
-
-        self.message_user(
-            request,
-            f"❌ {count} pointage(s) marqué(s) comme absent.",
-            messages.SUCCESS,
-        )
-
-    marquer_absent.short_description = "❌ Marquer comme absent"
-
-    # ========================================================
-    # ACTION : SUPPRESSION
-    # ========================================================
-
-    def supprimer_selection(self, request, queryset):
-        count = queryset.count()
-
-        if count > 0:
-            queryset.delete()
-
-            self.message_user(
-                request,
-                f"🗑️ {count} pointage(s) supprimé(s).",
-                messages.SUCCESS,
-            )
-
-    supprimer_selection.short_description = "🗑️ Supprimer"
-
-    # ========================================================
-    # QUERYSET OPTIMISÉ
-    # ========================================================
-
-    def get_queryset(self, request):
-        return (
-            Pointage.objects
-            .select_related(
-                'employe',
-                'site',
-            )
-        )
-
-
-# ============================================================
 # CUSTOM USER
 # ============================================================
 
@@ -647,29 +417,28 @@ class PointageAdmin(admin.ModelAdmin):
     # ============================================================
     # FILTRES EXACTEMENT COMME L'INTERFACE UTILISATEUR
     # ============================================================
-list_filter = [
-    DatePeriodeFilter,
-    EmployeFilter,
-    SiteFilter,
-    PeriodeTypeFilter,
-    StatutPointageFilter,
-]
+    list_filter = [
+        DatePeriodeFilter,
+        EmployeFilter,
+        SiteFilter,
+        PeriodeTypeFilter,
+        StatutPointageFilter,
+    ]
 
-search_fields = [
+    search_fields = [
         'employe__nom',
         'employe__prenom',
         'employe__matricule',
         'site__nom',
     ]
 
-readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
-date_hierarchy = 'date_pointage'
+    readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
+    date_hierarchy = 'date_pointage'
 
     # ============================================================
     # CHAMPS PERSONNALISÉS
     # ============================================================
-
-def get_retard_display(self, obj):
+    def get_retard_display(self, obj):
         if obj.retard and obj.retard.total_seconds() > 0:
             minutes = obj.get_retard_minutes()
             if minutes >= 30:
@@ -679,16 +448,16 @@ def get_retard_display(self, obj):
                 )
             return f"{minutes} min"
         return "—"
-get_retard_display.short_description = "Retard"
+    get_retard_display.short_description = "Retard"
     
-def get_heures_display(self, obj):
+    def get_heures_display(self, obj):
         if obj.heures_travaillees and obj.heures_travaillees.total_seconds() > 0:
             total_seconds = obj.heures_travaillees.total_seconds()
             hours = int(total_seconds // 3600)
             minutes = int((total_seconds % 3600) // 60)
             return f"{hours}h{minutes:02d}"
         return "—"
-get_heures_display.short_description = "Heures travaillées"
+    get_heures_display.short_description = "Heures travaillées"
     
     # ============================================================
     # ACTIONS EN MASSE
