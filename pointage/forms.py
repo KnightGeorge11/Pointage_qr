@@ -1,5 +1,8 @@
+# pointage/forms.py
+
 from django import forms
-from .models import Employe, Site, Pointage
+from .models import Employe, Site, Pointage, Poste
+
 
 class EmployeForm(forms.ModelForm):
     class Meta:
@@ -19,6 +22,7 @@ class EmployeForm(forms.ModelForm):
             'matricule': 'Matricule',
             'actif': 'Actif',
         }
+
 
 class SiteForm(forms.ModelForm):
     class Meta:
@@ -41,6 +45,23 @@ class SiteForm(forms.ModelForm):
             'heure_ouverture_apres_midi': "Heure d'ouverture (après-midi)",
             'heure_fermeture_apres_midi': 'Heure de fermeture (après-midi)',
         }
+
+
+class PosteForm(forms.ModelForm):
+    class Meta:
+        model = Poste
+        fields = ['nom', 'description', 'couleur']
+        widgets = {
+            'nom': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'couleur': forms.TextInput(attrs={'class': 'form-control', 'type': 'color'}),
+        }
+        labels = {
+            'nom': 'Nom du poste',
+            'description': 'Description',
+            'couleur': 'Couleur',
+        }
+
 
 class PointageForm(forms.ModelForm):
     """Formulaire unique pour tous les pointages (matin, après-midi, nuit/garde)"""
@@ -102,6 +123,7 @@ class PointageForm(forms.ModelForm):
                 self.add_error('heure_depart', "L'heure de départ doit être après l'heure d'arrivée.")
         return cleaned_data
 
+
 class ScanForm(forms.Form):
     """Formulaire de scan (entrée manuelle du matricule)"""
     matricule = forms.CharField(
@@ -126,19 +148,32 @@ class ScanForm(forms.Form):
         except Employe.DoesNotExist:
             raise forms.ValidationError("Employé non trouvé ou inactif")
         return matricule
-from .models import Poste
 
-class PosteForm(forms.ModelForm):
-    class Meta:
-        model  = Poste
-        fields = ['nom', 'description', 'couleur']
-        widgets = {
-            'nom': forms.TextInput(attrs={'class': 'form-control'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'couleur': forms.TextInput(attrs={'class': 'form-control', 'type': 'color'}),
-        }
-        labels = {
-            'nom':         'Nom du poste',
-            'description': 'Description',
-            'couleur':     'Couleur',
-        }
+
+# ============================================================
+# NOUVEAU FORMULAIRE DE RECHERCHE DE DATE
+# ============================================================
+
+class DateSearchForm(forms.Form):
+    """
+    Formulaire de recherche de pointages par plage de dates.
+    Utilise des champs de type 'date' qui affichent un calendrier.
+    """
+    date_debut = forms.DateField(
+        label='Date de début',
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'form-control',
+            'placeholder': 'jj/mm/aaaa'
+        }),
+        required=False
+    )
+    date_fin = forms.DateField(
+        label='Date de fin',
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'form-control',
+            'placeholder': 'jj/mm/aaaa'
+        }),
+        required=False
+    )
