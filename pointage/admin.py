@@ -1,4 +1,4 @@
-# pointage/admin.py - VERSION SIMPLE ET EFFICACE
+# pointage/admin.py - VERSION AVEC INTERFACE CARTES COMME L'UTILISATEUR
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -9,8 +9,9 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, Sum, Count
 from django.shortcuts import render, get_object_or_404
+from django.template.response import TemplateResponse
 import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
@@ -27,85 +28,167 @@ from openpyxl.utils import get_column_letter
 
 
 # ============================================================
-# FILTRES DE LA BARRE LATERALE
+# VUE PERSONNALISEE POUR L'ADMIN
 # ============================================================
 
-class PeriodeTypeFilter(SimpleListFilter):
-    title = 'Type de periode'
-    parameter_name = 'periode_type'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('jour', 'Jour'),
-            ('nuit', 'Nuit (Gardes)'),
-        )
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value == 'jour':
-            return queryset.filter(type_journee='normal')
-        if value == 'nuit':
-            return queryset.filter(type_journee='garde')
-        return queryset
-
-
-class EmployeFilter(SimpleListFilter):
-    title = 'Employe'
-    parameter_name = 'employe'
-
-    def lookups(self, request, model_admin):
-        employes = Employe.objects.filter(actif=True).select_related('poste').order_by('nom', 'prenom')
-        return [
-            (str(employe.pk), f"{employe.prenom} {employe.nom} ({employe.matricule})")
-            for employe in employes
+class PointageAdminView(admin.ModelAdmin):
+    change_list_template = "admin/pointage/pointage_cards.html"
+    
+    list_display = []  # On n'utilise pas la liste standard
+    list_filter = []
+    search_fields = []
+    
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('', self.admin_site.admin_view(self.cards_view), name='pointage_pointage_changelist'),
         ]
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if not value:
-            return queryset
-        try:
-            employe_id = int(value)
-            return queryset.filter(employe_id=employe_id)
-        except (ValueError, TypeError):
-            return queryset
-
-
-class SiteFilter(SimpleListFilter):
-    title = 'Site'
-    parameter_name = 'site'
-
-    def lookups(self, request, model_admin):
+        return custom_urls + urls
+    
+    def cards_view(self, request):
+        # Récupérer les paramètres de filtre
+        date_debut = request.GET.get('date_debut', '')
+        date_fin = request.GET.get('date_fin', '')
+        employe_id = request.GET.get('employe', '')
+        site_id = request.GET.get('site', '')
+        periode_type = request.GET.get('periode_type', '')
+        
+        # Construire le queryset de base
+        queryset = Pointage.objects.select_related('employe', 'site')
+        
+        # Appliquer les filtres
+        if date_debut and date_fin:
+            try:
+                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
+                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__gte=debut, date_pointage__lte=fin)
+            except ValueError:
+                pass
+        elif date_debut:
+            try:
+                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__gte=debut)
+            except ValueError:
+                pass
+        elif date_fin:
+            try:
+                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__lte=fin)
+            except ValueError:
+                pass
+        
+        if employe_id:
+            queryset = queryset.filter(employe_id=employe_id)
+        if site_id:
+            queryset = queryset.filter(site_id=site_id)
+        if periode_type == 'jour':
+            queryset = queryset.filter(type_journee='normal')
+        elif periode_type == 'nuit':
+            queryset = queryset.filter(type_journee='garde')
+        
+        # Organiser les données par employé et date
+        jour_data = defaultdict(lambda: defaultdict(lambda: {'matin': None, 'apres_midi': None, 'nuit': None}))
+        employes_info = {}
+        
+        for p in queryset:
+            employes_info[p.employe.id] = {
+                'id': p.employe.id,
+                'nom': p.employe.nom,
+                'prenom': p.employe.prenom,
+                'matricule': p.employe.matricule,
+                'poste': p.employe.poste.nom if p.employe.poste else None,
+                'poste_couleur': p.employe.poste.couleur if p.employe.poste else '#4361ee',
+            }
+            jour_data[p.employe.id][p.date_pointage][p.periode] = p
+        
+        # Construire la structure pour les cartes
+        cards = []
+        for emp_id, dates in jour_data.items():
+            for date, periods in dates.items():
+                matin = periods.get('matin')
+                apm = periods.get('apres_midi')
+                nuit = periods.get('nuit')
+                
+                # Calculer les totaux
+                heures_total = timedelta()
+                retard_total = timedelta()
+                heures_sup = timedelta()
+                
+                if matin:
+                    heures_total += matin.heures_travaillees or timedelta()
+                    retard_total += matin.retard or timedelta()
+                if apm:
+                    heures_total += apm.heures_travaillees or timedelta()
+                    retard_total += apm.retard or timedelta()
+                if nuit:
+                    heures_total += nuit.heures_travaillees or timedelta()
+                    retard_total += nuit.retard or timedelta()
+                
+                # Heures supplémentaires (au-delà de 8h par jour)
+                if heures_total > timedelta(hours=8):
+                    heures_sup = heures_total - timedelta(hours=8)
+                
+                # Statut global
+                if matin and apm and matin.heure_arrivee and matin.heure_depart and apm.heure_arrivee and apm.heure_depart:
+                    statut_global = 'present'
+                elif matin or apm or nuit:
+                    statut_global = 'partiel'
+                else:
+                    statut_global = 'absent'
+                
+                # Vérifier si c'est une garde de nuit
+                is_garde = nuit and nuit.type_journee == 'garde'
+                
+                cards.append({
+                    'employe': employes_info[emp_id],
+                    'date': date,
+                    'matin': matin,
+                    'apres_midi': apm,
+                    'nuit': nuit,
+                    'is_garde': is_garde,
+                    'statut_global': statut_global,
+                    'heures_total': heures_total,
+                    'retard_total': retard_total,
+                    'heures_sup': heures_sup,
+                })
+        
+        # Trier par date décroissante
+        cards.sort(key=lambda x: x['date'], reverse=True)
+        
+        # Pagination
+        from django.core.paginator import Paginator
+        paginator = Paginator(cards, 20)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+        
+        # Statistiques
+        total_journees = len(cards)
+        total_heures = sum((c['heures_total'] for c in cards), timedelta())
+        total_retard = sum((c['retard_total'] for c in cards), timedelta())
+        unique_employes = len(set(c['employe']['id'] for c in cards))
+        
+        # Liste des employés et sites pour les filtres
+        employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         sites = Site.objects.all().order_by('nom')
-        return [(str(site.pk), site.nom) for site in sites]
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if not value:
-            return queryset
-        try:
-            site_id = int(value)
-            return queryset.filter(site_id=site_id)
-        except (ValueError, TypeError):
-            return queryset
-
-
-class StatutPointageFilter(SimpleListFilter):
-    title = 'Statut'
-    parameter_name = 'statut'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('present', 'Present'),
-            ('retard', 'En retard'),
-            ('absent', 'Absent'),
-        )
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value in ('present', 'retard', 'absent'):
-            return queryset.filter(statut=value)
-        return queryset
+        
+        context = {
+            'title': 'Pointages',
+            'cards': page_obj,
+            'jours': page_obj,  # Pour la compatibilité
+            'total_journees': total_journees,
+            'total_heures': total_heures,
+            'total_retard': total_retard,
+            'unique_employes_count': unique_employes,
+            'employes': employes,
+            'sites': sites,
+            'filter_date_debut': date_debut,
+            'filter_date_fin': date_fin,
+            'opts': self.model._meta,
+            'app_label': self.model._meta.app_label,
+            'has_add_permission': self.has_add_permission(request),
+        }
+        
+        return TemplateResponse(request, self.change_list_template, context)
 
 
 # ============================================================
@@ -281,94 +364,165 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - SOLUTION SIMPLE AVEC date_hierarchy
+# POINTAGE - INTERFACE CARTES
 # ============================================================
 
 @admin.register(Pointage)
-class PointageAdmin(admin.ModelAdmin):
-    change_list_template = "admin/pointage/pointage_changelist.html"
-    
-    list_display = [
-        'employe',
-        'date_pointage',
-        'periode',
-        'type_journee',
-        'heure_arrivee',
-        'heure_depart',
-        'site',
-        'statut',
-        'get_retard_display',
-        'get_heures_display',
-    ]
-    
-    list_filter = [
-        EmployeFilter,
-        SiteFilter,
-        PeriodeTypeFilter,
-        StatutPointageFilter,
-    ]
+class PointageAdmin(PointageAdminView):
+    pass
 
-    search_fields = [
-        'employe__nom',
-        'employe__prenom',
-        'employe__matricule',
-        'site__nom',
-    ]
 
-    readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
-    
-    # ============================================================
-    # LA SOLUTION : Utiliser date_hierarchy au lieu de filtres personnalisés
-    # ============================================================
-    date_hierarchy = 'date_pointage'  # <- C'est tout ! Django gère les dates automatiquement
+# ============================================================
+# SCAN
+# ============================================================
 
-    def get_retard_display(self, obj):
-        if obj.retard and obj.retard.total_seconds() > 0:
-            minutes = obj.get_retard_minutes()
-            if minutes >= 30:
-                return format_html(
-                    '<span style="background:#FEE2E2;color:#B91C1C;padding:2px 10px;border-radius:9999px;font-weight:600;font-size:10px;">[!] {} min</span>',
-                    minutes
-                )
-            return f"{minutes} min"
-        return "-"
-    get_retard_display.short_description = "Retard"
-    
-    def get_heures_display(self, obj):
-        if obj.heures_travaillees and obj.heures_travaillees.total_seconds() > 0:
-            total_seconds = obj.heures_travaillees.total_seconds()
-            hours = int(total_seconds // 3600)
-            minutes = int((total_seconds % 3600) // 60)
-            return f"{hours}h{minutes:02d}"
-        return "-"
-    get_heures_display.short_description = "Heures travaillees"
-    
-    actions = ['marquer_present', 'marquer_retard', 'marquer_absent', 'supprimer_selection']
-    
-    def marquer_present(self, request, queryset):
-        count = queryset.update(statut='present')
-        self.message_user(request, f"{count} pointage(s) marque(s) comme present.")
-    marquer_present.short_description = "Marquer comme present"
-    
-    def marquer_retard(self, request, queryset):
-        count = queryset.update(statut='retard')
-        self.message_user(request, f"{count} pointage(s) marque(s) comme retard.")
-    marquer_retard.short_description = "Marquer comme retard"
-    
-    def marquer_absent(self, request, queryset):
-        count = queryset.update(statut='absent')
-        self.message_user(request, f"{count} pointage(s) marque(s) comme absent.")
-    marquer_absent.short_description = "Marquer comme absent"
-    
-    def supprimer_selection(self, request, queryset):
-        count = queryset.count()
-        if count > 0:
-            queryset.delete()
-            self.message_user(request, f"{count} pointage(s) supprime(s).")
-    supprimer_selection.short_description = "Supprimer"
-    
+@admin.register(Scan)
+class ScanAdmin(admin.ModelAdmin):
+    list_display = ('employe', 'site', 'timestamp_local', 'type_scan_display')
+    list_filter = ('type_scan', 'site', 'timestamp')
+    search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule')
+    readonly_fields = ('timestamp',)
+    date_hierarchy = 'timestamp'
+
+    def timestamp_local(self, obj):
+        return obj.get_timestamp_local().strftime('%d/%m/%Y %H:%M:%S')
+    timestamp_local.short_description = 'Heure locale'
+
+    def type_scan_display(self, obj):
+        colors = {
+            'entree_matin': '#4f8ef7',
+            'sortie_matin': '#4ade80',
+            'entree_apres_midi': '#fbbf24',
+            'sortie_apres_midi': '#22d3ee',
+            'debut_garde': '#a78bfa',
+            'fin_garde': '#94a3b8',
+        }
+        color = colors.get(obj.type_scan, '#94a3b8')
+        return mark_safe(
+            f'<span style="background:rgba(255,255,255,.07);color:{color};'
+            f'padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;'
+            f'letter-spacing:.05em;border:1px solid {color}40">'
+            f'{obj.get_type_scan_display()}</span>'
+        )
+    type_scan_display.short_description = 'Type de scan'
+
     def get_queryset(self, request):
-        return Pointage.objects.select_related('employe', 'site')
+        return super().get_queryset(request).select_related('employe', 'site')
+
+
+# ============================================================
+# ANOMALIES DE POINTAGE
+# ============================================================
+
+class AnomalieTraitementInline(admin.StackedInline):
+    model = AnomalieTraitement
+    can_delete = False
+    extra = 0
+    max_num = 1
+    fields = ('administrateur', 'date_traitement', 'commentaire', 'pointage_concerne', 'corrections')
+    readonly_fields = ('administrateur', 'date_traitement')
+
+
+@admin.register(AnomaliePointage)
+class AnomaliePointageAdmin(admin.ModelAdmin):
+    list_display = ('type_display', 'employe_ou_matricule', 'gravite_badge', 'statut_badge', 'created_at')
+    list_filter = ('statut', 'type')
+    search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule', 'matricule_scanne', 'message')
+    date_hierarchy = 'created_at'
+    inlines = [AnomalieTraitementInline]
+    actions = ['marquer_traitees', 'marquer_cloturees']
+    ordering = ('-created_at',)
+
+    readonly_fields = (
+        'type', 'employe', 'matricule_scanne', 'site',
+        'message', 'contexte_formate', 'gravite_badge', 'statut_badge',
+        'cloturee_par', 'date_cloture', 'created_at',
+    )
+
+    fieldsets = (
+        ("Anomalie", {
+            'fields': ('type', 'gravite_badge', 'employe', 'matricule_scanne', 'site', 'created_at')
+        }),
+        ("Details", {'fields': ('message', 'contexte_formate')}),
+        ("Statut", {'fields': ('statut_badge', 'cloturee_par', 'date_cloture')}),
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def type_display(self, obj):
+        return obj.get_type_display()
+    type_display.short_description = 'Type'
+
+    def employe_ou_matricule(self, obj):
+        if obj.employe:
+            return obj.employe.get_nom_complet()
+        return obj.matricule_scanne or '-'
+    employe_ou_matricule.short_description = 'Employe'
+
+    def gravite_badge(self, obj):
+        styles = {
+            'info': ('rgba(96,165,250,.12)', '#60a5fa', 'Info'),
+            'warning': ('rgba(251,191,36,.12)', '#fbbf24', 'Avertissement'),
+            'critique': ('rgba(248,113,113,.12)', '#f87171', 'Critique'),
+        }
+        bg, color, label = styles.get(obj.gravite, ('rgba(255,255,255,.07)', '#e8eaf0', obj.gravite))
+        return mark_safe(
+            f'<span style="background:{bg};color:{color};padding:4px 12px;'
+            f'border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;">'
+            f'{label}</span>'
+        )
+    gravite_badge.short_description = 'Gravite'
+
+    def statut_badge(self, obj):
+        styles = {
+            AnomaliePointage.STATUT_OUVERTE: ('rgba(248,113,113,.12)', '#f87171', 'Ouverte'),
+            AnomaliePointage.STATUT_TRAITEE: ('rgba(251,191,36,.12)', '#fbbf24', 'Traitee'),
+            AnomaliePointage.STATUT_CLOTUREE: ('rgba(74,222,128,.12)', '#4ade80', 'Cloturee'),
+        }
+        bg, color, label = styles.get(obj.statut, ('rgba(255,255,255,.07)', '#e8eaf0', obj.statut))
+        return mark_safe(
+            f'<span style="background:{bg};color:{color};padding:4px 12px;'
+            f'border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;">'
+            f'{label}</span>'
+        )
+    statut_badge.short_description = 'Statut'
+
+    def contexte_formate(self, obj):
+        if not obj.contexte:
+            return '-'
+        return format_html(
+            '<pre style="background:#1c2236;border:1px solid rgba(255,255,255,.07);'
+            'border-radius:8px;padding:12px 14px;font-size:12px;color:#e8eaf0;'
+            'white-space:pre-wrap;">{}</pre>',
+            json.dumps(obj.contexte, indent=2, ensure_ascii=False, default=str)
+        )
+    contexte_formate.short_description = "Contexte"
+
+    @admin.action(description="Marquer comme traitees")
+    def marquer_traitees(self, request, queryset):
+        count = 0
+        for anomalie in queryset.exclude(statut=AnomaliePointage.STATUT_CLOTUREE):
+            try:
+                marquer_traitee(anomalie, request.user, commentaire="Marquee traitee depuis l'administration.")
+                count += 1
+            except ValueError as e:
+                self.message_user(request, f"Anomalie #{anomalie.pk} : {e}", level=messages.ERROR)
+        self.message_user(request, f"{count} anomalie(s) marquee(s) comme traitee(s).")
+
+    @admin.action(description="Cloturer")
+    def marquer_cloturees(self, request, queryset):
+        count = 0
+        for anomalie in queryset:
+            try:
+                marquer_cloturee(anomalie, request.user)
+                count += 1
+            except ValueError as e:
+                self.message_user(request, f"Anomalie #{anomalie.pk} : {e}", level=messages.ERROR)
+        self.message_user(request, f"{count} anomalie(s) cloturee(s).")
 
 
 # ============================================================
@@ -640,159 +794,6 @@ class DemandeModificationAdmin(admin.ModelAdmin):
                 )
             elif demande.type_action == 'delete':
                 Poste.objects.filter(pk=demande.cible_id).delete()
-
-
-# ============================================================
-# SCAN
-# ============================================================
-
-@admin.register(Scan)
-class ScanAdmin(admin.ModelAdmin):
-    list_display = ('employe', 'site', 'timestamp_local', 'type_scan_display')
-    list_filter = ('type_scan', 'site', 'timestamp')
-    search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule')
-    readonly_fields = ('timestamp',)
-    date_hierarchy = 'timestamp'
-
-    def timestamp_local(self, obj):
-        return obj.get_timestamp_local().strftime('%d/%m/%Y %H:%M:%S')
-    timestamp_local.short_description = 'Heure locale'
-
-    def type_scan_display(self, obj):
-        colors = {
-            'entree_matin': '#4f8ef7',
-            'sortie_matin': '#4ade80',
-            'entree_apres_midi': '#fbbf24',
-            'sortie_apres_midi': '#22d3ee',
-            'debut_garde': '#a78bfa',
-            'fin_garde': '#94a3b8',
-        }
-        color = colors.get(obj.type_scan, '#94a3b8')
-        return mark_safe(
-            f'<span style="background:rgba(255,255,255,.07);color:{color};'
-            f'padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;'
-            f'letter-spacing:.05em;border:1px solid {color}40">'
-            f'{obj.get_type_scan_display()}</span>'
-        )
-    type_scan_display.short_description = 'Type de scan'
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('employe', 'site')
-
-
-# ============================================================
-# ANOMALIES DE POINTAGE
-# ============================================================
-
-class AnomalieTraitementInline(admin.StackedInline):
-    model = AnomalieTraitement
-    can_delete = False
-    extra = 0
-    max_num = 1
-    fields = ('administrateur', 'date_traitement', 'commentaire', 'pointage_concerne', 'corrections')
-    readonly_fields = ('administrateur', 'date_traitement')
-
-
-@admin.register(AnomaliePointage)
-class AnomaliePointageAdmin(admin.ModelAdmin):
-    list_display = ('type_display', 'employe_ou_matricule', 'gravite_badge', 'statut_badge', 'created_at')
-    list_filter = ('statut', 'type')
-    search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule', 'matricule_scanne', 'message')
-    date_hierarchy = 'created_at'
-    inlines = [AnomalieTraitementInline]
-    actions = ['marquer_traitees', 'marquer_cloturees']
-    ordering = ('-created_at',)
-
-    readonly_fields = (
-        'type', 'employe', 'matricule_scanne', 'site',
-        'message', 'contexte_formate', 'gravite_badge', 'statut_badge',
-        'cloturee_par', 'date_cloture', 'created_at',
-    )
-
-    fieldsets = (
-        ("Anomalie", {
-            'fields': ('type', 'gravite_badge', 'employe', 'matricule_scanne', 'site', 'created_at')
-        }),
-        ("Details", {'fields': ('message', 'contexte_formate')}),
-        ("Statut", {'fields': ('statut_badge', 'cloturee_par', 'date_cloture')}),
-    )
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def type_display(self, obj):
-        return obj.get_type_display()
-    type_display.short_description = 'Type'
-
-    def employe_ou_matricule(self, obj):
-        if obj.employe:
-            return obj.employe.get_nom_complet()
-        return obj.matricule_scanne or '-'
-    employe_ou_matricule.short_description = 'Employe'
-
-    def gravite_badge(self, obj):
-        styles = {
-            'info': ('rgba(96,165,250,.12)', '#60a5fa', 'Info'),
-            'warning': ('rgba(251,191,36,.12)', '#fbbf24', 'Avertissement'),
-            'critique': ('rgba(248,113,113,.12)', '#f87171', 'Critique'),
-        }
-        bg, color, label = styles.get(obj.gravite, ('rgba(255,255,255,.07)', '#e8eaf0', obj.gravite))
-        return mark_safe(
-            f'<span style="background:{bg};color:{color};padding:4px 12px;'
-            f'border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;">'
-            f'{label}</span>'
-        )
-    gravite_badge.short_description = 'Gravite'
-
-    def statut_badge(self, obj):
-        styles = {
-            AnomaliePointage.STATUT_OUVERTE: ('rgba(248,113,113,.12)', '#f87171', 'Ouverte'),
-            AnomaliePointage.STATUT_TRAITEE: ('rgba(251,191,36,.12)', '#fbbf24', 'Traitee'),
-            AnomaliePointage.STATUT_CLOTUREE: ('rgba(74,222,128,.12)', '#4ade80', 'Cloturee'),
-        }
-        bg, color, label = styles.get(obj.statut, ('rgba(255,255,255,.07)', '#e8eaf0', obj.statut))
-        return mark_safe(
-            f'<span style="background:{bg};color:{color};padding:4px 12px;'
-            f'border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;">'
-            f'{label}</span>'
-        )
-    statut_badge.short_description = 'Statut'
-
-    def contexte_formate(self, obj):
-        if not obj.contexte:
-            return '-'
-        return format_html(
-            '<pre style="background:#1c2236;border:1px solid rgba(255,255,255,.07);'
-            'border-radius:8px;padding:12px 14px;font-size:12px;color:#e8eaf0;'
-            'white-space:pre-wrap;">{}</pre>',
-            json.dumps(obj.contexte, indent=2, ensure_ascii=False, default=str)
-        )
-    contexte_formate.short_description = "Contexte"
-
-    @admin.action(description="Marquer comme traitees")
-    def marquer_traitees(self, request, queryset):
-        count = 0
-        for anomalie in queryset.exclude(statut=AnomaliePointage.STATUT_CLOTUREE):
-            try:
-                marquer_traitee(anomalie, request.user, commentaire="Marquee traitee depuis l'administration.")
-                count += 1
-            except ValueError as e:
-                self.message_user(request, f"Anomalie #{anomalie.pk} : {e}", level=messages.ERROR)
-        self.message_user(request, f"{count} anomalie(s) marquee(s) comme traitee(s).")
-
-    @admin.action(description="Cloturer")
-    def marquer_cloturees(self, request, queryset):
-        count = 0
-        for anomalie in queryset:
-            try:
-                marquer_cloturee(anomalie, request.user)
-                count += 1
-            except ValueError as e:
-                self.message_user(request, f"Anomalie #{anomalie.pk} : {e}", level=messages.ERROR)
-        self.message_user(request, f"{count} anomalie(s) cloturee(s).")
 
 
 # ============================================================
