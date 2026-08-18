@@ -1,11 +1,11 @@
-# pointage/admin.py - VERSION FINALE
+# pointage/admin.py - SOLUTION FINALE (navbar + filtre)
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 from django.urls import path, reverse
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, QueryDict
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
@@ -200,7 +200,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - VERSION FINALE
+# POINTAGE - SOLUTION FINALE
 # ============================================================
 
 @admin.register(Pointage)
@@ -214,26 +214,25 @@ class PointageAdmin(admin.ModelAdmin):
         'type_journee',
     ]
     
-    # ============================================================
-    # NE PAS METTRE date_debut ET date_fin DANS list_filter
-    # ============================================================
-    list_filter = ['employe', 'site', 'statut']
-    search_fields = ['employe__nom', 'employe__prenom', 'employe__matricule']
-    date_hierarchy = 'date_pointage'
+    list_filter = []
+    search_fields = []
+    date_hierarchy = None
     
     def get_queryset(self, request):
         return Pointage.objects.select_related('employe', 'site')
     
     def changelist_view(self, request, extra_context=None):
-        # ============================================================
-        # UTILISER d_debut ET d_fin (PAS date_debut ET date_fin)
-        # ============================================================
+        # Récupérer les dates depuis GET (maintenant d_debut et d_fin)
         date_debut = request.GET.get('d_debut', '')
         date_fin = request.GET.get('d_fin', '')
+        employe_id = request.GET.get('employe', '')
+        site_id = request.GET.get('site', '')
+        periode_type = request.GET.get('periode_type', '')
         
-        # Construire le queryset
+        # Construire le queryset avec tous les filtres
         queryset = Pointage.objects.select_related('employe', 'site')
         
+        # Filtre date
         if date_debut and date_fin:
             try:
                 debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
@@ -253,6 +252,26 @@ class PointageAdmin(admin.ModelAdmin):
                 queryset = queryset.filter(date_pointage__lte=fin)
             except ValueError:
                 pass
+        
+        # Filtre employé
+        if employe_id:
+            try:
+                queryset = queryset.filter(employe_id=int(employe_id))
+            except ValueError:
+                pass
+        
+        # Filtre site
+        if site_id:
+            try:
+                queryset = queryset.filter(site_id=int(site_id))
+            except ValueError:
+                pass
+        
+        # Filtre type de période
+        if periode_type == 'jour':
+            queryset = queryset.filter(type_journee='normal')
+        elif periode_type == 'nuit':
+            queryset = queryset.filter(type_journee='garde')
         
         # Construire les cartes
         cards = []
@@ -346,7 +365,26 @@ class PointageAdmin(admin.ModelAdmin):
             'has_add_permission': self.has_add_permission(request),
         })
         
-        return super().changelist_view(request, extra_context=extra_context)
+        # ============================================================
+        # NETTOYER request.GET pour super()
+        # ============================================================
+        original_get = request.GET
+        
+        # Créer une copie propre sans d_debut et d_fin
+        cleaned_get = QueryDict('', mutable=True)
+        for key, value in request.GET.items():
+            if key not in ['d_debut', 'd_fin']:
+                cleaned_get[key] = value
+        
+        request.GET = cleaned_get
+        
+        # Appeler super() avec le GET nettoyé
+        response = super().changelist_view(request, extra_context=extra_context)
+        
+        # Restaurer request.GET
+        request.GET = original_get
+        
+        return response
 
 
 # ============================================================
