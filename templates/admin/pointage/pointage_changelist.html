@@ -87,9 +87,103 @@
             max-height: 120px;
         }
 
+        /* ============================================================ */
+        /* FORMULAIRE DE PLAGE DE DATES */
+        /* ============================================================ */
+        .date-range-form {
+            background: #fff;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+        }
+        .date-range-form form {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .date-range-form .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .date-range-form label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748B;
+        }
+        .date-range-form input[type="date"] {
+            padding: 6px 10px;
+            border: 1px solid #E2E8F0;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #0F172A;
+            background: #fff;
+            transition: border-color 150ms ease;
+        }
+        .date-range-form input[type="date"]:focus {
+            outline: none;
+            border-color: #2563EB;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        .date-range-form .btn-filter {
+            background: #2563EB;
+            border: none;
+            color: #fff;
+            padding: 6px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 150ms ease;
+        }
+        .date-range-form .btn-filter:hover {
+            background: #1D4ED8;
+        }
+        .date-range-form .btn-reset {
+            background: transparent;
+            border: 1px solid #E2E8F0;
+            color: #64748B;
+            padding: 6px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 150ms ease;
+        }
+        .date-range-form .btn-reset:hover {
+            background: #F1F5F9;
+            border-color: #94A3B8;
+        }
+        .date-range-form .date-range-info {
+            font-size: 12px;
+            color: #64748B;
+            margin-left: auto;
+            padding: 6px 12px;
+            background: #F1F5F9;
+            border-radius: 6px;
+        }
+        .date-range-form .date-range-info i {
+            color: #2563EB;
+            margin-right: 6px;
+        }
+
         @media (max-width: 768px) {
             .stats-mini {
                 grid-template-columns: repeat(2, 1fr);
+            }
+            .date-range-form form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .date-range-form .date-range-info {
+                margin-left: 0;
+                text-align: center;
             }
         }
         @media (max-width: 480px) {
@@ -102,6 +196,56 @@
 
 {% block content %}
     <!-- ============================================================ -->
+    <!-- FORMULAIRE DE PLAGE DE DATES -->
+    <!-- ============================================================ -->
+    {% if date_range_form %}
+    <div class="date-range-form">
+        <form method="get">
+            <!-- Conserver tous les paramètres GET existants sauf date_debut et date_fin -->
+            {% for key, value in request.GET.items %}
+                {% if key != 'date_debut' and key != 'date_fin' %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endif %}
+            {% endfor %}
+
+            <div class="form-group">
+                <label for="id_date_debut"><i class="fas fa-calendar-alt"></i> Date de debut</label>
+                {{ date_range_form.date_debut }}
+            </div>
+            <div class="form-group">
+                <label for="id_date_fin"><i class="fas fa-calendar-alt"></i> Date de fin</label>
+                {{ date_range_form.date_fin }}
+            </div>
+
+            <button type="submit" class="btn-filter">
+                <i class="fas fa-filter"></i> Filtrer
+            </button>
+
+            <a href="?{% for key, value in request.GET.items %}{% if key != 'date_debut' and key != 'date_fin' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" class="btn-reset">
+                <i class="fas fa-times"></i> Reinitialiser
+            </a>
+
+            {% if date_range_form.date_debut.value or date_range_form.date_fin.value %}
+                <span class="date-range-info">
+                    <i class="fas fa-clock"></i>
+                    Filtre actif :
+                    {% if date_range_form.date_debut.value %}
+                        Du {{ date_range_form.date_debut.value }}
+                    {% endif %}
+                    {% if date_range_form.date_fin.value %}
+                        au {{ date_range_form.date_fin.value }}
+                    {% endif %}
+                    <span style="margin-left: 6px; color: #22C55E;">
+                        <i class="fas fa-check-circle"></i>
+                        {{ total|default:0 }} resultats
+                    </span>
+                </span>
+            {% endif %}
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- ============================================================ -->
     <!-- STATISTIQUES RAPIDES -->
     <!-- ============================================================ -->
     <div class="stats-mini">
@@ -111,7 +255,7 @@
             <div class="stat-sub">Pointages</div>
         </div>
         <div class="stat-mini-card">
-            <div class="stat-label"><i class="fas fa-user-check" style="margin-right: 4px;"></i> Présents</div>
+            <div class="stat-label"><i class="fas fa-user-check" style="margin-right: 4px;"></i> Presents</div>
             <div class="stat-value green">{{ presents_count|default:0 }}</div>
             <div class="stat-sub">Pointages complets</div>
         </div>
@@ -123,7 +267,7 @@
         <div class="stat-mini-card">
             <div class="stat-label"><i class="fas fa-triangle-exclamation" style="margin-right: 4px; color: #EF4444;"></i> Absents</div>
             <div class="stat-value red">{{ absents_count|default:0 }}</div>
-            <div class="stat-sub">Non pointés</div>
+            <div class="stat-sub">Non pointes</div>
         </div>
     </div>
 
@@ -153,7 +297,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <span style="font-weight: 600; font-size: 14px; color: #0F172A;">
                 <i class="fas fa-chart-pie" style="color: #2563EB; margin-right: 8px;"></i>
-                Répartition des statuts
+                Repartition des statuts
             </span>
             <span style="font-size: 11px; color: #94A3B8;">{{ total|default:0 }} pointages</span>
         </div>
@@ -165,7 +309,7 @@
         var ctx = document.getElementById('statusChart').getContext('2d');
         
         var statusData = {
-            labels: ['Présents', 'Retards', 'Absents'],
+            labels: ['Presents', 'Retards', 'Absents'],
             datasets: [{
                 data: [
                     {{ presents_count|default:0 }},
