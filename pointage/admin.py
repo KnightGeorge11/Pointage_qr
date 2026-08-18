@@ -1,4 +1,4 @@
-# pointage/admin.py - SOLUTION FINALE
+# pointage/admin.py - VERSION FINALE (avec date_debut et date_fin)
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -200,7 +200,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - SOLUTION FINALE
+# POINTAGE - VERSION FINALE
 # ============================================================
 
 @admin.register(Pointage)
@@ -214,6 +214,9 @@ class PointageAdmin(admin.ModelAdmin):
         'type_journee',
     ]
     
+    # ============================================================
+    # IMPORTANT : date_debut et date_fin NE SONT PAS dans list_filter
+    # ============================================================
     list_filter = ['employe', 'site', 'statut']
     search_fields = ['employe__nom', 'employe__prenom', 'employe__matricule']
     date_hierarchy = 'date_pointage'
@@ -222,14 +225,11 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     def changelist_view(self, request, extra_context=None):
-        # ============================================================
-        # Récupérer les dates depuis un paramètre PERSONNALISE
-        # PAS depuis date_debut/date_fin qui sont dans list_filter
-        # ============================================================
-        date_debut = request.GET.get('d_debut', '')  # <-- PARAMETRE PERSONNALISE
-        date_fin = request.GET.get('d_fin', '')      # <-- PARAMETRE PERSONNALISE
+        # Récupérer les dates depuis GET (elles ne sont PAS dans list_filter)
+        date_debut = request.GET.get('date_debut', '')
+        date_fin = request.GET.get('date_fin', '')
         
-        # Construire le queryset avec les dates
+        # Construire le queryset
         queryset = Pointage.objects.select_related('employe', 'site')
         
         if date_debut and date_fin:
@@ -252,7 +252,7 @@ class PointageAdmin(admin.ModelAdmin):
             except ValueError:
                 pass
         
-        # Construire les cartes
+        # Construire les cartes (même code que précédemment)
         cards = []
         employes_info = {}
         jour_data = defaultdict(lambda: defaultdict(lambda: {'matin': None, 'apres_midi': None, 'nuit': None}))
