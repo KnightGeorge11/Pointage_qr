@@ -1,7 +1,8 @@
-# pointage/admin.py - VERSION FINALE QUI FONCTIONNE VRAIMENT
+# pointage/admin.py - VERSION FINALE
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
+from django.contrib.admin.views.main import ChangeList
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 from django.urls import path, reverse
@@ -24,6 +25,38 @@ from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+
+
+# ============================================================
+# CHANGELIST PERSONNALISE - IGNORE LES PARAMETRES DE DATE
+# ============================================================
+
+class PointageChangeList(ChangeList):
+    def __init__(self, request, model, list_display, list_display_links, list_filter,
+                 date_hierarchy, search_fields, list_select_related, list_per_page,
+                 list_max_show_all, list_editable, model_admin, sortable_by):
+        
+        # Nettoyer request.GET - Supprimer date_debut et date_fin
+        # pour que Django ne les utilise pas comme filtres
+        self._original_get = request.GET
+        
+        # Créer une copie sans date_debut et date_fin
+        from django.http import QueryDict
+        cleaned_get = QueryDict('', mutable=True)
+        for key, value in request.GET.items():
+            if key not in ['date_debut', 'date_fin']:
+                cleaned_get[key] = value
+        
+        # Remplacer temporairement request.GET
+        request.GET = cleaned_get
+        
+        # Appeler le parent avec le GET nettoyé
+        super().__init__(request, model, list_display, list_display_links, list_filter,
+                        date_hierarchy, search_fields, list_select_related, list_per_page,
+                        list_max_show_all, list_editable, model_admin, sortable_by)
+        
+        # Restaurer request.GET original
+        request.GET = self._original_get
 
 
 # ============================================================
@@ -281,7 +314,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - SOLUTION DEFINITIVE
+# POINTAGE - SOLUTION FINALE
 # ============================================================
 
 @admin.register(Pointage)
@@ -316,6 +349,9 @@ class PointageAdmin(admin.ModelAdmin):
     ]
 
     readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
+
+    def get_changelist(self, request, **kwargs):
+        return PointageChangeList
 
     def get_retard_display(self, obj):
         if obj.retard and obj.retard.total_seconds() > 0:
@@ -366,15 +402,15 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # LA VRAIE SOLUTION - On ne touche PAS à request.GET
+    # CHANGELIST VIEW
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
-        # Récupérer les dates depuis GET (sans modifier request.GET)
+        # Récupérer les dates depuis GET
         date_debut = request.GET.get('date_debut', '')
         date_fin = request.GET.get('date_fin', '')
         
-        # Obtenir le ChangeList standard
+        # Obtenir le ChangeList (qui a nettoyé request.GET)
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
         
