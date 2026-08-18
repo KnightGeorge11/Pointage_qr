@@ -1,4 +1,4 @@
-# pointage/admin.py - Version complète avec tous les filtres UI
+# pointage/admin.py - Version avec filtre calendrier
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -29,90 +29,46 @@ from openpyxl.utils import get_column_letter
 
 
 # ============================================================
-# FORMULAIRE POUR LA PLAGE DE DATES
+# FILTRE DE DATE AVEC CALENDRIER
 # ============================================================
 
-class DateRangeForm(forms.Form):
-    date_debut = forms.DateField(
-        label='Date de début',
-        widget=forms.DateInput(attrs={'type': 'date', 'class': 'vDateField'}),
-        required=False
-    )
-    date_fin = forms.DateField(
-        label='Date de fin',
-        widget=forms.DateInput(attrs={'type': 'date', 'class': 'vDateField'}),
-        required=False
-    )
-
-
-# ============================================================
-# FILTRE DE RECHERCHE PAR PLAGE DE DATES
-# ============================================================
-
-class DateRangeFilter(SimpleListFilter):
+class DateFilterWithCalendar(SimpleListFilter):
     """
-    Filtre personnalisé pour rechercher par plage de dates précises.
-    
-    Permet de filtrer les pointages entre deux dates spécifiques.
+    Filtre de date avec calendrier intégré.
+    Utilise les widgets de date de Django Admin.
     """
     
-    title = 'Plage de dates'
-    parameter_name = 'date_range'
+    title = 'Date'
+    parameter_name = 'date'
     
     def lookups(self, request, model_admin):
-        # Récupérer les dates depuis les paramètres GET
-        date_debut = request.GET.get('date_debut', '')
-        date_fin = request.GET.get('date_fin', '')
+        # Récupérer la date depuis les paramètres GET
+        date_value = request.GET.get('date', '')
         
-        if date_debut and date_fin:
+        if date_value:
             try:
-                debut = datetime.strptime(date_debut, '%Y-%m-%d').strftime('%d/%m/%Y')
-                fin = datetime.strptime(date_fin, '%Y-%m-%d').strftime('%d/%m/%Y')
+                date_obj = datetime.strptime(date_value, '%Y-%m-%d').date()
                 return (
-                    ('custom', f'Du {debut} au {fin}'),
+                    ('selected', f'📅 {date_obj.strftime("%d/%m/%Y")}'),
                 )
             except ValueError:
                 pass
         
         return (
-            ('custom', 'Choisir une plage de dates'),
+            ('', 'Selectionner une date'),
         )
     
     def queryset(self, request, queryset):
-        if self.value() != 'custom':
+        date_value = request.GET.get('date', '')
+        
+        if not date_value:
             return queryset
         
-        # Récupérer les dates depuis les paramètres GET
-        date_debut = request.GET.get('date_debut', '')
-        date_fin = request.GET.get('date_fin', '')
-        
-        if date_debut and date_fin:
-            try:
-                # Convertir les dates en objets datetime
-                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
-                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
-                
-                # Filtrer le queryset
-                return queryset.filter(
-                    date_pointage__gte=debut,
-                    date_pointage__lte=fin
-                )
-            except ValueError:
-                return queryset
-        elif date_debut:
-            try:
-                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
-                return queryset.filter(date_pointage__gte=debut)
-            except ValueError:
-                return queryset
-        elif date_fin:
-            try:
-                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
-                return queryset.filter(date_pointage__lte=fin)
-            except ValueError:
-                return queryset
-        
-        return queryset
+        try:
+            date_obj = datetime.strptime(date_value, '%Y-%m-%d').date()
+            return queryset.filter(date_pointage=date_obj)
+        except ValueError:
+            return queryset
 
 
 class DatePeriodeFilter(SimpleListFilter):
@@ -503,7 +459,7 @@ class PointageAdmin(admin.ModelAdmin):
     # FILTRES EXACTEMENT COMME L'INTERFACE UTILISATEUR
     # ============================================================
     list_filter = [
-        DateRangeFilter,
+        DateFilterWithCalendar,
         DatePeriodeFilter,
         EmployeFilter,
         SiteFilter,
@@ -581,7 +537,7 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW AVEC FORMULAIRE DE PLAGE DE DATES
+    # CHANGELIST VIEW
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
@@ -590,22 +546,6 @@ class PointageAdmin(admin.ModelAdmin):
         
         if 'export_excel' in request.GET:
             return self.export_excel(request, queryset)
-        
-        # Gérer le formulaire de plage de dates
-        form = DateRangeForm(request.GET or None)
-        if form.is_valid():
-            date_debut = form.cleaned_data.get('date_debut')
-            date_fin = form.cleaned_data.get('date_fin')
-            
-            if date_debut and date_fin:
-                queryset = queryset.filter(
-                    date_pointage__gte=date_debut,
-                    date_pointage__lte=date_fin
-                )
-            elif date_debut:
-                queryset = queryset.filter(date_pointage__gte=date_debut)
-            elif date_fin:
-                queryset = queryset.filter(date_pointage__lte=date_fin)
         
         total = queryset.count()
         presents = queryset.filter(statut='present').count()
@@ -618,7 +558,6 @@ class PointageAdmin(admin.ModelAdmin):
             'presents_count': presents,
             'retards_count': retards,
             'absents_count': absents,
-            'date_range_form': form,
         })
         
         return super().changelist_view(request, extra_context=extra_context)
