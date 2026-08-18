@@ -1,4 +1,4 @@
-# pointage/admin.py - VERSION QUI MARCHE AVEC JAZZMIN
+# pointage/admin.py - VERSION FINALE QUI MARCHE (navbar + filtre)
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -200,14 +200,13 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - VERSION QUI MARCHE AVEC JAZZMIN
+# POINTAGE - VERSION FINALE QUI MARCHE (navbar + filtre)
 # ============================================================
 
 @admin.register(Pointage)
 class PointageAdmin(admin.ModelAdmin):
     change_list_template = "admin/pointage/pointage_changelist.html"
     
-    # Garder les attributs de base pour Jazzmin
     list_display = [
         'employe',
         'date_pointage',
@@ -224,7 +223,7 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW - TOUT EST GERER ICI
+    # CHANGELIST VIEW - UTILISE super() pour garder Jazzmin
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
@@ -362,37 +361,7 @@ class PointageAdmin(admin.ModelAdmin):
         employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
         sites = Site.objects.all().order_by('nom')
         
-        # ============================================================
-        # CONTEXTE POUR LE TEMPLATE - AVEC TOUT CE DONT JAZZMIN A BESOIN
-        # ============================================================
-        
-        # Créer un objet ChangeList factice pour Jazzmin
-        from django.contrib.admin.views.main import ChangeList
-        class DummyChangeList(ChangeList):
-            def __init__(self):
-                self.list_display = []
-                self.list_display_links = []
-                self.list_filter = []
-                self.date_hierarchy = None
-                self.search_fields = []
-                self.list_select_related = None
-                self.list_per_page = 100
-                self.list_max_show_all = 200
-                self.list_editable = []
-                self.model_admin = None
-                self.sortable_by = None
-                self.search_help_text = None
-                self.has_filters = False
-                self.has_actions = False
-                self.show_all = False
-                self.multi_page = False
-                self.paginator = paginator
-                self.page_num = page_number
-                self.paginator_show_all = False
-                self.show_admin_actions = False
-        
-        dummy_cl = DummyChangeList()
-        
+        # Ajouter au contexte
         extra_context = extra_context or {}
         extra_context.update({
             'cards': page_obj,
@@ -405,14 +374,12 @@ class PointageAdmin(admin.ModelAdmin):
             'filter_date_debut': date_debut,
             'filter_date_fin': date_fin,
             'has_add_permission': self.has_add_permission(request),
-            'cl': dummy_cl,
-            'is_popup': False,
-            'opts': self.model._meta,
-            'app_label': self.model._meta.app_label,
-            'model_name': self.model._meta.model_name,
         })
         
-        return TemplateResponse(request, self.change_list_template, extra_context)
+        # ============================================================
+        # IMPORTANT: Utiliser super() pour garder la navbar Jazzmin
+        # ============================================================
+        return super().changelist_view(request, extra_context=extra_context)
 
 
 # ============================================================
