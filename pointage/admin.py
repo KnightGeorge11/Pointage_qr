@@ -374,7 +374,7 @@ class PointageAdmin(admin.ModelAdmin):
         
         extra_context = extra_context or {}
         extra_context.update({
-            'cards': page_obj,
+            'jours': page_obj,
             'total_journees': total_journees,
             'total_heures': total_heures,
             'total_retard': total_retard,
