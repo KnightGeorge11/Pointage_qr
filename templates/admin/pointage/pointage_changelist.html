@@ -1,5 +1,5 @@
 <!-- templates/admin/pointage/pointage_changelist.html -->
-{% extends "admin/index.html" %}
+{% extends "admin/change_list.html" %}
 {% load static i18n pointage_filters %}
 
 {% block title %}Pointages | {{ site_title|default:_('Django site admin') }}{% endblock %}
@@ -49,20 +49,21 @@
             --purple-500: #8B5CF6;
         }
 
-        /* Cacher le contenu du tableau de bord par défaut */
-        #content-main .dashboard {
+        /* Cacher le tableau par défaut */
+        #changelist .results,
+        #changelist .paginator,
+        #changelist .actions {
             display: none !important;
         }
-
-        /* Conteneur principal */
-        #content {
-            padding: 20px !important;
-            max-width: 100% !important;
-        }
-
-        #content-main {
+        #changelist-form {
             padding: 0 !important;
-            max-width: 100% !important;
+        }
+        #changelist .module.filtered {
+            min-height: auto !important;
+            padding: 20px !important;
+        }
+        #content-main {
+            padding: 20px 0 !important;
         }
 
         /* ── En-tête ── */
@@ -936,7 +937,7 @@
                 </div>
             </div>
             <div class="filter-actions">
-                <!-- CORRECTION 1: Utiliser reset_url au lieu de changelist_url -->
+                <!-- CORRECTION : Utilisation de reset_url au lieu de changelist_url -->
                 <a href="{{ reset_url }}" class="btn btn-outline-secondary">
                     <i class="fas fa-times"></i> Réinitialiser
                 </a>
@@ -1124,7 +1125,7 @@
         <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
         <h3>Aucun pointage trouvé</h3>
         <p>Aucun pointage ne correspond aux filtres sélectionnés.<br>Essayez de modifier vos critères de recherche.</p>
-        <!-- CORRECTION 2: Utiliser reset_url au lieu de changelist_url -->
+        <!-- CORRECTION : Utilisation de reset_url au lieu de changelist_url -->
         <a href="{{ reset_url }}" class="btn btn-primary">
             <i class="fas fa-redo"></i> Réinitialiser
         </a>
