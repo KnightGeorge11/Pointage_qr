@@ -1,5 +1,5 @@
 <!-- templates/admin/pointage/pointage_changelist.html -->
-{% extends "admin/base_site.html" %}
+{% extends "admin/index.html" %}
 {% load static i18n pointage_filters %}
 
 {% block title %}Pointages | {{ site_title|default:_('Django site admin') }}{% endblock %}
@@ -958,6 +958,7 @@
                 </div>
             </div>
             <div class="filter-actions">
+                <!-- CORRECTION: Lien direct vers l'URL sans paramètres -->
                 <a href="/admin/pointage/pointage/" class="btn btn-outline-secondary">
                     <i class="fas fa-times"></i> Réinitialiser
                 </a>
@@ -1145,6 +1146,7 @@
         <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
         <h3>Aucun pointage trouvé</h3>
         <p>Aucun pointage ne correspond aux filtres sélectionnés.<br>Essayez de modifier vos critères de recherche.</p>
+        <!-- CORRECTION: Lien direct vers l'URL sans paramètres -->
         <a href="/admin/pointage/pointage/" class="btn btn-primary">
             <i class="fas fa-redo"></i> Réinitialiser
         </a>
