@@ -936,9 +936,7 @@
                 </div>
             </div>
             <div class="filter-actions">
-                <a href="{{ changelist_url }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-times"></i> Réinitialiser
-                </a>
+                <a href="{% url opts|admin_urlname:'changelist' %}" class="btn btn-outline-secondary">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-search"></i> Appliquer
                 </button>
