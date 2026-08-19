@@ -1,4 +1,4 @@
-# pointage/admin.py - VERSION QUI MARCHE AVEC JAZZMIN
+# pointage/admin.py - VERSION CORRIGEE AVEC JAZZMIN
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -31,6 +31,7 @@ from openpyxl.utils import get_column_letter
 # CUSTOM USER
 # ============================================================
 
+
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_staff')
@@ -58,6 +59,7 @@ class CustomUserAdmin(UserAdmin):
 # POSTE
 # ============================================================
 
+
 @admin.register(Poste)
 class PosteAdmin(admin.ModelAdmin):
     list_display = ('nom', 'description', 'couleur_display')
@@ -78,6 +80,7 @@ class PosteAdmin(admin.ModelAdmin):
 # SITE
 # ============================================================
 
+
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
     list_display = ('nom', 'adresse', 'heure_ouverture_matin', 'heure_fermeture_matin')
@@ -87,6 +90,7 @@ class SiteAdmin(admin.ModelAdmin):
 # ============================================================
 # EMPLOYE
 # ============================================================
+
 
 @admin.register(Employe)
 class EmployeAdmin(admin.ModelAdmin):
@@ -200,8 +204,9 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - VERSION QUI MARCHE AVEC JAZZMIN
+# POINTAGE - VERSION CORRIGEE AVEC JAZZMIN
 # ============================================================
+
 
 @admin.register(Pointage)
 class PointageAdmin(admin.ModelAdmin):
@@ -410,6 +415,8 @@ class PointageAdmin(admin.ModelAdmin):
             'opts': self.model._meta,
             'app_label': self.model._meta.app_label,
             'model_name': self.model._meta.model_name,
+            # ✅ AJOUT : URL pour le bouton réinitialiser
+            'changelist_url': reverse('admin:pointage_pointage_changelist'),
         })
         
         return TemplateResponse(request, self.change_list_template, extra_context)
@@ -418,6 +425,7 @@ class PointageAdmin(admin.ModelAdmin):
 # ============================================================
 # SCAN
 # ============================================================
+
 
 @admin.register(Scan)
 class ScanAdmin(admin.ModelAdmin):
@@ -456,6 +464,7 @@ class ScanAdmin(admin.ModelAdmin):
 # ============================================================
 # ANOMALIES DE POINTAGE
 # ============================================================
+
 
 class AnomalieTraitementInline(admin.StackedInline):
     model = AnomalieTraitement
@@ -571,6 +580,7 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
 # ============================================================
 # DEMANDE DE MODIFICATION
 # ============================================================
+
 
 @admin.register(DemandeModification)
 class DemandeModificationAdmin(admin.ModelAdmin):
@@ -842,6 +852,7 @@ class DemandeModificationAdmin(admin.ModelAdmin):
 # ============================================================
 # CONFIGURATION DU SITE ADMIN
 # ============================================================
+
 
 admin.site.site_header = "Pointage QR - Administration"
 admin.site.site_title = "Pointage QR"
