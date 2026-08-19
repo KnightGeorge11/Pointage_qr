@@ -852,7 +852,9 @@
         </div>
         <div class="page-header-actions">
             {% if has_add_permission %}
-            <a href="{{ changelist_url }}" class="btn btn-outline-secondary">
+            <a href="{% url 'admin:pointage_pointage_add' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Ajouter un pointage
+            </a>
             {% endif %}
             <span style="font-size:13px;color:var(--text-muted);">
                 <i class="fas fa-calendar-alt"></i> Pointages enregistrés
@@ -935,7 +937,8 @@
                 </div>
             </div>
             <div class="filter-actions">
-                <a href="{{ changelist_url }}" class="btn btn-primary">
+                <!-- CORRECTION : Utilisation de reset_url au lieu de changelist_url -->
+                <a href="{{ reset_url }}" class="btn btn-outline-secondary">
                     <i class="fas fa-times"></i> Réinitialiser
                 </a>
                 <button type="submit" class="btn btn-primary">
