@@ -203,19 +203,13 @@ class EmployeAdmin(admin.ModelAdmin):
 # POINTAGE - VERSION QUI MARCHE AVEC JAZZMIN
 # ============================================================
 
+# pointage/admin.py - PARTIE PointageAdmin CORRIGEE
+
 @admin.register(Pointage)
 class PointageAdmin(admin.ModelAdmin):
     change_list_template = "admin/pointage/pointage_changelist.html"
     
-    # Garder les attributs de base pour Jazzmin
-    list_display = [
-        'employe',
-        'date_pointage',
-        'periode',
-        'type_journee',
-    ]
-    
-    # PAS de list_filter pour éviter l'erreur
+    list_display = ['employe', 'date_pointage', 'periode', 'type_journee']
     list_filter = []
     search_fields = []
     date_hierarchy = None
@@ -223,200 +217,162 @@ class PointageAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return Pointage.objects.select_related('employe', 'site')
     
-    # ============================================================
-    # CHANGELIST VIEW - TOUT EST GERER ICI
-    # ============================================================
-    
-    # pointage/admin.py - PARTIE CORRIGÉE DE PointageAdmin.changelist_view()
-
-def changelist_view(self, request, extra_context=None):
-    # Récupérer les filtres depuis GET
-    date_debut = request.GET.get('date_debut', '')
-    date_fin = request.GET.get('date_fin', '')
-    employe_id = request.GET.get('employe', '')
-    site_id = request.GET.get('site', '')
-    periode_type = request.GET.get('periode_type', '')
-    
-    # Construire le queryset avec tous les filtres
-    queryset = Pointage.objects.select_related('employe', 'site')
-    
-    # Filtre date
-    if date_debut and date_fin:
-        try:
-            debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
-            fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
-            queryset = queryset.filter(
-                date_pointage__gte=debut,
-                date_pointage__lte=fin
-            )
-        except ValueError:
-            pass
-    elif date_debut:
-        try:
-            debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
-            queryset = queryset.filter(date_pointage__gte=debut)
-        except ValueError:
-            pass
-    elif date_fin:
-        try:
-            fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
-            queryset = queryset.filter(date_pointage__lte=fin)
-        except ValueError:
-            pass
-    
-    # Filtre employé
-    if employe_id:
-        try:
-            queryset = queryset.filter(employe_id=int(employe_id))
-        except ValueError:
-            pass
-    
-    # Filtre site
-    if site_id:
-        try:
-            queryset = queryset.filter(site_id=int(site_id))
-        except ValueError:
-            pass
-    
-    # Filtre type de période
-    if periode_type == 'jour':
-        queryset = queryset.filter(type_journee='normal')
-    elif periode_type == 'nuit':
-        queryset = queryset.filter(type_journee='garde')
-    
-    # Construire les données pour les cartes
-    cards = []
-    employes_info = {}
-    
-    jour_data = defaultdict(lambda: defaultdict(lambda: {'matin': None, 'apres_midi': None, 'nuit': None}))
-    
-    for p in queryset:
-        employes_info[p.employe.id] = {
-            'id': p.employe.id,
-            'nom': p.employe.nom,
-            'prenom': p.employe.prenom,
-            'matricule': p.employe.matricule,
-            'poste': p.employe.poste.nom if p.employe.poste else None,
-            'poste_couleur': p.employe.poste.couleur if p.employe.poste else '#4361ee',
-        }
-        jour_data[p.employe.id][p.date_pointage][p.periode] = p
-    
-    for emp_id, dates in jour_data.items():
-        for date, periods in dates.items():
-            matin = periods.get('matin')
-            apm = periods.get('apres_midi')
-            nuit = periods.get('nuit')
-            
-            heures_total = timedelta()
-            retard_total = timedelta()
-            heures_sup = timedelta()
-            
-            if matin:
-                heures_total += matin.heures_travaillees or timedelta()
-                retard_total += matin.retard or timedelta()
-            if apm:
-                heures_total += apm.heures_travaillees or timedelta()
-                retard_total += apm.retard or timedelta()
-            if nuit:
-                heures_total += nuit.heures_travaillees or timedelta()
-                retard_total += nuit.retard or timedelta()
-            
-            if heures_total > timedelta(hours=8):
-                heures_sup = heures_total - timedelta(hours=8)
-            
-            if matin and apm and matin.heure_arrivee and matin.heure_depart and apm.heure_arrivee and apm.heure_depart:
-                statut_global = 'present'
-            elif matin or apm or nuit:
-                statut_global = 'partiel'
-            else:
-                statut_global = 'absent'
-            
-            is_garde = nuit and nuit.type_journee == 'garde'
-            
-            cards.append({
-                'employe': employes_info[emp_id],
-                'date': date,
-                'matin': matin,
-                'apres_midi': apm,
-                'nuit': nuit,
-                'is_garde': is_garde,
-                'statut_global': statut_global,
-                'heures_total': heures_total,
-                'retard_total': retard_total,
-                'heures_sup': heures_sup,
-            })
-    
-    cards.sort(key=lambda x: x['date'], reverse=True)
-    
-    # Pagination
-    from django.core.paginator import Paginator
-    paginator = Paginator(cards, 20)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
-    
-    # Statistiques
-    total_journees = len(cards)
-    total_heures = sum((c['heures_total'] for c in cards), timedelta())
-    total_retard = sum((c['retard_total'] for c in cards), timedelta())
-    unique_employes = len(set(c['employe']['id'] for c in cards))
-    
-    # Liste pour les filtres
-    employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
-    sites = Site.objects.all().order_by('nom')
-    
-    # ============================================================
-    # CONTEXTE POUR LE TEMPLATE - AVEC TOUT CE DONT JAZZMIN A BESOIN
-    # ============================================================
-    
-    # Créer un objet ChangeList factice pour Jazzmin
-    from django.contrib.admin.views.main import ChangeList
-    class DummyChangeList(ChangeList):
-        def __init__(self):
-            self.list_display = []
-            self.list_display_links = []
-            self.list_filter = []
-            self.date_hierarchy = None
-            self.search_fields = []
-            self.list_select_related = None
-            self.list_per_page = 100
-            self.list_max_show_all = 200
-            self.list_editable = []
-            self.model_admin = None
-            self.sortable_by = None
-            self.search_help_text = None
-            self.has_filters = False
-            self.has_actions = False
-            self.show_all = False
-            self.multi_page = False
-            self.paginator = paginator
-            self.page_num = page_number
-            self.paginator_show_all = False
-            self.show_admin_actions = False
-    
-    dummy_cl = DummyChangeList()
-    
-    extra_context = extra_context or {}
-    extra_context.update({
-        'cards': page_obj,
-        'total_journees': total_journees,
-        'total_heures': total_heures,
-        'total_retard': total_retard,
-        'unique_employes_count': unique_employes,
-        'employes': employes,
-        'sites': sites,
-        'filter_date_debut': date_debut,
-        'filter_date_fin': date_fin,
-        'has_add_permission': self.has_add_permission(request),
-        'cl': dummy_cl,
-        'is_popup': False,
-        'opts': self.model._meta,
-        'app_label': self.model._meta.app_label,
-        'model_name': self.model._meta.model_name,
-        # AJOUT CRUCIAL - URL pour le bouton Réinitialiser
-        'reset_url': reverse('admin:pointage_pointage_changelist'),
-    })
-    
-    return TemplateResponse(request, self.change_list_template, extra_context)
+    def changelist_view(self, request, extra_context=None):
+        # Récupérer les filtres depuis GET
+        date_debut = request.GET.get('date_debut', '')
+        date_fin = request.GET.get('date_fin', '')
+        employe_id = request.GET.get('employe', '')
+        site_id = request.GET.get('site', '')
+        periode_type = request.GET.get('periode_type', '')
+        
+        # Construire le queryset avec tous les filtres
+        queryset = Pointage.objects.select_related('employe', 'site')
+        
+        # Filtre date
+        if date_debut and date_fin:
+            try:
+                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
+                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
+                queryset = queryset.filter(
+                    date_pointage__gte=debut,
+                    date_pointage__lte=fin
+                )
+            except ValueError:
+                pass
+        elif date_debut:
+            try:
+                debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__gte=debut)
+            except ValueError:
+                pass
+        elif date_fin:
+            try:
+                fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
+                queryset = queryset.filter(date_pointage__lte=fin)
+            except ValueError:
+                pass
+        
+        # Filtre employé
+        if employe_id:
+            try:
+                queryset = queryset.filter(employe_id=int(employe_id))
+            except ValueError:
+                pass
+        
+        # Filtre site
+        if site_id:
+            try:
+                queryset = queryset.filter(site_id=int(site_id))
+            except ValueError:
+                pass
+        
+        # Filtre type de période
+        if periode_type == 'jour':
+            queryset = queryset.filter(type_journee='normal')
+        elif periode_type == 'nuit':
+            queryset = queryset.filter(type_journee='garde')
+        
+        # ============================================================
+        # CONSTRUIRE LES CARTES - C'EST ICI QUE LES DONNEES SONT CREEES
+        # ============================================================
+        cards = []
+        employes_info = {}
+        
+        jour_data = defaultdict(lambda: defaultdict(lambda: {'matin': None, 'apres_midi': None, 'nuit': None}))
+        
+        for p in queryset:
+            employes_info[p.employe.id] = {
+                'id': p.employe.id,
+                'nom': p.employe.nom,
+                'prenom': p.employe.prenom,
+                'matricule': p.employe.matricule,
+                'poste': p.employe.poste.nom if p.employe.poste else None,
+                'poste_couleur': p.employe.poste.couleur if p.employe.poste else '#4361ee',
+            }
+            jour_data[p.employe.id][p.date_pointage][p.periode] = p
+        
+        for emp_id, dates in jour_data.items():
+            for date, periods in dates.items():
+                matin = periods.get('matin')
+                apm = periods.get('apres_midi')
+                nuit = periods.get('nuit')
+                
+                heures_total = timedelta()
+                retard_total = timedelta()
+                heures_sup = timedelta()
+                
+                if matin:
+                    heures_total += matin.heures_travaillees or timedelta()
+                    retard_total += matin.retard or timedelta()
+                if apm:
+                    heures_total += apm.heures_travaillees or timedelta()
+                    retard_total += apm.retard or timedelta()
+                if nuit:
+                    heures_total += nuit.heures_travaillees or timedelta()
+                    retard_total += nuit.retard or timedelta()
+                
+                if heures_total > timedelta(hours=8):
+                    heures_sup = heures_total - timedelta(hours=8)
+                
+                if matin and apm and matin.heure_arrivee and matin.heure_depart and apm.heure_arrivee and apm.heure_depart:
+                    statut_global = 'present'
+                elif matin or apm or nuit:
+                    statut_global = 'partiel'
+                else:
+                    statut_global = 'absent'
+                
+                is_garde = nuit and nuit.type_journee == 'garde'
+                
+                cards.append({
+                    'employe': employes_info[emp_id],
+                    'date': date,
+                    'matin': matin,
+                    'apres_midi': apm,
+                    'nuit': nuit,
+                    'is_garde': is_garde,
+                    'statut_global': statut_global,
+                    'heures_total': heures_total,
+                    'retard_total': retard_total,
+                    'heures_sup': heures_sup,
+                })
+        
+        cards.sort(key=lambda x: x['date'], reverse=True)
+        
+        # Pagination
+        from django.core.paginator import Paginator
+        paginator = Paginator(cards, 20)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+        
+        # Statistiques
+        total_journees = len(cards)
+        total_heures = sum((c['heures_total'] for c in cards), timedelta())
+        total_retard = sum((c['retard_total'] for c in cards), timedelta())
+        unique_employes = len(set(c['employe']['id'] for c in cards))
+        
+        # Liste pour les filtres
+        employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
+        sites = Site.objects.all().order_by('nom')
+        
+        # ============================================================
+        # CONTEXTE POUR LE TEMPLATE
+        # ============================================================
+        extra_context = extra_context or {}
+        extra_context.update({
+            'cards': page_obj,                      # <- LES CARTES SONT PASSEES ICI
+            'total_journees': total_journees,
+            'total_heures': total_heures,
+            'total_retard': total_retard,
+            'unique_employes_count': unique_employes,
+            'employes': employes,
+            'sites': sites,
+            'filter_date_debut': date_debut,
+            'filter_date_fin': date_fin,
+            'has_add_permission': self.has_add_permission(request),
+            'reset_url': reverse('admin:pointage_pointage_changelist'),
+        })
+        
+        return TemplateResponse(request, self.change_list_template, extra_context)
 
 
 # ============================================================
