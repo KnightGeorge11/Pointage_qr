@@ -1,5 +1,5 @@
 <!-- templates/admin/pointage/pointage_changelist.html -->
-{% extends "jazzmin/base.html" %}
+{% extends "admin/base.html" %}
 {% load static i18n pointage_filters %}
 
 {% block title %}Pointages | {{ site_title|default:_('Django site admin') }}{% endblock %}
@@ -636,7 +636,23 @@
             .scan-cell { padding: 8px 10px; min-height: 60px; }
             .scan-cell .scan-time { font-size: 14px; }
         }
+
+        /* Ajustements pour que la page utilise tout l'espace */
+        #container {
+            max-width: 100% !important;
+        }
+        .breadcrumbs {
+            margin-bottom: 20px !important;
+        }
     </style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Accueil</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='pointage' %}">Pointage</a>
+    &rsaquo; Pointages
+</div>
 {% endblock %}
 
 {% block content %}
