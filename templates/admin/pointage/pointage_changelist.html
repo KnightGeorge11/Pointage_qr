@@ -4,7 +4,7 @@
 
 {% block title %}Pointages | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
-{% block extrastyle %}
+{% block extrahead %}
     {{ block.super }}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -858,326 +858,335 @@
         #changelist {
             padding: 0 !important;
         }
+        
+        /* Cacher le dashboard du parent */
+        #content-main .dashboard {
+            display: none !important;
+        }
+        
+        /* S'assurer que notre contenu s'affiche */
+        #custom-pointage-content {
+            display: block !important;
+        }
     </style>
 {% endblock %}
 
 {% block content %}
-<div id="content-main">
-    <!-- ===== EN-TÊTE ===== -->
-    <div class="page-header">
-        <div class="page-header-left">
-            <h1>
-                <i class="fas fa-clock-rotate-left"></i>
-                Pointages
-            </h1>
-        </div>
-        <div class="page-header-actions">
-            {% if has_add_permission %}
-            <a href="{% url 'admin:pointage_pointage_add' %}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Ajouter un pointage
-            </a>
-            {% endif %}
-            <span style="font-size:13px;color:var(--text-muted);">
-                <i class="fas fa-calendar-alt"></i> Pointages enregistrés
-            </span>
-        </div>
-    </div>
-
-    <!-- ===== STATS MINI ===== -->
-    <div class="stats-mini">
-        <span class="stats-mini-item">
-            <i class="fas fa-calendar-day" style="color:var(--text-light);"></i>
-            Journées
-            <span class="count">{{ cards.paginator.count }}</span>
-        </span>
-        <span class="stats-mini-item">
-            <i class="fas fa-clock" style="color:var(--blue-500);"></i>
-            Heures
-            <span class="count blue">{{ total_heures|timedelta_short|default:"0h" }}</span>
-        </span>
-        <span class="stats-mini-item">
-            <i class="fas fa-clock" style="color:var(--amber-500);"></i>
-            Retard
-            <span class="count amber">{{ total_retard|timedelta_short|default:"0min" }}</span>
-        </span>
-        <span class="stats-mini-item">
-            <i class="fas fa-users" style="color:var(--text-light);"></i>
-            Employés
-            <span class="count">{{ unique_employes_count|default:"0" }}</span>
-        </span>
-    </div>
-
-    <!-- ===== FILTRES ===== -->
-    <div class="filter-bar">
-        <div class="filter-bar-header">
-            <span class="filter-bar-label">
-                <i class="fas fa-sliders-h" style="margin-right:6px;"></i>
-                Filtres de recherche
-            </span>
-            <div class="filter-bar-separator"></div>
-        </div>
-        <form method="get" id="filterForm">
-            <div class="filter-grid">
-                <div class="filter-group">
-                    <label class="filter-group-label">Date début</label>
-                    <input type="date" class="filter-group-input" name="date_debut" value="{{ filter_date_debut }}">
-                </div>
-                <div class="filter-group">
-                    <label class="filter-group-label">Date fin</label>
-                    <input type="date" class="filter-group-input" name="date_fin" value="{{ filter_date_fin }}">
-                </div>
-                <div class="filter-group">
-                    <label class="filter-group-label">Employé</label>
-                    <select class="filter-group-input" name="employe">
-                        <option value="">Tous les employés</option>
-                        {% for employe in employes %}
-                        <option value="{{ employe.id }}" {% if request.GET.employe == employe.id|stringformat:"s" %}selected{% endif %}>
-                            {{ employe.prenom }} {{ employe.nom }} ({{ employe.matricule }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-group-label">Site</label>
-                    <select class="filter-group-input" name="site">
-                        <option value="">Tous les sites</option>
-                        {% for site in sites %}
-                        <option value="{{ site.id }}" {% if request.GET.site == site.id|stringformat:"s" %}selected{% endif %}>
-                            {{ site.nom }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-group-label">Type de période</label>
-                    <select class="filter-group-input" name="periode_type">
-                        <option value="">Tous (Jour + Nuit)</option>
-                        <option value="jour" {% if request.GET.periode_type == 'jour' %}selected{% endif %}>Jour seulement</option>
-                        <option value="nuit" {% if request.GET.periode_type == 'nuit' %}selected{% endif %}>Nuit (Gardes) seulement</option>
-                    </select>
-                </div>
+    <!-- Contenu personnalisé qui remplace le dashboard -->
+    <div id="custom-pointage-content">
+        <!-- ===== EN-TÊTE ===== -->
+        <div class="page-header">
+            <div class="page-header-left">
+                <h1>
+                    <i class="fas fa-clock-rotate-left"></i>
+                    Pointages
+                </h1>
             </div>
-            <div class="filter-actions">
-                <!-- CORRECTION: Lien direct vers l'URL sans paramètres -->
-                <a href="/admin/pointage/pointage/" class="btn btn-outline-secondary">
-                    <i class="fas fa-times"></i> Réinitialiser
+            <div class="page-header-actions">
+                {% if has_add_permission %}
+                <a href="{% url 'admin:pointage_pointage_add' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Ajouter un pointage
                 </a>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-search"></i> Appliquer
-                </button>
+                {% endif %}
+                <span style="font-size:13px;color:var(--text-muted);">
+                    <i class="fas fa-calendar-alt"></i> Pointages enregistrés
+                </span>
             </div>
-        </form>
-    </div>
+        </div>
 
-    <!-- ===== STATS ===== -->
-    <div class="stats-grid">
-        <div class="stat-card-mini green">
-            <div class="stat-card-mini-label">Pointages enregistrés</div>
-            <div class="stat-card-mini-value">{{ cards.paginator.count }}</div>
-            <div class="stat-card-mini-sub">Sur la période filtrée</div>
+        <!-- ===== STATS MINI ===== -->
+        <div class="stats-mini">
+            <span class="stats-mini-item">
+                <i class="fas fa-calendar-day" style="color:var(--text-light);"></i>
+                Journées
+                <span class="count">{{ cards.paginator.count }}</span>
+            </span>
+            <span class="stats-mini-item">
+                <i class="fas fa-clock" style="color:var(--blue-500);"></i>
+                Heures
+                <span class="count blue">{{ total_heures|timedelta_short|default:"0h" }}</span>
+            </span>
+            <span class="stats-mini-item">
+                <i class="fas fa-clock" style="color:var(--amber-500);"></i>
+                Retard
+                <span class="count amber">{{ total_retard|timedelta_short|default:"0min" }}</span>
+            </span>
+            <span class="stats-mini-item">
+                <i class="fas fa-users" style="color:var(--text-light);"></i>
+                Employés
+                <span class="count">{{ unique_employes_count|default:"0" }}</span>
+            </span>
         </div>
-        <div class="stat-card-mini blue">
-            <div class="stat-card-mini-label">Heures travaillées</div>
-            <div class="stat-card-mini-value">{{ total_heures|timedelta_short|default:"0h" }}</div>
-            <div class="stat-card-mini-sub">Temps cumulé</div>
-        </div>
-        <div class="stat-card-mini amber">
-            <div class="stat-card-mini-label">Retard cumulé</div>
-            <div class="stat-card-mini-value">{{ total_retard|timedelta_short|default:"0min" }}</div>
-            <div class="stat-card-mini-sub">À régulariser</div>
-        </div>
-        <div class="stat-card-mini red">
-            <div class="stat-card-mini-label">Employés distincts</div>
-            <div class="stat-card-mini-value">{{ unique_employes_count|default:"—" }}</div>
-            <div class="stat-card-mini-sub">Sur la période</div>
-        </div>
-    </div>
 
-    <!-- ===== CARTES ===== -->
-    <div class="cards-grid">
-    {% for jour in cards %}
-    <div class="pointage-card {% if jour.is_garde %}is-garde{% endif %}">
-
-        <!-- En-tête -->
-        <div class="card-header-custom">
-            <div class="card-avatar" style="background:{% if jour.employe.id|divisibleby:7 %}#8B5CF6{% else %}#2563EB{% endif %};">
-                {{ jour.employe.prenom|slice:"0:1" }}{{ jour.employe.nom|slice:"0:1" }}
+        <!-- ===== FILTRES ===== -->
+        <div class="filter-bar">
+            <div class="filter-bar-header">
+                <span class="filter-bar-label">
+                    <i class="fas fa-sliders-h" style="margin-right:6px;"></i>
+                    Filtres de recherche
+                </span>
+                <div class="filter-bar-separator"></div>
             </div>
-            <div class="card-employee">
-                <div class="card-employee-name">{{ jour.employe.prenom }} {{ jour.employe.nom }}</div>
-                <div class="card-employee-meta">
-                    <span class="card-employee-matricule">{{ jour.employe.matricule }}</span>
-                    {% if jour.employe.poste %}
-                    <span class="card-employee-poste" style="background:{{ jour.employe.poste_couleur }}22;color:{{ jour.employe.poste_couleur }}">
-                        {{ jour.employe.poste }}
+            <form method="get" id="filterForm">
+                <div class="filter-grid">
+                    <div class="filter-group">
+                        <label class="filter-group-label">Date début</label>
+                        <input type="date" class="filter-group-input" name="date_debut" value="{{ filter_date_debut }}">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-group-label">Date fin</label>
+                        <input type="date" class="filter-group-input" name="date_fin" value="{{ filter_date_fin }}">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-group-label">Employé</label>
+                        <select class="filter-group-input" name="employe">
+                            <option value="">Tous les employés</option>
+                            {% for employe in employes %}
+                            <option value="{{ employe.id }}" {% if request.GET.employe == employe.id|stringformat:"s" %}selected{% endif %}>
+                                {{ employe.prenom }} {{ employe.nom }} ({{ employe.matricule }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-group-label">Site</label>
+                        <select class="filter-group-input" name="site">
+                            <option value="">Tous les sites</option>
+                            {% for site in sites %}
+                            <option value="{{ site.id }}" {% if request.GET.site == site.id|stringformat:"s" %}selected{% endif %}>
+                                {{ site.nom }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-group-label">Type de période</label>
+                        <select class="filter-group-input" name="periode_type">
+                            <option value="">Tous (Jour + Nuit)</option>
+                            <option value="jour" {% if request.GET.periode_type == 'jour' %}selected{% endif %}>Jour seulement</option>
+                            <option value="nuit" {% if request.GET.periode_type == 'nuit' %}selected{% endif %}>Nuit (Gardes) seulement</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <a href="/admin/pointage/pointage/" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Réinitialiser
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Appliquer
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ===== STATS ===== -->
+        <div class="stats-grid">
+            <div class="stat-card-mini green">
+                <div class="stat-card-mini-label">Pointages enregistrés</div>
+                <div class="stat-card-mini-value">{{ cards.paginator.count }}</div>
+                <div class="stat-card-mini-sub">Sur la période filtrée</div>
+            </div>
+            <div class="stat-card-mini blue">
+                <div class="stat-card-mini-label">Heures travaillées</div>
+                <div class="stat-card-mini-value">{{ total_heures|timedelta_short|default:"0h" }}</div>
+                <div class="stat-card-mini-sub">Temps cumulé</div>
+            </div>
+            <div class="stat-card-mini amber">
+                <div class="stat-card-mini-label">Retard cumulé</div>
+                <div class="stat-card-mini-value">{{ total_retard|timedelta_short|default:"0min" }}</div>
+                <div class="stat-card-mini-sub">À régulariser</div>
+            </div>
+            <div class="stat-card-mini red">
+                <div class="stat-card-mini-label">Employés distincts</div>
+                <div class="stat-card-mini-value">{{ unique_employes_count|default:"—" }}</div>
+                <div class="stat-card-mini-sub">Sur la période</div>
+            </div>
+        </div>
+
+        <!-- ===== CARTES ===== -->
+        <div class="cards-grid">
+        {% for jour in cards %}
+        <div class="pointage-card {% if jour.is_garde %}is-garde{% endif %}">
+
+            <!-- En-tête -->
+            <div class="card-header-custom">
+                <div class="card-avatar" style="background:{% if jour.employe.id|divisibleby:7 %}#8B5CF6{% else %}#2563EB{% endif %};">
+                    {{ jour.employe.prenom|slice:"0:1" }}{{ jour.employe.nom|slice:"0:1" }}
+                </div>
+                <div class="card-employee">
+                    <div class="card-employee-name">{{ jour.employe.prenom }} {{ jour.employe.nom }}</div>
+                    <div class="card-employee-meta">
+                        <span class="card-employee-matricule">{{ jour.employe.matricule }}</span>
+                        {% if jour.employe.poste %}
+                        <span class="card-employee-poste" style="background:{{ jour.employe.poste_couleur }}22;color:{{ jour.employe.poste_couleur }}">
+                            {{ jour.employe.poste }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-right">
+                    <div class="card-date">{{ jour.date|date:"d M Y" }}</div>
+                    <div class="card-day">{{ jour.date|date:"l" }}</div>
+                    <div class="card-badges">
+                        {% if jour.is_garde %}
+                            <span class="badge-custom garde"><i class="fas fa-moon"></i> Garde</span>
+                        {% endif %}
+                        {% if jour.statut_global == 'present' %}
+                            <span class="badge-custom present">✓ Présent</span>
+                        {% elif jour.statut_global == 'partiel' %}
+                            <span class="badge-custom partiel">~ Incomplet</span>
+                        {% else %}
+                            <span class="badge-custom absent">✗ Absent</span>
+                        {% endif %}
+                        {% if jour.retard_total and jour.retard_total.total_seconds > 0 %}
+                            <span class="badge-custom retard"><i class="fas fa-clock"></i> Retard</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scans -->
+            {% if jour.is_garde %}
+            <div class="night-band">
+                <div class="night-block">
+                    <span class="night-label">Début garde</span>
+                    <span class="night-time">{{ jour.nuit.heure_arrivee|time:"H:i"|default:"—" }}</span>
+                    <span class="night-site">{{ jour.nuit.site.nom|default:"—" }}</span>
+                </div>
+                <span class="night-arrow">→</span>
+                <div class="night-block">
+                    <span class="night-label">Fin garde</span>
+                    <span class="night-time">{{ jour.nuit.heure_depart|time:"H:i"|default:"—" }}</span>
+                    <span class="night-site">{{ jour.nuit.site.nom|default:"—" }}</span>
+                </div>
+                {% if jour.nuit.heures_travaillees %}
+                <span class="night-total">{{ jour.nuit.heures_travaillees|timedelta_short }} travaillées</span>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="scans-grid">
+                <!-- Entrée matin -->
+                <div class="scan-cell {% if not jour.matin or not jour.matin.heure_arrivee %}missing{% else %}active{% endif %}">
+                    <div class="scan-type">Entrée matin</div>
+                    {% if jour.matin and jour.matin.heure_arrivee %}
+                        <div class="scan-time">{{ jour.matin.heure_arrivee|time:"H:i" }}</div>
+                        <div class="scan-site">{{ jour.matin.site.nom|default:"—" }}</div>
+                        <div class="scan-status {% if jour.matin.retard and jour.matin.retard.total_seconds > 0 %}warn{% else %}ok{% endif %}">
+                            {% if jour.matin.retard and jour.matin.retard.total_seconds > 0 %}+{{ jour.matin.retard|timedelta_short }}{% else %}À l'heure{% endif %}
+                        </div>
+                    {% else %}
+                        <div class="scan-time empty">—</div>
+                        <div class="scan-site">—</div>
+                        <div class="scan-status miss">Absent</div>
+                    {% endif %}
+                </div>
+                <!-- Sortie matin -->
+                <div class="scan-cell {% if not jour.matin or not jour.matin.heure_depart %}missing{% endif %}">
+                    <div class="scan-type">Sortie matin</div>
+                    {% if jour.matin and jour.matin.heure_depart %}
+                        <div class="scan-time">{{ jour.matin.heure_depart|time:"H:i" }}</div>
+                        <div class="scan-site">{{ jour.matin.site.nom|default:"—" }}</div>
+                        <div class="scan-status ok">
+                            {% if jour.matin.heures_travaillees %}{{ jour.matin.heures_travaillees|timedelta_short }} trav.{% else %}Pointé{% endif %}
+                        </div>
+                    {% else %}
+                        <div class="scan-time empty">—</div>
+                        <div class="scan-site">—</div>
+                        <div class="scan-status miss">Non pointé</div>
+                    {% endif %}
+                </div>
+                <!-- Entrée après-midi -->
+                <div class="scan-cell {% if not jour.apres_midi or not jour.apres_midi.heure_arrivee %}missing{% else %}active{% endif %}">
+                    <div class="scan-type">Entrée après-midi</div>
+                    {% if jour.apres_midi and jour.apres_midi.heure_arrivee %}
+                        <div class="scan-time">{{ jour.apres_midi.heure_arrivee|time:"H:i" }}</div>
+                        <div class="scan-site">{{ jour.apres_midi.site.nom|default:"—" }}</div>
+                        <div class="scan-status {% if jour.apres_midi.retard and jour.apres_midi.retard.total_seconds > 0 %}warn{% else %}ok{% endif %}">
+                            {% if jour.apres_midi.retard and jour.apres_midi.retard.total_seconds > 0 %}+{{ jour.apres_midi.retard|timedelta_short }}{% else %}À l'heure{% endif %}
+                        </div>
+                    {% else %}
+                        <div class="scan-time empty">—</div>
+                        <div class="scan-site">—</div>
+                        <div class="scan-status miss">En attente</div>
+                    {% endif %}
+                </div>
+                <!-- Sortie après-midi -->
+                <div class="scan-cell {% if not jour.apres_midi or not jour.apres_midi.heure_depart %}missing{% endif %}">
+                    <div class="scan-type">Sortie après-midi</div>
+                    {% if jour.apres_midi and jour.apres_midi.heure_depart %}
+                        <div class="scan-time">{{ jour.apres_midi.heure_depart|time:"H:i" }}</div>
+                        <div class="scan-site">{{ jour.apres_midi.site.nom|default:"—" }}</div>
+                        <div class="scan-status ok">
+                            {% if jour.apres_midi.heures_travaillees %}{{ jour.apres_midi.heures_travaillees|timedelta_short }} trav.{% else %}Pointé{% endif %}
+                        </div>
+                    {% else %}
+                        <div class="scan-time empty">—</div>
+                        <div class="scan-site">—</div>
+                        <div class="scan-status miss">Non pointé</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Pied -->
+            <div class="card-footer-custom">
+                <div class="card-footer-totals">
+                    <span class="card-footer-total-item">
+                        <span class="tdot ok"></span>
+                        Travaillées : <strong>{{ jour.heures_total|timedelta_short }}</strong>
+                    </span>
+                    {% if jour.retard_total and jour.retard_total.total_seconds > 0 %}
+                    <span class="card-footer-total-item">
+                        <span class="tdot warn"></span>
+                        Retard : <strong>{{ jour.retard_total|timedelta_short }}</strong>
+                    </span>
+                    {% endif %}
+                    {% if jour.heures_sup and jour.heures_sup.total_seconds > 0 %}
+                    <span class="card-footer-total-item">
+                        <span class="tdot ok"></span>
+                        H. sup : <strong>{{ jour.heures_sup|timedelta_short }}</strong>
                     </span>
                     {% endif %}
                 </div>
             </div>
-            <div class="card-right">
-                <div class="card-date">{{ jour.date|date:"d M Y" }}</div>
-                <div class="card-day">{{ jour.date|date:"l" }}</div>
-                <div class="card-badges">
-                    {% if jour.is_garde %}
-                        <span class="badge-custom garde"><i class="fas fa-moon"></i> Garde</span>
-                    {% endif %}
-                    {% if jour.statut_global == 'present' %}
-                        <span class="badge-custom present">✓ Présent</span>
-                    {% elif jour.statut_global == 'partiel' %}
-                        <span class="badge-custom partiel">~ Incomplet</span>
-                    {% else %}
-                        <span class="badge-custom absent">✗ Absent</span>
-                    {% endif %}
-                    {% if jour.retard_total and jour.retard_total.total_seconds > 0 %}
-                        <span class="badge-custom retard"><i class="fas fa-clock"></i> Retard</span>
-                    {% endif %}
-                </div>
-            </div>
+
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
+            <h3>Aucun pointage trouvé</h3>
+            <p>Aucun pointage ne correspond aux filtres sélectionnés.<br>Essayez de modifier vos critères de recherche.</p>
+            <a href="/admin/pointage/pointage/" class="btn btn-primary">
+                <i class="fas fa-redo"></i> Réinitialiser
+            </a>
+        </div>
+        {% endfor %}
         </div>
 
-        <!-- Scans -->
-        {% if jour.is_garde %}
-        <div class="night-band">
-            <div class="night-block">
-                <span class="night-label">Début garde</span>
-                <span class="night-time">{{ jour.nuit.heure_arrivee|time:"H:i"|default:"—" }}</span>
-                <span class="night-site">{{ jour.nuit.site.nom|default:"—" }}</span>
-            </div>
-            <span class="night-arrow">→</span>
-            <div class="night-block">
-                <span class="night-label">Fin garde</span>
-                <span class="night-time">{{ jour.nuit.heure_depart|time:"H:i"|default:"—" }}</span>
-                <span class="night-site">{{ jour.nuit.site.nom|default:"—" }}</span>
-            </div>
-            {% if jour.nuit.heures_travaillees %}
-            <span class="night-total">{{ jour.nuit.heures_travaillees|timedelta_short }} travaillées</span>
-            {% endif %}
-        </div>
-        {% else %}
-        <div class="scans-grid">
-            <!-- Entrée matin -->
-            <div class="scan-cell {% if not jour.matin or not jour.matin.heure_arrivee %}missing{% else %}active{% endif %}">
-                <div class="scan-type">Entrée matin</div>
-                {% if jour.matin and jour.matin.heure_arrivee %}
-                    <div class="scan-time">{{ jour.matin.heure_arrivee|time:"H:i" }}</div>
-                    <div class="scan-site">{{ jour.matin.site.nom|default:"—" }}</div>
-                    <div class="scan-status {% if jour.matin.retard and jour.matin.retard.total_seconds > 0 %}warn{% else %}ok{% endif %}">
-                        {% if jour.matin.retard and jour.matin.retard.total_seconds > 0 %}+{{ jour.matin.retard|timedelta_short }}{% else %}À l'heure{% endif %}
-                    </div>
-                {% else %}
-                    <div class="scan-time empty">—</div>
-                    <div class="scan-site">—</div>
-                    <div class="scan-status miss">Absent</div>
-                {% endif %}
-            </div>
-            <!-- Sortie matin -->
-            <div class="scan-cell {% if not jour.matin or not jour.matin.heure_depart %}missing{% endif %}">
-                <div class="scan-type">Sortie matin</div>
-                {% if jour.matin and jour.matin.heure_depart %}
-                    <div class="scan-time">{{ jour.matin.heure_depart|time:"H:i" }}</div>
-                    <div class="scan-site">{{ jour.matin.site.nom|default:"—" }}</div>
-                    <div class="scan-status ok">
-                        {% if jour.matin.heures_travaillees %}{{ jour.matin.heures_travaillees|timedelta_short }} trav.{% else %}Pointé{% endif %}
-                    </div>
-                {% else %}
-                    <div class="scan-time empty">—</div>
-                    <div class="scan-site">—</div>
-                    <div class="scan-status miss">Non pointé</div>
-                {% endif %}
-            </div>
-            <!-- Entrée après-midi -->
-            <div class="scan-cell {% if not jour.apres_midi or not jour.apres_midi.heure_arrivee %}missing{% else %}active{% endif %}">
-                <div class="scan-type">Entrée après-midi</div>
-                {% if jour.apres_midi and jour.apres_midi.heure_arrivee %}
-                    <div class="scan-time">{{ jour.apres_midi.heure_arrivee|time:"H:i" }}</div>
-                    <div class="scan-site">{{ jour.apres_midi.site.nom|default:"—" }}</div>
-                    <div class="scan-status {% if jour.apres_midi.retard and jour.apres_midi.retard.total_seconds > 0 %}warn{% else %}ok{% endif %}">
-                        {% if jour.apres_midi.retard and jour.apres_midi.retard.total_seconds > 0 %}+{{ jour.apres_midi.retard|timedelta_short }}{% else %}À l'heure{% endif %}
-                    </div>
-                {% else %}
-                    <div class="scan-time empty">—</div>
-                    <div class="scan-site">—</div>
-                    <div class="scan-status miss">En attente</div>
-                {% endif %}
-            </div>
-            <!-- Sortie après-midi -->
-            <div class="scan-cell {% if not jour.apres_midi or not jour.apres_midi.heure_depart %}missing{% endif %}">
-                <div class="scan-type">Sortie après-midi</div>
-                {% if jour.apres_midi and jour.apres_midi.heure_depart %}
-                    <div class="scan-time">{{ jour.apres_midi.heure_depart|time:"H:i" }}</div>
-                    <div class="scan-site">{{ jour.apres_midi.site.nom|default:"—" }}</div>
-                    <div class="scan-status ok">
-                        {% if jour.apres_midi.heures_travaillees %}{{ jour.apres_midi.heures_travaillees|timedelta_short }} trav.{% else %}Pointé{% endif %}
-                    </div>
-                {% else %}
-                    <div class="scan-time empty">—</div>
-                    <div class="scan-site">—</div>
-                    <div class="scan-status miss">Non pointé</div>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Pied -->
-        <div class="card-footer-custom">
-            <div class="card-footer-totals">
-                <span class="card-footer-total-item">
-                    <span class="tdot ok"></span>
-                    Travaillées : <strong>{{ jour.heures_total|timedelta_short }}</strong>
-                </span>
-                {% if jour.retard_total and jour.retard_total.total_seconds > 0 %}
-                <span class="card-footer-total-item">
-                    <span class="tdot warn"></span>
-                    Retard : <strong>{{ jour.retard_total|timedelta_short }}</strong>
-                </span>
-                {% endif %}
-                {% if jour.heures_sup and jour.heures_sup.total_seconds > 0 %}
-                <span class="card-footer-total-item">
-                    <span class="tdot ok"></span>
-                    H. sup : <strong>{{ jour.heures_sup|timedelta_short }}</strong>
-                </span>
-                {% endif %}
-            </div>
-        </div>
-
-    </div>
-    {% empty %}
-    <div class="empty-state">
-        <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
-        <h3>Aucun pointage trouvé</h3>
-        <p>Aucun pointage ne correspond aux filtres sélectionnés.<br>Essayez de modifier vos critères de recherche.</p>
-        <!-- CORRECTION: Lien direct vers l'URL sans paramètres -->
-        <a href="/admin/pointage/pointage/" class="btn btn-primary">
-            <i class="fas fa-redo"></i> Réinitialiser
-        </a>
-    </div>
-    {% endfor %}
-    </div>
-
-    <!-- ===== PAGINATION ===== -->
-    {% if cards.has_other_pages %}
-    <nav class="pagination-custom">
-        {% if cards.has_previous %}
-        <a class="page-btn" href="?page={{ cards.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-            <i class="fas fa-chevron-left"></i>
-        </a>
-        {% endif %}
-
-        {% for num in cards.paginator.page_range %}
-            {% if num <= cards.number|add:2 and num >= cards.number|add:-2 %}
-            <a class="page-btn {% if cards.number == num %}is-active{% endif %}"
-               href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                {{ num }}
+        <!-- ===== PAGINATION ===== -->
+        {% if cards.has_other_pages %}
+        <nav class="pagination-custom">
+            {% if cards.has_previous %}
+            <a class="page-btn" href="?page={{ cards.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                <i class="fas fa-chevron-left"></i>
             </a>
             {% endif %}
-        {% endfor %}
 
-        {% if cards.has_next %}
-        <a class="page-btn" href="?page={{ cards.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-            <i class="fas fa-chevron-right"></i>
-        </a>
+            {% for num in cards.paginator.page_range %}
+                {% if num <= cards.number|add:2 and num >= cards.number|add:-2 %}
+                <a class="page-btn {% if cards.number == num %}is-active{% endif %}"
+                   href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                    {{ num }}
+                </a>
+                {% endif %}
+            {% endfor %}
+
+            {% if cards.has_next %}
+            <a class="page-btn" href="?page={{ cards.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+            {% endif %}
+        </nav>
         {% endif %}
-    </nav>
-    {% endif %}
-</div>
+    </div>
 {% endblock %}
