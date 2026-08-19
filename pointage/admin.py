@@ -359,18 +359,19 @@ class PointageAdmin(admin.ModelAdmin):
         # ============================================================
         extra_context = extra_context or {}
         extra_context.update({
-            'cards': page_obj,                      # <- LES CARTES SONT PASSEES ICI
-            'total_journees': total_journees,
-            'total_heures': total_heures,
-            'total_retard': total_retard,
-            'unique_employes_count': unique_employes,
-            'employes': employes,
-            'sites': sites,
-            'filter_date_debut': date_debut,
-            'filter_date_fin': date_fin,
-            'has_add_permission': self.has_add_permission(request),
-            'reset_url': reverse('admin:pointage_pointage_changelist'),
-        })
+    'cards': page_obj,
+    'total_journees': total_journees,
+    'total_heures': total_heures,
+    'total_retard': total_retard,
+    'unique_employes_count': unique_employes,
+    'employes': employes,
+    'sites': sites,
+    'filter_date_debut': date_debut,
+    'filter_date_fin': date_fin,
+    'has_add_permission': self.has_add_permission(request),
+    'site_header': admin.site.site_header,
+    'site_title': admin.site.site_title,
+})
         
         return TemplateResponse(request, self.change_list_template, extra_context)
 

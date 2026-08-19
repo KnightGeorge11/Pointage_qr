@@ -1,29 +1,13 @@
 <!-- templates/admin/pointage/pointage_changelist.html -->
-{% extends "admin/change_list.html" %}
+{% extends "jazzmin/base.html" %}
 {% load static i18n pointage_filters %}
+
+{% block title %}Pointages | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
 {% block extrastyle %}
     {{ block.super }}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Cacher le tableau par défaut */
-        #changelist .results,
-        #changelist .paginator,
-        #changelist .actions {
-            display: none !important;
-        }
-        #changelist-form {
-            padding: 0 !important;
-        }
-        #changelist .module.filtered {
-            min-height: auto !important;
-            padding: 0 !important;
-        }
-        #content-main {
-            padding: 20px !important;
-            max-width: 100% !important;
-        }
-
         /* =====================================================
         STYLES DES CARTES
         ===================================================== */
@@ -52,8 +36,20 @@
             --red-50: #FEF2F2;
             --red-500: #EF4444;
             --red-600: #B91C1C;
+            --purple-50: #EEEDFE;
+            --purple-500: #8B5CF6;
         }
 
+        #content {
+            padding: 20px !important;
+            max-width: 100% !important;
+        }
+        #content-main {
+            padding: 0 !important;
+            max-width: 100% !important;
+        }
+
+        /* ── En-tête ── */
         .page-header {
             display: flex;
             align-items: center;
@@ -62,16 +58,26 @@
             gap: 16px;
             margin-bottom: 24px;
         }
+
+        .page-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
         .page-header-left h1 {
             font-size: 24px;
             font-weight: 700;
             color: var(--text-primary);
+            letter-spacing: -0.02em;
             margin: 0;
         }
+
         .page-header-left h1 i {
             color: var(--blue-500);
             margin-right: 8px;
         }
+
         .page-header-actions {
             display: flex;
             align-items: center;
@@ -90,6 +96,7 @@
             text-decoration: none;
             cursor: pointer;
             border: 1px solid transparent;
+            font-family: 'Inter', sans-serif;
         }
         .btn-primary { background: var(--bg-primary); color: #fff; }
         .btn-primary:hover { background: #1D4ED8; }
@@ -100,6 +107,38 @@
         }
         .btn-outline-secondary:hover { background: var(--bg-surface); }
 
+        /* ── Stats mini ── */
+        .stats-mini {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 0;
+            flex-wrap: wrap;
+        }
+
+        .stats-mini-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .stats-mini-item .count {
+            font-weight: 700;
+            color: var(--text-primary);
+            background: var(--bg-surface);
+            padding: 0 10px;
+            border-radius: var(--radius-full);
+            font-size: 12px;
+            line-height: 22px;
+        }
+
+        .stats-mini-item .count.blue { background: var(--blue-50); color: var(--blue-700); }
+        .stats-mini-item .count.amber { background: var(--amber-50); color: var(--amber-600); }
+
+        /* ── Barre de filtres ── */
         .filter-bar {
             background: var(--bg-white);
             border: 1px solid var(--border-light);
@@ -108,6 +147,7 @@
             margin-bottom: 20px;
             box-shadow: var(--shadow-sm);
         }
+
         .filter-bar-header {
             display: flex;
             align-items: center;
@@ -116,6 +156,7 @@
             padding-bottom: 12px;
             border-bottom: 1px solid var(--border-light);
         }
+
         .filter-bar-label {
             font-size: 10px;
             font-weight: 600;
@@ -123,21 +164,25 @@
             letter-spacing: 0.12em;
             color: var(--text-muted);
         }
+
         .filter-bar-separator {
             flex: 1;
             height: 1px;
             background: var(--border-light);
         }
+
         .filter-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 12px;
             margin-bottom: 16px;
         }
+
         .filter-group {
             display: flex;
             flex-direction: column;
         }
+
         .filter-group-label {
             font-size: 10px;
             font-weight: 600;
@@ -146,6 +191,7 @@
             color: var(--text-muted);
             margin-bottom: 4px;
         }
+
         .filter-group-input {
             width: 100%;
             background: var(--bg-surface);
@@ -156,11 +202,13 @@
             font-weight: 500;
             color: var(--text-primary);
         }
+
         .filter-group-input:focus {
             outline: none;
             border-color: var(--blue-500);
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
+
         .filter-actions {
             display: flex;
             justify-content: flex-end;
@@ -170,39 +218,14 @@
             flex-wrap: wrap;
         }
 
-        .stats-mini {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 12px 0;
-            flex-wrap: wrap;
-        }
-        .stats-mini-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-secondary);
-        }
-        .stats-mini-item .count {
-            font-weight: 700;
-            color: var(--text-primary);
-            background: var(--bg-surface);
-            padding: 0 10px;
-            border-radius: var(--radius-full);
-            font-size: 12px;
-            line-height: 22px;
-        }
-        .stats-mini-item .count.blue { background: var(--blue-50); color: var(--blue-700); }
-        .stats-mini-item .count.amber { background: var(--amber-50); color: var(--amber-600); }
-
+        /* ── Stats rapides ── */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 12px;
             margin-bottom: 20px;
         }
+
         .stat-card-mini {
             background: var(--bg-white);
             border: 1px solid var(--border-light);
@@ -211,6 +234,7 @@
             position: relative;
             overflow: hidden;
         }
+
         .stat-card-mini::before {
             content: '';
             position: absolute;
@@ -219,10 +243,12 @@
             right: 0;
             height: 3px;
         }
+
         .stat-card-mini.green::before { background: var(--green-500); }
         .stat-card-mini.blue::before { background: var(--blue-500); }
         .stat-card-mini.amber::before { background: var(--amber-500); }
         .stat-card-mini.red::before { background: var(--red-500); }
+
         .stat-card-mini-label {
             font-size: 10px;
             font-weight: 600;
@@ -231,24 +257,28 @@
             color: var(--text-muted);
             margin-bottom: 6px;
         }
+
         .stat-card-mini-value {
             font-size: 24px;
             font-weight: 700;
             color: var(--text-primary);
             line-height: 1;
         }
+
         .stat-card-mini-sub {
             font-size: 12px;
             color: var(--text-muted);
             margin-top: 4px;
         }
 
+        /* ── Cartes de pointage ── */
         .cards-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
             gap: 16px;
             margin-bottom: 28px;
         }
+
         .pointage-card {
             background: var(--bg-white);
             border: 1px solid var(--border-light);
@@ -256,10 +286,12 @@
             overflow: hidden;
             box-shadow: var(--shadow-sm);
         }
+
         .pointage-card:hover {
             box-shadow: var(--shadow-md);
             transform: translateY(-2px);
         }
+
         .pointage-card.is-garde {
             border-color: rgba(139, 92, 246, 0.3);
         }
@@ -272,6 +304,7 @@
             background: var(--bg-surface);
             gap: 12px;
         }
+
         .card-avatar {
             width: 36px;
             height: 36px;
@@ -284,10 +317,12 @@
             color: #fff;
             flex-shrink: 0;
         }
+
         .card-employee {
             flex: 1;
             min-width: 0;
         }
+
         .card-employee-name {
             font-size: 14px;
             font-weight: 700;
@@ -296,6 +331,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
         .card-employee-meta {
             display: flex;
             align-items: center;
@@ -303,6 +339,7 @@
             margin-top: 2px;
             flex-wrap: wrap;
         }
+
         .card-employee-matricule {
             font-size: 10px;
             color: var(--text-muted);
@@ -311,6 +348,7 @@
             border-radius: var(--radius-sm);
             border: 1px solid var(--border-light);
         }
+
         .card-employee-poste {
             font-size: 10px;
             font-weight: 600;
@@ -319,6 +357,7 @@
             padding: 1px 8px;
             border-radius: var(--radius-sm);
         }
+
         .card-right {
             display: flex;
             flex-direction: column;
@@ -326,15 +365,18 @@
             gap: 2px;
             flex-shrink: 0;
         }
+
         .card-date {
             font-size: 12px;
             font-weight: 700;
             color: var(--text-primary);
         }
+
         .card-day {
             font-size: 10px;
             color: var(--text-muted);
         }
+
         .card-badges {
             display: flex;
             gap: 4px;
@@ -354,6 +396,7 @@
             border-radius: var(--radius-full);
             white-space: nowrap;
         }
+
         .badge-custom.garde { background: #EEEDFE; color: #5B21B6; }
         .badge-custom.present { background: var(--green-50); color: var(--green-700); }
         .badge-custom.partiel { background: var(--amber-50); color: var(--amber-600); }
@@ -364,14 +407,17 @@
             display: grid;
             grid-template-columns: repeat(4, 1fr);
         }
+
         .scan-cell {
             padding: 10px 12px;
             border-right: 1px solid var(--border-light);
             min-height: 80px;
         }
+
         .scan-cell:last-child { border-right: none; }
         .scan-cell.missing { background: #FFFBFA; }
         .scan-cell.active { background: #F0FDF7; }
+
         .scan-cell .scan-type {
             font-size: 8px;
             font-weight: 600;
@@ -380,22 +426,27 @@
             color: var(--text-muted);
             margin-bottom: 3px;
         }
+
         .scan-cell .scan-time {
             font-size: 17px;
             font-weight: 600;
             color: var(--text-primary);
         }
+
         .scan-cell .scan-time.empty { color: #D1D5DB; font-size: 13px; }
+
         .scan-cell .scan-site {
             font-size: 10px;
             color: var(--text-muted);
             margin-top: 2px;
         }
+
         .scan-cell .scan-status {
             font-size: 10px;
             font-weight: 600;
             margin-top: 2px;
         }
+
         .scan-status.ok { color: var(--green-700); }
         .scan-status.warn { color: var(--amber-600); }
         .scan-status.miss { color: #D1D5DB; }
@@ -408,11 +459,13 @@
             background: #1E1B4B;
             flex-wrap: wrap;
         }
+
         .night-block {
             display: flex;
             flex-direction: column;
             gap: 2px;
         }
+
         .night-label {
             font-size: 8px;
             font-weight: 600;
@@ -420,19 +473,23 @@
             letter-spacing: 0.08em;
             color: rgba(255, 255, 255, 0.3);
         }
+
         .night-time {
             font-size: 17px;
             font-weight: 600;
             color: #A5B4FC;
         }
+
         .night-site {
             font-size: 10px;
             color: rgba(255, 255, 255, 0.3);
         }
+
         .night-arrow {
             font-size: 18px;
             color: rgba(255, 255, 255, 0.15);
         }
+
         .night-total {
             margin-left: auto;
             background: #EEEDFE;
@@ -446,6 +503,7 @@
         .card-footer-custom {
             border-top: 1px solid var(--border-light);
         }
+
         .card-footer-totals {
             display: flex;
             gap: 16px;
@@ -453,6 +511,7 @@
             background: var(--bg-surface);
             flex-wrap: wrap;
         }
+
         .card-footer-total-item {
             font-size: 11px;
             color: var(--text-muted);
@@ -460,16 +519,19 @@
             align-items: center;
             gap: 6px;
         }
+
         .card-footer-total-item strong {
             font-weight: 700;
             color: var(--text-primary);
         }
+
         .tdot {
             width: 6px;
             height: 6px;
             border-radius: 50%;
             flex-shrink: 0;
         }
+
         .tdot.ok { background: var(--green-500); }
         .tdot.warn { background: var(--amber-500); }
 
@@ -481,6 +543,7 @@
             border: 2px dashed var(--border-light);
             border-radius: var(--radius-lg);
         }
+
         .empty-state-icon {
             width: 56px;
             height: 56px;
@@ -493,12 +556,14 @@
             font-size: 22px;
             color: var(--text-muted);
         }
+
         .empty-state h3 {
             font-size: 18px;
             font-weight: 700;
             color: var(--text-primary);
             margin-bottom: 6px;
         }
+
         .empty-state p {
             font-size: 14px;
             color: var(--text-muted);
@@ -511,6 +576,7 @@
             gap: 4px;
             padding: 20px 0;
         }
+
         .pagination-custom .page-btn {
             min-width: 36px;
             height: 36px;
@@ -525,11 +591,13 @@
             font-weight: 600;
             font-size: 12px;
         }
+
         .pagination-custom .page-btn:hover {
             border-color: var(--text-muted);
             color: var(--text-primary);
             background: var(--bg-surface);
         }
+
         .pagination-custom .page-btn.is-active {
             background: var(--blue-500);
             border-color: var(--blue-500);
@@ -539,10 +607,12 @@
         @media (max-width: 1100px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
+
         @media (max-width: 992px) {
             .cards-grid { grid-template-columns: 1fr; }
             .scans-grid { grid-template-columns: repeat(2, 1fr); }
         }
+
         @media (max-width: 768px) {
             .page-header { flex-direction: column; align-items: stretch; }
             .page-header-actions { width: 100%; justify-content: stretch; }
@@ -557,273 +627,333 @@
             .night-arrow { transform: rotate(90deg); text-align: center; }
             .night-total { margin-left: 0; text-align: center; }
         }
+
+        @media (max-width: 480px) {
+            .page-header-left h1 { font-size: 18px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+            .stat-card-mini { padding: 10px 12px; }
+            .stat-card-mini-value { font-size: 16px; }
+            .scan-cell { padding: 8px 10px; min-height: 60px; }
+            .scan-cell .scan-time { font-size: 14px; }
+        }
     </style>
 {% endblock %}
 
 {% block content %}
-    <!-- Notre contenu personnalisé - remplace completement le contenu parent -->
-    <div id="custom-pointage-content">
-        <!-- ===== EN-TÊTE ===== -->
-        <div class="page-header">
-            <div class="page-header-left">
-                <h1><i class="fas fa-clock-rotate-left"></i> Pointages</h1>
-            </div>
-            <div class="page-header-actions">
-                {% if has_add_permission %}
-                <a href="{% url 'admin:pointage_pointage_add' %}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Ajouter un pointage
-                </a>
-                {% endif %}
-            </div>
+<div id="content-main">
+    <!-- ===== EN-TÊTE ===== -->
+    <div class="page-header">
+        <div class="page-header-left">
+            <h1>
+                <i class="fas fa-clock-rotate-left"></i>
+                Pointages
+            </h1>
         </div>
-
-        <!-- ===== STATS MINI ===== -->
-        <div class="stats-mini">
-            <span class="stats-mini-item">Journées <span class="count">{{ cards.paginator.count }}</span></span>
-            <span class="stats-mini-item">Heures <span class="count blue">{{ total_heures|timedelta_short|default:"0h" }}</span></span>
-            <span class="stats-mini-item">Retard <span class="count amber">{{ total_retard|timedelta_short|default:"0min" }}</span></span>
-            <span class="stats-mini-item">Employés <span class="count">{{ unique_employes_count|default:"0" }}</span></span>
-        </div>
-
-        <!-- ===== FILTRES ===== -->
-        <div class="filter-bar">
-            <div class="filter-bar-header">
-                <span class="filter-bar-label"><i class="fas fa-sliders-h"></i> Filtres de recherche</span>
-                <div class="filter-bar-separator"></div>
-            </div>
-            <form method="get">
-                <div class="filter-grid">
-                    <div class="filter-group">
-                        <label class="filter-group-label">Date début</label>
-                        <input type="date" class="filter-group-input" name="date_debut" value="{{ filter_date_debut }}">
-                    </div>
-                    <div class="filter-group">
-                        <label class="filter-group-label">Date fin</label>
-                        <input type="date" class="filter-group-input" name="date_fin" value="{{ filter_date_fin }}">
-                    </div>
-                    <div class="filter-group">
-                        <label class="filter-group-label">Employé</label>
-                        <select class="filter-group-input" name="employe">
-                            <option value="">Tous les employés</option>
-                            {% for employe in employes %}
-                            <option value="{{ employe.id }}" {% if request.GET.employe == employe.id|stringformat:"s" %}selected{% endif %}>
-                                {{ employe.prenom }} {{ employe.nom }} ({{ employe.matricule }})
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label class="filter-group-label">Site</label>
-                        <select class="filter-group-input" name="site">
-                            <option value="">Tous les sites</option>
-                            {% for site in sites %}
-                            <option value="{{ site.id }}" {% if request.GET.site == site.id|stringformat:"s" %}selected{% endif %}>
-                                {{ site.nom }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label class="filter-group-label">Type de période</label>
-                        <select class="filter-group-input" name="periode_type">
-                            <option value="">Tous (Jour + Nuit)</option>
-                            <option value="jour" {% if request.GET.periode_type == 'jour' %}selected{% endif %}>Jour seulement</option>
-                            <option value="nuit" {% if request.GET.periode_type == 'nuit' %}selected{% endif %}>Nuit (Gardes) seulement</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="filter-actions">
-                    <a href="{% url 'admin:pointage_pointage_changelist' %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-times"></i> Réinitialiser
-                    </a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-search"></i> Appliquer
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- ===== STATS ===== -->
-        <div class="stats-grid">
-            <div class="stat-card-mini green">
-                <div class="stat-card-mini-label">Pointages enregistrés</div>
-                <div class="stat-card-mini-value">{{ cards.paginator.count }}</div>
-                <div class="stat-card-mini-sub">Sur la période filtrée</div>
-            </div>
-            <div class="stat-card-mini blue">
-                <div class="stat-card-mini-label">Heures travaillées</div>
-                <div class="stat-card-mini-value">{{ total_heures|timedelta_short|default:"0h" }}</div>
-                <div class="stat-card-mini-sub">Temps cumulé</div>
-            </div>
-            <div class="stat-card-mini amber">
-                <div class="stat-card-mini-label">Retard cumulé</div>
-                <div class="stat-card-mini-value">{{ total_retard|timedelta_short|default:"0min" }}</div>
-                <div class="stat-card-mini-sub">À régulariser</div>
-            </div>
-            <div class="stat-card-mini red">
-                <div class="stat-card-mini-label">Employés distincts</div>
-                <div class="stat-card-mini-value">{{ unique_employes_count|default:"—" }}</div>
-                <div class="stat-card-mini-sub">Sur la période</div>
-            </div>
-        </div>
-
-        <!-- ===== CARTES ===== -->
-        <div class="cards-grid">
-        {% for jour in cards %}
-        <div class="pointage-card {% if jour.is_garde %}is-garde{% endif %}">
-            <div class="card-header-custom">
-                <div class="card-avatar" style="background:{% if jour.employe.id|divisibleby:7 %}#8B5CF6{% else %}#2563EB{% endif %};">
-                    {{ jour.employe.prenom|slice:"0:1" }}{{ jour.employe.nom|slice:"0:1" }}
-                </div>
-                <div class="card-employee">
-                    <div class="card-employee-name">{{ jour.employe.prenom }} {{ jour.employe.nom }}</div>
-                    <div class="card-employee-meta">
-                        <span class="card-employee-matricule">{{ jour.employe.matricule }}</span>
-                        {% if jour.employe.poste %}
-                        <span class="card-employee-poste" style="background:{{ jour.employe.poste_couleur }}22;color:{{ jour.employe.poste_couleur }}">
-                            {{ jour.employe.poste }}
-                        </span>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="card-right">
-                    <div class="card-date">{{ jour.date|date:"d M Y" }}</div>
-                    <div class="card-day">{{ jour.date|date:"l" }}</div>
-                    <div class="card-badges">
-                        {% if jour.is_garde %}<span class="badge-custom garde"><i class="fas fa-moon"></i> Garde</span>{% endif %}
-                        {% if jour.statut_global == 'present' %}<span class="badge-custom present">✓ Présent</span>
-                        {% elif jour.statut_global == 'partiel' %}<span class="badge-custom partiel">~ Incomplet</span>
-                        {% else %}<span class="badge-custom absent">✗ Absent</span>{% endif %}
-                        {% if jour.retard_total and jour.retard_total.total_seconds > 0 %}
-                        <span class="badge-custom retard"><i class="fas fa-clock"></i> Retard</span>{% endif %}
-                    </div>
-                </div>
-            </div>
-
-            {% if jour.is_garde %}
-            <div class="night-band">
-                <div class="night-block">
-                    <span class="night-label">Début</span>
-                    <span class="night-time">{{ jour.nuit.heure_arrivee|time:"H:i"|default:"—" }}</span>
-                    <span class="night-site">{{ jour.nuit.site.nom|default:"—" }}</span>
-                </div>
-                <span class="night-arrow">→</span>
-                <div class="night-block">
-                    <span class="night-label">Fin</span>
-                    <span class="night-time">{{ jour.nuit.heure_depart|time:"H:i"|default:"—" }}</span>
-                    <span class="night-site">{{ jour.nuit.site.nom|default:"—" }}</span>
-                </div>
-                {% if jour.nuit.heures_travaillees %}
-                <span class="night-total">{{ jour.nuit.heures_travaillees|timedelta_short }}</span>
-                {% endif %}
-            </div>
-            {% else %}
-            <div class="scans-grid">
-                <div class="scan-cell {% if not jour.matin or not jour.matin.heure_arrivee %}missing{% else %}active{% endif %}">
-                    <div class="scan-type">Entrée matin</div>
-                    {% if jour.matin and jour.matin.heure_arrivee %}
-                        <div class="scan-time">{{ jour.matin.heure_arrivee|time:"H:i" }}</div>
-                        <div class="scan-site">{{ jour.matin.site.nom|default:"—" }}</div>
-                        <div class="scan-status {% if jour.matin.retard and jour.matin.retard.total_seconds > 0 %}warn{% else %}ok{% endif %}">
-                            {% if jour.matin.retard and jour.matin.retard.total_seconds > 0 %}+{{ jour.matin.retard|timedelta_short }}{% else %}À l'heure{% endif %}
-                        </div>
-                    {% else %}
-                        <div class="scan-time empty">—</div>
-                        <div class="scan-site">—</div>
-                        <div class="scan-status miss">Absent</div>
-                    {% endif %}
-                </div>
-                <div class="scan-cell {% if not jour.matin or not jour.matin.heure_depart %}missing{% endif %}">
-                    <div class="scan-type">Sortie matin</div>
-                    {% if jour.matin and jour.matin.heure_depart %}
-                        <div class="scan-time">{{ jour.matin.heure_depart|time:"H:i" }}</div>
-                        <div class="scan-site">{{ jour.matin.site.nom|default:"—" }}</div>
-                        <div class="scan-status ok">
-                            {% if jour.matin.heures_travaillees %}{{ jour.matin.heures_travaillees|timedelta_short }}{% else %}Pointé{% endif %}
-                        </div>
-                    {% else %}
-                        <div class="scan-time empty">—</div>
-                        <div class="scan-site">—</div>
-                        <div class="scan-status miss">Non pointé</div>
-                    {% endif %}
-                </div>
-                <div class="scan-cell {% if not jour.apres_midi or not jour.apres_midi.heure_arrivee %}missing{% else %}active{% endif %}">
-                    <div class="scan-type">Entrée AM</div>
-                    {% if jour.apres_midi and jour.apres_midi.heure_arrivee %}
-                        <div class="scan-time">{{ jour.apres_midi.heure_arrivee|time:"H:i" }}</div>
-                        <div class="scan-site">{{ jour.apres_midi.site.nom|default:"—" }}</div>
-                        <div class="scan-status {% if jour.apres_midi.retard and jour.apres_midi.retard.total_seconds > 0 %}warn{% else %}ok{% endif %}">
-                            {% if jour.apres_midi.retard and jour.apres_midi.retard.total_seconds > 0 %}+{{ jour.apres_midi.retard|timedelta_short }}{% else %}À l'heure{% endif %}
-                        </div>
-                    {% else %}
-                        <div class="scan-time empty">—</div>
-                        <div class="scan-site">—</div>
-                        <div class="scan-status miss">En attente</div>
-                    {% endif %}
-                </div>
-                <div class="scan-cell {% if not jour.apres_midi or not jour.apres_midi.heure_depart %}missing{% endif %}">
-                    <div class="scan-type">Sortie AM</div>
-                    {% if jour.apres_midi and jour.apres_midi.heure_depart %}
-                        <div class="scan-time">{{ jour.apres_midi.heure_depart|time:"H:i" }}</div>
-                        <div class="scan-site">{{ jour.apres_midi.site.nom|default:"—" }}</div>
-                        <div class="scan-status ok">
-                            {% if jour.apres_midi.heures_travaillees %}{{ jour.apres_midi.heures_travaillees|timedelta_short }}{% else %}Pointé{% endif %}
-                        </div>
-                    {% else %}
-                        <div class="scan-time empty">—</div>
-                        <div class="scan-site">—</div>
-                        <div class="scan-status miss">Non pointé</div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
-            <div class="card-footer-custom">
-                <div class="card-footer-totals">
-                    <span class="card-footer-total-item"><span class="tdot ok"></span> Travaillées : <strong>{{ jour.heures_total|timedelta_short }}</strong></span>
-                    {% if jour.retard_total and jour.retard_total.total_seconds > 0 %}
-                    <span class="card-footer-total-item"><span class="tdot warn"></span> Retard : <strong>{{ jour.retard_total|timedelta_short }}</strong></span>
-                    {% endif %}
-                    {% if jour.heures_sup and jour.heures_sup.total_seconds > 0 %}
-                    <span class="card-footer-total-item"><span class="tdot ok"></span> H. sup : <strong>{{ jour.heures_sup|timedelta_short }}</strong></span>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        {% empty %}
-        <div class="empty-state">
-            <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
-            <h3>Aucun pointage trouvé</h3>
-            <p>Aucun pointage ne correspond aux filtres sélectionnés.</p>
-            <a href="{% url 'admin:pointage_pointage_changelist' %}" class="btn btn-primary">
-                <i class="fas fa-redo"></i> Réinitialiser
-            </a>
-        </div>
-        {% endfor %}
-        </div>
-
-        <!-- ===== PAGINATION ===== -->
-        {% if cards.has_other_pages %}
-        <nav class="pagination-custom">
-            {% if cards.has_previous %}
-            <a class="page-btn" href="?page={{ cards.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                <i class="fas fa-chevron-left"></i>
+        <div class="page-header-actions">
+            {% if has_add_permission %}
+            <a href="{% url 'admin:pointage_pointage_add' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Ajouter un pointage
             </a>
             {% endif %}
-            {% for num in cards.paginator.page_range %}
-                {% if num <= cards.number|add:2 and num >= cards.number|add:-2 %}
-                <a class="page-btn {% if cards.number == num %}is-active{% endif %}"
-                   href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                    {{ num }}
-                </a>
-                {% endif %}
-            {% endfor %}
-            {% if cards.has_next %}
-            <a class="page-btn" href="?page={{ cards.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                <i class="fas fa-chevron-right"></i>
-            </a>
-            {% endif %}
-        </nav>
-        {% endif %}
+            <span style="font-size:13px;color:var(--text-muted);">
+                <i class="fas fa-calendar-alt"></i> Pointages enregistrés
+            </span>
+        </div>
     </div>
+
+    <!-- ===== STATS MINI ===== -->
+    <div class="stats-mini">
+        <span class="stats-mini-item">
+            <i class="fas fa-calendar-day" style="color:var(--text-light);"></i>
+            Journées
+            <span class="count">{{ cards.paginator.count }}</span>
+        </span>
+        <span class="stats-mini-item">
+            <i class="fas fa-clock" style="color:var(--blue-500);"></i>
+            Heures
+            <span class="count blue">{{ total_heures|timedelta_short|default:"0h" }}</span>
+        </span>
+        <span class="stats-mini-item">
+            <i class="fas fa-clock" style="color:var(--amber-500);"></i>
+            Retard
+            <span class="count amber">{{ total_retard|timedelta_short|default:"0min" }}</span>
+        </span>
+        <span class="stats-mini-item">
+            <i class="fas fa-users" style="color:var(--text-light);"></i>
+            Employés
+            <span class="count">{{ unique_employes_count|default:"0" }}</span>
+        </span>
+    </div>
+
+    <!-- ===== FILTRES ===== -->
+    <div class="filter-bar">
+        <div class="filter-bar-header">
+            <span class="filter-bar-label">
+                <i class="fas fa-sliders-h" style="margin-right:6px;"></i>
+                Filtres de recherche
+            </span>
+            <div class="filter-bar-separator"></div>
+        </div>
+        <form method="get" id="filterForm">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label class="filter-group-label">Date début</label>
+                    <input type="date" class="filter-group-input" name="date_debut" value="{{ filter_date_debut }}">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-group-label">Date fin</label>
+                    <input type="date" class="filter-group-input" name="date_fin" value="{{ filter_date_fin }}">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-group-label">Employé</label>
+                    <select class="filter-group-input" name="employe">
+                        <option value="">Tous les employés</option>
+                        {% for employe in employes %}
+                        <option value="{{ employe.id }}" {% if request.GET.employe == employe.id|stringformat:"s" %}selected{% endif %}>
+                            {{ employe.prenom }} {{ employe.nom }} ({{ employe.matricule }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-group-label">Site</label>
+                    <select class="filter-group-input" name="site">
+                        <option value="">Tous les sites</option>
+                        {% for site in sites %}
+                        <option value="{{ site.id }}" {% if request.GET.site == site.id|stringformat:"s" %}selected{% endif %}>
+                            {{ site.nom }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-group-label">Type de période</label>
+                    <select class="filter-group-input" name="periode_type">
+                        <option value="">Tous (Jour + Nuit)</option>
+                        <option value="jour" {% if request.GET.periode_type == 'jour' %}selected{% endif %}>Jour seulement</option>
+                        <option value="nuit" {% if request.GET.periode_type == 'nuit' %}selected{% endif %}>Nuit (Gardes) seulement</option>
+                    </select>
+                </div>
+            </div>
+            <div class="filter-actions">
+                <a href="{% url 'admin:pointage_pointage_changelist' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Réinitialiser
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Appliquer
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ===== STATS ===== -->
+    <div class="stats-grid">
+        <div class="stat-card-mini green">
+            <div class="stat-card-mini-label">Pointages enregistrés</div>
+            <div class="stat-card-mini-value">{{ cards.paginator.count }}</div>
+            <div class="stat-card-mini-sub">Sur la période filtrée</div>
+        </div>
+        <div class="stat-card-mini blue">
+            <div class="stat-card-mini-label">Heures travaillées</div>
+            <div class="stat-card-mini-value">{{ total_heures|timedelta_short|default:"0h" }}</div>
+            <div class="stat-card-mini-sub">Temps cumulé</div>
+        </div>
+        <div class="stat-card-mini amber">
+            <div class="stat-card-mini-label">Retard cumulé</div>
+            <div class="stat-card-mini-value">{{ total_retard|timedelta_short|default:"0min" }}</div>
+            <div class="stat-card-mini-sub">À régulariser</div>
+        </div>
+        <div class="stat-card-mini red">
+            <div class="stat-card-mini-label">Employés distincts</div>
+            <div class="stat-card-mini-value">{{ unique_employes_count|default:"—" }}</div>
+            <div class="stat-card-mini-sub">Sur la période</div>
+        </div>
+    </div>
+
+    <!-- ===== CARTES ===== -->
+    <div class="cards-grid">
+    {% for jour in cards %}
+    <div class="pointage-card {% if jour.is_garde %}is-garde{% endif %}">
+
+        <!-- En-tête -->
+        <div class="card-header-custom">
+            <div class="card-avatar" style="background:{% if jour.employe.id|divisibleby:7 %}#8B5CF6{% else %}#2563EB{% endif %};">
+                {{ jour.employe.prenom|slice:"0:1" }}{{ jour.employe.nom|slice:"0:1" }}
+            </div>
+            <div class="card-employee">
+                <div class="card-employee-name">{{ jour.employe.prenom }} {{ jour.employe.nom }}</div>
+                <div class="card-employee-meta">
+                    <span class="card-employee-matricule">{{ jour.employe.matricule }}</span>
+                    {% if jour.employe.poste %}
+                    <span class="card-employee-poste" style="background:{{ jour.employe.poste_couleur }}22;color:{{ jour.employe.poste_couleur }}">
+                        {{ jour.employe.poste }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-right">
+                <div class="card-date">{{ jour.date|date:"d M Y" }}</div>
+                <div class="card-day">{{ jour.date|date:"l" }}</div>
+                <div class="card-badges">
+                    {% if jour.is_garde %}
+                        <span class="badge-custom garde"><i class="fas fa-moon"></i> Garde</span>
+                    {% endif %}
+                    {% if jour.statut_global == 'present' %}
+                        <span class="badge-custom present">✓ Présent</span>
+                    {% elif jour.statut_global == 'partiel' %}
+                        <span class="badge-custom partiel">~ Incomplet</span>
+                    {% else %}
+                        <span class="badge-custom absent">✗ Absent</span>
+                    {% endif %}
+                    {% if jour.retard_total and jour.retard_total.total_seconds > 0 %}
+                        <span class="badge-custom retard"><i class="fas fa-clock"></i> Retard</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Scans -->
+        {% if jour.is_garde %}
+        <div class="night-band">
+            <div class="night-block">
+                <span class="night-label">Début garde</span>
+                <span class="night-time">{{ jour.nuit.heure_arrivee|time:"H:i"|default:"—" }}</span>
+                <span class="night-site">{{ jour.nuit.site.nom|default:"—" }}</span>
+            </div>
+            <span class="night-arrow">→</span>
+            <div class="night-block">
+                <span class="night-label">Fin garde</span>
+                <span class="night-time">{{ jour.nuit.heure_depart|time:"H:i"|default:"—" }}</span>
+                <span class="night-site">{{ jour.nuit.site.nom|default:"—" }}</span>
+            </div>
+            {% if jour.nuit.heures_travaillees %}
+            <span class="night-total">{{ jour.nuit.heures_travaillees|timedelta_short }} travaillées</span>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="scans-grid">
+            <!-- Entrée matin -->
+            <div class="scan-cell {% if not jour.matin or not jour.matin.heure_arrivee %}missing{% else %}active{% endif %}">
+                <div class="scan-type">Entrée matin</div>
+                {% if jour.matin and jour.matin.heure_arrivee %}
+                    <div class="scan-time">{{ jour.matin.heure_arrivee|time:"H:i" }}</div>
+                    <div class="scan-site">{{ jour.matin.site.nom|default:"—" }}</div>
+                    <div class="scan-status {% if jour.matin.retard and jour.matin.retard.total_seconds > 0 %}warn{% else %}ok{% endif %}">
+                        {% if jour.matin.retard and jour.matin.retard.total_seconds > 0 %}+{{ jour.matin.retard|timedelta_short }}{% else %}À l'heure{% endif %}
+                    </div>
+                {% else %}
+                    <div class="scan-time empty">—</div>
+                    <div class="scan-site">—</div>
+                    <div class="scan-status miss">Absent</div>
+                {% endif %}
+            </div>
+            <!-- Sortie matin -->
+            <div class="scan-cell {% if not jour.matin or not jour.matin.heure_depart %}missing{% endif %}">
+                <div class="scan-type">Sortie matin</div>
+                {% if jour.matin and jour.matin.heure_depart %}
+                    <div class="scan-time">{{ jour.matin.heure_depart|time:"H:i" }}</div>
+                    <div class="scan-site">{{ jour.matin.site.nom|default:"—" }}</div>
+                    <div class="scan-status ok">
+                        {% if jour.matin.heures_travaillees %}{{ jour.matin.heures_travaillees|timedelta_short }} trav.{% else %}Pointé{% endif %}
+                    </div>
+                {% else %}
+                    <div class="scan-time empty">—</div>
+                    <div class="scan-site">—</div>
+                    <div class="scan-status miss">Non pointé</div>
+                {% endif %}
+            </div>
+            <!-- Entrée après-midi -->
+            <div class="scan-cell {% if not jour.apres_midi or not jour.apres_midi.heure_arrivee %}missing{% else %}active{% endif %}">
+                <div class="scan-type">Entrée après-midi</div>
+                {% if jour.apres_midi and jour.apres_midi.heure_arrivee %}
+                    <div class="scan-time">{{ jour.apres_midi.heure_arrivee|time:"H:i" }}</div>
+                    <div class="scan-site">{{ jour.apres_midi.site.nom|default:"—" }}</div>
+                    <div class="scan-status {% if jour.apres_midi.retard and jour.apres_midi.retard.total_seconds > 0 %}warn{% else %}ok{% endif %}">
+                        {% if jour.apres_midi.retard and jour.apres_midi.retard.total_seconds > 0 %}+{{ jour.apres_midi.retard|timedelta_short }}{% else %}À l'heure{% endif %}
+                    </div>
+                {% else %}
+                    <div class="scan-time empty">—</div>
+                    <div class="scan-site">—</div>
+                    <div class="scan-status miss">En attente</div>
+                {% endif %}
+            </div>
+            <!-- Sortie après-midi -->
+            <div class="scan-cell {% if not jour.apres_midi or not jour.apres_midi.heure_depart %}missing{% endif %}">
+                <div class="scan-type">Sortie après-midi</div>
+                {% if jour.apres_midi and jour.apres_midi.heure_depart %}
+                    <div class="scan-time">{{ jour.apres_midi.heure_depart|time:"H:i" }}</div>
+                    <div class="scan-site">{{ jour.apres_midi.site.nom|default:"—" }}</div>
+                    <div class="scan-status ok">
+                        {% if jour.apres_midi.heures_travaillees %}{{ jour.apres_midi.heures_travaillees|timedelta_short }} trav.{% else %}Pointé{% endif %}
+                    </div>
+                {% else %}
+                    <div class="scan-time empty">—</div>
+                    <div class="scan-site">—</div>
+                    <div class="scan-status miss">Non pointé</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Pied -->
+        <div class="card-footer-custom">
+            <div class="card-footer-totals">
+                <span class="card-footer-total-item">
+                    <span class="tdot ok"></span>
+                    Travaillées : <strong>{{ jour.heures_total|timedelta_short }}</strong>
+                </span>
+                {% if jour.retard_total and jour.retard_total.total_seconds > 0 %}
+                <span class="card-footer-total-item">
+                    <span class="tdot warn"></span>
+                    Retard : <strong>{{ jour.retard_total|timedelta_short }}</strong>
+                </span>
+                {% endif %}
+                {% if jour.heures_sup and jour.heures_sup.total_seconds > 0 %}
+                <span class="card-footer-total-item">
+                    <span class="tdot ok"></span>
+                    H. sup : <strong>{{ jour.heures_sup|timedelta_short }}</strong>
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+    {% empty %}
+    <div class="empty-state">
+        <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
+        <h3>Aucun pointage trouvé</h3>
+        <p>Aucun pointage ne correspond aux filtres sélectionnés.<br>Essayez de modifier vos critères de recherche.</p>
+        <a href="{% url 'admin:pointage_pointage_changelist' %}" class="btn btn-primary">
+            <i class="fas fa-redo"></i> Réinitialiser
+        </a>
+    </div>
+    {% endfor %}
+    </div>
+
+    <!-- ===== PAGINATION ===== -->
+    {% if cards.has_other_pages %}
+    <nav class="pagination-custom">
+        {% if cards.has_previous %}
+        <a class="page-btn" href="?page={{ cards.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+            <i class="fas fa-chevron-left"></i>
+        </a>
+        {% endif %}
+
+        {% for num in cards.paginator.page_range %}
+            {% if num <= cards.number|add:2 and num >= cards.number|add:-2 %}
+            <a class="page-btn {% if cards.number == num %}is-active{% endif %}"
+               href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                {{ num }}
+            </a>
+            {% endif %}
+        {% endfor %}
+
+        {% if cards.has_next %}
+        <a class="page-btn" href="?page={{ cards.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+            <i class="fas fa-chevron-right"></i>
+        </a>
+        {% endif %}
+    </nav>
+    {% endif %}
+</div>
 {% endblock %}
