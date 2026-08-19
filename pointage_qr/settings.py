@@ -153,7 +153,7 @@ JAZZMIN_SETTINGS = {
     "site_brand": "Pointage QR",
     "welcome_sign": "Bienvenue dans l'administration",
     "copyright": "Pointage QR © 2026",
-    
+    "SHOW_ALL_APPS": True,
     # ── Icônes ──
     "icons": {
         "auth": "fas fa-lock",
