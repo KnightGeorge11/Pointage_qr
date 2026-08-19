@@ -203,19 +203,29 @@ class EmployeAdmin(admin.ModelAdmin):
 # POINTAGE - VERSION QUI MARCHE AVEC JAZZMIN
 # ============================================================
 
-# pointage/admin.py - PARTIE PointageAdmin CORRIGEE
-
 @admin.register(Pointage)
 class PointageAdmin(admin.ModelAdmin):
     change_list_template = "admin/pointage/pointage_changelist.html"
     
-    list_display = ['employe', 'date_pointage', 'periode', 'type_journee']
+    # Garder les attributs de base pour Jazzmin
+    list_display = [
+        'employe',
+        'date_pointage',
+        'periode',
+        'type_journee',
+    ]
+    
+    # PAS de list_filter pour éviter l'erreur
     list_filter = []
     search_fields = []
     date_hierarchy = None
     
     def get_queryset(self, request):
         return Pointage.objects.select_related('employe', 'site')
+    
+    # ============================================================
+    # CHANGELIST VIEW - TOUT EST GERER ICI
+    # ============================================================
     
     def changelist_view(self, request, extra_context=None):
         # Récupérer les filtres depuis GET
@@ -272,9 +282,7 @@ class PointageAdmin(admin.ModelAdmin):
         elif periode_type == 'nuit':
             queryset = queryset.filter(type_journee='garde')
         
-        # ============================================================
-        # CONSTRUIRE LES CARTES - C'EST ICI QUE LES DONNEES SONT CREEES
-        # ============================================================
+        # Construire les données pour les cartes
         cards = []
         employes_info = {}
         
@@ -355,23 +363,54 @@ class PointageAdmin(admin.ModelAdmin):
         sites = Site.objects.all().order_by('nom')
         
         # ============================================================
-        # CONTEXTE POUR LE TEMPLATE
+        # CONTEXTE POUR LE TEMPLATE - AVEC TOUT CE DONT JAZZMIN A BESOIN
         # ============================================================
+        
+        # Créer un objet ChangeList factice pour Jazzmin
+        from django.contrib.admin.views.main import ChangeList
+        class DummyChangeList(ChangeList):
+            def __init__(self):
+                self.list_display = []
+                self.list_display_links = []
+                self.list_filter = []
+                self.date_hierarchy = None
+                self.search_fields = []
+                self.list_select_related = None
+                self.list_per_page = 100
+                self.list_max_show_all = 200
+                self.list_editable = []
+                self.model_admin = None
+                self.sortable_by = None
+                self.search_help_text = None
+                self.has_filters = False
+                self.has_actions = False
+                self.show_all = False
+                self.multi_page = False
+                self.paginator = paginator
+                self.page_num = page_number
+                self.paginator_show_all = False
+                self.show_admin_actions = False
+        
+        dummy_cl = DummyChangeList()
+        
         extra_context = extra_context or {}
         extra_context.update({
-    'cards': page_obj,
-    'total_journees': total_journees,
-    'total_heures': total_heures,
-    'total_retard': total_retard,
-    'unique_employes_count': unique_employes,
-    'employes': employes,
-    'sites': sites,
-    'filter_date_debut': date_debut,
-    'filter_date_fin': date_fin,
-    'has_add_permission': self.has_add_permission(request),
-    'site_header': admin.site.site_header,
-    'site_title': admin.site.site_title,
-})
+            'cards': page_obj,
+            'total_journees': total_journees,
+            'total_heures': total_heures,
+            'total_retard': total_retard,
+            'unique_employes_count': unique_employes,
+            'employes': employes,
+            'sites': sites,
+            'filter_date_debut': date_debut,
+            'filter_date_fin': date_fin,
+            'has_add_permission': self.has_add_permission(request),
+            'cl': dummy_cl,
+            'is_popup': False,
+            'opts': self.model._meta,
+            'app_label': self.model._meta.app_label,
+            'model_name': self.model._meta.model_name,
+        })
         
         return TemplateResponse(request, self.change_list_template, extra_context)
 
