@@ -415,8 +415,6 @@ class PointageAdmin(admin.ModelAdmin):
             'opts': self.model._meta,
             'app_label': self.model._meta.app_label,
             'model_name': self.model._meta.model_name,
-            # ✅ AJOUT : URL pour le bouton réinitialiser
-            'changelist_url': reverse('admin:pointage_pointage_changelist'),
         })
         
         return TemplateResponse(request, self.change_list_template, extra_context)
