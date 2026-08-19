@@ -723,6 +723,7 @@
             .cards-grid {
                 grid-template-columns: 1fr;
             }
+
             .scans-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -733,59 +734,74 @@
                 flex-direction: column;
                 align-items: stretch;
             }
+
             .page-header-actions {
                 width: 100%;
                 justify-content: stretch;
             }
+
             .page-header-actions .btn {
                 flex: 1;
                 justify-content: center;
             }
+
             .stats-mini {
                 flex-wrap: wrap;
                 gap: 8px;
             }
+
             .filter-grid {
                 grid-template-columns: 1fr;
             }
+
             .filter-actions {
                 flex-direction: column;
             }
+
             .filter-actions .btn {
                 width: 100%;
                 justify-content: center;
             }
+
             .stats-grid {
                 grid-template-columns: 1fr 1fr;
                 gap: 8px;
             }
+
             .stat-card-mini {
                 padding: 12px 16px;
             }
+
             .stat-card-mini-value {
                 font-size: 20px;
             }
+
             .page-header-left h1 {
                 font-size: 20px;
             }
+
             .card-header-custom {
                 flex-wrap: wrap;
             }
+
             .card-right {
                 width: 100%;
                 flex-direction: row;
                 justify-content: space-between;
                 align-items: center;
             }
+
             .night-band {
                 flex-direction: column;
                 align-items: stretch;
                 gap: 8px;
             }
+
             .night-arrow {
                 transform: rotate(90deg);
                 text-align: center;
             }
+
             .night-total {
                 margin-left: 0;
                 text-align: center;
@@ -796,47 +812,58 @@
             .page-header-left h1 {
                 font-size: 18px;
             }
+
             .page-header-left h1 i {
                 font-size: 16px;
             }
+
             .stats-grid {
                 grid-template-columns: 1fr 1fr;
                 gap: 6px;
             }
+
             .stat-card-mini {
                 padding: 10px 12px;
             }
+
             .stat-card-mini-value {
                 font-size: 16px;
             }
+
             .stat-card-mini-label {
                 font-size: 8px;
             }
+
             .scan-cell {
                 padding: 8px 10px;
                 min-height: 60px;
             }
+
             .scan-cell .scan-time {
                 font-size: 14px;
             }
         }
-        
-        /* Forcer l'affichage du contenu */
-        #changelist .results,
-        #changelist .paginator,
-        #changelist .actions {
+
+        /* ── Ajustements pour l'admin Jazzmin ── */
+        #content-main {
+            padding: 0 !important;
+        }
+        .module {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        .results {
             display: none !important;
         }
-        #changelist-form {
-            padding: 0 !important;
+        .paginator {
+            display: none !important;
         }
-        #changelist .module.filtered {
-            min-height: auto !important;
-            padding: 0 !important;
+        .actions {
+            display: none !important;
         }
-        #content-main {
-            padding: 20px !important;
-            max-width: 100% !important;
+        #changelist {
+            padding: 0 !important;
         }
     </style>
 {% endblock %}
