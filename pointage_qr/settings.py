@@ -80,6 +80,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'pointage.context_processors.dashboard_context',
                 'pointage.context_processors.admin_badge_counts',
+                'jazzmin.context_processors.admin_settings',
             ],
         },
     },
