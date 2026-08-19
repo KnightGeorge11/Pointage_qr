@@ -1,5 +1,5 @@
 <!-- templates/admin/pointage/pointage_changelist.html -->
-{% extends "admin/change_list.html" %}
+{% extends "admin/base_site.html" %}
 {% load static i18n pointage_filters %}
 
 {% block title %}Pointages | {{ site_title|default:_('Django site admin') }}{% endblock %}
@@ -49,21 +49,20 @@
             --purple-500: #8B5CF6;
         }
 
-        /* Cacher le tableau par défaut */
-        #changelist .results,
-        #changelist .paginator,
-        #changelist .actions {
+        /* Cacher le contenu du tableau de bord par défaut */
+        #content-main .dashboard {
             display: none !important;
         }
-        #changelist-form {
-            padding: 0 !important;
-        }
-        #changelist .module.filtered {
-            min-height: auto !important;
+
+        /* Conteneur principal */
+        #content {
             padding: 20px !important;
+            max-width: 100% !important;
         }
+
         #content-main {
-            padding: 20px 0 !important;
+            padding: 0 !important;
+            max-width: 100% !important;
         }
 
         /* ── En-tête ── */
@@ -837,6 +836,28 @@
                 font-size: 14px;
             }
         }
+
+        /* ── Ajustements pour l'admin Jazzmin ── */
+        #content-main {
+            padding: 0 !important;
+        }
+        .module {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        .results {
+            display: none !important;
+        }
+        .paginator {
+            display: none !important;
+        }
+        .actions {
+            display: none !important;
+        }
+        #changelist {
+            padding: 0 !important;
+        }
     </style>
 {% endblock %}
 
@@ -937,8 +958,7 @@
                 </div>
             </div>
             <div class="filter-actions">
-                <!-- CORRECTION : Utilisation de reset_url au lieu de changelist_url -->
-                <a href="{{ reset_url }}" class="btn btn-outline-secondary">
+                <a href="/admin/pointage/pointage/" class="btn btn-outline-secondary">
                     <i class="fas fa-times"></i> Réinitialiser
                 </a>
                 <button type="submit" class="btn btn-primary">
@@ -1125,8 +1145,7 @@
         <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
         <h3>Aucun pointage trouvé</h3>
         <p>Aucun pointage ne correspond aux filtres sélectionnés.<br>Essayez de modifier vos critères de recherche.</p>
-        <!-- CORRECTION : Utilisation de reset_url au lieu de changelist_url -->
-        <a href="{{ reset_url }}" class="btn btn-primary">
+        <a href="/admin/pointage/pointage/" class="btn btn-primary">
             <i class="fas fa-redo"></i> Réinitialiser
         </a>
     </div>
