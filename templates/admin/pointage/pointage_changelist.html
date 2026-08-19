@@ -851,7 +851,7 @@
         </div>
         <div class="page-header-actions">
             {% if has_add_permission %}
-            <a href="/admin/pointage/pointage/" class="btn btn-outline-secondary">
+            <a href="{% url 'admin:pointage_pointage_add' %}" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Ajouter un pointage
             </a>
             {% endif %}
@@ -936,7 +936,9 @@
                 </div>
             </div>
             <div class="filter-actions">
-                <a href="/admin/pointage/pointage/" class="btn btn-primary">
+                <a href="{{ changelist_url }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Réinitialiser
+                </a>
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-search"></i> Appliquer
                 </button>
