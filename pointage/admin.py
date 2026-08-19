@@ -1,4 +1,5 @@
-# pointage/admin.py - VERSION CORRIGEE AVEC JAZZMIN
+# pointage/admin.py - VERSION FINALE CORRIGEE AVEC JAZZMIN
+
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -204,7 +205,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
 
 # ============================================================
-# POINTAGE - VERSION CORRIGEE AVEC JAZZMIN
+# POINTAGE - VERSION FINALE CORRIGEE AVEC JAZZMIN
 # ============================================================
 
 
@@ -229,7 +230,7 @@ class PointageAdmin(admin.ModelAdmin):
         return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
-    # CHANGELIST VIEW - TOUT EST GERER ICI
+    # CHANGELIST VIEW - VERSION CORRIGEE
     # ============================================================
     
     def changelist_view(self, request, extra_context=None):
@@ -368,35 +369,8 @@ class PointageAdmin(admin.ModelAdmin):
         sites = Site.objects.all().order_by('nom')
         
         # ============================================================
-        # CONTEXTE POUR LE TEMPLATE - AVEC TOUT CE DONT JAZZMIN A BESOIN
+        # CONTEXTE POUR LE TEMPLATE - SANS DUMMY CHANGELIST
         # ============================================================
-        
-        # Créer un objet ChangeList factice pour Jazzmin
-        from django.contrib.admin.views.main import ChangeList
-        class DummyChangeList(ChangeList):
-            def __init__(self):
-                self.list_display = []
-                self.list_display_links = []
-                self.list_filter = []
-                self.date_hierarchy = None
-                self.search_fields = []
-                self.list_select_related = None
-                self.list_per_page = 100
-                self.list_max_show_all = 200
-                self.list_editable = []
-                self.model_admin = None
-                self.sortable_by = None
-                self.search_help_text = None
-                self.has_filters = False
-                self.has_actions = False
-                self.show_all = False
-                self.multi_page = False
-                self.paginator = paginator
-                self.page_num = page_number
-                self.paginator_show_all = False
-                self.show_admin_actions = False
-        
-        dummy_cl = DummyChangeList()
         
         extra_context = extra_context or {}
         extra_context.update({
@@ -410,11 +384,10 @@ class PointageAdmin(admin.ModelAdmin):
             'filter_date_debut': date_debut,
             'filter_date_fin': date_fin,
             'has_add_permission': self.has_add_permission(request),
-            'cl': dummy_cl,
             'is_popup': False,
-            'opts': self.model._meta,
-            'app_label': self.model._meta.app_label,
-            'model_name': self.model._meta.model_name,
+            'title': 'Pointages',
+            # ✅ NE PAS ajouter 'cl', 'opts', 'app_label', 'model_name'
+            # ✅ Laisser Jazzmin gérer le contexte sidebar
         })
         
         return TemplateResponse(request, self.change_list_template, extra_context)
