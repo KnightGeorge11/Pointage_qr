@@ -30,6 +30,7 @@ from .views import (
 from rest_framework.routers import DefaultRouter
 from .views import employe_detail_view
 
+
 router = DefaultRouter()
 router.register(r'employes', views.EmployeViewSet, basename='employe')
 router.register(r'sites', views.SiteViewSet, basename='site')
@@ -88,9 +89,10 @@ urlpatterns = [
     path('admin/demande/<int:pk>/refuser/', views.refuser_demande_view, name='demande_refuser'),
     path('api/admin-badge-counts/', views.admin_badge_counts_api, name='admin_badge_counts_api'),
     path('export/resume/excel/', views.export_resume_excel, name='export_resume_excel'),
-    
+    path('employes/detail/<int:pk>/', employe_detail_view, name='employe_detail'),
     # ✅ API CALENDRIER - AJOUTER CES LIGNES
     path('api/pointages-mois/', api_pointages_mois, name='api_pointages_mois'),
     path('api/pointages-jour/', api_pointages_jour, name='api_pointages_jour'),
     path('api/statistiques-employe/', api_statistiques_employe, name='api_statistiques_employe'),
+    path('employes/detail/<int:pk>/', employe_detail_view, name='employe_detail'),
 ]

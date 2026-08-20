@@ -1,5 +1,5 @@
 // static/js/employe_detail.js
-// Script pour la page de détail d'un employé - SMIE FUNTOA
+// Script pour la page de détail d'un employé
 
 (function($) {
     'use strict';
@@ -67,7 +67,7 @@
             var imgSrc = $('#qr-modal-image').attr('src');
             if (imgSrc) {
                 var link = document.createElement('a');
-                var fileName = 'qr-code-employe-' + employeeId + '.png';
+                var fileName = 'qr-code-' + employeeId + '.png';
                 link.download = fileName;
                 link.href = imgSrc;
                 document.body.appendChild(link);
@@ -85,8 +85,8 @@
                 printWindow.document.write('<!DOCTYPE html><html><head><title>QR Code</title>');
                 printWindow.document.write('<style>');
                 printWindow.document.write('body { text-align: center; padding: 50px; font-family: Arial, sans-serif; }');
-                printWindow.document.write('img { max-width: 400px; border: 2px solid #e8edf5; border-radius: 8px; padding: 20px; }');
-                printWindow.document.write('.title { font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #1a2b4a; }');
+                printWindow.document.write('img { max-width: 400px; border: 2px solid #E2E8F0; border-radius: 8px; padding: 20px; }');
+                printWindow.document.write('.title { font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #0F172A; }');
                 printWindow.document.write('</style>');
                 printWindow.document.write('</head><body>');
                 printWindow.document.write('<div class="title">QR Code</div>');
@@ -99,30 +99,26 @@
         });
 
         // Sélectionner automatiquement aujourd'hui si disponible
-        var today = getToday();
         setTimeout(function() {
+            var today = getToday();
             var todayCell = $('.day-cell[data-date="' + today + '"]');
             if (todayCell.length > 0) {
                 todayCell.trigger('click');
             }
-        }, 500);
+        }, 600);
     });
 
     // Fonction pour charger le calendrier
     function loadCalendar(month, year) {
-        // Afficher le mois en cours
         var monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
                           'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
         $('#calendar-title').text(monthNames[month - 1] + ' ' + year);
         
-        // Mettre à jour les data attributes
         $('#calendar-month').data('month', month);
         $('#calendar-month').data('year', year);
 
-        // Afficher un loader
         $('#calendar-grid').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>');
 
-        // Récupérer les données via AJAX
         $.ajax({
             url: '/api/pointages-mois/',
             method: 'GET',
@@ -134,31 +130,30 @@
             success: function(response) {
                 renderCalendar(response, month, year);
                 
-                // Si une date était sélectionnée, essayer de la re-sélectionner
-                if (selectedDate && $('.day-cell[data-date="' + selectedDate + '"]').length > 0) {
-                    $('.day-cell[data-date="' + selectedDate + '"]').addClass('selected');
-                    loadDayDetails(selectedDate);
-                } else {
-                    // Sinon, sélectionner automatiquement aujourd'hui si disponible
-                    var today = getToday();
-                    var todayCell = $('.day-cell[data-date="' + today + '"]');
-                    if (todayCell.length > 0) {
-                        selectedDate = today;
-                        todayCell.addClass('selected');
-                        loadDayDetails(today);
+                var today = getToday();
+                var todayCell = $('.day-cell[data-date="' + today + '"]');
+                if (todayCell.length > 0 && !selectedDate) {
+                    selectedDate = today;
+                    todayCell.addClass('selected');
+                    loadDayDetails(today);
+                } else if (selectedDate) {
+                    var cell = $('.day-cell[data-date="' + selectedDate + '"]');
+                    if (cell.length > 0) {
+                        cell.addClass('selected');
+                        loadDayDetails(selectedDate);
                     }
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Erreur lors du chargement des pointages:', error);
-                $('#calendar-grid').html('<div class="alert alert-danger">Erreur lors du chargement des données.</div>');
+                console.error('Erreur:', error);
+                $('#calendar-grid').html('<div class="alert alert-danger">Erreur lors du chargement.</div>');
             }
         });
     }
 
     // Fonction pour afficher le calendrier
     function renderCalendar(data, month, year) {
-        var firstDay = new Date(year, month - 1, 1).getDay(); // 0 = Dimanche
+        var firstDay = new Date(year, month - 1, 1).getDay();
         var daysInMonth = new Date(year, month, 0).getDate();
         var today = getToday();
 
@@ -168,31 +163,23 @@
         html += '<th>Ven</th><th>Sam</th><th>Dim</th>';
         html += '</tr></thead><tbody><tr>';
 
-        // Ajuster pour commencer par Lundi
         var startOffset = (firstDay === 0) ? 6 : firstDay - 1;
         
-        // Cases vides avant le 1er jour
         for (var i = 0; i < startOffset; i++) {
             html += '<td class="empty"></td>';
         }
 
-        // Jours du mois
         for (var day = 1; day <= daysInMonth; day++) {
             var dateStr = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
             var statut = data[dateStr] ? data[dateStr].statut : 'none';
             
             var classNames = 'day-cell';
-            var isToday = (dateStr === today);
-            
-            if (isToday) {
+            if (dateStr === today) {
                 classNames += ' today';
             }
-            
             if (statut !== 'none') {
                 classNames += ' statut-' + statut;
             }
-            
-            // Si la date est sélectionnée
             if (selectedDate === dateStr) {
                 classNames += ' selected';
             }
@@ -200,7 +187,6 @@
             html += '<td class="' + classNames + '" data-date="' + dateStr + '" data-statut="' + statut + '">';
             html += '<div class="day-number">' + day + '</div>';
             
-            // Icône selon le statut
             if (statut !== 'none') {
                 var iconClass = getStatutIcon(statut);
                 html += '<div class="day-indicator"><i class="' + iconClass + '"></i></div>';
@@ -208,13 +194,11 @@
             
             html += '</td>';
             
-            // Nouvelle ligne après chaque semaine
             if ((startOffset + day) % 7 === 0 && day < daysInMonth) {
                 html += '</tr><tr>';
             }
         }
 
-        // Cases vides après le dernier jour
         var remaining = (7 - ((startOffset + daysInMonth) % 7)) % 7;
         for (var j = 0; j < remaining; j++) {
             html += '<td class="empty"></td>';
@@ -223,13 +207,10 @@
         html += '</tr></tbody></table>';
         $('#calendar-grid').html(html);
 
-        // Ajouter les événements de clic sur les jours
         $('.day-cell').on('click', function() {
             var date = $(this).data('date');
             selectedDate = date;
             loadDayDetails(date);
-            
-            // Mettre à jour la sélection visuelle
             $('.day-cell').removeClass('selected');
             $(this).addClass('selected');
         });
@@ -237,7 +218,6 @@
 
     // Fonction pour charger les détails d'une journée
     function loadDayDetails(date) {
-        // Afficher un loader
         $('#day-details').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>');
         
         $.ajax({
@@ -251,8 +231,8 @@
                 renderDayDetails(date, response);
             },
             error: function(xhr, status, error) {
-                console.error('Erreur lors du chargement des détails:', error);
-                $('#day-details').html('<div class="alert alert-danger">Erreur lors du chargement des détails du jour.</div>');
+                console.error('Erreur:', error);
+                $('#day-details').html('<div class="alert alert-danger">Erreur lors du chargement.</div>');
             }
         });
     }
@@ -260,11 +240,10 @@
     // Fonction pour afficher les détails d'une journée
     function renderDayDetails(date, data) {
         if (!date) {
-            $('#day-details').html('<div class="text-center py-4 text-muted">Sélectionnez une date pour voir les détails.</div>');
+            $('#day-details').html('<div class="text-center py-4 text-muted">Sélectionnez une date.</div>');
             return;
         }
 
-        // Extraire les informations
         var pointages = data[date] || null;
         var details = '';
         
@@ -281,7 +260,6 @@
             details += '<h5 class="employee-detail-day-title">' + dateFormatee.charAt(0).toUpperCase() + dateFormatee.slice(1) + '</h5>';
             details += '<div class="employee-detail-day-pointages">';
             
-            // Affichage des horaires
             var hasPointages = false;
             if (pointages.heure_entree_matin) {
                 details += '<div class="pointage-row"><span class="pointage-label">Entrée matin</span><span class="pointage-value">' + pointages.heure_entree_matin + '</span></div>';
@@ -301,12 +279,11 @@
             }
             
             if (!hasPointages) {
-                details += '<div class="text-muted text-center py-2">Aucun pointage enregistré ce jour.</div>';
+                details += '<div class="text-muted text-center py-2">Aucun pointage ce jour.</div>';
             }
             
             details += '</div>';
             
-            // Statut de la journée
             var statutLabel = getStatutLabel(statut);
             var statutIcon = getStatutIcon(statut);
             details += '<div class="employee-detail-day-statut">';
@@ -314,7 +291,6 @@
             details += '<span class="statut-value statut-' + statut + '"><i class="' + statutIcon + '"></i> ' + statutLabel + '</span>';
             details += '</div>';
             
-            // Résumé
             var nbPointages = pointages.nb_pointages || 0;
             var resume = '';
             if (nbPointages === 0) {
@@ -326,7 +302,6 @@
             }
             details += '<div class="employee-detail-day-resume"><i class="fas fa-info-circle"></i> ' + resume + '</div>';
             
-            // Anomalies
             if (pointages.anomalies && pointages.anomalies.length > 0) {
                 details += '<div class="employee-detail-day-anomalies">';
                 details += '<h6><i class="fas fa-exclamation-triangle text-warning"></i> Anomalies</h6>';
@@ -342,7 +317,7 @@
         $('#day-details').html(details);
     }
 
-    // Fonctions utilitaires pour les statuts
+    // Fonctions utilitaires
     function getStatutLabel(statut) {
         var labels = {
             'normal': 'Normal',
@@ -360,7 +335,7 @@
             'normal': 'fas fa-check-circle text-success',
             'retard': 'fas fa-clock text-warning',
             'anomalie': 'fas fa-exclamation-triangle text-danger',
-            'absence': 'fas fa-times-circle text-muted',
+            'absence': 'fas fa-circle text-muted',
             'incomplet': 'fas fa-minus-circle text-info',
             'none': 'fas fa-circle text-muted'
         };
@@ -374,4 +349,4 @@
                String(today.getDate()).padStart(2, '0');
     }
 
-})(django.jQuery);
+})(jQuery);

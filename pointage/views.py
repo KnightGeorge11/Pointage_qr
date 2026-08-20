@@ -1824,20 +1824,24 @@ def api_statistiques_employe(request):
 def employe_detail_view(request, pk):
     """
     Vue de détail d'un employé avec calendrier et statistiques.
+    Utilisée par l'interface Admin/RH.
     """
     # Vérification des permissions
     if not (request.user.is_superuser or request.user.groups.filter(name='RH').exists()):
         messages.error(request, "❌ Vous n'avez pas les droits pour consulter cette page.")
-        return redirect('employes')
+        return redirect('admin:pointage_employe_changelist')
     
     employe = get_object_or_404(Employe, pk=pk)
     
     # Statistiques du mois en cours
-    now = datetime.now()
+    now = timezone.localtime(timezone.now())
+    current_month = now.month
+    current_year = now.year
+    
     pointages = Pointage.objects.filter(
         employe=employe,
-        date_pointage__month=now.month,
-        date_pointage__year=now.year
+        date_pointage__month=current_month,
+        date_pointage__year=current_year
     )
     
     total = pointages.count()
@@ -1877,8 +1881,12 @@ def employe_detail_view(request, pk):
     context = {
         'employe': employe,
         'stats': stats,
-        'current_month': now.month,
-        'current_year': now.year,
+        'current_month': current_month,
+        'current_year': current_year,
+        'opts': employe._meta,
+        'original': employe,
+        'has_change_permission': request.user.has_perm('pointage.change_employe'),
+        'has_delete_permission': request.user.has_perm('pointage.delete_employe'),
     }
     
-    return render(request, 'pointage/employe_detail.html', context)
+    return render(request, 'admin/pointage/employe_detail.html', context)
