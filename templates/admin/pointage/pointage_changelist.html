@@ -49,6 +49,24 @@
             --purple-500: #8B5CF6;
         }
 
+        /* Cacher le tableau par défaut */
+        #changelist .results,
+        #changelist .paginator,
+        #changelist .actions {
+            display: none !important;
+        }
+        #changelist-form {
+            padding: 0 !important;
+        }
+        #changelist .module.filtered {
+            min-height: auto !important;
+            padding: 0 !important;
+        }
+        #content-main {
+            padding: 20px !important;
+            max-width: 100% !important;
+        }
+
         /* ── En-tête ── */
         .page-header {
             display: flex;
@@ -1274,6 +1292,11 @@
             <div class="filter-actions">
                 <a href="/admin/pointage/pointage/" class="btn btn-outline-secondary">
                     <i class="fas fa-times"></i> Réinitialiser
+                </a>
+                <!-- ===== BOUTON EXPORT EXCEL ===== -->
+                <a href="{% url 'export_resume_excel' %}?date_debut={{ filter_date_debut }}&date_fin={{ filter_date_fin }}&employe={{ request.GET.employe }}&site={{ request.GET.site }}&periode_type={{ request.GET.periode_type }}"
+                   class="btn btn-success">
+                    <i class="fas fa-file-excel"></i> Exporter Excel
                 </a>
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-search"></i> Appliquer
