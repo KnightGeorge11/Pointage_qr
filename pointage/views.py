@@ -1818,3 +1818,67 @@ def api_statistiques_employe(request):
     }
     
     return JsonResponse(stats)
+
+
+@login_required
+def employe_detail_view(request, pk):
+    """
+    Vue de détail d'un employé avec calendrier et statistiques.
+    """
+    # Vérification des permissions
+    if not (request.user.is_superuser or request.user.groups.filter(name='RH').exists()):
+        messages.error(request, "❌ Vous n'avez pas les droits pour consulter cette page.")
+        return redirect('employes')
+    
+    employe = get_object_or_404(Employe, pk=pk)
+    
+    # Statistiques du mois en cours
+    now = datetime.now()
+    pointages = Pointage.objects.filter(
+        employe=employe,
+        date_pointage__month=now.month,
+        date_pointage__year=now.year
+    )
+    
+    total = pointages.count()
+    normaux = 0
+    retards = 0
+    anomalies = 0
+    absences = 0
+    incomplets = 0
+    
+    for p in pointages:
+        if p.periode == 'nuit' and p.type_journee == 'garde':
+            if p.heure_arrivee and p.heure_depart:
+                normaux += 1
+            elif p.heure_arrivee:
+                incomplets += 1
+            else:
+                absences += 1
+        else:
+            if not p.heure_arrivee and not p.heure_depart:
+                absences += 1
+            elif p.retard and p.retard > timedelta(0):
+                retards += 1
+            elif p.heure_arrivee and p.heure_depart:
+                normaux += 1
+            else:
+                incomplets += 1
+    
+    stats = {
+        'total': total,
+        'normaux': normaux,
+        'retards': retards,
+        'anomalies': anomalies,
+        'absences': absences,
+        'incomplets': incomplets,
+    }
+    
+    context = {
+        'employe': employe,
+        'stats': stats,
+        'current_month': now.month,
+        'current_year': now.year,
+    }
+    
+    return render(request, 'pointage/employe_detail.html', context)

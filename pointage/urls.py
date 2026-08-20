@@ -46,6 +46,7 @@ urlpatterns = [
     path('employes/nouveau/',           employe_create_view,        name='employe_create'),
     path('employes/<int:pk>/update/',   employe_update_view,        name='employe_update'),
     path('employes/<int:pk>/delete/',   employe_delete_view,        name='employe_delete'),
+    path('employes/', EmployeListView.as_view(), name='employes'),
 
     # Sites
     path('sites/',                      SiteListView.as_view(),     name='sites'),
