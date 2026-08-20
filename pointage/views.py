@@ -3,7 +3,7 @@
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.views.generic import ListView, DetailView, DeleteView
@@ -11,11 +11,11 @@ from django.urls import reverse_lazy
 from django.utils import timezone
 from datetime import datetime, timedelta, time
 from django.db.models import Q, Sum, Count
-from django.http import JsonResponse
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.views.decorators.http import require_GET
 from rest_framework import viewsets, status as drf_status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
@@ -1208,7 +1208,7 @@ class PointageViewSet(viewsets.ModelViewSet):
         if params.get('type_journee'): queryset = queryset.filter(type_journee=params['type_journee'])
         return queryset
 
-    @api_view(['GET'])
+    @action(detail=False, methods=['get'])
     def statistiques(self, request):
         from datetime import timedelta
         today          = timezone.localtime(timezone.now()).date()
@@ -1405,7 +1405,7 @@ def get_statut_journee(request, employe_id):
 
         return Response(statut)
     except Employe.DoesNotExist:
-        return Response({'error': 'Employé non trouvé'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'Employé non trouvé'}, status=drf_status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['GET'])
@@ -1438,7 +1438,7 @@ def get_prochain_scan(request, employe_id):
 
         return Response({'prochain_scan': None, 'type': 'complet', 'message': "Tous les pointages pour aujourd'hui sont terminés"})
     except Employe.DoesNotExist:
-        return Response({'error': 'Employé non trouvé'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'Employé non trouvé'}, status=drf_status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['GET'])
@@ -1452,7 +1452,7 @@ def employe_qr_data(request, matricule):
             'qr_token': str(employe.qr_code_token)
         })
     except Employe.DoesNotExist:
-        return Response({'error': 'Employé non trouvé'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'Employé non trouvé'}, status=drf_status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['GET'])
@@ -1503,12 +1503,11 @@ def get_charts_data(request):
         'weekly':    {'labels': jours_labels, 'presents': jours_presents, 'retards': jours_retards},
         'evolution': {'labels': semaines_labels, 'taux_presence': semaines_taux},
     })
-# pointage/views.py
 
-from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
-from .models import DemandeModification, AnomaliePointage
 
+# ============================================================
+# API ADMIN BADGE COUNTS
+# ============================================================
 
 @login_required
 def admin_badge_counts_api(request):
@@ -1522,3 +1521,300 @@ def admin_badge_counts_api(request):
             statut=AnomaliePointage.STATUT_OUVERTE
         ).count(),
     })
+
+
+# ============================================================
+# API CALENDRIER - POUR LA PAGE DÉTAIL EMPLOYÉ
+# ============================================================
+
+@login_required
+@require_GET
+def api_pointages_mois(request):
+    """
+    API pour récupérer les pointages d'un employé pour un mois donné.
+    Utilisée par le calendrier JavaScript de la page détail employé.
+    """
+    # Vérification des permissions
+    if not (request.user.is_superuser or request.user.groups.filter(name='RH').exists()):
+        return JsonResponse({'error': 'Permission non accordée'}, status=403)
+    
+    employee_id = request.GET.get('employee_id')
+    month = request.GET.get('month')
+    year = request.GET.get('year')
+    
+    if not all([employee_id, month, year]):
+        return JsonResponse({'error': 'Paramètres manquants'}, status=400)
+    
+    try:
+        employee_id = int(employee_id)
+        month = int(month)
+        year = int(year)
+    except ValueError:
+        return JsonResponse({'error': 'Paramètres invalides'}, status=400)
+    
+    # Vérifier que l'employé existe
+    employe = get_object_or_404(Employe, id=employee_id)
+    
+    # Récupérer les pointages du mois
+    pointages = Pointage.objects.filter(
+        employe=employe,
+        date_pointage__month=month,
+        date_pointage__year=year
+    ).order_by('date_pointage')
+    
+    # Construire le dictionnaire de réponse
+    result = {}
+    
+    for pointage in pointages:
+        date_str = pointage.date_pointage.strftime('%Y-%m-%d')
+        
+        # Extraire les heures par période
+        heures = {
+            'heure_entree_matin': None,
+            'heure_sortie_midi': None,
+            'heure_entree_apres_midi': None,
+            'heure_sortie_soir': None,
+        }
+        
+        if pointage.periode == 'matin':
+            heures['heure_entree_matin'] = pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else None
+            heures['heure_sortie_midi'] = pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else None
+        elif pointage.periode == 'apres_midi':
+            heures['heure_entree_apres_midi'] = pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else None
+            heures['heure_sortie_soir'] = pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else None
+        elif pointage.periode == 'nuit':
+            heures['heure_entree_matin'] = pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else None
+            heures['heure_sortie_soir'] = pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else None
+        
+        # Compter le nombre de pointages
+        nb_pointages = 0
+        if pointage.heure_arrivee:
+            nb_pointages += 1
+        if pointage.heure_depart:
+            nb_pointages += 1
+        
+        # Déterminer le statut
+        if pointage.periode == 'nuit' and pointage.type_journee == 'garde':
+            if pointage.heure_arrivee and pointage.heure_depart:
+                statut = 'normal'
+            elif pointage.heure_arrivee:
+                statut = 'incomplet'
+            else:
+                statut = 'absence'
+        else:
+            if not pointage.heure_arrivee and not pointage.heure_depart:
+                statut = 'absence'
+            elif pointage.retard and pointage.retard > timedelta(0):
+                statut = 'retard'
+            elif pointage.heure_arrivee and pointage.heure_depart:
+                statut = 'normal'
+            else:
+                statut = 'incomplet'
+        
+        result[date_str] = {
+            'statut': statut,
+            'heure_entree_matin': heures['heure_entree_matin'],
+            'heure_sortie_midi': heures['heure_sortie_midi'],
+            'heure_entree_apres_midi': heures['heure_entree_apres_midi'],
+            'heure_sortie_soir': heures['heure_sortie_soir'],
+            'nb_pointages': nb_pointages,
+            'periode': pointage.periode,
+            'type_journee': getattr(pointage, 'type_journee', 'normal'),
+            'anomalies': []
+        }
+    
+    return JsonResponse(result)
+
+
+@login_required
+@require_GET
+def api_pointages_jour(request):
+    """
+    API pour récupérer les détails d'un pointage pour une date spécifique.
+    Utilisée quand l'utilisateur clique sur un jour du calendrier.
+    """
+    # Vérification des permissions
+    if not (request.user.is_superuser or request.user.groups.filter(name='RH').exists()):
+        return JsonResponse({'error': 'Permission non accordée'}, status=403)
+    
+    employee_id = request.GET.get('employee_id')
+    date = request.GET.get('date')
+    
+    if not all([employee_id, date]):
+        return JsonResponse({'error': 'Paramètres manquants'}, status=400)
+    
+    try:
+        employee_id = int(employee_id)
+        date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Paramètres invalides'}, status=400)
+    
+    # Vérifier que l'employé existe
+    employe = get_object_or_404(Employe, id=employee_id)
+    
+    # Récupérer les pointages du jour
+    pointages = Pointage.objects.filter(
+        employe=employe,
+        date_pointage=date_obj
+    ).order_by('periode')
+    
+    if not pointages.exists():
+        return JsonResponse({date: None})
+    
+    # Construire la réponse avec tous les pointages du jour
+    heures = {
+        'heure_entree_matin': None,
+        'heure_sortie_midi': None,
+        'heure_entree_apres_midi': None,
+        'heure_sortie_soir': None,
+    }
+    
+    nb_pointages_total = 0
+    statut_global = 'normal'
+    anomalies_list = []
+    est_garde = False
+    periode_nuit = None
+    
+    for pointage in pointages:
+        if pointage.periode == 'matin':
+            heures['heure_entree_matin'] = pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else None
+            heures['heure_sortie_midi'] = pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else None
+            if pointage.heure_arrivee:
+                nb_pointages_total += 1
+            if pointage.heure_depart:
+                nb_pointages_total += 1
+                
+        elif pointage.periode == 'apres_midi':
+            heures['heure_entree_apres_midi'] = pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else None
+            heures['heure_sortie_soir'] = pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else None
+            if pointage.heure_arrivee:
+                nb_pointages_total += 1
+            if pointage.heure_depart:
+                nb_pointages_total += 1
+                
+        elif pointage.periode == 'nuit':
+            est_garde = True
+            periode_nuit = pointage
+            heures['heure_entree_matin'] = pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else None
+            heures['heure_sortie_soir'] = pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else None
+            if pointage.heure_arrivee:
+                nb_pointages_total += 1
+            if pointage.heure_depart:
+                nb_pointages_total += 1
+        
+        # Récupérer le statut du pointage
+        pointage_statut = getattr(pointage, 'statut', 'normal')
+        
+        # Déterminer le statut via la logique métier si nécessaire
+        if pointage_statut == 'normal':
+            if pointage.periode != 'nuit' and pointage.retard and pointage.retard > timedelta(0):
+                pointage_statut = 'retard'
+            elif not pointage.heure_arrivee and not pointage.heure_depart:
+                pointage_statut = 'absence'
+            elif pointage.heure_arrivee and not pointage.heure_depart:
+                pointage_statut = 'incomplet'
+        
+        # Le statut global est le plus "grave"
+        if pointage_statut == 'anomalie':
+            statut_global = 'anomalie'
+        elif pointage_statut == 'retard' and statut_global not in ['anomalie']:
+            statut_global = 'retard'
+        elif pointage_statut == 'incomplet' and statut_global not in ['anomalie', 'retard']:
+            statut_global = 'incomplet'
+        elif pointage_statut == 'absence' and statut_global == 'normal':
+            statut_global = 'absence'
+    
+    # Cas particulier : garde de nuit
+    if est_garde and periode_nuit:
+        if periode_nuit.type_journee == 'garde':
+            if not periode_nuit.heure_arrivee and not periode_nuit.heure_depart:
+                statut_global = 'absence'
+            elif periode_nuit.heure_arrivee and periode_nuit.heure_depart:
+                statut_global = 'normal'
+            else:
+                statut_global = 'incomplet'
+    
+    result = {
+        date: {
+            'statut': statut_global,
+            'heure_entree_matin': heures['heure_entree_matin'],
+            'heure_sortie_midi': heures['heure_sortie_midi'],
+            'heure_entree_apres_midi': heures['heure_entree_apres_midi'],
+            'heure_sortie_soir': heures['heure_sortie_soir'],
+            'nb_pointages': nb_pointages_total,
+            'est_garde': est_garde,
+            'anomalies': anomalies_list
+        }
+    }
+    
+    return JsonResponse(result)
+
+
+@login_required
+@require_GET
+def api_statistiques_employe(request):
+    """
+    API pour récupérer les statistiques d'un employé pour le mois en cours.
+    Utilisée pour les cartes statistiques dans l'en-tête de la page détail.
+    """
+    # Vérification des permissions
+    if not (request.user.is_superuser or request.user.groups.filter(name='RH').exists()):
+        return JsonResponse({'error': 'Permission non accordée'}, status=403)
+    
+    employee_id = request.GET.get('employee_id')
+    
+    if not employee_id:
+        return JsonResponse({'error': 'Paramètre employee_id manquant'}, status=400)
+    
+    try:
+        employee_id = int(employee_id)
+    except ValueError:
+        return JsonResponse({'error': 'Paramètre invalide'}, status=400)
+    
+    # Vérifier que l'employé existe
+    employe = get_object_or_404(Employe, id=employee_id)
+    
+    now = datetime.now()
+    
+    # Récupérer les pointages du mois
+    pointages = Pointage.objects.filter(
+        employe=employe,
+        date_pointage__month=now.month,
+        date_pointage__year=now.year
+    )
+    
+    total = pointages.count()
+    normaux = 0
+    retards = 0
+    anomalies = 0
+    absences = 0
+    incomplets = 0
+    
+    for p in pointages:
+        if p.periode == 'nuit' and p.type_journee == 'garde':
+            if p.heure_arrivee and p.heure_depart:
+                normaux += 1
+            elif p.heure_arrivee:
+                incomplets += 1
+            else:
+                absences += 1
+        else:
+            if not p.heure_arrivee and not p.heure_depart:
+                absences += 1
+            elif p.retard and p.retard > timedelta(0):
+                retards += 1
+            elif p.heure_arrivee and p.heure_depart:
+                normaux += 1
+            else:
+                incomplets += 1
+    
+    stats = {
+        'total': total,
+        'normaux': normaux,
+        'retards': retards,
+        'anomalies': anomalies,
+        'absences': absences,
+        'incomplets': incomplets,
+    }
+    
+    return JsonResponse(stats)

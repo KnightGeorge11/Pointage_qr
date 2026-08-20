@@ -21,12 +21,17 @@ from .views import (
 
     # Anomalies
     alertes_rh_view,
+    
+    # API Calendrier - AJOUTER CES IMPORTS
+    api_pointages_mois, 
+    api_pointages_jour,
+    api_statistiques_employe,
 )
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
 router.register(r'employes', views.EmployeViewSet, basename='employe')
-router.register(r'sites',    views.SiteViewSet,    basename='site')
+router.register(r'sites', views.SiteViewSet, basename='site')
 router.register(r'pointages', views.PointageViewSet, basename='pointage')
 router.register(r'anomalies', views.AnomaliePointageViewSet, basename='anomalie')
 
@@ -81,4 +86,9 @@ urlpatterns = [
     path('admin/demande/<int:pk>/refuser/', views.refuser_demande_view, name='demande_refuser'),
     path('api/admin-badge-counts/', views.admin_badge_counts_api, name='admin_badge_counts_api'),
     path('export/resume/excel/', views.export_resume_excel, name='export_resume_excel'),
+    
+    # ✅ API CALENDRIER - AJOUTER CES LIGNES
+    path('api/pointages-mois/', api_pointages_mois, name='api_pointages_mois'),
+    path('api/pointages-jour/', api_pointages_jour, name='api_pointages_jour'),
+    path('api/statistiques-employe/', api_statistiques_employe, name='api_statistiques_employe'),
 ]

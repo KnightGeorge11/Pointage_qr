@@ -1,0 +1,249 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'css/employee_detail.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+{% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="employee-detail-page">
+    <!-- ID caché pour JS -->
+    <div id="employee-id" data-id="{{ employe.id }}" style="display:none;"></div>
+    <div id="calendar-month" data-month="{{ current_month }}" data-year="{{ current_year }}" style="display:none;"></div>
+
+    <!-- === EN-TÊTE === -->
+    <div class="employee-detail-header">
+        <div class="employee-detail-header-left">
+            <!-- Avatar -->
+            <div class="employee-detail-avatar">
+                {% if employe.photo %}
+                    <img src="{{ employe.photo.url }}" alt="{{ employe.get_full_name }}">
+                {% else %}
+                    <div class="avatar-placeholder">
+                        {{ employe.prenom|slice:":1" }}{{ employe.nom|slice:":1" }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="employee-detail-info">
+                <h1>{{ employe.get_full_name }}</h1>
+                <div>
+                    <span class="employee-status {% if employe.actif %}status-actif{% else %}status-inactif{% endif %}">
+                        {% if employe.actif %}🟢 Actif{% else %}🔴 Inactif{% endif %}
+                    </span>
+                </div>
+                <div class="employee-matricule">
+                    <strong>Matricule :</strong> {{ employe.matricule }}
+                </div>
+            </div>
+        </div>
+        
+        <div class="employee-detail-header-right">
+            <!-- QR Code cliquable -->
+            {% if employe.qr_code %}
+                <div class="employee-detail-qr" title="Cliquez pour agrandir le QR Code">
+                    <img id="employee-qr-code-img" src="{{ employe.qr_code.url }}" alt="QR Code de {{ employe.get_full_name }}">
+                </div>
+            {% endif %}
+            
+            <!-- Bouton Modifier -->
+            <a href="{% url 'employes:employe_update' employe.id %}" class="btn-edit-employee">
+                <i class="fas fa-pen"></i> Modifier
+            </a>
+        </div>
+    </div>
+
+    <!-- === STATISTIQUES === -->
+    <div class="employee-detail-stats">
+        <div class="employee-detail-stat-card stat-primary">
+            <div class="stat-number">{{ stats.total }}</div>
+            <div class="stat-label">Pointages ce mois</div>
+        </div>
+        <div class="employee-detail-stat-card stat-success">
+            <div class="stat-number">{{ stats.normaux }}</div>
+            <div class="stat-label">À l'heure</div>
+        </div>
+        <div class="employee-detail-stat-card stat-warning">
+            <div class="stat-number">{{ stats.retards }}</div>
+            <div class="stat-label">Retards</div>
+        </div>
+        <div class="employee-detail-stat-card stat-danger">
+            <div class="stat-number">{{ stats.absences }}</div>
+            <div class="stat-label">Absences</div>
+        </div>
+        <div class="employee-detail-stat-card stat-info">
+            <div class="stat-number">{{ stats.anomalies }}</div>
+            <div class="stat-label">Anomalies</div>
+        </div>
+    </div>
+
+    <!-- === CONTENU PRINCIPAL === -->
+    <div class="employee-detail-content">
+        <!-- Colonne de gauche -->
+        <div class="employee-detail-left-col">
+            <!-- Informations personnelles -->
+            <div class="employee-detail-card">
+                <h3><i class="fas fa-user"></i> Informations personnelles</h3>
+                <div class="employee-detail-info-row">
+                    <span class="label">Date de naissance</span>
+                    <span class="value">
+                        {% if employe.date_naissance %}
+                            {{ employe.date_naissance|date:"d/m/Y" }}
+                        {% else %}
+                            <span class="value-empty">Non renseigné</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="employee-detail-info-row">
+                    <span class="label">Téléphone</span>
+                    <span class="value">
+                        {% if employe.telephone %}
+                            {{ employe.telephone }}
+                        {% else %}
+                            <span class="value-empty">Non renseigné</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="employee-detail-info-row">
+                    <span class="label">Email</span>
+                    <span class="value">
+                        {% if employe.email %}
+                            {{ employe.email }}
+                        {% else %}
+                            <span class="value-empty">Non renseigné</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="employee-detail-info-row">
+                    <span class="label">Adresse</span>
+                    <span class="value">
+                        {% if employe.adresse %}
+                            {{ employe.adresse }}
+                        {% else %}
+                            <span class="value-empty">Non renseigné</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Informations professionnelles -->
+            <div class="employee-detail-card">
+                <h3><i class="fas fa-briefcase"></i> Informations professionnelles</h3>
+                <div class="employee-detail-info-row">
+                    <span class="label">Poste</span>
+                    <span class="value">
+                        {% if employe.poste %}
+                            {{ employe.poste.nom }}
+                        {% else %}
+                            <span class="value-empty">Non renseigné</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="employee-detail-info-row">
+                    <span class="label">Date d'embauche</span>
+                    <span class="value">
+                        {% if employe.date_embauche %}
+                            {{ employe.date_embauche|date:"d/m/Y" }}
+                        {% else %}
+                            <span class="value-empty">Non renseigné</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="employee-detail-info-row">
+                    <span class="label">Statut</span>
+                    <span class="value">
+                        {% if employe.actif %}
+                            <span style="color:#28a745;">Actif</span>
+                        {% else %}
+                            <span style="color:#dc3545;">Inactif</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Colonne de droite -->
+        <div class="employee-detail-right-col">
+            <!-- Calendrier -->
+            <div class="employee-detail-card">
+                <h3><i class="fas fa-calendar-alt"></i> Historique des pointages</h3>
+                
+                <!-- Navigation -->
+                <div class="employee-detail-calendar-nav">
+                    <span class="nav-title" id="calendar-title">{% now "F Y" %}</span>
+                    <div class="nav-buttons">
+                        <button class="nav-btn" id="btn-prev-month" title="Mois précédent">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="nav-btn btn-today" id="btn-today">Aujourd'hui</button>
+                        <button class="nav-btn" id="btn-next-month" title="Mois suivant">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Grille du calendrier -->
+                <div id="calendar-grid">
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-spinner fa-spin"></i> Chargement...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Détails du jour sélectionné -->
+            <div class="employee-detail-card" id="day-details-container">
+                <h3><i class="fas fa-clock"></i> Détails de la journée</h3>
+                <div id="day-details">
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-hand-pointer"></i> Sélectionnez une date pour voir les détails.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal QR Code -->
+<div class="modal fade" id="qr-modal" tabindex="-1" role="dialog" aria-labelledby="qr-modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-md" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="qr-modal-title">
+                    <i class="fas fa-qrcode"></i> QR Code - {{ employe.get_full_name }}
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <img id="qr-modal-image" src="" alt="QR Code">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Fermer
+                </button>
+                <button type="button" class="btn btn-primary" id="qr-download-btn">
+                    <i class="fas fa-download"></i> Télécharger
+                </button>
+                <button type="button" class="btn btn-info" id="qr-print-btn">
+                    <i class="fas fa-print"></i> Imprimer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extrajs %}
+    {{ block.super }}
+    <script src="{% static 'js/employe_detail.js' %}"></script>
+{% endblock %}
