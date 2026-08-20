@@ -28,6 +28,7 @@ from .views import (
     api_statistiques_employe,
 )
 from rest_framework.routers import DefaultRouter
+from .views import employe_detail_view
 
 router = DefaultRouter()
 router.register(r'employes', views.EmployeViewSet, basename='employe')
@@ -40,7 +41,7 @@ urlpatterns = [
     path('',          dashboard,        name='dashboard'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('index/',     index,           name='index'),
-
+    path('employes/<int:pk>/', employe_detail_view, name='employe_detail'),
     # Employés
     path('employes/',                   EmployeListView.as_view(),  name='employes'),
     path('employes/nouveau/',           employe_create_view,        name='employe_create'),
