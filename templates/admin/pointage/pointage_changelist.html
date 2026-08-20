@@ -640,6 +640,133 @@
         .tdot.err { background: var(--red-500); }
         .tdot.muted { background: #D1D5DB; }
 
+        /* ── Bouton Détails ── */
+        .card-footer-action {
+            padding: 10px 16px;
+            display: flex;
+            justify-content: flex-end;
+            background: var(--bg-white);
+        }
+
+        .btn-detail {
+            background: var(--bg-primary);
+            color: rgba(255, 255, 255, 0.85);
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 6px 16px;
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-detail:hover {
+            background: var(--blue-600);
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* ── Modal ── */
+        dialog#modalDetail {
+            border: none;
+            border-radius: var(--radius-xl);
+            padding: 0;
+            width: min(720px, 95vw);
+            max-height: 88vh;
+            box-shadow: var(--shadow-xl);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin: auto;
+            background: var(--bg-white);
+        }
+
+        dialog#modalDetail::backdrop {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        dialog#modalDetail:not([open]) {
+            display: none;
+        }
+
+        .modal-header-custom {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            flex-shrink: 0;
+            background: var(--bg-white);
+        }
+
+        .modal-header-title {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--blue-500);
+            margin-bottom: 3px;
+        }
+
+        .modal-header-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .modal-header-sub {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .modal-close-btn {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 16px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all var(--transition-fast);
+        }
+
+        .modal-close-btn:hover {
+            background: var(--red-50);
+            border-color: var(--red-500);
+            color: var(--red-600);
+        }
+
+        .modal-body-custom {
+            padding: 24px;
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .modal-footer-custom {
+            padding: 14px 24px;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            justify-content: flex-end;
+            flex-shrink: 0;
+            background: var(--bg-white);
+        }
+
         /* ── Empty state ── */
         .empty-state {
             grid-column: 1 / -1;
@@ -866,6 +993,186 @@
             padding: 0 !important;
         }
     </style>
+
+    <script>
+    function fermerDetail() {
+        document.getElementById('modalDetail').close();
+    }
+
+    function ouvrirDetail(btn) {
+        const d = btn.dataset;
+
+        document.getElementById('modal-titre').textContent =
+            d.employe + ' · ' + d.date + ' — ' + d.jour;
+        document.getElementById('modal-sub').textContent =
+            (d.poste ? d.poste + ' | ' : '') + d.matricule + ' | ' + d.site;
+
+        const C = {
+            green:  { bg:'#DCFCE7', color:'#15803D' },
+            red:    { bg:'#FEE2E2', color:'#B91C1C' },
+            amber:  { bg:'#FEF3C7', color:'#B45309' },
+            blue:   { bg:'#DBEAFE', color:'#1D4ED8' },
+            purple: { bg:'#EEEDFE', color:'#5B21B6' },
+        };
+
+        function chip(cls, label) {
+            const c = C[cls] || C.blue;
+            return `<span style="display:inline-flex;align-items:center;font-size:9px;font-weight:600;
+                    text-transform:uppercase;letter-spacing:0.06em;padding:3px 10px;border-radius:9999px;
+                    white-space:nowrap;background:${c.bg};color:${c.color};">${label}</span>`;
+        }
+
+        function scanRow(heure, label, site, statutLabel, chipCls, faIcon) {
+            const vide = !heure;
+            const iconBg = vide ? '#F3F4F6' : (faIcon.includes('in') ? '#DCFCE7' : '#FEE2E2');
+            const iconColor = vide ? '#9CA3AF' : (faIcon.includes('in') ? '#15803D' : '#B91C1C');
+            return `
+            <div style="display:grid;grid-template-columns:32px 70px 1fr 90px auto;align-items:center;
+                        gap:10px;padding:10px 14px;border-bottom:1px solid #F3F4F6;
+                        background:#fff;opacity:${vide ? '0.4' : '1'}">
+                <div style="width:30px;height:30px;border-radius:var(--radius-sm);display:flex;align-items:center;
+                            justify-content:center;font-size:12px;background:${iconBg};color:${iconColor};flex-shrink:0;">
+                    <i class="fas ${vide ? 'fa-ban' : faIcon}"></i>
+                </div>
+                <div style="font-family:'Inter',monospace;font-size:18px;font-weight:600;
+                            color:${vide ? '#9CA3AF' : 'var(--text-primary)'};line-height:1;">${heure || '—'}</div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-secondary);">${label}</div>
+                <div style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                    <i class="fas fa-map-marker-alt" style="font-size:9px;color:var(--text-light);"></i>
+                    ${site || '—'}
+                </div>
+                ${chip(chipCls, statutLabel)}
+            </div>`;
+        }
+
+        function section(titre) {
+            return `<div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;
+                                color:var(--text-muted);margin:18px 0 10px;display:flex;align-items:center;gap:8px;">
+                        ${titre}
+                        <span style="flex:1;height:1px;background:var(--border-light);"></span>
+                    </div>`;
+        }
+
+        function timeline(rows) {
+            return `<div style="border:1px solid var(--border-light);border-radius:var(--radius-sm);overflow:hidden;">${rows}</div>`;
+        }
+
+        function calculerPause(depMatin, arrApm) {
+            if (!depMatin || !arrApm) return null;
+            const [hD, mD] = depMatin.split(':').map(Number);
+            const [hA, mA] = arrApm.split(':').map(Number);
+            const totalMin = (hA * 60 + mA) - (hD * 60 + mD);
+            if (totalMin <= 0) return null;
+            const h = Math.floor(totalMin / 60);
+            const m = totalMin % 60;
+            return h > 0 ? `${h}h${m > 0 ? m + 'min' : ''}` : `${m} min`;
+        }
+
+        let html = '';
+
+        // Matin
+        html += section('Période Matin');
+        html += timeline(
+            scanRow(d.arrMatin, 'Arrivée matin', d.siteArrMatin,
+                d.arrMatin ? (d.retardMatin ? '+' + d.retardMatin + ' retard' : "À l'heure") : 'Absent',
+                d.arrMatin ? (d.retardMatin ? 'amber' : 'green') : 'red', 'fa-sign-in-alt') +
+            scanRow(d.depMatin, 'Départ matin', d.siteDepMatin,
+                d.depMatin ? 'Pointé' : 'Non pointé',
+                d.depMatin ? 'blue' : 'amber', 'fa-sign-out-alt')
+        );
+
+        // Pause déjeuner
+        const pause = calculerPause(d.depMatin, d.arrApm);
+        if (pause) {
+            const pauseMin = (() => {
+                const [hD,mD] = d.depMatin.split(':').map(Number);
+                const [hA,mA] = d.arrApm.split(':').map(Number);
+                return (hA*60+mA)-(hD*60+mD);
+            })();
+            const pauseLongue = pauseMin > 120;
+            html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;
+                                 background:${pauseLongue ? '#FEF3C7' : '#F0FDF4'};
+                                 border:1px solid ${pauseLongue ? '#F59E0B' : '#22C55E'};
+                                 border-radius:var(--radius-sm);margin:10px 0;">
+                <i class="fas fa-coffee" style="color:${pauseLongue ? '#B45309' : '#15803D'};font-size:14px;"></i>
+                <div style="flex:1;">
+                    <div style="font-size:10px;font-weight:700;color:${pauseLongue ? '#B45309' : '#15803D'};
+                                text-transform:uppercase;letter-spacing:0.06em;">
+                        Pause déjeuner : ${pause}${pauseLongue ? ' ⚠ Pause longue' : ''}
+                    </div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+                        ${d.depMatin} → ${d.arrApm}
+                        ${pauseLongue ? ' — Dépasse le seuil recommandé (2h)' : ''}
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        // Après-midi
+        html += section('Période Après-midi');
+        html += timeline(
+            scanRow(d.arrApm, 'Arrivée après-midi', d.siteArrApm,
+                d.arrApm ? (d.retardApm ? '+' + d.retardApm + ' retard' : "À l'heure") : 'En attente',
+                d.arrApm ? (d.retardApm ? 'amber' : 'green') : 'amber', 'fa-sign-in-alt') +
+            scanRow(d.depApm, 'Départ après-midi', d.siteDepApm,
+                d.depApm ? 'Pointé' : 'Non pointé',
+                d.depApm ? 'blue' : 'amber', 'fa-sign-out-alt')
+        );
+
+        // Garde de nuit
+        if (d.arrNuit || d.depNuit) {
+            html += section('Garde de nuit');
+            html += timeline(
+                scanRow(d.arrNuit, 'Début de garde', d.site,
+                    d.arrNuit ? 'En garde' : 'Absent',
+                    d.arrNuit ? 'purple' : 'red', 'fa-moon') +
+                scanRow(d.depNuit, 'Fin de garde', d.site,
+                    d.depNuit ? 'Terminée' : 'En cours',
+                    d.depNuit ? 'blue' : 'amber',
+                    d.depNuit ? 'fa-sign-out-alt' : 'fa-sun')
+            );
+        }
+
+        // Résumé
+        const statutBg = d.statut === 'present' ? '#DCFCE7' : d.statut === 'partiel' ? '#FEF3C7' : '#FEE2E2';
+        const statutColor = d.statut === 'present' ? '#15803D' : d.statut === 'partiel' ? '#B45309' : '#B91C1C';
+        const statutLabel = d.statut === 'present' ? '✓ Présent' : d.statut === 'partiel' ? '~ Incomplet' : '✗ Absent';
+
+        html += section('Résumé de la journée');
+        html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+            <div style="background:#DBEAFE;border:1px solid rgba(29,78,216,.15);border-radius:var(--radius-sm);padding:10px 12px;text-align:center;">
+                <div style="font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#1D4ED8;margin-bottom:3px;">Heures totales</div>
+                <div style="font-family:'Inter',monospace;font-size:18px;font-weight:700;color:#1D4ED8;">${d.heures}</div>
+            </div>
+            <div style="background:#DCFCE7;border:1px solid rgba(21,128,61,.15);border-radius:var(--radius-sm);padding:10px 12px;text-align:center;">
+                <div style="font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#15803D;margin-bottom:3px;">Heures suppl.</div>
+                <div style="font-family:'Inter',monospace;font-size:18px;font-weight:700;color:#15803D;">${d.heuresSup || '0h'}</div>
+            </div>
+            <div style="background:#FEF3C7;border:1px solid rgba(180,83,9,.15);border-radius:var(--radius-sm);padding:10px 12px;text-align:center;">
+                <div style="font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#B45309;margin-bottom:3px;">Retard total</div>
+                <div style="font-family:'Inter',monospace;font-size:18px;font-weight:700;color:#B45309;">${d.retardTotal || '0min'}</div>
+            </div>
+            <div style="background:${statutBg};border:1px solid rgba(0,0,0,.06);border-radius:var(--radius-sm);padding:10px 12px;text-align:center;">
+                <div style="font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:${statutColor};margin-bottom:3px;">Statut global</div>
+                <div style="font-family:'Inter',monospace;font-size:18px;font-weight:700;color:${statutColor};">${statutLabel}</div>
+            </div>
+        </div>`;
+
+        document.getElementById('modal-body').innerHTML = html;
+        document.getElementById('modalDetail').showModal();
+    }
+
+    document.getElementById('modalDetail').addEventListener('click', function(e) {
+        const r = this.getBoundingClientRect();
+        if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+            this.close();
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') fermerDetail();
+    });
+    </script>
 {% endblock %}
 
 {% block content %}
@@ -1144,6 +1451,34 @@
                 </span>
                 {% endif %}
             </div>
+            <!-- ===== BOUTON DÉTAILS ===== -->
+            <div class="card-footer-action">
+                <button class="btn-detail" onclick="ouvrirDetail(this)"
+                    data-employe="{{ jour.employe.prenom }} {{ jour.employe.nom }}"
+                    data-matricule="{{ jour.employe.matricule }}"
+                    data-poste="{% if jour.employe.poste %}{{ jour.employe.poste }}{% endif %}"
+                    data-date="{{ jour.date|date:'d/m/Y' }}"
+                    data-jour="{{ jour.date|date:'l' }}"
+                    data-site="{% if jour.matin.site %}{{ jour.matin.site.nom }}{% else %}{{ jour.site.nom }}{% endif %}"
+                    data-statut="{{ jour.statut_global }}"
+                    data-arr-matin="{% if jour.matin and jour.matin.heure_arrivee %}{{ jour.matin.heure_arrivee|time:'H:i' }}{% endif %}"
+                    data-dep-matin="{% if jour.matin and jour.matin.heure_depart %}{{ jour.matin.heure_depart|time:'H:i' }}{% endif %}"
+                    data-retard-matin="{% if jour.matin and jour.matin.retard %}{{ jour.matin.retard|timedelta_short }}{% endif %}"
+                    data-site-arr-matin="{% if jour.matin.site %}{{ jour.matin.site.nom }}{% else %}{{ jour.site.nom }}{% endif %}"
+                    data-site-dep-matin="{% if jour.matin.site %}{{ jour.matin.site.nom }}{% else %}{{ jour.site.nom }}{% endif %}"
+                    data-arr-apm="{% if jour.apres_midi and jour.apres_midi.heure_arrivee %}{{ jour.apres_midi.heure_arrivee|time:'H:i' }}{% endif %}"
+                    data-dep-apm="{% if jour.apres_midi and jour.apres_midi.heure_depart %}{{ jour.apres_midi.heure_depart|time:'H:i' }}{% endif %}"
+                    data-retard-apm="{% if jour.apres_midi and jour.apres_midi.retard %}{{ jour.apres_midi.retard|timedelta_short }}{% endif %}"
+                    data-site-arr-apm="{% if jour.apres_midi.site %}{{ jour.apres_midi.site.nom }}{% else %}{{ jour.site.nom }}{% endif %}"
+                    data-site-dep-apm="{% if jour.apres_midi.site %}{{ jour.apres_midi.site.nom }}{% else %}{{ jour.site.nom }}{% endif %}"
+                    data-arr-nuit="{% if jour.nuit and jour.nuit.heure_arrivee %}{{ jour.nuit.heure_arrivee|time:'H:i' }}{% endif %}"
+                    data-dep-nuit="{% if jour.nuit and jour.nuit.heure_depart %}{{ jour.nuit.heure_depart|time:'H:i' }}{% endif %}"
+                    data-heures="{{ jour.heures_total|timedelta_short }}"
+                    data-retard-total="{{ jour.retard_total|timedelta_short }}"
+                    data-heures-sup="{{ jour.heures_sup|timedelta_short }}">
+                    <i class="fas fa-list-ul"></i> Détails
+                </button>
+            </div>
         </div>
 
     </div>
@@ -1184,5 +1519,21 @@
         {% endif %}
     </nav>
     {% endif %}
+
+    <!-- ===== MODAL ===== -->
+    <dialog id="modalDetail">
+        <div class="modal-header-custom">
+            <div>
+                <div class="modal-header-title">Détail du pointage</div>
+                <h2 class="modal-header-name" id="modal-titre"></h2>
+                <div class="modal-header-sub" id="modal-sub"></div>
+            </div>
+            <button class="modal-close-btn" onclick="fermerDetail()">✕</button>
+        </div>
+        <div class="modal-body-custom" id="modal-body"></div>
+        <div class="modal-footer-custom">
+            <button onclick="fermerDetail()" class="btn btn-secondary">Fermer</button>
+        </div>
+    </dialog>
 </div>
 {% endblock %}
