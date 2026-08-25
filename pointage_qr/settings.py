@@ -292,7 +292,7 @@ JAZZMIN_SETTINGS = {
         },
 
         # --------------------------------------------------------
-        # AUTHENTIFICATION
+        # AUTHENTIFICATION (avec navigation utilisateur incluse)
         # --------------------------------------------------------
         {
             "name": "🔐 Authentification",
@@ -309,6 +309,17 @@ JAZZMIN_SETTINGS = {
                     "icon": "fas fa-users",
                     "url": "admin:auth_group_changelist",
                     "permissions": ["auth.view_group"],
+                },
+                # 👇 Navigation utilisateur déplacée ici
+                {
+                    "name": "👤 Mon compte",
+                    "icon": "fas fa-user-gear",
+                    "url": "admin:password_change",
+                },
+                {
+                    "name": "🚪 Déconnexion",
+                    "icon": "fas fa-sign-out-alt",
+                    "url": "admin:logout",
                 },
             ],
         },
