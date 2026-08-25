@@ -4,7 +4,6 @@
 # ======================================
 
 from datetime import time
-import pytest
 
 from pointage.domain import (
     DayState,

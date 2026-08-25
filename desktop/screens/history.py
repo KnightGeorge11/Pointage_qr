@@ -14,9 +14,8 @@ Affichage :
 
 import tkinter as tk
 from tkinter import ttk
-from datetime import datetime, timedelta, date as date_type
+from datetime import datetime, timedelta
 import api_client
-import storage
 from utils import COLORS, run_async
 import logging
 

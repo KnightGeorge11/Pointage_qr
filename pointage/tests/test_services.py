@@ -18,7 +18,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils import timezone
 
-from pointage.models import Employe, Site, Pointage, Scan
+from pointage.models import Employe, Site, Pointage
 from pointage.services import process_scan
 
 

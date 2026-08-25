@@ -1,5 +1,14 @@
 {
   "expo": {
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Autoriser $(PRODUCT_NAME) à accéder à la caméra pour scanner les QR codes de pointage",
+          "recordAudioAndroid": false
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "89f823b1-cee6-4f29-b37d-169bb9e39909"

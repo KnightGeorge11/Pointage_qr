@@ -696,20 +696,16 @@ class ScanScreen(tk.Frame):
                 "garde_en_cours",
             )
 
-            details = check_data.get(
-                "garde_en_cours_details",
-            )
-
             if garde_en_cours:
                 message = "Une garde est déjà en cours."
 
-                if details:
-                    date = details.get(
+                if isinstance(garde_en_cours, dict):
+                    date = garde_en_cours.get(
                         "date_pointage",
                         "date inconnue",
                     )
 
-                    heure_raw = details.get(
+                    heure_raw = garde_en_cours.get(
                         "heure_arrivee",
                         "",
                     )
@@ -721,7 +717,7 @@ class ScanScreen(tk.Frame):
                     )
 
                     site_nom = (
-                        details.get("site") or {}
+                        check_data.get("site") or {}
                     ).get(
                         "nom",
                         "site inconnu",
@@ -808,9 +804,10 @@ class ScanScreen(tk.Frame):
             )
 
         def on_success(result):
-            data = result["data"]
+            data   = result["data"]
+            statut = data.get("status")
 
-            if result["ok"]:
+            if statut == "success":
                 messagebox.showinfo(
                     "✅ Succès",
                     data.get(
@@ -818,7 +815,17 @@ class ScanScreen(tk.Frame):
                         "Pointage enregistré",
                     ),
                 )
-
+            elif statut == "warning":
+                # HTTP 200 mais anomalie métier (doublon, hors horaires,
+                # pause, journée terminée, ...) : ne jamais l'afficher
+                # comme un succès silencieux.
+                messagebox.showwarning(
+                    "⚠️ À vérifier",
+                    data.get(
+                        "message",
+                        "Le pointage a été traité avec une remarque.",
+                    ),
+                )
             else:
                 messagebox.showerror(
                     "❌ Erreur",

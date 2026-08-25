@@ -9,11 +9,10 @@
 # Elle crée un pont entre Django et la logique métier.
 
 import logging
-from datetime import time, timedelta, datetime, date
+from datetime import time, timedelta, date
 from typing import Optional, Tuple
 
 from django.utils import timezone
-from django.db.models import Q
 
 from pointage.domain import (
     DayContext,

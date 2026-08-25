@@ -121,7 +121,7 @@ const PointageCard = ({ item, showSite }: { item: TodayPointage; showSite: boole
 
 // ── Écran principal ───────────────────────────────────────────────────────────
 
-const HistoryScreen = ({ navigation }: any) => {
+const HistoryScreen = () => {
   const { selectedSite, sites, setSites } = useAppContext();
 
   const [date, setDate]           = useState(new Date());

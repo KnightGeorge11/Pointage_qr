@@ -3,98 +3,33 @@
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.views.generic import ListView, DetailView, DeleteView
 from django.urls import reverse_lazy
 from django.utils import timezone
 from datetime import datetime, timedelta, time
-from django.db.models import Q, Sum, Count
+from django.db.models import Q, Count
+from django.http import JsonResponse
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.views.decorators.http import require_GET
 from rest_framework import viewsets, status as drf_status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
-from .models import Employe, Site, Pointage, Scan, Poste, DemandeModification, AnomaliePointage
+from .models import Employe, Site, Pointage, Poste, DemandeModification, AnomaliePointage, AnomalieTraitement
 from .serializers import (
     EmployeSerializer, SiteSerializer,
     PointageSerializer, PointageDetailSerializer,
     AnomaliePointageSerializer, AnomaliePointageDetailSerializer,
 )
 from .forms import EmployeForm, SiteForm, PointageForm, PosteForm
-from .mixins import DemandeRequiredMixin, AdminCodeRequiredMixin, AdminCodeRequiredForGetMixin
-import json
-from decimal import Decimal
 from .services import process_scan, parse_qr_data
-from .anomalies import enregistrer_anomalie, marquer_traitee, marquer_cloturee, compter_anomalies_ouvertes
-
-
-# ============================================================
-# VUES POUR LES DEMANDES DE MODIFICATION (Accepter/Refuser)
-# ============================================================
-
-@login_required
-def approuver_demande_view(request, pk):
-    """Approuve une demande de modification et applique les changements"""
-    from django.shortcuts import get_object_or_404
-    from .models import DemandeModification
-    from .admin import DemandeModificationAdmin
-    
-    if not request.user.is_staff:
-        messages.error(request, "❌ Seul un administrateur peut approuver une demande.")
-        return redirect('admin:pointage_demandemodification_changelist')
-    
-    demande = get_object_or_404(DemandeModification, pk=pk)
-    
-    if demande.statut != 'en_attente':
-        messages.warning(request, f"⚠️ Cette demande a déjà été traitée.")
-        return redirect('admin:pointage_demandemodification_changelist')
-    
-    try:
-        admin_instance = DemandeModificationAdmin(DemandeModification, None)
-        admin_instance._appliquer_demande(demande)
-        
-        demande.statut = 'approuvee'
-        demande.traitee_par = request.user
-        demande.date_traitement = timezone.now()
-        demande.save()
-        
-        messages.success(request, f"✅ Demande #{pk} approuvée et appliquée avec succès.")
-    except Exception as e:
-        messages.error(request, f"❌ Erreur lors de l'application : {e}")
-    
-    return redirect('admin:pointage_demandemodification_changelist')
-
-
-@login_required
-def refuser_demande_view(request, pk):
-    """Refuse une demande de modification"""
-    from django.shortcuts import get_object_or_404
-    from .models import DemandeModification
-    
-    if not request.user.is_staff:
-        messages.error(request, "❌ Seul un administrateur peut refuser une demande.")
-        return redirect('admin:pointage_demandemodification_changelist')
-    
-    demande = get_object_or_404(DemandeModification, pk=pk)
-    
-    if demande.statut != 'en_attente':
-        messages.warning(request, f"⚠️ Cette demande a déjà été traitée.")
-        return redirect('admin:pointage_demandemodification_changelist')
-    
-    demande.statut = 'refusee'
-    demande.traitee_par = request.user
-    demande.date_traitement = timezone.now()
-    demande.save()
-    
-    messages.success(request, f"❌ Demande #{pk} refusée.")
-    return redirect('admin:pointage_demandemodification_changelist')
+from .anomalies import marquer_traitee, marquer_cloturee, compter_anomalies_ouvertes
 
 
 # ---------------------------
@@ -274,12 +209,18 @@ def scanner_view(request):
             messages.error(request, "❌ Veuillez sélectionner un site.")
             return redirect('scanner')
 
+        try:
+            site_id = int(site_id)
+        except (TypeError, ValueError):
+            messages.error(request, "❌ Site invalide.")
+            return redirect('scanner')
+
         mode = 'garde' if periode_type == 'garde' else 'auto'
 
         result = process_scan(
             matricule=mat,
             qr_token=token,
-            site_id=int(site_id),
+            site_id=site_id,
             mode=mode
         )
 
@@ -655,6 +596,10 @@ class PointageListView(LoginRequiredMixin, ListView):
         if employe_filter:
             queryset = queryset.filter(employe_id=employe_filter)
 
+        poste_filter = self.request.GET.get('poste')
+        if poste_filter:
+            queryset = queryset.filter(employe__poste_id=poste_filter)
+
         site_filter = self.request.GET.get('site')
         if site_filter:
             queryset = queryset.filter(site_id=site_filter)
@@ -744,6 +689,7 @@ class PointageListView(LoginRequiredMixin, ListView):
 
         context['jours']             = jours_page
         context['employes']          = Employe.objects.filter(actif=True)
+        context['postes']            = Poste.objects.all()
         context['sites']             = Site.objects.all()
         context['filter_date_debut'] = self.request.GET.get('date_debut', '')
         context['filter_date_fin']   = self.request.GET.get('date_fin', '')
@@ -783,6 +729,7 @@ class PointageDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 # ============================================================
 
 @login_required
+@staff_member_required
 def alertes_rh_view(request):
     if request.method == 'POST':
         if not request.user.is_staff:
@@ -805,7 +752,8 @@ def alertes_rh_view(request):
                         'ancienne_valeur': ancienne,
                         'nouvelle_valeur': nouvelle,
                     })
-                marquer_traitee(anomalie, request.user, commentaire=commentaire, corrections=corrections)
+                type_action = AnomalieTraitement.ACTION_CORRECTION if champ else AnomalieTraitement.ACTION_JUSTIFICATION
+                marquer_traitee(anomalie, request.user, type_action=type_action, commentaire=commentaire, corrections=corrections)
                 messages.success(request, f"✅ Anomalie #{anomalie.pk} marquée comme traitée.")
                 
             elif action == 'cloturer':
@@ -864,7 +812,141 @@ def alertes_rh_view(request):
     return render(request, 'admin/pointage/alerte/alertes_rh.html', context)
 
 
+# ============================================================
+# DÉTAIL D'UNE ANOMALIE — Corriger / Justifier / Rejeter / Clôturer
+# ============================================================
 @login_required
+@staff_member_required
+def alerte_detail_view(request, pk):
+    anomalie = get_object_or_404(
+        AnomaliePointage.objects.select_related(
+            'employe', 'site', 'traitement', 'traitement__administrateur', 'cloturee_par'
+        ),
+        pk=pk
+    )
+
+    if request.method == 'POST':
+        if anomalie.statut == AnomaliePointage.STATUT_CLOTUREE:
+            # Anomalie déjà clôturée : aucune nouvelle action n'est traitée.
+            messages.error(request, "❌ Cette anomalie est déjà clôturée, elle ne peut plus être modifiée.")
+            return redirect('alerte_detail', pk=pk)
+
+        type_action = request.POST.get('type_action', '')
+
+        if type_action == 'cloturer':
+            try:
+                marquer_cloturee(anomalie, request.user)
+                messages.success(request, f"🔒 Anomalie #{anomalie.pk} clôturée.")
+            except (ValueError, PermissionError) as e:
+                messages.error(request, f"❌ {e}")
+            return redirect('alerte_detail', pk=pk)
+
+        commentaire = request.POST.get('commentaire', '').strip()
+        if not commentaire:
+            messages.error(request, "❌ Un commentaire est obligatoire pour cette action.")
+            return redirect('alerte_detail', pk=pk)
+
+        if type_action == AnomalieTraitement.ACTION_CORRECTION:
+            employe_id = request.POST.get('employe')
+            date_pointage = request.POST.get('date_pointage')
+            periode = request.POST.get('periode')
+            pointage_existant = Pointage.objects.filter(
+                employe_id=employe_id, date_pointage=date_pointage, periode=periode
+            ).first()
+
+            # Capturer les anciennes valeurs AVANT de lier le formulaire :
+            # ModelForm._post_clean() mute l'instance liée (via
+            # construct_instance) dès is_valid(), donc after != before si on
+            # attend après validation pour lire pointage_existant.
+            anciennes_valeurs = {}
+            if pointage_existant:
+                for champ in ['site', 'type_journee', 'heure_arrivee', 'heure_depart', 'statut', 'notes']:
+                    anciennes_valeurs[champ] = getattr(pointage_existant, champ)
+
+            form = PointageForm(request.POST, instance=pointage_existant)
+            if not form.is_valid():
+                messages.error(request, f"❌ Formulaire de correction invalide : {form.errors.as_text()}")
+                return redirect('alerte_detail', pk=pk)
+
+            cd = form.cleaned_data
+            corrections = []
+            created = pointage_existant is None
+            if not created:
+                for champ, ancienne in anciennes_valeurs.items():
+                    nouvelle = cd[champ]
+                    if ancienne != nouvelle:
+                        corrections.append({
+                            'champ': champ,
+                            'ancienne_valeur': str(ancienne) if ancienne is not None else None,
+                            'nouvelle_valeur': str(nouvelle) if nouvelle is not None else None,
+                        })
+
+            pointage = form.save()
+
+            try:
+                marquer_traitee(
+                    anomalie, request.user, type_action=AnomalieTraitement.ACTION_CORRECTION,
+                    commentaire=commentaire, corrections=corrections, pointage_concerne=pointage,
+                )
+                messages.success(request, f"✅ Pointage {'créé' if created else 'corrigé'} et anomalie traitée.")
+            except (ValueError, PermissionError) as e:
+                messages.error(request, f"❌ {e}")
+
+        elif type_action == AnomalieTraitement.ACTION_JUSTIFICATION:
+            try:
+                marquer_traitee(
+                    anomalie, request.user, type_action=AnomalieTraitement.ACTION_JUSTIFICATION,
+                    commentaire=commentaire, corrections=[],
+                )
+                messages.success(request, "✅ Anomalie justifiée.")
+            except (ValueError, PermissionError) as e:
+                messages.error(request, f"❌ {e}")
+
+        elif type_action == AnomalieTraitement.ACTION_REJET:
+            try:
+                marquer_traitee(
+                    anomalie, request.user, type_action=AnomalieTraitement.ACTION_REJET,
+                    commentaire=commentaire, corrections=[],
+                )
+                messages.success(request, "✅ Anomalie rejetée.")
+            except (ValueError, PermissionError) as e:
+                messages.error(request, f"❌ {e}")
+
+        else:
+            messages.error(request, "❌ Action invalide.")
+
+        return redirect('alerte_detail', pk=pk)
+
+    # GET : préremplir le formulaire de correction avec le pointage existant
+    # (même employé/date/période) si un pointage correspond déjà.
+    pointage_existant = None
+    if anomalie.employe and anomalie.date_pointage:
+        pointage_existant = Pointage.objects.filter(
+            employe=anomalie.employe, date_pointage=anomalie.date_pointage,
+        ).order_by('periode').first()
+
+    initial = {}
+    if pointage_existant:
+        initial = {
+            'employe': pointage_existant.employe_id, 'site': pointage_existant.site_id,
+            'date_pointage': pointage_existant.date_pointage, 'periode': pointage_existant.periode,
+            'type_journee': pointage_existant.type_journee,
+            'heure_arrivee': pointage_existant.heure_arrivee, 'heure_depart': pointage_existant.heure_depart,
+            'statut': pointage_existant.statut, 'notes': pointage_existant.notes,
+        }
+    elif anomalie.employe:
+        initial = {'employe': anomalie.employe_id, 'site': anomalie.site_id, 'date_pointage': anomalie.date_pointage}
+
+    context = {
+        'anomalie': anomalie,
+        'pointage_form': PointageForm(initial=initial),
+        'pointage_existant': pointage_existant,
+    }
+    return render(request, 'pointage/alerte_detail.html', context)
+
+
+@login_required
+@staff_member_required
 def export_resume_excel(request):
     """Export résumé par employé entre 2 dates — format tableau par jour"""
     from collections import defaultdict
@@ -872,6 +954,7 @@ def export_resume_excel(request):
     date_debut_str = request.GET.get('date_debut')
     date_fin_str   = request.GET.get('date_fin')
     employe_filter = request.GET.get('employe')
+    poste_filter   = request.GET.get('poste')
     site_filter    = request.GET.get('site')
 
     try:
@@ -909,6 +992,8 @@ def export_resume_excel(request):
         )
         if employe_filter:
             qs = qs.filter(employe_id=employe_filter)
+        if poste_filter:
+            qs = qs.filter(employe__poste_id=poste_filter)
         if site_filter:
             qs = qs.filter(site_id=site_filter)
 
@@ -1115,7 +1200,7 @@ def export_resume_excel(request):
                        value=f"{arr_s}  →  {dep_s}" if has_data else '—',
                        bg=bg_day, fg=DARK, bold=True, size=9, border=b_all())
                     sc(ws.cell(row=base + 5, column=col),
-                       value=f"Retard : {matin.get_retard_minutes if matin else 0}min" if h_ret.total_seconds() > 0 else '—',
+                       value=f"Retard : {int(h_ret.total_seconds() // 60)}min" if h_ret.total_seconds() > 0 else '—',
                        bg=RED_BG if h_ret.total_seconds() > 0 else bg_day,
                        fg=RED_FG if h_ret.total_seconds() > 0 else '999999',
                        size=8, italic=True, border=b_all())
@@ -1167,11 +1252,6 @@ def export_resume_excel(request):
 # API VIEWSETS
 # ---------------------------
 
-from rest_framework import viewsets
-from .serializers import (
-    EmployeSerializer, SiteSerializer,
-    PointageSerializer, PointageDetailSerializer
-)
 
 
 class EmployeViewSet(viewsets.ModelViewSet):
@@ -1255,11 +1335,13 @@ class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
         
         anomalie = self.get_object()
         try:
+            corrections = request.data.get('corrections')
             marquer_traitee(
                 anomalie,
                 administrateur=request.user,
+                type_action=AnomalieTraitement.ACTION_CORRECTION if corrections else AnomalieTraitement.ACTION_JUSTIFICATION,
                 commentaire=request.data.get('commentaire', ''),
-                corrections=request.data.get('corrections'),
+                corrections=corrections,
             )
         except ValueError as e:
             return Response({'success': False, 'error': str(e)}, status=drf_status.HTTP_400_BAD_REQUEST)
@@ -1289,10 +1371,7 @@ class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(AnomaliePointageDetailSerializer(anomalie).data)
 
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import status as drf_status
+from rest_framework.permissions import IsAuthenticated
 
 class ScanAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -1315,10 +1394,18 @@ class ScanAPIView(APIView):
                 status=drf_status.HTTP_400_BAD_REQUEST
             )
 
+        try:
+            site_id = int(site_id)
+        except (TypeError, ValueError):
+            return Response(
+                {'success': False, 'error': 'site_id invalide'},
+                status=drf_status.HTTP_400_BAD_REQUEST
+            )
+
         result = process_scan(
             matricule=parsed['matricule'],
             qr_token=parsed['token'],
-            site_id=int(site_id),
+            site_id=site_id,
             mode=mode
         )
 
@@ -1334,7 +1421,7 @@ class ScanAPIView(APIView):
 # FONCTIONS API SUPPLÉMENTAIRES
 # ---------------------------
 
-from rest_framework.decorators import api_view, permission_classes as pc
+from rest_framework.decorators import permission_classes as pc
 
 
 @api_view(['POST'])
@@ -1354,10 +1441,15 @@ def scan_api_view(request):
     if not parsed:
         return Response({'success': False, 'error': 'Format QR invalide'}, status=400)
 
+    try:
+        site_id = int(site_id)
+    except (TypeError, ValueError):
+        return Response({'success': False, 'error': 'site_id invalide'}, status=400)
+
     result = process_scan(
         matricule=parsed['matricule'],
         qr_token=parsed['token'],
-        site_id=int(site_id),
+        site_id=site_id,
         mode=mode
     )
 
@@ -1503,11 +1595,10 @@ def get_charts_data(request):
         'weekly':    {'labels': jours_labels, 'presents': jours_presents, 'retards': jours_retards},
         'evolution': {'labels': semaines_labels, 'taux_presence': semaines_taux},
     })
+# pointage/views.py
 
+from django.contrib.auth.decorators import login_required
 
-# ============================================================
-# API ADMIN BADGE COUNTS
-# ============================================================
 
 @login_required
 def admin_badge_counts_api(request):
@@ -1521,372 +1612,3 @@ def admin_badge_counts_api(request):
             statut=AnomaliePointage.STATUT_OUVERTE
         ).count(),
     })
-
-
-# ============================================================
-# API CALENDRIER - POUR LA PAGE DÉTAIL EMPLOYÉ
-# ============================================================
-
-@login_required
-@require_GET
-def api_pointages_mois(request):
-    """
-    API pour récupérer les pointages d'un employé pour un mois donné.
-    Utilisée par le calendrier JavaScript de la page détail employé.
-    """
-    # Vérification des permissions
-    if not (request.user.is_superuser or request.user.groups.filter(name='RH').exists()):
-        return JsonResponse({'error': 'Permission non accordée'}, status=403)
-    
-    employee_id = request.GET.get('employee_id')
-    month = request.GET.get('month')
-    year = request.GET.get('year')
-    
-    if not all([employee_id, month, year]):
-        return JsonResponse({'error': 'Paramètres manquants'}, status=400)
-    
-    try:
-        employee_id = int(employee_id)
-        month = int(month)
-        year = int(year)
-    except ValueError:
-        return JsonResponse({'error': 'Paramètres invalides'}, status=400)
-    
-    # Vérifier que l'employé existe
-    employe = get_object_or_404(Employe, id=employee_id)
-    
-    # Récupérer les pointages du mois
-    pointages = Pointage.objects.filter(
-        employe=employe,
-        date_pointage__month=month,
-        date_pointage__year=year
-    ).order_by('date_pointage')
-    
-    # Construire le dictionnaire de réponse
-    result = {}
-    
-    for pointage in pointages:
-        date_str = pointage.date_pointage.strftime('%Y-%m-%d')
-        
-        # Extraire les heures par période
-        heures = {
-            'heure_entree_matin': None,
-            'heure_sortie_midi': None,
-            'heure_entree_apres_midi': None,
-            'heure_sortie_soir': None,
-        }
-        
-        if pointage.periode == 'matin':
-            heures['heure_entree_matin'] = pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else None
-            heures['heure_sortie_midi'] = pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else None
-        elif pointage.periode == 'apres_midi':
-            heures['heure_entree_apres_midi'] = pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else None
-            heures['heure_sortie_soir'] = pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else None
-        elif pointage.periode == 'nuit':
-            heures['heure_entree_matin'] = pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else None
-            heures['heure_sortie_soir'] = pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else None
-        
-        # Compter le nombre de pointages
-        nb_pointages = 0
-        if pointage.heure_arrivee:
-            nb_pointages += 1
-        if pointage.heure_depart:
-            nb_pointages += 1
-        
-        # Déterminer le statut
-        if pointage.periode == 'nuit' and pointage.type_journee == 'garde':
-            if pointage.heure_arrivee and pointage.heure_depart:
-                statut = 'normal'
-            elif pointage.heure_arrivee:
-                statut = 'incomplet'
-            else:
-                statut = 'absence'
-        else:
-            if not pointage.heure_arrivee and not pointage.heure_depart:
-                statut = 'absence'
-            elif pointage.retard and pointage.retard > timedelta(0):
-                statut = 'retard'
-            elif pointage.heure_arrivee and pointage.heure_depart:
-                statut = 'normal'
-            else:
-                statut = 'incomplet'
-        
-        result[date_str] = {
-            'statut': statut,
-            'heure_entree_matin': heures['heure_entree_matin'],
-            'heure_sortie_midi': heures['heure_sortie_midi'],
-            'heure_entree_apres_midi': heures['heure_entree_apres_midi'],
-            'heure_sortie_soir': heures['heure_sortie_soir'],
-            'nb_pointages': nb_pointages,
-            'periode': pointage.periode,
-            'type_journee': getattr(pointage, 'type_journee', 'normal'),
-            'anomalies': []
-        }
-    
-    return JsonResponse(result)
-
-
-@login_required
-@require_GET
-def api_pointages_jour(request):
-    """
-    API pour récupérer les détails d'un pointage pour une date spécifique.
-    Utilisée quand l'utilisateur clique sur un jour du calendrier.
-    """
-    # Vérification des permissions
-    if not (request.user.is_superuser or request.user.groups.filter(name='RH').exists()):
-        return JsonResponse({'error': 'Permission non accordée'}, status=403)
-    
-    employee_id = request.GET.get('employee_id')
-    date = request.GET.get('date')
-    
-    if not all([employee_id, date]):
-        return JsonResponse({'error': 'Paramètres manquants'}, status=400)
-    
-    try:
-        employee_id = int(employee_id)
-        date_obj = datetime.strptime(date, '%Y-%m-%d').date()
-    except (ValueError, TypeError):
-        return JsonResponse({'error': 'Paramètres invalides'}, status=400)
-    
-    # Vérifier que l'employé existe
-    employe = get_object_or_404(Employe, id=employee_id)
-    
-    # Récupérer les pointages du jour
-    pointages = Pointage.objects.filter(
-        employe=employe,
-        date_pointage=date_obj
-    ).order_by('periode')
-    
-    if not pointages.exists():
-        return JsonResponse({date: None})
-    
-    # Construire la réponse avec tous les pointages du jour
-    heures = {
-        'heure_entree_matin': None,
-        'heure_sortie_midi': None,
-        'heure_entree_apres_midi': None,
-        'heure_sortie_soir': None,
-    }
-    
-    nb_pointages_total = 0
-    statut_global = 'normal'
-    anomalies_list = []
-    est_garde = False
-    periode_nuit = None
-    
-    for pointage in pointages:
-        if pointage.periode == 'matin':
-            heures['heure_entree_matin'] = pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else None
-            heures['heure_sortie_midi'] = pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else None
-            if pointage.heure_arrivee:
-                nb_pointages_total += 1
-            if pointage.heure_depart:
-                nb_pointages_total += 1
-                
-        elif pointage.periode == 'apres_midi':
-            heures['heure_entree_apres_midi'] = pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else None
-            heures['heure_sortie_soir'] = pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else None
-            if pointage.heure_arrivee:
-                nb_pointages_total += 1
-            if pointage.heure_depart:
-                nb_pointages_total += 1
-                
-        elif pointage.periode == 'nuit':
-            est_garde = True
-            periode_nuit = pointage
-            heures['heure_entree_matin'] = pointage.heure_arrivee.strftime('%H:%M') if pointage.heure_arrivee else None
-            heures['heure_sortie_soir'] = pointage.heure_depart.strftime('%H:%M') if pointage.heure_depart else None
-            if pointage.heure_arrivee:
-                nb_pointages_total += 1
-            if pointage.heure_depart:
-                nb_pointages_total += 1
-        
-        # Récupérer le statut du pointage
-        pointage_statut = getattr(pointage, 'statut', 'normal')
-        
-        # Déterminer le statut via la logique métier si nécessaire
-        if pointage_statut == 'normal':
-            if pointage.periode != 'nuit' and pointage.retard and pointage.retard > timedelta(0):
-                pointage_statut = 'retard'
-            elif not pointage.heure_arrivee and not pointage.heure_depart:
-                pointage_statut = 'absence'
-            elif pointage.heure_arrivee and not pointage.heure_depart:
-                pointage_statut = 'incomplet'
-        
-        # Le statut global est le plus "grave"
-        if pointage_statut == 'anomalie':
-            statut_global = 'anomalie'
-        elif pointage_statut == 'retard' and statut_global not in ['anomalie']:
-            statut_global = 'retard'
-        elif pointage_statut == 'incomplet' and statut_global not in ['anomalie', 'retard']:
-            statut_global = 'incomplet'
-        elif pointage_statut == 'absence' and statut_global == 'normal':
-            statut_global = 'absence'
-    
-    # Cas particulier : garde de nuit
-    if est_garde and periode_nuit:
-        if periode_nuit.type_journee == 'garde':
-            if not periode_nuit.heure_arrivee and not periode_nuit.heure_depart:
-                statut_global = 'absence'
-            elif periode_nuit.heure_arrivee and periode_nuit.heure_depart:
-                statut_global = 'normal'
-            else:
-                statut_global = 'incomplet'
-    
-    result = {
-        date: {
-            'statut': statut_global,
-            'heure_entree_matin': heures['heure_entree_matin'],
-            'heure_sortie_midi': heures['heure_sortie_midi'],
-            'heure_entree_apres_midi': heures['heure_entree_apres_midi'],
-            'heure_sortie_soir': heures['heure_sortie_soir'],
-            'nb_pointages': nb_pointages_total,
-            'est_garde': est_garde,
-            'anomalies': anomalies_list
-        }
-    }
-    
-    return JsonResponse(result)
-
-
-@login_required
-@require_GET
-def api_statistiques_employe(request):
-    """
-    API pour récupérer les statistiques d'un employé pour le mois en cours.
-    Utilisée pour les cartes statistiques dans l'en-tête de la page détail.
-    """
-    # Vérification des permissions
-    if not (request.user.is_superuser or request.user.groups.filter(name='RH').exists()):
-        return JsonResponse({'error': 'Permission non accordée'}, status=403)
-    
-    employee_id = request.GET.get('employee_id')
-    
-    if not employee_id:
-        return JsonResponse({'error': 'Paramètre employee_id manquant'}, status=400)
-    
-    try:
-        employee_id = int(employee_id)
-    except ValueError:
-        return JsonResponse({'error': 'Paramètre invalide'}, status=400)
-    
-    # Vérifier que l'employé existe
-    employe = get_object_or_404(Employe, id=employee_id)
-    
-    now = datetime.now()
-    
-    # Récupérer les pointages du mois
-    pointages = Pointage.objects.filter(
-        employe=employe,
-        date_pointage__month=now.month,
-        date_pointage__year=now.year
-    )
-    
-    total = pointages.count()
-    normaux = 0
-    retards = 0
-    anomalies = 0
-    absences = 0
-    incomplets = 0
-    
-    for p in pointages:
-        if p.periode == 'nuit' and p.type_journee == 'garde':
-            if p.heure_arrivee and p.heure_depart:
-                normaux += 1
-            elif p.heure_arrivee:
-                incomplets += 1
-            else:
-                absences += 1
-        else:
-            if not p.heure_arrivee and not p.heure_depart:
-                absences += 1
-            elif p.retard and p.retard > timedelta(0):
-                retards += 1
-            elif p.heure_arrivee and p.heure_depart:
-                normaux += 1
-            else:
-                incomplets += 1
-    
-    stats = {
-        'total': total,
-        'normaux': normaux,
-        'retards': retards,
-        'anomalies': anomalies,
-        'absences': absences,
-        'incomplets': incomplets,
-    }
-    
-    return JsonResponse(stats)
-
-
-@login_required
-def employe_detail_view(request, pk):
-    """
-    Vue de détail d'un employé avec calendrier et statistiques.
-    Utilisée par l'interface Admin/RH.
-    """
-    # Vérification des permissions
-    if not (request.user.is_superuser or request.user.groups.filter(name='RH').exists()):
-        messages.error(request, "❌ Vous n'avez pas les droits pour consulter cette page.")
-        return redirect('admin:pointage_employe_changelist')
-    
-    employe = get_object_or_404(Employe, pk=pk)
-    
-    # Statistiques du mois en cours
-    now = timezone.localtime(timezone.now())
-    current_month = now.month
-    current_year = now.year
-    
-    pointages = Pointage.objects.filter(
-        employe=employe,
-        date_pointage__month=current_month,
-        date_pointage__year=current_year
-    )
-    
-    total = pointages.count()
-    normaux = 0
-    retards = 0
-    anomalies = 0
-    absences = 0
-    incomplets = 0
-    
-    for p in pointages:
-        if p.periode == 'nuit' and p.type_journee == 'garde':
-            if p.heure_arrivee and p.heure_depart:
-                normaux += 1
-            elif p.heure_arrivee:
-                incomplets += 1
-            else:
-                absences += 1
-        else:
-            if not p.heure_arrivee and not p.heure_depart:
-                absences += 1
-            elif p.retard and p.retard > timedelta(0):
-                retards += 1
-            elif p.heure_arrivee and p.heure_depart:
-                normaux += 1
-            else:
-                incomplets += 1
-    
-    stats = {
-        'total': total,
-        'normaux': normaux,
-        'retards': retards,
-        'anomalies': anomalies,
-        'absences': absences,
-        'incomplets': incomplets,
-    }
-    
-    context = {
-        'employe': employe,
-        'stats': stats,
-        'current_month': current_month,
-        'current_year': current_year,
-        'opts': employe._meta,
-        'original': employe,
-        'has_change_permission': request.user.has_perm('pointage.change_employe'),
-        'has_delete_permission': request.user.has_perm('pointage.delete_employe'),
-    }
-    
-    return render(request, 'admin/pointage/employe_detail.html', context)

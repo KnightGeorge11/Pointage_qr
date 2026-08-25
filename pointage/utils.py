@@ -7,8 +7,7 @@
 #   + NOUVEAU : cloture_journee (détection des scans manquants en fin de journée)
 
 from datetime import datetime, timedelta
-from django.utils import timezone
-from .models import Pointage, Employe, Site
+from .models import Pointage
 
 
 # ─── Calcul des retards mensuels ──────────────────────────────────────────────

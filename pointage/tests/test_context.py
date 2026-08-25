@@ -6,7 +6,6 @@
 from datetime import time, date, timedelta
 import pytest
 from django.test import TestCase
-from django.utils import timezone
 
 from pointage.models import Employe, Site, Pointage
 from pointage.context import (
@@ -15,7 +14,7 @@ from pointage.context import (
     collect_day_context_for_scan,
     DEFAULT_TOLERANCE_MINUTES,
 )
-from pointage.domain import DayState, TimeWindow
+from pointage.domain import DayState
 
 
 class TestBuildSiteSchedule(TestCase):

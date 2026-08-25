@@ -64,16 +64,24 @@ def marquer_traitee(
     commentaire: str = '',
     corrections: Optional[list] = None,
     pointage_concerne: Optional[Pointage] = None,
+    type_action: str = 'correction',
 ) -> AnomalieTraitement:
     """
     Marque une anomalie comme traitée et conserve la trace du traitement.
+
+    Paramètres
+    ----------
+    type_action
+        Une des valeurs AnomalieTraitement.ACTION_* (correction /
+        justification / rejet) — l'action RH réellement posée. Ne pas
+        confondre avec AnomaliePointage.statut.
 
     Lève
     ----
     PermissionError
         Si l'utilisateur n'est pas Admin/RH (is_staff).
     ValueError
-        Si l'anomalie est déjà clôturée.
+        Si l'anomalie est déjà clôturée, ou si type_action est invalide.
     """
     # Vérification des permissions - Seul l'Admin/RH peut traiter une anomalie
     if not administrateur.is_staff:
@@ -82,11 +90,11 @@ def marquer_traitee(
     if anomalie.statut == AnomaliePointage.STATUT_CLOTUREE:
         raise ValueError("Impossible de retraiter une anomalie déjà clôturée.")
 
+    valides = {choice for choice, _ in AnomalieTraitement.TYPE_ACTION_CHOICES}
+    if type_action not in valides:
+        raise ValueError(f"type_action invalide : {type_action!r}")
+
     with transaction.atomic():
-        # ================================================================
-        # AJOUT : type_action est un champ requis (NOT NULL)
-        # Nous utilisons 'traitee' comme valeur par défaut
-        # ================================================================
         traitement, created = AnomalieTraitement.objects.update_or_create(
             anomalie=anomalie,
             defaults={
@@ -94,14 +102,14 @@ def marquer_traitee(
                 'commentaire': commentaire,
                 'corrections': corrections or [],
                 'pointage_concerne': pointage_concerne,
-                'type_action': 'traitee',  # <--- CHAMP AJOUTÉ ICI
+                'type_action': type_action,
             }
         )
         anomalie.statut = AnomaliePointage.STATUT_TRAITEE
         anomalie.save(update_fields=['statut'])
 
     logger.info(
-        f"[marquer_traitee] anomalie={anomalie.id} traitée par "
+        f"[marquer_traitee] anomalie={anomalie.id} traitée ({type_action}) par "
         f"{administrateur} ({len(corrections or [])} correction(s))"
     )
     return traitement

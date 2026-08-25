@@ -81,13 +81,13 @@
     color: var(--amber-600);
 }
 
-.badge-anomalies {
+.anomalies-badge {
     background: var(--red-50);
     color: var(--red-600);
     border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-.badge-anomalies:hover {
+.anomalies-badge:hover {
     background: var(--red-50);
     color: var(--red-600);
 }
@@ -575,9 +575,15 @@
         </a>
         {% endif %}
         {% if anomalies_ouvertes %}
-        <a href="{% url 'alertes_rh' %}" class="dash-status-badge badge-anomalies">
+        <a href="{% url 'alertes_rh' %}" class="dash-status-badge anomalies-badge">
             <i class="fas fa-triangle-exclamation"></i>
             {{ anomalies_ouvertes }} anomalie{{ anomalies_ouvertes|pluralize }} ouverte{{ anomalies_ouvertes|pluralize }}
+        </a>
+        {% endif %}
+        {% if demandes_en_attente %}
+        <a href="{% url 'admin:pointage_demandemodification_changelist' %}" class="dash-status-badge anomalies-badge">
+            <i class="fas fa-pen-to-square"></i>
+            {{ demandes_en_attente }} demande{{ demandes_en_attente|pluralize }} de modification
         </a>
         {% endif %}
     </div>

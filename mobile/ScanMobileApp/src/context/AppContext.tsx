@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Site } from '../services/api'
+import { Site, apiService, CurrentUser } from '../services/api'
 import { DEFAULT_API_URL, STORAGE_KEYS } from '../utils/constants'
 
 export type ApiStatus = {
@@ -17,6 +17,13 @@ type AppContextType = {
   setSites: (sites: Site[]) => void
   apiStatus: ApiStatus
   setApiStatus: (status: ApiStatus) => void
+  // Authentification — le compte connecté (opérateur) est totalement
+  // distinct de l'employé scanné pendant un pointage.
+  isAuthenticated: boolean
+  currentUser: CurrentUser | null
+  authChecked: boolean
+  login: (username: string, password: string) => Promise<void>
+  logout: () => Promise<void>
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
@@ -28,6 +35,12 @@ export const AppProvider = ({ children }: any) => {
     connected: true,
     baseUrl: DEFAULT_API_URL,
   })
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+  // authChecked évite d'afficher brièvement l'écran Login avant que la
+  // vérification du token stocké ne soit terminée (pas de reconnexion
+  // visible si un jeton valide existe déjà).
+  const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
     const loadSavedData = async () => {
@@ -40,8 +53,17 @@ export const AppProvider = ({ children }: any) => {
         if (savedUrl) {
           setApiStatus(prev => ({ ...prev, baseUrl: savedUrl }))
         }
+
+        const authenticated = await apiService.isAuthenticated()
+        if (authenticated) {
+          const user = await apiService.getCurrentUser()
+          setIsAuthenticated(true)
+          setCurrentUser(user)
+        }
       } catch (err) {
         console.error('Erreur chargement données:', err)
+      } finally {
+        setAuthChecked(true)
       }
     }
     loadSavedData()
@@ -60,6 +82,18 @@ export const AppProvider = ({ children }: any) => {
     }
   }
 
+  const login = async (username: string, password: string) => {
+    const user = await apiService.login(username, password)
+    setCurrentUser(user)
+    setIsAuthenticated(true)
+  }
+
+  const logout = async () => {
+    await apiService.logout()
+    setCurrentUser(null)
+    setIsAuthenticated(false)
+  }
+
   return (
     <AppContext.Provider
       value={{
@@ -69,6 +103,11 @@ export const AppProvider = ({ children }: any) => {
         setSites,
         apiStatus,
         setApiStatus,
+        isAuthenticated,
+        currentUser,
+        authChecked,
+        login,
+        logout,
       }}
     >
       {children}

@@ -145,7 +145,6 @@ LOGOUT_REDIRECT_URL = '/login/'
 # CONFIGURATION JAZZMIN — Version Premium avec Navigation + Badges
 # ============================================================
 JAZZMIN_SETTINGS = {
-    "custom_css": "admin/css/jazzmin-badges.css",
     "custom_js": "admin/js/jazzmin-badges.js",
     # ── Identité ──
     "site_title": "Pointage Admin",
@@ -153,7 +152,7 @@ JAZZMIN_SETTINGS = {
     "site_brand": "Pointage QR",
     "welcome_sign": "Bienvenue dans l'administration",
     "copyright": "Pointage QR © 2026",
-    "SHOW_ALL_APPS": True,
+    
     # ── Icônes ──
     "icons": {
         "auth": "fas fa-lock",
@@ -196,8 +195,6 @@ JAZZMIN_SETTINGS = {
     
     "default_icon_parents": "fas fa-folder",
     "default_icon_children": "fas fa-circle",
-    
-    "dark_mode_theme": None,
     
     "search_model": "pointage.Employe",
     "user_avatar": None,
@@ -395,7 +392,10 @@ JAZZMIN_UI_TWEAKS = {
     
     # ── Thème ──
     "theme": "flatly",
-    "dark_mode_theme": None,
+    # dark_mode_theme est supprimé depuis Jazzmin 3.x, remplacé par
+    # default_theme_mode ("light"/"dark"/"auto") — même comportement
+    # que l'ancien fallback automatique de Jazzmin pour cette clé.
+    "default_theme_mode": "auto",
     
     # ── Boutons ──
     "button_classes": {

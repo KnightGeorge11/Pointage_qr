@@ -13,7 +13,6 @@
 # - Aucun effet secondaire
 
 import logging
-from typing import Optional
 
 from pointage.domain import (
     DayState,

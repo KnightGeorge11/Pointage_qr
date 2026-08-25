@@ -4,17 +4,24 @@ from django.utils import timezone
 from datetime import timedelta
 from django.contrib.admin.models import LogEntry
 from django.db.models import Count, Q
-from .models import Employe, Pointage, AnomaliePointage, Site, Poste
+from .models import Employe, Pointage, AnomaliePointage, Poste
 from .anomalies import compter_anomalies_ouvertes
-from .models import DemandeModification, AnomaliePointage
+from .models import DemandeModification
 
 
 
 def dashboard_context(request):
-    """Fournit les données statistiques pour le dashboard Jazzmin."""
-    
-    print("🔴🔴🔴 dashboard_context EXÉCUTÉ 🔴🔴🔴")
-    
+    """Fournit les données statistiques pour le dashboard Jazzmin.
+
+    Optimisation : ce contexte fait une vingtaine de requêtes (stats du
+    jour + 7 jours glissants + postes + logs). Il n'a de sens que sur
+    les pages admin qui l'affichent réellement — pas sur le login, les
+    pages publiques, ou l'API. On l'évite ailleurs pour ne pas payer ce
+    coût sur chaque page rendue (context processor global).
+    """
+    if request.path in ('/login/', '/admin/login/') or request.path.startswith('/admin/login/'):
+        return {}
+
     today = timezone.localtime(timezone.now()).date()
     
     # ============================================================
@@ -43,65 +50,64 @@ def dashboard_context(request):
     anomalies_ouvertes = compter_anomalies_ouvertes()
     
     # ============================================================
-    # DONNÉES HEBDOMADAIRES POUR LE GRAPHIQUE
+    # DONNÉES HEBDOMADAIRES + ÉVOLUTION (4 semaines) — UNE SEULE
+    # requête couvrant toute la période, agrégée en Python, au lieu
+    # de 7×2 + 4×3 = 26 requêtes individuelles (Phase 5 — optimisation
+    # context processor). Résultats strictement identiques.
     # ============================================================
-    
+
     jours_labels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-    weekly_presents = []
-    weekly_absents = []
-    weekly_retards = []
-    
+
     # Calcul du lundi de la semaine en cours
     today_weekday = today.weekday()  # 0=Lundi, 6=Dimanche
     start_of_week = today - timedelta(days=today_weekday)
-    
+
+    periode_actif = ('matin', 'apres_midi')
+    full_start = start_of_week - timedelta(weeks=3)
+    full_end   = start_of_week + timedelta(days=6)
+
+    lignes = list(
+        Pointage.objects.filter(date_pointage__gte=full_start, date_pointage__lte=full_end)
+        .values('date_pointage', 'employe_id', 'periode', 'retard')
+    )
+
+    # --- Semaine en cours (graphique 7 jours) ---
+    weekly_presents, weekly_absents, weekly_retards = [], [], []
     for i in range(7):
         jour = start_of_week + timedelta(days=i)
-        pointages_jour = Pointage.objects.filter(date_pointage=jour)
-        
-        presents = pointages_jour.values('employe').distinct().count()
-        retards = pointages_jour.filter(
-            periode__in=['matin', 'apres_midi'], 
-            retard__gt=timedelta(0)
-        ).count()
-        
+        lignes_jour = [l for l in lignes if l['date_pointage'] == jour]
+        presents = len({l['employe_id'] for l in lignes_jour})
+        retards = sum(
+            1 for l in lignes_jour
+            if l['periode'] in periode_actif and l['retard'] and l['retard'] > timedelta(0)
+        )
         weekly_presents.append(presents)
         weekly_absents.append(total_employes - presents)
         weekly_retards.append(retards)
-    
-    # ============================================================
-    # DONNÉES D'ÉVOLUTION (4 semaines)
-    # ============================================================
-    
-    evolution_labels = []
-    evolution_presence = []
-    evolution_ponctualite = []
-    
+
+    # --- Évolution sur 4 semaines ---
+    evolution_labels, evolution_presence, evolution_ponctualite = [], [], []
     for i in range(3, -1, -1):
         week_start = start_of_week - timedelta(weeks=i)
         week_end = week_start + timedelta(days=6)
-        
+
         evolution_labels.append(f"Sem. {week_start.strftime('%d/%m')}")
-        
-        pointages_semaine = Pointage.objects.filter(
-            date_pointage__gte=week_start,
-            date_pointage__lte=week_end
-        )
-        
-        employes_semaine = pointages_semaine.values('employe').distinct().count()
+
+        lignes_semaine = [l for l in lignes if week_start <= l['date_pointage'] <= week_end]
+
+        employes_semaine = len({l['employe_id'] for l in lignes_semaine})
         if total_employes > 0:
             taux_presence = round((employes_semaine / total_employes) * 100, 1)
         else:
             taux_presence = 0.0
-        
-        pointages_sans_retard = pointages_semaine.filter(
-            periode__in=['matin', 'apres_midi'],
-            retard=timedelta(0)
-        ).count()
-        total_pointages = pointages_semaine.filter(
-            periode__in=['matin', 'apres_midi']
-        ).count()
+
+        lignes_actives = [l for l in lignes_semaine if l['periode'] in periode_actif]
+        pointages_sans_retard = sum(
+            1 for l in lignes_actives if not l['retard'] or l['retard'] == timedelta(0)
+        )
+        total_pointages = len(lignes_actives)
         if total_pointages > 0:
+
             taux_ponctualite = round((pointages_sans_retard / total_pointages) * 100, 1)
         else:
             taux_ponctualite = 0.0

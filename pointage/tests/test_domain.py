@@ -5,7 +5,7 @@
 #
 # Tests des objets métier purs sans dépendances Django.
 
-from datetime import time, timedelta, datetime, date
+from datetime import time, timedelta
 import pytest
 
 from pointage.domain import (

@@ -16,7 +16,8 @@
 # cette logique et ne sont pas concernées par ce flux.
 
 import logging
-from datetime import datetime, time, timedelta
+import uuid
+from datetime import time, timedelta
 from django.utils import timezone
 from django.db import transaction
 
@@ -160,18 +161,26 @@ def _process_garde(employe, site, now, force_new=False):
     date_courante = now.date()
     heure = now.time()
 
-    # Garde en cours → fin de garde (sauf si force_new demande une nouvelle garde)
-    garde_en_cours = None
-    if not force_new:
-        garde_en_cours = Pointage.objects.select_for_update().filter(
-            employe=employe,
-            periode='nuit',
-            type_journee='garde',
-            heure_depart__isnull=True
-        ).order_by('-date_pointage').first()
+    # Garde en cours → fin de garde.
+    # force_new ne doit ignorer qu'une garde OUVERTE D'UN JOUR PRÉCÉDENT
+    # (garde oubliée, non fermée) : c'est son seul usage prévu. Une garde
+    # du jour même déjà en cours est TOUJOURS détectée et fermée, jamais
+    # ignorée — sinon la branche "nouvelle garde spontanée" plus bas
+    # retomberait sur la même clé unique (employe, date_pointage, periode)
+    # et lèverait IntegrityError (bug confirmé lors de l'audit).
+    garde_en_cours = Pointage.objects.select_for_update().filter(
+        employe=employe,
+        periode='nuit',
+        type_journee='garde',
+        heure_depart__isnull=True
+    ).order_by('-date_pointage').first()
+
+    if garde_en_cours and force_new and garde_en_cours.date_pointage != date_courante:
+        garde_en_cours = None
 
     if garde_en_cours:
         garde_en_cours.heure_depart = heure
+        garde_en_cours.date_depart  = date_courante
         garde_en_cours.save()
         scan = Scan.objects.create(
             employe=employe, site=site,
@@ -211,6 +220,39 @@ def _process_garde(employe, site, now, force_new=False):
         }
 
     # Nouvelle garde spontanée
+    #
+    # Pointage a une contrainte unique (employe, date_pointage, periode) :
+    # un seul pointage 'nuit' par employé et par date_pointage, même si
+    # une garde précédente ce jour-là est déjà clôturée. Une deuxième
+    # garde distincte le même jour civil (ex: rappel d'urgence après la
+    # fin d'une première garde) ne peut donc pas être créée comme un
+    # nouveau Pointage sans violer cette contrainte (IntegrityError
+    # confirmé lors de l'audit). Tant que la levée de cette contrainte
+    # n'est pas une décision métier explicite, on refuse proprement et on
+    # trace l'anomalie plutôt que de laisser planter le scan en 500 —
+    # la première garde reste intacte et rien n'est dupliqué.
+    garde_deja_cloturee_ce_jour = Pointage.objects.filter(
+        employe=employe, date_pointage=date_courante,
+        periode='nuit', type_journee='garde',
+    ).exclude(heure_depart__isnull=True).exists()
+
+    if garde_deja_cloturee_ce_jour:
+        message = (
+            "Une garde a déjà été effectuée et clôturée aujourd'hui pour "
+            "cet employé. Une deuxième garde distincte le même jour n'est "
+            "pas prise en charge automatiquement — contactez un "
+            "administrateur."
+        )
+        enregistrer_anomalie(
+            AnomaliePointage.TYPE_GARDE_MULTIPLE_NON_SUPPORTEE,
+            message=message, employe=employe, site=site, date_pointage=date_courante,
+        )
+        return {
+            'status': 'warning',
+            'code': 'GARDE_MULTIPLE_NON_SUPPORTEE',
+            'message': message
+        }
+
     pointage = Pointage.objects.create(
         employe=employe, site=site,
         date_pointage=date_courante,
@@ -406,8 +448,19 @@ def parse_qr_data(raw: str) -> dict | None:
 
     split(':', 2) pour gérer les matricules qui contiendraient des ':'.
     Retourne {'matricule': ..., 'token': ...} ou None si invalide.
+
+    Le token est validé comme UUID ici (pas seulement "non vide") : le
+    champ Employe.qr_code_token est un UUIDField, et une valeur mal
+    formée levait auparavant une ValidationError non catchée jusqu'à la
+    base de données (500). En la rejetant dès le parsing, un QR invalide
+    produit toujours une réponse métier propre (QR invalide), jamais un 500.
     """
     parts = raw.strip().split(':', 2)
     if len(parts) != 3 or parts[0] != 'EMPLOYE':
         return None
-    return {'matricule': parts[1], 'token': parts[2]}
+    matricule, token = parts[1], parts[2]
+    try:
+        uuid.UUID(token)
+    except (ValueError, AttributeError, TypeError):
+        return None
+    return {'matricule': matricule, 'token': token}

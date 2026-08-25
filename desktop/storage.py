@@ -15,6 +15,8 @@ SETTINGS_FILE = APP_DIR / "settings.json"
 
 DEFAULTS = {
     "api_base_url": "http://pointageqr.local:8000",
+    "api_token": None,             # jeton de l'opérateur connecté (login), jamais un mot de passe
+    "current_user": None,          # dict {username, first_name, last_name, is_staff}
     "selected_site": None,        # dict {id, nom, adresse, ...}
     "user_matricule": None,       # str
     "cached_sites": None,         # list[dict]

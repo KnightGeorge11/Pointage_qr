@@ -1,59 +1,87 @@
 // src/navigation/AppNavigator.tsx
 
 import React from 'react'
-import { createStackNavigator } from '@react-navigation/stack'
+import { View, ActivityIndicator } from 'react-native'
+import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { NavigationContainer } from '@react-navigation/native'
 
 // 🔥 IMPORT DES SCREENS
+import LoginScreen from '../screens/LoginScreen'
 import HomeScreen from '../screens/HomeScreen'
 import ScanScreen from '../screens/ScanScreen'
 import SiteSelectionScreen from '../screens/SiteSelectionScreen'
 import HistoryScreen from '../screens/HistoryScreen'
 import ConfigScreen from '../screens/ConfigScreen'
+import { useAppContext } from '../context/AppContext'
 import { colors } from '../theme/colors'
 
-const Stack = createStackNavigator()
+const Stack = createNativeStackNavigator()
 
 const AppNavigator = () => {
+  const { isAuthenticated, authChecked } = useAppContext()
+
+  // Le temps de vérifier s'il existe déjà un jeton valide en stockage
+  // local : on ne montre jamais l'écran Login "en clignotant" si
+  // l'utilisateur est déjà connecté.
+  if (!authChecked) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface }}>
+        <ActivityIndicator size="large" color={colors.blue} />
+      </View>
+    )
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Home"
+        initialRouteName={isAuthenticated ? 'Home' : 'Login'}
         screenOptions={{
-          headerStyle: { backgroundColor: colors.white, shadowOpacity: 0, elevation: 0, borderBottomWidth: 1, borderBottomColor: colors.line },
+          headerStyle: { backgroundColor: colors.white },
+          headerShadowVisible: false,
           headerTintColor: colors.ink,
           headerTitleStyle: { fontWeight: 'bold' },
         }}
       >
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          options={{ title: 'Accueil' }}
-        />
-        <Stack.Screen
-          name="Scan"
-          component={ScanScreen}
-          options={{
-            title: 'Scanner',
-            headerStyle: { backgroundColor: colors.ink, borderBottomWidth: 0 },
-            headerTintColor: colors.white,
-          }}
-        />
-        <Stack.Screen
-          name="SiteSelectionScreen"
-          component={SiteSelectionScreen}
-          options={{ title: 'Sélection du site' }}
-        />
-        <Stack.Screen
-          name="History"
-          component={HistoryScreen}
-          options={{ title: 'Historique' }}
-        />
-        <Stack.Screen
-          name="Config"
-          component={ConfigScreen}
-          options={{ title: 'Configuration' }}
-        />
+        {!isAuthenticated ? (
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{ headerShown: false }}
+          />
+        ) : (
+          <>
+            <Stack.Screen
+              name="Home"
+              component={HomeScreen}
+              options={{ title: 'Accueil' }}
+            />
+            <Stack.Screen
+              name="Scan"
+              component={ScanScreen}
+              options={{
+                title: 'Scanner',
+                headerStyle: { backgroundColor: colors.ink },
+                headerShadowVisible: false,
+                headerTintColor: colors.white,
+              }}
+            />
+            <Stack.Screen
+              name="SiteSelectionScreen"
+              component={SiteSelectionScreen}
+              options={{ title: 'Sélection du site' }}
+            />
+            <Stack.Screen
+              name="History"
+              component={HistoryScreen}
+              options={{ title: 'Historique' }}
+            />
+            <Stack.Screen
+              name="Config"
+              component={ConfigScreen}
+              options={{ title: 'Configuration' }}
+            />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   )

@@ -40,11 +40,17 @@ export interface ConnectionTestResult {
 }
 
 export interface CheckFirstScanResponse {
-  first_scan: boolean;
-  periode: string;
-  date: string;
-  garde_planifiee: boolean;
-  garde_en_cours: boolean;
+  prochain_scan?: string;
+  mode_attendu?: string;
+  first_scan?: boolean;
+  periode?: string;
+  date?: string;
+  garde_planifiee?: boolean;
+  garde_en_cours?: {
+    id: number;
+    date_pointage: string;
+    heure_arrivee: string;
+  };
   employe: Employee;
   site: {
     id: number;
@@ -78,20 +84,62 @@ const getBaseUrl = async (): Promise<string> => {
   }
 };
 
-const createApi = (baseURL: string) => axios.create({
+// Jeton de l'opérateur connecté (obtenu par login, jamais provisionné
+// manuellement ni codé en dur). Sans ce jeton, les endpoints
+// /api/mobile/... répondent 401. Le mot de passe n'est jamais stocké —
+// seul ce jeton l'est, comme n'importe quelle clé API.
+const getScannerToken = async (): Promise<string | null> => {
+  try {
+    return await AsyncStorage.getItem(STORAGE_KEYS.API_TOKEN);
+  } catch {
+    return null;
+  }
+};
+
+export const setScannerToken = async (token: string): Promise<void> => {
+  await AsyncStorage.setItem(STORAGE_KEYS.API_TOKEN, token.trim());
+  await refreshApi();
+};
+
+export interface CurrentUser {
+  username: string;
+  first_name: string;
+  last_name: string;
+  is_staff: boolean;
+}
+
+export const getCurrentUser = async (): Promise<CurrentUser | null> => {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Purge complète de l'authentification locale (token + infos utilisateur).
+ * Jamais de mot de passe à effacer : il n'est jamais stocké. */
+export const clearAuth = async (): Promise<void> => {
+  await AsyncStorage.multiRemove([STORAGE_KEYS.API_TOKEN, STORAGE_KEYS.CURRENT_USER]);
+  await refreshApi();
+};
+
+const createApi = (baseURL: string, token: string | null) => axios.create({
   baseURL,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    ...(token ? { 'Authorization': `Token ${token}` } : {}),
   },
 });
 
-let api = createApi(DEFAULT_API_URL);
+let api = createApi(DEFAULT_API_URL, null);
 
 const refreshApi = async () => {
   const url = await getBaseUrl();
-  api = createApi(url);
+  const token = await getScannerToken();
+  api = createApi(url, token);
 };
 
 api.interceptors.response.use(
@@ -108,20 +156,28 @@ api.interceptors.response.use(
   }
 );
 
-export const testConnection = async (): Promise<ConnectionTestResult> => {
+export const testConnection = async (overrideUrl?: string): Promise<ConnectionTestResult> => {
+  // Si overrideUrl est fourni (candidat pas encore enregistré, saisi dans
+  // ConfigScreen), on teste CETTE url directement sans jamais toucher à
+  // l'instance axios partagée — comme côté desktop, aucun autre écran ne
+  // doit voir la config bouger tant que ce n'est pas confirmé par
+  // "Sauvegarder".
+  const targetUrl = (overrideUrl || api.defaults.baseURL || DEFAULT_API_URL).replace(/\/+$/, '');
   const startTime = Date.now();
   try {
-    const response = await api.get('/api/mobile/test/', { timeout: 10000 });
+    const response = overrideUrl
+      ? await axios.get(`${targetUrl}/api/mobile/test/`, { timeout: 10000 })
+      : await api.get('/api/mobile/test/', { timeout: 10000 });
     const responseTime = Date.now() - startTime;
     if (response.data?.status === 'success') {
-      return { success: true, message: 'Connecté', url: api.defaults.baseURL, responseTime };
+      return { success: true, message: 'Connecté', url: targetUrl, responseTime };
     }
-    return { success: false, message: 'Réponse inattendue du serveur', url: api.defaults.baseURL, responseTime };
+    return { success: false, message: 'Réponse inattendue du serveur', url: targetUrl, responseTime };
   } catch (error: any) {
     return {
       success: false,
       message: error.message || 'Erreur inconnue',
-      url: api.defaults.baseURL,
+      url: targetUrl,
       responseTime: Date.now() - startTime,
     };
   }
@@ -145,7 +201,7 @@ export const initializeApi = async (): Promise<boolean> => {
 export const setBaseUrl = async (url: string): Promise<void> => {
   const cleanUrl = url.replace(/\/+$/, '');
   await AsyncStorage.setItem(STORAGE_KEYS.API_URL, cleanUrl);
-  api = createApi(cleanUrl);
+  await refreshApi();
 };
 
 export const getCurrentServerUrl = (): string => {
@@ -158,6 +214,48 @@ export const apiService = {
   checkStatus,
   setBaseUrl,
   getCurrentServerUrl,
+  getCurrentUser,
+
+  /**
+   * Connecte un compte utilisateur Django déjà existant. Le compte
+   * connecté (opérateur de l'app) reste totalement distinct de l'employé
+   * qui sera scanné ensuite — ce login n'identifie jamais un employé.
+   * Ne stocke jamais le mot de passe, uniquement le jeton retourné.
+   */
+  async login(username: string, password: string): Promise<CurrentUser> {
+    const response = await api.post('/api/mobile/auth/login/', { username, password });
+    if (response.data.status !== 'success') {
+      throw new Error(response.data.message || 'Erreur de connexion');
+    }
+    const { token, user } = response.data.data;
+    await setScannerToken(token);
+    await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+    return user;
+  },
+
+  /**
+   * Révoque le jeton côté serveur (pas seulement localement) puis purge
+   * le stockage local. Un jeton révoqué est immédiatement refusé par le
+   * serveur sur tout appel ultérieur, même s'il était encore en mémoire
+   * ailleurs.
+   */
+  async logout(): Promise<void> {
+    try {
+      await api.post('/api/mobile/auth/logout/');
+    } catch {
+      // Même si l'appel réseau échoue (serveur injoignable), on purge
+      // quand même localement : l'utilisateur doit pouvoir se déconnecter
+      // de l'appareil même hors-ligne.
+    } finally {
+      await clearAuth();
+    }
+  },
+
+  /** Vrai uniquement si un jeton ET des infos utilisateur sont stockés localement. */
+  async isAuthenticated(): Promise<boolean> {
+    const token = await getScannerToken();
+    return !!token;
+  },
 
   async isServerAvailable(): Promise<boolean> {
     const result = await testConnection();
@@ -241,8 +339,14 @@ export const apiService = {
     await AsyncStorage.removeItem(STORAGE_KEYS.SELECTED_SITE);
   },
 
-  async getEmployeePointages(matricule: string, date?: string): Promise<any> {
-    let url = `/api/mobile/pointages/?matricule=${encodeURIComponent(matricule)}`;
+  /**
+   * Historique d'un employé pour une date donnée. Nécessite le QR complet
+   * (matricule:token), pas juste le matricule — le backend exige une preuve
+   * de possession du badge, pour éviter qu'un jeton d'appareil scanner
+   * suffise à lire les données RH de n'importe quel employé.
+   */
+  async getEmployeePointages(employeeQr: string, date?: string): Promise<any> {
+    let url = `/api/mobile/pointages/?employee_qr=${encodeURIComponent(employeeQr)}`;
     if (date) url += `&date=${date}`;
     const response = await api.get(url);
     if (response.data.status === 'success') return response.data.data;

@@ -77,10 +77,10 @@ export default function ScanScreen() {
         const check = await apiService.checkFirstScan(employeeQr, siteId)
 
         if (check?.garde_en_cours) {
-          const details  = check.garde_en_cours_details
+          const details  = check.garde_en_cours
           const date     = details?.date_pointage     || 'date inconnue'
           const heure    = details?.heure_arrivee?.substring(0, 5) || 'heure inconnue'
-          const siteNom  = details?.site?.nom          || 'site inconnu'
+          const siteNom  = check.site?.nom             || 'site inconnu'
           const message  = `Une garde a commencé le ${date} à ${heure} sur ${siteNom}.\nQue souhaitez-vous faire ?`
 
           setLoading(false)

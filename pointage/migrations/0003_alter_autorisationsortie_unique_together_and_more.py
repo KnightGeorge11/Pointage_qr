@@ -14,6 +14,10 @@ class Migration(migrations.Migration):
             name='autorisationsortie',
             unique_together=None,
         ),
+        migrations.RemoveIndex(
+            model_name='autorisationsortie',
+            name='pointage_au_employe_dadbc8_idx',
+        ),
         migrations.RemoveField(
             model_name='autorisationsortie',
             name='confirme_par',

@@ -1,10 +1,13 @@
 # screens/settings_dialog.py
 """
-Petite boîte de dialogue pour configurer l'URL de l'API.
+Boîte de dialogue pour configurer l'URL de l'API et se déconnecter.
 Nécessaire en pratique car l'IP du serveur (VM locale) change selon
 l'attribution DHCP — non présent dans le mobile (codé en dur) mais
 indispensable côté desktop pour ne pas avoir à reconstruire l'app
 à chaque changement d'IP.
+
+Le jeton d'authentification n'est plus configuré manuellement ici : il est
+obtenu automatiquement par login (LoginScreen) et révoqué par déconnexion.
 """
 
 import tkinter as tk
@@ -19,14 +22,25 @@ class SettingsDialog(tk.Toplevel):
         super().__init__(app)
         self.app = app
         self.title("Paramètres serveur")
-        self.geometry("360x220")
+        self.geometry("360x360")
         self.resizable(False, False)
         self.configure(bg=COLORS["bg"])
         self.transient(app)
         self.grab_set()
 
+        current_user = api_client.get_current_user()
+        if current_user:
+            tk.Label(self, text="Connecté en tant que", bg=COLORS["bg"], fg=COLORS["muted"],
+                     font=("Segoe UI", 9)).pack(anchor="w", padx=20, pady=(20, 0))
+            nom_affiche = (
+                f"{current_user.get('first_name', '')} {current_user.get('last_name', '')}".strip()
+                or current_user.get('username', '')
+            )
+            tk.Label(self, text=nom_affiche, bg=COLORS["bg"], fg=COLORS["dark"],
+                     font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=20, pady=(0, 16))
+
         tk.Label(self, text="URL de l'API", bg=COLORS["bg"], fg=COLORS["dark"],
-                 font=("Segoe UI", 11, "bold")).pack(anchor="w", padx=20, pady=(20, 6))
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", padx=20, pady=(0, 6))
 
         self.url_var = tk.StringVar(value=api_client.get_base_url())
         entry = tk.Entry(self, textvariable=self.url_var, font=("Segoe UI", 11))
@@ -49,22 +63,27 @@ class SettingsDialog(tk.Toplevel):
                               fg="white", relief="flat", padx=10, pady=6)
         save_btn.pack(side="right")
 
+        logout_btn = tk.Button(self, text="Se déconnecter", command=self._logout,
+                                bg=COLORS["error_text"], fg="white", relief="flat", padx=10, pady=10)
+        logout_btn.pack(fill="x", padx=20, pady=(30, 20))
+
     def _test(self):
         url = self.url_var.get().strip()
         if not url:
             return
-        previous = api_client.get_base_url()
-        api_client.set_base_url(url)
         self.result_label.config(text="Test en cours...", fg=COLORS["muted"])
 
-        def restore_and_report(result):
-            api_client.set_base_url(previous)  # ne pas sauvegarder tant que non confirmé
+        def report(result):
             if result["success"]:
                 self.result_label.config(text="Connexion réussie ✅", fg=COLORS["success"])
             else:
                 self.result_label.config(text=f"Échec : {result['message']}", fg=COLORS["error"])
 
-        run_async(self.app, api_client.test_connection, on_success=restore_and_report,
+        # Teste l'URL saisie sans jamais la persister ni y faire basculer
+        # le reste de l'app : tant que ce n'est pas confirmé par
+        # "Enregistrer", les autres écrans (statut API, journal du jour...)
+        # continuent d'utiliser l'URL réellement configurée.
+        run_async(self.app, lambda: api_client.test_connection(base_url=url), on_success=report,
                   on_error=lambda e: self.result_label.config(text=f"Erreur : {e}", fg=COLORS["error"]))
 
     def _save(self):
@@ -75,3 +94,15 @@ class SettingsDialog(tk.Toplevel):
         api_client.set_base_url(url)
         messagebox.showinfo("Succès", "Configuration enregistrée.")
         self.destroy()
+
+    def _logout(self):
+        if not messagebox.askyesno("Déconnexion", "Voulez-vous vraiment vous déconnecter ?"):
+            return
+
+        def on_done(_result=None):
+            self.destroy()
+            self.app.logout()
+
+        # Révoque le jeton côté serveur ET purge le stockage local (voir
+        # api_client.logout) même si le serveur est injoignable.
+        run_async(self.app, api_client.logout, on_success=on_done, on_error=lambda e: on_done())

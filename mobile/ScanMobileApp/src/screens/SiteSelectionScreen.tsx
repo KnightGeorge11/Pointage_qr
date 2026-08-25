@@ -9,8 +9,6 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  TextInput,
-  Modal,
   RefreshControl,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -31,8 +29,6 @@ const SiteSelectionScreen = () => {
   const [refreshing, setRefreshing] = useState(false)
   const [selectedSite, setSelectedSite] = useState<Site | null>(null)
   const [connectionError, setConnectionError] = useState<string | null>(null)
-  const [showUrlConfig, setShowUrlConfig] = useState(false)
-  const [customUrl, setCustomUrl] = useState('')
 
   useEffect(() => {
     initialize()

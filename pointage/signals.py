@@ -1,9 +1,7 @@
 # pointage/signals.py
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import Employe, Pointage
-from django.utils import timezone
-from datetime import datetime
+from .models import Employe
 
 # Vous pouvez ajouter des signaux ici si nécessaire
 # Par exemple, pour créer automatiquement des pointages

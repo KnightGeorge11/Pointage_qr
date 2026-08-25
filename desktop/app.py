@@ -14,9 +14,9 @@ import tkinter as tk
 from tkinter import font as tkfont
 
 import api_client
-import storage
 from utils import COLORS, FONT_FAMILY
 
+from screens.login import LoginScreen
 from screens.home import HomeScreen
 from screens.site_selection import SiteSelectionScreen
 from screens.scan import ScanScreen
@@ -43,6 +43,10 @@ class PointageApp(tk.Tk):
         # ── État global (équivalent AppContext.tsx) ─────────────────────
         self.selected_site = api_client.get_selected_site()
         self.api_status = {"connected": True}
+        # Le compte connecté (opérateur) reste totalement distinct de
+        # l'employé scanné pendant un pointage — cet attribut ne sert
+        # qu'à l'affichage et à l'authentification applicative.
+        self.current_user = api_client.get_current_user()
 
         # ── Conteneur des écrans empilés ─────────────────────────────────
         container = tk.Frame(self, bg=COLORS["bg"])
@@ -52,13 +56,18 @@ class PointageApp(tk.Tk):
         self.container = container
 
         self.frames = {}
-        for ScreenClass in (HomeScreen, SiteSelectionScreen, ScanScreen, HistoryScreen):
+        for ScreenClass in (LoginScreen, HomeScreen, SiteSelectionScreen, ScanScreen, HistoryScreen):
             frame = ScreenClass(parent=container, app=self)
             self.frames[ScreenClass.__name__] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 
         self.history_stack = []
-        self.navigate("HomeScreen")
+        # Pas de reconnexion visible si un jeton valide existe déjà en
+        # stockage local — on démarre directement sur l'accueil.
+        if api_client.is_authenticated():
+            self.navigate("HomeScreen")
+        else:
+            self.navigate("LoginScreen")
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -80,6 +89,23 @@ class PointageApp(tk.Tk):
             self.navigate(previous, push=False)
         else:
             self.navigate("HomeScreen", push=False)
+
+    # ── Authentification (login/logout par utilisateur) ─────────────────
+    def on_login_success(self, user: dict):
+        """Appelé par LoginScreen une fois le jeton obtenu et stocké."""
+        self.current_user = user
+        self.history_stack = []
+        self.navigate("HomeScreen")
+
+    def logout(self):
+        """Le jeton a déjà été révoqué côté serveur et purgé localement
+        par api_client.logout() (appelé par SettingsDialog avant ceci).
+        Ici on réinitialise seulement l'état applicatif et on retourne
+        à l'écran de connexion."""
+        self.current_user = None
+        self.history_stack = []
+        self.navigate("LoginScreen", push=False)
+        self.history_stack = ["LoginScreen"]
 
     # ── État global partagé entre écrans ─────────────────────────────────
     def set_selected_site(self, site):

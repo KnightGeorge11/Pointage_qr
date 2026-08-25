@@ -16,10 +16,12 @@
 #     ET authentifié-mais-pas-permission). Confirmé par exécution directe
 #     contre le projet.
 
-from datetime import time as dtime, date
+from datetime import time as dtime, date, datetime
+from unittest.mock import patch
 
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.utils import timezone
 
 from pointage.models import CustomUser, Employe, Site, Pointage, AnomaliePointage
 from pointage.anomalies import enregistrer_anomalie
@@ -268,9 +270,11 @@ class TestProchainScanSortieMatinPrioritaire(PointagePermissionsTestCase):
 
     def test_matin_incomplet_suggere_sortie_matin(self):
         # self.pointage (setUp) : matin, heure_arrivee=08:00, heure_depart=None
+        fake_now = timezone.make_aware(datetime.combine(date.today(), dtime(9, 0)))
         client = Client()
         client.force_login(self.utilisateur)
-        response = client.get(f'/api/prochain-scan/{self.employe.id}/')
+        with patch('pointage.views.timezone.now', return_value=fake_now):
+            response = client.get(f'/api/prochain-scan/{self.employe.id}/')
 
         assert response.status_code == 200
         data = response.json()
@@ -281,9 +285,11 @@ class TestProchainScanSortieMatinPrioritaire(PointagePermissionsTestCase):
         self.pointage.heure_depart = dtime(12, 0)
         self.pointage.save()
 
+        fake_now = timezone.make_aware(datetime.combine(date.today(), dtime(14, 0)))
         client = Client()
         client.force_login(self.utilisateur)
-        response = client.get(f'/api/prochain-scan/{self.employe.id}/')
+        with patch('pointage.views.timezone.now', return_value=fake_now):
+            response = client.get(f'/api/prochain-scan/{self.employe.id}/')
 
         data = response.json()
         assert data['prochain_scan'] == 'entree_apres_midi'
@@ -296,9 +302,11 @@ class TestProchainScanSortieMatinPrioritaire(PointagePermissionsTestCase):
             periode='apres_midi', type_journee='normal', heure_arrivee=dtime(13, 30),
         )
 
+        fake_now = timezone.make_aware(datetime.combine(date.today(), dtime(15, 0)))
         client = Client()
         client.force_login(self.utilisateur)
-        response = client.get(f'/api/prochain-scan/{self.employe.id}/')
+        with patch('pointage.views.timezone.now', return_value=fake_now):
+            response = client.get(f'/api/prochain-scan/{self.employe.id}/')
 
         data = response.json()
         assert data['prochain_scan'] == 'sortie_apres_midi'
@@ -312,9 +320,11 @@ class TestProchainScanSortieMatinPrioritaire(PointagePermissionsTestCase):
             heure_arrivee=dtime(13, 30), heure_depart=dtime(17, 30),
         )
 
+        fake_now = timezone.make_aware(datetime.combine(date.today(), dtime(18, 0)))
         client = Client()
         client.force_login(self.utilisateur)
-        response = client.get(f'/api/prochain-scan/{self.employe.id}/')
+        with patch('pointage.views.timezone.now', return_value=fake_now):
+            response = client.get(f'/api/prochain-scan/{self.employe.id}/')
 
         data = response.json()
         assert data['prochain_scan'] is None

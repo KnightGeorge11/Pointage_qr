@@ -1,4 +1,3 @@
-# urls_api.py (ou le nom de votre fichier d'API)
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
@@ -9,7 +8,9 @@ from .views_mobile import (
     MobileCurrentPeriodAPIView,
     MobilePointagesAPIView,
     MobileTodayPointagesAPIView,
-    MobileTestAPIView
+    MobileTestAPIView,  # ✅ Assurez-vous qu'il est importé
+    MobileLoginAPIView,
+    MobileLogoutAPIView,
 )
 
 # Créer un routeur pour les API
@@ -17,6 +18,7 @@ router = DefaultRouter()
 router.register(r'employes', views.EmployeViewSet, basename='employe')
 router.register(r'sites', views.SiteViewSet, basename='site')
 router.register(r'pointages', views.PointageViewSet, basename='pointage')
+# La ligne pour 'gardes' a été supprimée
 
 urlpatterns = [
     # Inclure les routes du routeur
@@ -31,13 +33,10 @@ urlpatterns = [
     path('dashboard-stats/', views.get_dashboard_stats, name='dashboard_stats'),
     path('charts-data/', views.get_charts_data, name='charts_data'),
     
-    # ✅ API Calendrier (si elles ne sont pas déjà dans pointage/urls.py)
-    # NE PAS AJOUTER ICI SI DÉJÀ DANS pointage/urls.py
-    # path('pointages-mois/', views.api_pointages_mois, name='api_pointages_mois'),
-    # path('pointages-jour/', views.api_pointages_jour, name='api_pointages_jour'),
-    
-    # API Mobile (pour l'application React Native)
+    # ✅ API Mobile (pour l'application React Native) - TOUTES SONT ICI
     path('mobile/test/', MobileTestAPIView.as_view(), name='mobile_test'),
+    path('mobile/auth/login/', MobileLoginAPIView.as_view(), name='mobile_login'),
+    path('mobile/auth/logout/', MobileLogoutAPIView.as_view(), name='mobile_logout'),
     path('mobile/sites/', MobileSitesAPIView.as_view(), name='mobile_sites'),
     path('mobile/scan/check-first/', MobileCheckFirstScanAPIView.as_view(), name='mobile_check_first_scan'),
     path('mobile/scan/record/', MobileRecordScanAPIView.as_view(), name='mobile_record_scan'),

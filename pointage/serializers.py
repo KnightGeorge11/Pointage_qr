@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Employe, Site, Pointage, Scan, Poste, AnomaliePointage, AnomalieTraitement
+from .services import process_scan
 from django.utils import timezone
-from datetime import datetime, timedelta, time
 
 class PosteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -27,14 +27,52 @@ class PointageSerializer(serializers.ModelSerializer):
     periode_display = serializers.CharField(source='get_periode_display', read_only=True)
     statut_display = serializers.CharField(source='get_statut_display', read_only=True)
     type_journee_display = serializers.CharField(source='get_type_journee_display', read_only=True)
-    
+
+    # ── Entrée additionnelle pour la création via process_scan() ──────────
+    # 'force_new' n'est pas un champ du modèle Pointage : c'est un paramètre
+    # de process_scan() (démarrer une nouvelle garde même si une est déjà en
+    # cours, cf. force_new_garde). Écriture seule : jamais renvoyé dans la
+    # réponse.
+    force_new = serializers.BooleanField(write_only=True, required=False, default=False)
+
     class Meta:
         model = Pointage
         fields = '__all__'
         read_only_fields = ['retard', 'heures_travaillees', 'date_creation', 'date_modification']
-    
+        extra_kwargs = {
+            # date_pointage/periode sont désormais calculés par
+            # process_scan() -> DayStateMachine à la création (ils ne
+            # doivent plus être imposés par l'appelant) ; ils restent des
+            # champs normaux, modifiables lors d'une correction manuelle
+            # (PATCH/PUT, cf. update() par défaut de ModelSerializer).
+            'date_pointage': {'required': False},
+            'periode': {'required': False},
+        }
+        # DRF génère automatiquement un UniqueTogetherValidator à partir de
+        # Meta.unique_together = ['employe', 'date_pointage', 'periode']
+        # (cf. models.py), qui re-rend ces champs obligatoires en entrée
+        # (contournant les extra_kwargs ci-dessus) et fait doublon avec la
+        # garantie d'unicité déjà assurée par process_scan()
+        # (_apply_scan_decision : select_for_update + get_or_create, sous
+        # transaction). La contrainte unique_together elle-même reste
+        # active au niveau base de données (filet de sécurité inchangé) ;
+        # seule sa validation redondante ici est retirée.
+        validators = []
+
     def validate(self, data):
-        """Validation personnalisée pour les pointages"""
+        """Validation de forme uniquement.
+
+        Toute décision métier (quelle période, quel type de scan, s'il
+        existe déjà un pointage pour cet employé/date/période, anti-doublon,
+        gestion garde/minuit...) appartient exclusivement à process_scan()
+        / DayStateMachine, seule source de vérité pour la création d'un
+        Pointage (cf. create() ci-dessous et services.py). L'ancienne
+        vérification "un pointage existe déjà pour cette période -> erreur"
+        a été retirée d'ici : elle était incorrecte pour le flux normal
+        (un Pointage 'matin' incomplet doit pouvoir recevoir sa sortie, pas
+        être rejeté), et process_scan()/DayStateMachine gère déjà ce cas
+        correctement.
+        """
         if data.get('heure_arrivee') and data.get('heure_depart'):
             if data['heure_depart'] <= data['heure_arrivee']:
                 # Exception pour les gardes de nuit (départ le lendemain)
@@ -42,21 +80,70 @@ class PointageSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError(
                         "L'heure de départ doit être après l'heure d'arrivée"
                     )
-        
-        # Vérifier si un pointage existe déjà pour cet employé, date et période
-        if self.instance is None:  # Création uniquement
-            existe = Pointage.objects.filter(
-                employe=data.get('employe'),
-                date_pointage=data.get('date_pointage'),
-                periode=data.get('periode')
-            ).exists()
-            
-            if existe:
-                raise serializers.ValidationError(
-                    f"Un pointage existe déjà pour cet employé à la période {data.get('periode')}"
-                )
-        
         return data
+
+    def create(self, validated_data):
+        """
+        Unique point de création d'un Pointage via l'API REST
+        (POST /api/pointages/, réservé à l'admin/RH — cf.
+        PointageViewSet.get_permissions).
+
+        Ne prend elle-même AUCUNE décision métier : elle traduit les
+        données déjà validées en un appel à process_scan(), exactement
+        comme le fait l'endpoint mobile (MobileRecordScanAPIView) et
+        l'endpoint scanner web (ScanAPIView / scan_api_view). Un seul
+        moteur de décision (DayStateMachine, via process_scan) pour toute
+        création de pointage, quel que soit le point d'entrée :
+
+            POST /api/mobile/scan/record/  -> process_scan() -> Pointage
+            POST /api/pointages/           -> process_scan() -> Pointage
+            (scanner web)                  -> process_scan() -> Pointage
+
+        Il n'y a pas de QR physique scanné depuis ce endpoint : le token
+        est récupéré directement sur l'employé déjà résolu par le
+        serializer (PrimaryKeyRelatedField), ce qui préserve la même
+        garantie de sécurité que le flux QR (l'employé est de toute façon
+        identifié par sa PK, jamais par une saisie libre de matricule).
+        """
+        force_new = validated_data.pop('force_new', False)
+        employe = validated_data.get('employe')
+        site = validated_data.get('site')
+
+        if employe is None:
+            raise serializers.ValidationError({'employe': "Employé requis"})
+        if site is None:
+            raise serializers.ValidationError({'site': "Site requis"})
+
+        # Mode dérivé de l'intention de l'appelant (garde vs pointage
+        # normal) — même convention que MobileRecordScanAPIView/ScanAPIView.
+        mode = 'garde' if (
+            validated_data.get('periode') == 'nuit'
+            or validated_data.get('type_journee') == 'garde'
+        ) else 'auto'
+
+        result = process_scan(
+            matricule=employe.matricule,
+            qr_token=str(employe.qr_code_token),
+            site_id=site.id,
+            mode=mode,
+            force_new_garde=force_new,
+        )
+
+        if result['status'] != 'success':
+            # warning (doublon, hors plage, refus métier...) ou error
+            # (QR/site invalide) -> 400 côté DRF, avec le code et le
+            # message produits par process_scan()/DayStateMachine.
+            raise serializers.ValidationError({
+                'detail': result['message'],
+                'code': result.get('code'),
+            })
+
+        # process_scan() ne renvoie qu'un résumé (dict), pas l'instance —
+        # on récupère le Pointage réellement écrit via le scan créé dans
+        # la même transaction, pour que ModelSerializer puisse sérialiser
+        # une réponse complète et cohérente avec le reste de l'API.
+        scan = Scan.objects.select_related('pointage').get(id=result['data']['scan_id'])
+        return scan.pointage
 
 class PointageDetailSerializer(PointageSerializer):
     employe_details = EmployeSerializer(source='employe', read_only=True)
@@ -90,194 +177,65 @@ class ScanSerializer(serializers.ModelSerializer):
     
     def get_timestamp_local(self, obj):
         return timezone.localtime(obj.timestamp).isoformat()
-    
-    def determine_periode(self, heure_courante):
-        """Détermine la période (matin/après-midi) basée sur l'heure"""
-        heure_seuil_apres_midi = time(12, 0)
-        return 'apres_midi' if heure_courante >= heure_seuil_apres_midi else 'matin'
-    
-    def determine_type_scan(self, pointage, periode):
-        """Détermine le type de scan basé sur l'état du pointage (pour pointages normaux)"""
-        if not pointage.heure_arrivee:
-            return 'entree_matin' if periode == 'matin' else 'entree_apres_midi'
-        elif not pointage.heure_depart:
-            return 'sortie_matin' if periode == 'matin' else 'sortie_apres_midi'
-        return None
-    
+
     def create(self, validated_data):
-        # Extraire les données d'entrée
+        """
+        Délègue entièrement à process_scan() (services.py) — seule source
+        de vérité pour toute décision de pointage, cf. PointageSerializer.create()
+        et MobileRecordScanAPIView.
+
+        L'implémentation précédente dupliquait ici son propre moteur de
+        décision (determine_periode, determine_type_scan, détection/gestion
+        de la garde en cours, get_or_create(Pointage), création directe de
+        Scan) : un second chemin, indépendant de DayStateMachine, capable
+        d'écrire un Pointage avec des règles potentiellement divergentes
+        (aucune protection anti-doublon, aucune vérification de plage
+        horaire, aucun enregistrement d'anomalie). Ce serializer n'est
+        actuellement routé nulle part en écriture (pas de ScanViewSet/route
+        exposant .create()) ; on l'aligne quand même sur l'architecture
+        cible pour qu'il ne puisse plus jamais redevenir un second moteur
+        de décision si un jour il est exposé.
+        """
         matricule = validated_data.pop('employe_matricule', None)
         site_id = validated_data.pop('site_id', None)
-        
-        # Récupérer l'employé
-        if matricule:
+
+        employe = validated_data.get('employe')
+        if employe is None and matricule:
             try:
                 employe = Employe.objects.get(matricule=matricule, actif=True)
             except Employe.DoesNotExist:
                 raise serializers.ValidationError({
                     "employe_matricule": "Employé non trouvé ou inactif"
                 })
-        elif validated_data.get('employe'):
-            employe = validated_data.get('employe')
-        else:
-            raise serializers.ValidationError({
-                "employe": "Employé requis"
-            })
-        
-        # Récupérer le site
-        if site_id:
+        if employe is None:
+            raise serializers.ValidationError({"employe": "Employé requis"})
+
+        site = validated_data.get('site')
+        if site is None and site_id:
             try:
                 site = Site.objects.get(id=site_id)
             except Site.DoesNotExist:
-                raise serializers.ValidationError({
-                    "site_id": "Site non trouvé"
-                })
-        elif validated_data.get('site'):
-            site = validated_data.get('site')
-        else:
-            raise serializers.ValidationError({
-                "site": "Site requis"
-            })
-        
-        # Obtenir l'heure actuelle
-        now_local = timezone.localtime(timezone.now())
-        heure_courante = now_local.time()
-        date_courante = now_local.date()
-        
-        # --- GESTION DES GARDES DE NUIT (pointages nuit) ---
-        # Vérifier s'il existe une garde en cours (pointage nuit sans heure_depart)
-        garde_en_cours = Pointage.objects.filter(
-            employe=employe,
-            date_pointage=date_courante,
-            periode='nuit',
-            type_journee='garde',
-            heure_depart__isnull=True
-        ).first()
-        
-        if garde_en_cours:
-            # Fin de garde
-            garde_en_cours.heure_depart = heure_courante
-            garde_en_cours.save()
-            type_scan = 'fin_garde'
-            
-            scan = Scan.objects.create(
-                employe=employe,
-                site=site,
-                type_scan=type_scan,
-                pointage=garde_en_cours,
-                timestamp=now_local,
-            )
-            return scan
-        
-        # Vérifier s'il y a une garde planifiée sans heure_arrivee
-        garde_planifiee = Pointage.objects.filter(
-            employe=employe,
-            date_pointage=date_courante,
-            periode='nuit',
-            type_journee='garde',
-            heure_arrivee__isnull=True
-        ).first()
-        
-        if garde_planifiee:
-            # Début de garde
-            garde_planifiee.heure_arrivee = heure_courante
-            garde_planifiee.site = site
-            garde_planifiee.save()
-            type_scan = 'debut_garde'
-            
-            scan = Scan.objects.create(
-                employe=employe,
-                site=site,
-                type_scan=type_scan,
-                pointage=garde_planifiee,
-                timestamp=now_local,
-            )
-            return scan
-        
-        # --- POINTAGES NORMAUX (matin/après-midi) ---
-        periode = self.determine_periode(heure_courante)
-        
-        # Récupérer ou créer le pointage pour cette période
-        pointage, created = Pointage.objects.get_or_create(
-            employe=employe,
-            date_pointage=date_courante,
-            periode=periode,
-            defaults={
-                'site': site,
-                'type_journee': 'normal'
-            }
+                raise serializers.ValidationError({"site_id": "Site non trouvé"})
+        if site is None:
+            raise serializers.ValidationError({"site": "Site requis"})
+
+        result = process_scan(
+            matricule=employe.matricule,
+            qr_token=str(employe.qr_code_token),
+            site_id=site.id,
         )
-        
-        # Si le pointage existait déjà mais sur un autre site
-        if not created and pointage.site != site:
-            pointage.site = site
-        
-        # Déterminer le type de scan
-        type_scan = self.determine_type_scan(pointage, periode)
-        
-        if not type_scan:
+
+        if result['status'] != 'success':
             raise serializers.ValidationError({
-                "pointage": f"Tous les pointages pour le {periode} sont déjà effectués"
+                'detail': result['message'],
+                'code': result.get('code'),
             })
-        
-        # Mettre à jour l'heure d'arrivée ou de départ
-        if 'entree' in type_scan:
-            pointage.heure_arrivee = heure_courante
-        elif 'sortie' in type_scan:
-            pointage.heure_depart = heure_courante
-        
-        # Sauvegarder le pointage
-        pointage.save()
-        
-        # Créer le scan
-        scan = Scan.objects.create(
-            employe=employe,
-            site=site,
-            type_scan=type_scan,
-            pointage=pointage,
-            timestamp=now_local,
-        )
-        
-        return scan
 
-class StatutJourneeSerializer(serializers.Serializer):
-    """Sérialiseur pour le statut de la journée d'un employé"""
-    date = serializers.DateField()
-    employe_id = serializers.IntegerField()
-    
-    matin = serializers.DictField()
-    apres_midi = serializers.DictField()
-    nuit = serializers.DictField()  # Remplacé 'garde' par 'nuit'
-    
-    heures_travaillees = serializers.DurationField()
-    heures_supplementaires = serializers.DurationField()
-    
-    def get_heures_supplementaires(self, heures_travaillees):
-        heures_normales = timedelta(hours=8)
-        if heures_travaillees > heures_normales:
-            return heures_travaillees - heures_normales
-        return timedelta(0)
-
-class StatistiquesSerializer(serializers.Serializer):
-    """Sérialiseur pour les statistiques"""
-    total_employes = serializers.IntegerField()
-    presents_aujourdhui = serializers.IntegerField()
-    absents_aujourdhui = serializers.IntegerField()
-    retards_aujourdhui = serializers.IntegerField()
-    gardes_en_cours = serializers.IntegerField()
-    date = serializers.DateField()
-
-class DashboardDataSerializer(serializers.Serializer):
-    """Sérialiseur pour les données du dashboard"""
-    daily_data = serializers.DictField()
-    weekly_data = serializers.DictField()
-    evolution_data = serializers.DictField()
-    postes_data = serializers.ListField()
+        return Scan.objects.get(id=result['data']['scan_id'])
 
 
 # ============================================================
 # ANOMALIES DE POINTAGE (Phase 4)
-# ============================================================
 #
 # En lecture uniquement de bout en bout : les anomalies sont créées par
 # le moteur métier (services.py/anomalies.py), jamais via l'API. Seules

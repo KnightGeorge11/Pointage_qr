@@ -1,9 +1,7 @@
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 import qrcode
 from io import BytesIO
 from django.core.files import File
-from PIL import Image, ImageDraw
 import uuid
 from datetime import timedelta, datetime, time
 from django.utils import timezone
@@ -63,7 +61,17 @@ class Employe(models.Model):
         return f"{self.prenom} {self.nom} ({self.matricule})"
 
     def save(self, *args, **kwargs):
-        if not self.qr_code:
+        # Régénérer le QR à la création, ET si le matricule a changé —
+        # sinon le badge physique garde l'ancien matricule encodé et
+        # cesse silencieusement de fonctionner après un renommage
+        # (Point 8 — cohérence matricule/QR).
+        matricule_a_change = False
+        if self.pk:
+            ancien_matricule = Employe.objects.filter(pk=self.pk).values_list('matricule', flat=True).first()
+            if ancien_matricule is not None and ancien_matricule != self.matricule:
+                matricule_a_change = True
+
+        if not self.qr_code or matricule_a_change:
             self.generer_qr_code()
         super().save(*args, **kwargs)
 
@@ -176,8 +184,8 @@ class Pointage(models.Model):
         ('maladie', 'Maladie'),
     ]
 
-    employe          = models.ForeignKey(Employe, on_delete=models.CASCADE, related_name='pointages')
-    site             = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='pointages')
+    employe          = models.ForeignKey(Employe, on_delete=models.PROTECT, related_name='pointages')
+    site             = models.ForeignKey(Site, on_delete=models.PROTECT, related_name='pointages')
     date_pointage    = models.DateField()
     date_depart      = models.DateField(null=True, blank=True)  # ✅ NOUVEAU : date réelle de fin pour les gardes
     periode          = models.CharField(max_length=20, choices=PERIODE_CHOICES)
@@ -367,8 +375,8 @@ class Scan(models.Model):
         ('fin_garde',          'Fin garde (nuit)'),
     ]
 
-    employe   = models.ForeignKey(Employe, on_delete=models.CASCADE, related_name='scans')
-    site      = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='scans')
+    employe   = models.ForeignKey(Employe, on_delete=models.PROTECT, related_name='scans')
+    site      = models.ForeignKey(Site, on_delete=models.PROTECT, related_name='scans')
     timestamp = models.DateTimeField()
     type_scan = models.CharField(max_length=20, choices=TYPE_SCAN, null=True, blank=True)
     pointage  = models.ForeignKey(Pointage, on_delete=models.SET_NULL, null=True, blank=True, related_name='scans')
@@ -507,6 +515,7 @@ class AnomaliePointage(models.Model):
     TYPE_EMPLOYE_INACTIF        = 'employe_inactif'
     TYPE_SITE_INVALIDE          = 'site_invalide'
     TYPE_HORS_PLAGE_GLOBALE     = 'hors_plage_globale'
+    TYPE_GARDE_MULTIPLE_NON_SUPPORTEE = 'garde_multiple_non_supportee'
 
     TYPE_CHOICES = (
         (TYPE_INVALID_QR,            'QR invalide'),
@@ -520,6 +529,7 @@ class AnomaliePointage(models.Model):
         (TYPE_MISSING_MORNING_EXIT,  'Sortie matin manquante'),
         (TYPE_TRANSITION_IMPOSSIBLE, 'Transition impossible'),
         (TYPE_INVALID_STATE,         'État invalide'),
+        (TYPE_GARDE_MULTIPLE_NON_SUPPORTEE, 'Deuxième garde le même jour non prise en charge'),
     )
 
     # Gravité dérivée du type — jamais stockée, toujours recalculée.
@@ -533,6 +543,7 @@ class AnomaliePointage(models.Model):
         TYPE_DURING_BREAK:          'warning',
         TYPE_MISSING_MORNING_EXIT:  'warning',
         TYPE_TRANSITION_IMPOSSIBLE: 'warning',
+        TYPE_GARDE_MULTIPLE_NON_SUPPORTEE: 'warning',
         TYPE_DAY_COMPLETE:          'info',
         TYPE_DUPLICATE_SCAN:        'info',
     }
@@ -611,18 +622,26 @@ class AnomalieTraitement(models.Model):
     historique simple et non ambigu.
     """
     # ================================================================
-    # TYPE D'ACTION (champ requis par la base de données)
+    # ACTION — l'action de traitement effectuée sur l'anomalie.
+    # À NE PAS CONFONDRE avec AnomaliePointage.statut (ouverte/traitee/
+    # cloturee), qui décrit l'état de l'anomalie. Ici on décrit QUELLE
+    # action RH a été posée. La clôture n'est PAS une valeur de ce champ :
+    # elle est gérée séparément par marquer_cloturee() sur AnomaliePointage
+    # (cloturee_par/date_cloture) et ne modifie jamais le type_action du
+    # dernier traitement réel (correction/justification/rejet).
     # ================================================================
+    ACTION_CORRECTION    = 'correction'
+    ACTION_JUSTIFICATION = 'justification'
+    ACTION_REJET          = 'rejet'
     TYPE_ACTION_CHOICES = [
-        ('traitee', 'Traitée'),
-        ('cloturee', 'Clôturée'),
-        ('ignoree', 'Ignorée'),
-        ('corrigee', 'Corrigée'),
+        (ACTION_CORRECTION,    'Correction du pointage'),
+        (ACTION_JUSTIFICATION, 'Justification'),
+        (ACTION_REJET,         'Rejet'),
     ]
     type_action = models.CharField(
         max_length=20,
         choices=TYPE_ACTION_CHOICES,
-        default='traitee',
+        default=ACTION_CORRECTION,
         verbose_name="Type d'action"
     )
     # ================================================================
@@ -633,7 +652,10 @@ class AnomalieTraitement(models.Model):
         CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='anomalies_traitees', db_constraint=False
     )
-    date_traitement = models.DateTimeField(auto_now_add=True)
+    # auto_now (pas auto_now_add) : cet enregistrement est mis à jour en
+    # place si l'anomalie est retraitée (cf. docstring de la classe) —
+    # la date doit donc refléter le DERNIER traitement, pas le premier.
+    date_traitement = models.DateTimeField(auto_now=True)
     commentaire     = models.TextField(blank=True)
     pointage_concerne = models.ForeignKey(
         Pointage, on_delete=models.SET_NULL, null=True, blank=True,

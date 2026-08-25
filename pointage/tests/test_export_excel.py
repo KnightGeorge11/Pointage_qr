@@ -61,3 +61,22 @@ class TestExportExcelRetard(TestCase):
         # Le retard réel (matin: 8h20 vs ouverture 8h00) doit apparaître
         # comme un nombre suivi de "min", pas comme un repr Python.
         assert any('20min' in c for c in cellules_retard), cellules_retard
+
+
+class TestExportExcelPermissions(TestCase):
+    """Point 6 : l'export RH doit être réservé aux utilisateurs staff."""
+
+    def setUp(self):
+        self.utilisateur_normal = CustomUser.objects.create_user(
+            username="utilisateur_lambda", password="pass1234", role="employe", is_staff=False,
+        )
+        self.client = Client()
+
+    def test_utilisateur_non_staff_ne_peut_pas_exporter(self):
+        self.client.force_login(self.utilisateur_normal)
+        response = self.client.get(reverse('export_resume_excel'))
+        assert response.status_code == 302
+
+    def test_utilisateur_non_authentifie_ne_peut_pas_exporter(self):
+        response = self.client.get(reverse('export_resume_excel'))
+        assert response.status_code == 302

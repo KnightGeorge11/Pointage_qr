@@ -2,10 +2,7 @@
 from django.urls import path, include
 from . import views
 from .views import (
-    dashboard, index, scanner_view, export_resume_excel,
-
-    # Fonctions
-    employe_create_view, employe_update_view, employe_delete_view,
+    dashboard, index, scanner_view, employe_create_view, employe_update_view, employe_delete_view,
     site_create_view, site_update_view, site_delete_view,
     poste_create_view, poste_update_view, poste_delete_view,
 
@@ -16,25 +13,20 @@ from .views import (
     PosteListView,
 
     # API
-    scan_api_view, get_statut_journee, get_prochain_scan,
+    get_statut_journee, get_prochain_scan,
     get_dashboard_stats, get_charts_data, employe_qr_data,
 
     # Anomalies
     alertes_rh_view,
-    
-    # API Calendrier - AJOUTER CES IMPORTS
-    api_pointages_mois, 
-    api_pointages_jour,
-    api_statistiques_employe,
+    alerte_detail_view,
 )
 from rest_framework.routers import DefaultRouter
-from .views import employe_detail_view
-
 
 router = DefaultRouter()
-router.register(r'employes', views.EmployeViewSet, basename='employe')
-router.register(r'sites', views.SiteViewSet, basename='site')
-router.register(r'pointages', views.PointageViewSet, basename='pointage')
+# employes/sites/pointages sont déjà servis intégralement par
+# pointage.urls_api (monté en premier sur /api/, cf. pointage_qr/urls.py) —
+# les enregistrer aussi ici serait mort (jamais atteint par la résolution
+# d'URL Django). Seul 'anomalies' est réellement unique à ce fichier.
 router.register(r'anomalies', views.AnomaliePointageViewSet, basename='anomalie')
 
 urlpatterns = [
@@ -42,13 +34,12 @@ urlpatterns = [
     path('',          dashboard,        name='dashboard'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('index/',     index,           name='index'),
-    path('employes/<int:pk>/', employe_detail_view, name='employe_detail'),
+
     # Employés
     path('employes/',                   EmployeListView.as_view(),  name='employes'),
     path('employes/nouveau/',           employe_create_view,        name='employe_create'),
     path('employes/<int:pk>/update/',   employe_update_view,        name='employe_update'),
     path('employes/<int:pk>/delete/',   employe_delete_view,        name='employe_delete'),
-    path('employes/', EmployeListView.as_view(), name='employes'),
 
     # Sites
     path('sites/',                      SiteListView.as_view(),     name='sites'),
@@ -73,26 +64,15 @@ urlpatterns = [
 
     # Anomalies
     path('anomalies/', alertes_rh_view, name='alertes_rh'),
+    path('anomalies/<int:pk>/', alerte_detail_view, name='alerte_detail'),
 
     # API
     path('api/',                                      include(router.urls)),
-    path('api/scanner/',                              views.ScanAPIView.as_view(),  name='api_scanner'),
-    path('api/scan/',                                 scan_api_view,               name='api_scan'),
     path('api/employe-qr-data/<str:matricule>/',      employe_qr_data,             name='employe_qr_data'),
     path('api/statut-journee/<int:employe_id>/',      get_statut_journee,          name='statut_journee'),
     path('api/prochain-scan/<int:employe_id>/',       get_prochain_scan,           name='prochain_scan'),
     path('api/dashboard-stats/',                      get_dashboard_stats,         name='dashboard_stats'),
     path('api/charts-data/',                          get_charts_data,             name='charts_data'),
     
-    # Demandes de modification (Admin)
-    path('admin/demande/<int:pk>/approuver/', views.approuver_demande_view, name='demande_approuver'),
-    path('admin/demande/<int:pk>/refuser/', views.refuser_demande_view, name='demande_refuser'),
     path('api/admin-badge-counts/', views.admin_badge_counts_api, name='admin_badge_counts_api'),
-    path('export/resume/excel/', views.export_resume_excel, name='export_resume_excel'),
-    path('employes/detail/<int:pk>/', employe_detail_view, name='employe_detail'),
-    # ✅ API CALENDRIER - AJOUTER CES LIGNES
-    path('api/pointages-mois/', api_pointages_mois, name='api_pointages_mois'),
-    path('api/pointages-jour/', api_pointages_jour, name='api_pointages_jour'),
-    path('api/statistiques-employe/', api_statistiques_employe, name='api_statistiques_employe'),
-    path('employes/detail/<int:pk>/', employe_detail_view, name='employe_detail'),
 ]
