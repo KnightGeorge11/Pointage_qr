@@ -349,11 +349,6 @@ JAZZMIN_SETTINGS = {
             "icon": "fas fa-qrcode",
             "url": "admin:pointage_scan_changelist",
         },
-        {
-            "name": "🔐 Utilisateurs",
-            "icon": "fas fa-user-cog",
-            "url": "admin:auth_user_changelist",
-        },
     ],
 }
 
