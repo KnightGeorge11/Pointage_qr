@@ -426,25 +426,6 @@ class CustomUser(AbstractUser):
     )
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
 
-    # === AJOUT : Définition explicite des relations groups et user_permissions ===
-    # Ces deux lignes sont ajoutées pour résoudre le problème de la table manquante
-    # "pointage_customuser_user_permissions". Elles sont nécessaires pour que Django
-    # crée correctement les tables de liaison many-to-many.
-    groups = models.ManyToManyField(
-        'auth.Group',
-        related_name='customuser_set',
-        blank=True,
-        verbose_name='groups',
-        help_text='The groups this user belongs to.'
-    )
-    user_permissions = models.ManyToManyField(
-        'auth.Permission',
-        related_name='customuser_set',
-        blank=True,
-        verbose_name='user permissions',
-        help_text='Specific permissions for this user.'
-    )
-
     def save(self, *args, **kwargs):
         self.is_staff = (self.role == 'admin') or self.is_superuser
         super().save(*args, **kwargs)

@@ -49,19 +49,11 @@ CORS_ALLOWED_ORIGINS = config(
     default='http://localhost:8000,http://127.0.0.1:8000,http://pointageqr.local:8000',
     cast=Csv(),
 )
-
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
+    'accept', 'accept-encoding', 'authorization', 'content-type',
+    'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with',
 ]
 
 CSRF_TRUSTED_ORIGINS = config(
@@ -73,7 +65,7 @@ CSRF_TRUSTED_ORIGINS = config(
 ROOT_URLCONF = 'pointage_qr.urls'
 
 # ============================================================
-# TEMPLATES - CONTEXT PROCESSORS
+# TEMPLATES - AJOUT DU CONTEXT PROCESSOR
 # ============================================================
 TEMPLATES = [
     {
@@ -95,9 +87,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'pointage_qr.wsgi.application'
 
-# ============================================================
-# DATABASE
-# ============================================================
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -109,33 +98,15 @@ DATABASES = {
     }
 }
 
-# ============================================================
-# AUTHENTIFICATION
-# ============================================================
 AUTH_USER_MODEL = 'pointage.CustomUser'
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME':
-        'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'
-    },
-    {
-        'NAME':
-        'django.contrib.auth.password_validation.MinimumLengthValidator'
-    },
-    {
-        'NAME':
-        'django.contrib.auth.password_validation.CommonPasswordValidator'
-    },
-    {
-        'NAME':
-        'django.contrib.auth.password_validation.NumericPasswordValidator'
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# ============================================================
-# INTERNATIONALISATION
-# ============================================================
 LANGUAGE_CODE = 'fr-fr'
 TIME_ZONE = 'Indian/Antananarivo'
 USE_I18N = True
@@ -144,9 +115,6 @@ USE_TZ = True
 if 'runserver' in sys.argv:
     os.environ['TZ'] = 'Indian/Antananarivo'
 
-# ============================================================
-# STATIC / MEDIA
-# ============================================================
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
@@ -156,9 +124,6 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ============================================================
-# REST FRAMEWORK
-# ============================================================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
@@ -169,41 +134,30 @@ REST_FRAMEWORK = {
     ],
 }
 
-# ============================================================
-# LOGIN / LOGOUT
-# ============================================================
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 
+# settings.py
+
 # ============================================================
-# CONFIGURATION JAZZMIN
+# CONFIGURATION JAZZMIN — Version Premium avec Navigation + Badges
 # ============================================================
 JAZZMIN_SETTINGS = {
-
-    # ========================================================
-    # JAVASCRIPT PERSONNALISÉ
-    # ========================================================
     "custom_js": "admin/js/jazzmin-badges.js",
-
-    # ========================================================
-    # IDENTITÉ
-    # ========================================================
+    # ── Identité ──
     "site_title": "Pointage Admin",
     "site_header": "Pointage QR",
     "site_brand": "Pointage QR",
     "welcome_sign": "Bienvenue dans l'administration",
     "copyright": "Pointage QR © 2026",
-
-    # ========================================================
-    # ICÔNES
-    # ========================================================
+    
+    # ── Icônes ──
     "icons": {
         "auth": "fas fa-lock",
         "auth.user": "fas fa-user",
         "auth.Group": "fas fa-users",
-
         "pointage.Employe": "fas fa-users",
         "pointage.Pointage": "fas fa-clock-rotate-left",
         "pointage.Site": "fas fa-building",
@@ -212,121 +166,52 @@ JAZZMIN_SETTINGS = {
         "pointage.AnomaliePointage": "fas fa-triangle-exclamation",
         "pointage.DemandeModification": "fas fa-pen-to-square",
     },
-
-    # ========================================================
-    # LIENS MENU SUPÉRIEUR
-    # ========================================================
+    
+    # ── Liens du menu supérieur ──
     "topmenu_links": [
-        {
-            "name": "App Web",
-            "url": "/",
-            "new_window": False,
-        },
+        {"name": "App Web", "url": "/", "new_window": False},
     ],
-
-    # ========================================================
-    # MENU UTILISATEUR
-    # ========================================================
+    
     "usermenu_links": [
-        {
-            "name": "App Web",
-            "url": "/",
-            "icon": "fas fa-home",
-        },
+        {"name": "App Web", "url": "/", "icon": "fas fa-home"},
     ],
-
-    # ========================================================
-    # SIDEBAR
-    # ========================================================
+    
+    # ── Organisation de la sidebar ──
     "show_sidebar": True,
     "navigation_expanded": True,
-
-    # ========================================================
-    # MODÈLES CACHÉS
-    # ========================================================
+    
+    # ── Cacher les modèles inutiles ──
     "hide_models": [
         "authtoken.token",
         "authtoken.tokenproxy",
     ],
-
+    
     "hide_apps": [],
-
-    # ========================================================
-    # ORDRE DES APPLICATIONS
-    # ========================================================
+    
     "order_with_respect_to": [
         "auth",
         "pointage",
     ],
-
-    # ========================================================
-    # ICÔNES PAR DÉFAUT
-    # ========================================================
+    
     "default_icon_parents": "fas fa-folder",
     "default_icon_children": "fas fa-circle",
-
-    # ========================================================
-    # RECHERCHE
-    # ========================================================
+    
     "search_model": "pointage.Employe",
     "user_avatar": None,
-
-    # ========================================================
-    # DASHBOARD PERSONNALISÉ
-    # ========================================================
+    
+    # ── Dashboard personnalisé ──
     "dashboard": "admin/index.html",
-
+    
     # ============================================================
-    # MENU PERSONNALISÉ DE LA SIDEBAR
+    # MENU PERSONNALISÉ DE LA SIDEBAR (Navigation complète)
     # ============================================================
     "navigation": [
-
-        # --------------------------------------------------------
-        # TABLEAU DE BORD
-        # --------------------------------------------------------
         {
             "name": "📊 Tableau de bord",
             "icon": "fas fa-chart-line",
             "url": "admin:index",
             "permissions": ["auth.view_user"],
         },
-
-        # --------------------------------------------------------
-        # AUTHENTIFICATION (avec navigation utilisateur incluse)
-        # --------------------------------------------------------
-        {
-            "name": "🔐 Authentification",
-            "icon": "fas fa-lock",
-            "children": [
-                {
-                    "name": "Utilisateurs",
-                    "icon": "fas fa-user",
-                    "url": "admin:auth_user_changelist",
-                    "permissions": ["auth.view_user"],
-                },
-                {
-                    "name": "Groupes",
-                    "icon": "fas fa-users",
-                    "url": "admin:auth_group_changelist",
-                    "permissions": ["auth.view_group"],
-                },
-                # 👇 Navigation utilisateur déplacée ici
-                {
-                    "name": "👤 Mon compte",
-                    "icon": "fas fa-user-gear",
-                    "url": "admin:password_change",
-                },
-                {
-                    "name": "🚪 Déconnexion",
-                    "icon": "fas fa-sign-out-alt",
-                    "url": "admin:logout",
-                },
-            ],
-        },
-
-        # --------------------------------------------------------
-        # EMPLOYÉS
-        # --------------------------------------------------------
         {
             "name": "👥 Employés",
             "icon": "fas fa-users",
@@ -353,10 +238,6 @@ JAZZMIN_SETTINGS = {
                 },
             ],
         },
-
-        # --------------------------------------------------------
-        # POINTAGES
-        # --------------------------------------------------------
         {
             "name": "📋 Pointages",
             "icon": "fas fa-clock",
@@ -388,17 +269,15 @@ JAZZMIN_SETTINGS = {
                 },
             ],
         },
-
-        # --------------------------------------------------------
-        # ANOMALIES
-        # --------------------------------------------------------
         {
             "name": "⚠️ Anomalies",
             "icon": "fas fa-triangle-exclamation",
-
-            "badge": "anomalies_ouvertes",
-            "badge_class": "badge-danger",
-
+            # ============================================================
+            # BADGE DYNAMIQUE POUR LES ANOMALIES OUVERTES
+            # ============================================================
+            "badge": "anomalies_ouvertes",  # ← Context processor
+            "badge_class": "badge-danger",   # ← Classe CSS (rouge)
+            # ============================================================
             "children": [
                 {
                     "name": "🔴 Ouvertes",
@@ -422,10 +301,6 @@ JAZZMIN_SETTINGS = {
                 },
             ],
         },
-
-        # --------------------------------------------------------
-        # SITES
-        # --------------------------------------------------------
         {
             "name": "🏢 Sites",
             "icon": "fas fa-building",
@@ -442,10 +317,6 @@ JAZZMIN_SETTINGS = {
                 },
             ],
         },
-
-        # --------------------------------------------------------
-        # POSTES
-        # --------------------------------------------------------
         {
             "name": "💼 Postes",
             "icon": "fas fa-briefcase",
@@ -462,56 +333,53 @@ JAZZMIN_SETTINGS = {
                 },
             ],
         },
-
-        # --------------------------------------------------------
-        # DEMANDES
-        # --------------------------------------------------------
         {
             "name": "📦 Demandes",
             "icon": "fas fa-inbox",
-
-            "badge": "demandes_attente",
-            "badge_class": "badge-danger",
-
+            # ============================================================
+            # BADGE DYNAMIQUE POUR LES DEMANDES EN ATTENTE
+            # ============================================================
+            "badge": "demandes_attente",    # ← Context processor
+            "badge_class": "badge-danger",  # ← Classe CSS (rouge)
+            # ============================================================
             "url": "admin:pointage_demandemodification_changelist",
         },
-
-        # --------------------------------------------------------
-        # SCANS
-        # --------------------------------------------------------
         {
             "name": "📱 Scans",
             "icon": "fas fa-qrcode",
             "url": "admin:pointage_scan_changelist",
         },
+        {
+            "name": "🔐 Utilisateurs",
+            "icon": "fas fa-user-cog",
+            "url": "admin:auth_user_changelist",
+        },
     ],
 }
 
-
 # ============================================================
-# JAZZMIN UI TWEAKS
+# JAZZMIN UI TWEAKS — Version Premium
 # ============================================================
 JAZZMIN_UI_TWEAKS = {
-
     # ── Tailles ──
     "navbar_small_text": False,
     "footer_small_text": False,
     "body_small_text": False,
     "brand_small_text": False,
-
+    
     # ── Couleurs ──
     "brand_colour": "navbar-dark",
     "accent": "accent-primary",
-
+    
     # ── Navbar ──
     "navbar": "navbar-white navbar-light",
     "no_navbar_border": False,
     "navbar_fixed": True,
-
+    
     # ── Layout ──
     "layout_boxed": False,
     "footer_fixed": False,
-
+    
     # ── Sidebar ──
     "sidebar_fixed": True,
     "sidebar": "sidebar-dark-primary",
@@ -521,13 +389,14 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_compact_style": False,
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": True,
-
+    
     # ── Thème ──
     "theme": "flatly",
-
-    # Jazzmin 3.x
+    # dark_mode_theme est supprimé depuis Jazzmin 3.x, remplacé par
+    # default_theme_mode ("light"/"dark"/"auto") — même comportement
+    # que l'ancien fallback automatique de Jazzmin pour cette clé.
     "default_theme_mode": "auto",
-
+    
     # ── Boutons ──
     "button_classes": {
         "primary": "btn-primary",
