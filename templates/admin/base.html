@@ -1,0 +1,27 @@
+{% extends 'admin/base.html' %}
+
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <!-- Admin Custom CSS -->
+    <link rel="stylesheet" href="{% static 'admin/css/admin-custom.css' %}">
+{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        }
+    </style>
+{% endblock %}
+
+{% block footer %}
+    {{ block.super }}
+    <script src="{% static 'admin/js/admin-custom.js' %}"></script>
+{% endblock %}

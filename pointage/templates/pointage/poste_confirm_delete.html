@@ -1,0 +1,58 @@
+{% extends 'pointage/base.html' %}
+
+{% block title %}Supprimer un poste - Pointage QR{% endblock %}
+{% block page_title %}Supprimer un poste{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="card">
+            <div class="card-header" style="background: var(--red-50); border-bottom: 2px solid var(--red-500);">
+                <h5 class="card-title mb-0" style="color: var(--red-600);">
+                    <i class="fas fa-exclamation-triangle"></i> Confirmation de suppression
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if mode == 'demande' %}
+                    <p>Vous êtes sur le point de demander la suppression du poste :</p>
+                {% else %}
+                    <p>Vous êtes sur le point de supprimer définitivement le poste :</p>
+                {% endif %}
+                
+                <div style="background: var(--bg-surface); padding: 16px; border-radius: var(--radius-sm); margin: 16px 0;">
+                    <h4 style="margin: 0; color: var(--text-primary);">{{ object.nom }}</h4>
+                    <span style="color: var(--text-muted); font-size: 13px;">{{ object.description|default:"Aucune description" }}</span>
+                    <div style="margin-top: 8px;">
+                        <span class="badge" style="background-color: {{ object.couleur }}; color: #fff; padding: 4px 12px; border-radius: 9999px;">
+                            {{ object.couleur }}
+                        </span>
+                    </div>
+                </div>
+
+                {% if mode == 'demande' %}
+                    <p style="color: var(--text-muted);">
+                        <i class="fas fa-info-circle"></i>
+                        Une demande de suppression sera envoyée à l'administrateur pour validation.
+                    </p>
+                {% else %}
+                    <p style="color: var(--red-600); font-weight: 600;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Cette action est irréversible. Tous les employés associés seront réassignés.
+                    </p>
+                {% endif %}
+
+                <form method="post" style="display: flex; gap: 10px; margin-top: 20px;">
+                    {% csrf_token %}
+                    <a href="{% url 'postes' %}" class="btn btn-outline-secondary" style="flex: 1;">
+                        <i class="fas fa-times"></i> Annuler
+                    </a>
+                    <button type="submit" class="btn btn-danger" style="flex: 1;">
+                        <i class="fas fa-trash"></i> 
+                        {% if mode == 'demande' %}Demander la suppression{% else %}Supprimer définitivement{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

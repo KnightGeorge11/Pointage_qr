@@ -1,0 +1,150 @@
+{% extends 'pointage/base.html' %}
+
+{% block title %}{% if form.instance.pk %}Modifier{% else %}Créer{% endif %} un poste - Pointage QR{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <h1 class="display-5">
+            <i class="fas fa-user-tag"></i> {% if form.instance.pk %}Modifier{% else %}Créer{% endif %} un poste
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.nom.id_for_label }}" class="form-label">Nom du poste</label>
+                            {{ form.nom }}
+                            {% if form.nom.errors %}
+                                <div class="text-danger">{{ form.nom.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.couleur.id_for_label }}" class="form-label">Couleur</label>
+                            <div class="input-group">
+                                {{ form.couleur }}
+                                <span class="input-group-text">
+                                    <input type="color" id="colorPicker" value="{{ form.couleur.value|default:'#4361ee' }}" class="form-control-color">
+                                </span>
+                            </div>
+                            {% if form.couleur.errors %}
+                                <div class="text-danger">{{ form.couleur.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="text-danger">{{ form.description.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    {% if require_admin_code %}
+                    <div class="card mt-4 mb-4 border-warning">
+                        <div class="card-header bg-warning text-white">
+                            <i class="fas fa-shield-alt"></i> Vérification Administrateur Requise
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                Cette action nécessite un code administrateur.
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="admin_code" class="form-label">
+                                    <i class="fas fa-key"></i> Code Administrateur
+                                </label>
+                                <input type="password" 
+                                       class="form-control" 
+                                       id="admin_code" 
+                                       name="admin_code" 
+                                       placeholder="Entrez le code administrateur"
+                                       required>
+                                <div class="form-text">
+                                    Contactez l'administrateur système pour obtenir ce code.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'postes' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Retour
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Enregistrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> Informations
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>Les postes permettent de :</p>
+                <ul>
+                    <li>Classer les employés par fonction</li>
+                    <li>Générer des statistiques par poste</li>
+                    <li>Faciliter la recherche et le filtrage</li>
+                    <li>Assigner des permissions spécifiques (future fonctionnalité)</li>
+                </ul>
+                
+                <div class="alert alert-info mt-3">
+                    <strong><i class="fas fa-palette"></i> Astuce couleur :</strong><br>
+                    Utilisez des couleurs distinctes pour différencier facilement les postes dans les graphiques.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Ajouter des classes Bootstrap aux champs
+    const inputs = document.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        if (!input.classList.contains('form-check-input')) {
+            input.classList.add('form-control');
+        }
+    });
+    
+    // Gestion du sélecteur de couleur
+    const colorInput = document.querySelector('#colorPicker');
+    const couleurField = document.getElementById('id_couleur');
+    
+    if (colorInput && couleurField) {
+        // Initialiser la couleur
+        if (!couleurField.value) {
+            couleurField.value = '#4361ee';
+        }
+        colorInput.value = couleurField.value;
+        
+        // Mettre à jour lors du changement
+        colorInput.addEventListener('input', function() {
+            couleurField.value = this.value;
+        });
+        
+        couleurField.addEventListener('input', function() {
+            colorInput.value = this.value;
+        });
+    }
+});
+</script>
+{% endblock %}

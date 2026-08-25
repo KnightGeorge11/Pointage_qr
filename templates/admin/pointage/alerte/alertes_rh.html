@@ -1,0 +1,1141 @@
+{% extends 'pointage/base.html' %}
+{% load static %}
+
+{% block title %}Anomalies de pointage — Pointage QR{% endblock %}
+{% block page_title %}Anomalies{% endblock %}
+
+{% block extra_css %}
+<style>
+/* =====================================================
+   ALERTES RH — Version Premium SaaS
+   ===================================================== */
+
+/* ── En-tête ── */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.page-header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.page-header-left h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.page-header-left h1 i {
+    color: var(--red-500);
+    margin-right: 8px;
+}
+
+.page-header-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    border-radius: var(--radius-full);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.page-header-badge.danger {
+    background: var(--red-50);
+    color: var(--red-600);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.page-header-badge.success {
+    background: var(--green-50);
+    color: var(--green-700);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.page-header-badge i {
+    font-size: 16px;
+}
+
+/* ── Stats mini ── */
+.stats-mini {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 0;
+}
+
+.stats-mini-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.stats-mini-item .count {
+    font-weight: 700;
+    padding: 0 10px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    line-height: 22px;
+}
+
+.stats-mini-item .count.open {
+    background: var(--red-50);
+    color: var(--red-600);
+}
+
+.stats-mini-item .count.treated {
+    background: var(--amber-50);
+    color: var(--amber-600);
+}
+
+.stats-mini-item .count.closed {
+    background: var(--green-50);
+    color: var(--green-700);
+}
+
+.stats-mini-item .count.total {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+}
+
+/* ── Filtres ── */
+.filter-bar {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-sm);
+}
+
+.filter-bar-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.filter-bar-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+}
+
+.filter-bar-separator {
+    flex: 1;
+    height: 1px;
+    background: var(--border-light);
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-group-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.filter-group-input {
+    width: 100%;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+    appearance: none;
+}
+
+.filter-group-input:focus {
+    outline: none;
+    border-color: var(--blue-500);
+    background: var(--bg-white);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.filter-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-light);
+    flex-wrap: wrap;
+}
+
+/* ── Tableau ── */
+.table-container {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition-base);
+}
+
+.table-container:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.alerte-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.alerte-table thead {
+    background: var(--bg-surface);
+}
+
+.alerte-table thead th {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.alerte-table thead th:last-child {
+    text-align: center;
+}
+
+.alerte-table tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+    color: var(--text-secondary);
+}
+
+.alerte-table tbody tr {
+    transition: background var(--transition-fast);
+}
+
+.alerte-table tbody tr:hover {
+    background: var(--bg-surface);
+}
+
+.alerte-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ── Ligne ouverte ── */
+.alerte-table tbody tr.is-open {
+    background: rgba(239, 68, 68, 0.02);
+    border-left: 3px solid var(--red-500);
+}
+
+.alerte-table tbody tr.is-open:hover {
+    background: rgba(239, 68, 68, 0.05);
+}
+
+/* ── Cellules spécifiques ── */
+.alerte-date {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.alerte-date i {
+    font-size: 11px;
+    margin-right: 4px;
+    color: var(--text-light);
+}
+
+.alerte-employee {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.alerte-employee .matricule {
+    display: block;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-muted);
+    font-family: 'Inter', monospace;
+}
+
+.alerte-employee .unknown {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* ── Type badge ── */
+.type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 12px;
+    border-radius: var(--radius-full);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.type-badge i {
+    font-size: 10px;
+}
+
+.type-badge.retard {
+    background: var(--amber-50);
+    color: var(--amber-600);
+}
+
+.type-badge.absence {
+    background: var(--red-50);
+    color: var(--red-600);
+}
+
+.type-badge.anomalie {
+    background: var(--blue-50);
+    color: var(--blue-700);
+}
+
+.type-badge.garde {
+    background: #EEEDFE;
+    color: #5B21B6;
+}
+
+.type-badge.default {
+    background: var(--bg-surface);
+    color: var(--text-muted);
+}
+
+/* ── Gravité ── */
+.gravite-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 12px;
+    border-radius: var(--radius-full);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.gravite-badge.critique {
+    background: var(--red-50);
+    color: var(--red-600);
+}
+
+.gravite-badge.warning {
+    background: var(--amber-50);
+    color: var(--amber-600);
+}
+
+.gravite-badge.info {
+    background: var(--blue-50);
+    color: var(--blue-700);
+}
+
+.gravite-badge i {
+    font-size: 10px;
+}
+
+/* ── Message ── */
+.alerte-message {
+    font-size: 12px;
+    color: var(--text-secondary);
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.alerte-message i {
+    font-size: 11px;
+    margin-right: 4px;
+    color: var(--text-light);
+}
+
+/* ── Statut ── */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 12px;
+    border-radius: var(--radius-full);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.status-badge i {
+    font-size: 7px;
+}
+
+.status-badge.open {
+    background: var(--red-50);
+    color: var(--red-600);
+    animation: pulse-status 2s ease-in-out infinite;
+}
+
+@keyframes pulse-status {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.status-badge.treated {
+    background: var(--amber-50);
+    color: var(--amber-600);
+}
+
+.status-badge.closed {
+    background: var(--green-50);
+    color: var(--green-700);
+}
+
+.status-badge .admin {
+    display: block;
+    font-size: 9px;
+    font-weight: 400;
+    text-transform: none;
+    opacity: 0.6;
+}
+
+/* ── Actions ── */
+.actions-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.actions-group .btn {
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.actions-group .btn i {
+    font-size: 12px;
+}
+
+.actions-group .btn-treat {
+    background: var(--green-50);
+    color: var(--green-700);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.actions-group .btn-treat:hover {
+    background: var(--green-500);
+    color: #fff;
+    border-color: var(--green-500);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.actions-group .btn-close-action {
+    background: var(--blue-50);
+    color: var(--blue-700);
+    border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.actions-group .btn-close-action:hover {
+    background: var(--blue-500);
+    color: #fff;
+    border-color: var(--blue-500);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.actions-group .btn-view-only {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+/* ── Empty state ── */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-state i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+}
+
+.empty-state .icon-success {
+    color: var(--green-500);
+}
+
+.empty-state .icon-info {
+    color: var(--border-light);
+}
+
+.empty-state h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.empty-state p {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+}
+
+/* ── Pagination ── */
+.pagination-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-surface);
+}
+
+.pagination-info {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.pagination-info strong {
+    color: var(--text-primary);
+}
+
+/* ── Modal ── */
+.modal-custom .modal-content {
+    border: none;
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-xl);
+}
+
+.modal-custom .modal-header {
+    background: var(--bg-primary);
+    color: #fff;
+    border-bottom: none;
+    padding: 20px 24px;
+}
+
+.modal-custom .modal-header .btn-close {
+    filter: brightness(0) invert(1);
+    opacity: 0.5;
+    transition: opacity var(--transition-fast);
+}
+
+.modal-custom .modal-header .btn-close:hover {
+    opacity: 1;
+}
+
+.modal-custom .modal-title {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.modal-custom .modal-body {
+    padding: 24px;
+}
+
+.modal-custom .modal-footer {
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-light);
+    padding: 16px 24px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 992px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .page-header-left h1 {
+        font-size: 20px;
+    }
+
+    .stats-mini {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .stats-mini-item {
+        font-size: 12px;
+    }
+
+    .filter-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-actions {
+        flex-direction: column;
+    }
+
+    .filter-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .alerte-table {
+        font-size: 12px;
+    }
+
+    .alerte-table thead th,
+    .alerte-table tbody td {
+        padding: 8px 12px;
+    }
+
+    /* Masquer les colonnes secondaires */
+    .alerte-table thead th:nth-child(3),
+    .alerte-table tbody td:nth-child(3) {
+        display: none;
+    }
+
+    .alerte-table thead th:nth-child(4),
+    .alerte-table tbody td:nth-child(4) {
+        display: none;
+    }
+
+    .alerte-message {
+        max-width: 120px;
+    }
+
+    .actions-group .btn {
+        padding: 4px 10px;
+        font-size: 10px;
+    }
+
+    .page-header-badge {
+        font-size: 12px;
+        padding: 4px 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-header-left h1 {
+        font-size: 18px;
+    }
+
+    .page-header-left h1 i {
+        font-size: 16px;
+    }
+
+    .alerte-table thead th:nth-child(5),
+    .alerte-table tbody td:nth-child(5) {
+        display: none;
+    }
+
+    .alerte-table thead th:last-child {
+        min-width: 100px;
+    }
+
+    .modal-custom .modal-header {
+        padding: 16px 18px;
+    }
+
+    .modal-custom .modal-body {
+        padding: 18px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ===== EN-TÊTE ===== -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>
+            <i class="fas fa-triangle-exclamation"></i>
+            Anomalies de pointage
+        </h1>
+        <span class="page-header-badge {% if non_traitees > 0 %}danger{% else %}success{% endif %}">
+            <i class="fas {% if non_traitees > 0 %}fa-exclamation-circle{% else %}fa-check-circle{% endif %}"></i>
+            {{ non_traitees }} anomalie{{ non_traitees|pluralize }} ouverte{{ non_traitees|pluralize }}
+        </span>
+    </div>
+    <div class="page-header-actions">
+    </div>
+</div>
+
+<!-- ===== STATS MINI ===== -->
+<div class="stats-mini">
+    <span class="stats-mini-item">
+        <i class="fas fa-circle" style="color:var(--red-500);font-size:10px;"></i>
+        Ouvertes
+        <span class="count open">{{ ouvertes|default:non_traitees }}</span>
+    </span>
+    <span class="stats-mini-item">
+        <i class="fas fa-circle" style="color:var(--amber-500);font-size:10px;"></i>
+        Traitées
+        <span class="count treated">{{ traitees|default:0 }}</span>
+    </span>
+    <span class="stats-mini-item">
+        <i class="fas fa-circle" style="color:var(--green-500);font-size:10px;"></i>
+        Clôturées
+        <span class="count closed">{{ cloturees|default:0 }}</span>
+    </span>
+    <span class="stats-mini-item">
+        <i class="fas fa-list" style="color:var(--text-light);font-size:10px;"></i>
+        Total
+        <span class="count total">{{ alertes.paginator.count|default:alertes|length }}</span>
+    </span>
+</div>
+
+<!-- ===== FILTRES ===== -->
+<div class="filter-bar">
+    <div class="filter-bar-header">
+        <span class="filter-bar-label">
+            <i class="fas fa-sliders-h" style="margin-right:6px;"></i>
+            Filtres
+        </span>
+        <div class="filter-bar-separator"></div>
+    </div>
+    <form method="get" id="filterForm">
+        <div class="filter-grid">
+            <div class="filter-group">
+                <label class="filter-group-label">Type d'anomalie</label>
+                <select name="type" class="filter-group-input">
+                    <option value="">— Tous les types —</option>
+                    {% for code, label in types_alerte %}
+                        <option value="{{ code }}" {% if filter_type == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-group-label">Statut</label>
+                <select name="statut" class="filter-group-input">
+                    <option value="">— Tous —</option>
+                    <option value="ouverte" {% if filter_statut == 'ouverte' %}selected{% endif %}>Ouvertes</option>
+                    <option value="traitee" {% if filter_statut == 'traitee' %}selected{% endif %}>Traitées</option>
+                    <option value="cloturee" {% if filter_statut == 'cloturee' %}selected{% endif %}>Clôturées</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-group-label">Recherche</label>
+                <input type="text" name="search" class="filter-group-input"
+                       placeholder="Nom, prénom, matricule..." value="{{ filter_search }}">
+            </div>
+        </div>
+        <div class="filter-actions">
+            <a href="{% url 'alertes_rh' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> Réinitialiser
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter"></i> Filtrer
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- ===== TABLEAU ===== -->
+<div class="table-container">
+    <div class="table-wrapper">
+        <table class="alerte-table" id="alerteTable">
+            <thead>
+                <tr>
+                    <th style="min-width:140px;">Date/Heure</th>
+                    <th style="min-width:140px;">Employé</th>
+                    <th style="min-width:120px;">Type</th>
+                    <th style="min-width:120px;">Gravité</th>
+                    <th style="min-width:180px;">Message</th>
+                    <th style="min-width:130px;">Statut</th>
+                    <th style="text-align:center;min-width:100px;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alerte in alertes %}
+                <tr class="{% if alerte.statut == 'ouverte' %}is-open{% endif %}">
+                    <td>
+                        <span class="alerte-date">
+                            <i class="fas fa-calendar-alt"></i>
+                            {{ alerte.created_at|date:"d/m/Y H:i" }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="alerte-employee">
+                            {% if alerte.employe %}
+                                {{ alerte.employe.get_nom_complet }}
+                                <span class="matricule">#{{ alerte.employe.matricule }}</span>
+                            {% elif alerte.matricule_scanne %}
+                                <span class="unknown">
+                                    <i class="fas fa-user-slash"></i>
+                                    Matricule inconnu : {{ alerte.matricule_scanne }}
+                                </span>
+                            {% else %}
+                                <span class="unknown">—</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="type-badge 
+                            {% if 'retard' in alerte.type %}retard
+                            {% elif 'absence' in alerte.type %}absence
+                            {% elif 'anomalie' in alerte.type %}anomalie
+                            {% elif 'garde' in alerte.type %}garde
+                            {% else %}default{% endif %}">
+                            <i class="fas 
+                                {% if 'retard' in alerte.type %}fa-clock
+                                {% elif 'absence' in alerte.type %}fa-user-slash
+                                {% elif 'anomalie' in alerte.type %}fa-exclamation-triangle
+                                {% elif 'garde' in alerte.type %}fa-moon
+                                {% else %}fa-circle{% endif %}"></i>
+                            {{ alerte.get_type_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="gravite-badge
+                            {% if alerte.gravite == 'critique' %}critique
+                            {% elif alerte.gravite == 'warning' %}warning
+                            {% else %}info{% endif %}">
+                            <i class="fas 
+                                {% if alerte.gravite == 'critique' %}fa-circle-exclamation
+                                {% elif alerte.gravite == 'warning' %}fa-triangle-exclamation
+                                {% else %}fa-circle-info{% endif %}"></i>
+                            {% if alerte.gravite == 'critique' %}Critique
+                            {% elif alerte.gravite == 'warning' %}Avertissement
+                            {% else %}Info{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="alerte-message" title="{{ alerte.message }}">
+                            <i class="fas fa-comment"></i>
+                            {{ alerte.message|truncatechars:80 }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-badge 
+                            {% if alerte.statut == 'cloturee' %}closed
+                            {% elif alerte.statut == 'traitee' %}treated
+                            {% else %}open{% endif %}">
+                            <i class="fas fa-circle"></i>
+                            {% if alerte.statut == 'cloturee' %}
+                                Clôturée
+                            {% elif alerte.statut == 'traitee' %}
+                                Traitée
+                                {% if alerte.traitement.administrateur %}
+                                    <span class="admin">par {{ alerte.traitement.administrateur.username }}</span>
+                                {% endif %}
+                            {% else %}
+                                Ouverte
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="actions-group">
+                            {% if alerte.statut == 'ouverte' %}
+                                {% if user_is_staff %}
+                                    <button type="button" class="btn btn-treat"
+                                            data-bs-toggle="modal" data-bs-target="#traiter-{{ alerte.pk }}"
+                                            title="Traiter cette anomalie">
+                                        <i class="fas fa-check"></i> Traiter
+                                    </button>
+                                {% else %}
+                                    <span class="btn-view-only">
+                                        <i class="fas fa-eye"></i> Consultation
+                                    </span>
+                                {% endif %}
+                            {% elif alerte.statut == 'traitee' %}
+                                {% if user_is_staff %}
+                                    <form method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="anomalie_id" value="{{ alerte.pk }}">
+                                        <input type="hidden" name="action" value="cloturer">
+                                        <button type="submit" class="btn btn-close-action"
+                                                title="Clôturer cette anomalie">
+                                            <i class="fas fa-lock"></i> Clôturer
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span class="btn-view-only">
+                                        <i class="fas fa-check-circle"></i> Traité
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="btn-view-only" style="color:var(--green-600);">
+                                    <i class="fas fa-check-double"></i> Clôturé
+                                </span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Modal de traitement -->
+                {% if alerte.statut == 'ouverte' and user_is_staff %}
+                <div class="modal fade modal-custom" id="traiter-{{ alerte.pk }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="anomalie_id" value="{{ alerte.pk }}">
+                                <input type="hidden" name="action" value="traiter">
+                                
+                                <!-- ====== CHAMP AJOUTÉ ====== -->
+                                <input type="hidden" name="type_action" value="traitee">
+                                <!-- ========================== -->
+                                
+                                <div class="modal-header">
+                                    <h5 class="modal-title">
+                                        <i class="fas fa-check-circle" style="margin-right:8px;"></i>
+                                        Traiter l'anomalie #{{ alerte.pk }}
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div style="background:var(--bg-surface);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;">
+                                        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:4px;">
+                                            {{ alerte.get_type_display }}
+                                        </div>
+                                        <div style="font-size:13px;color:var(--text-secondary);">
+                                            {{ alerte.message }}
+                                        </div>
+                                        {% if alerte.employe %}
+                                        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+                                            👤 {{ alerte.employe.get_nom_complet }} · #{{ alerte.employe.matricule }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="form-group" style="margin-bottom:16px;">
+                                        <label class="filter-group-label" for="commentaire-{{ alerte.pk }}">
+                                            <i class="fas fa-comment"></i> Commentaire
+                                        </label>
+                                        <textarea name="commentaire" id="commentaire-{{ alerte.pk }}"
+                                                class="filter-group-input" rows="3"
+                                                placeholder="Explication de la résolution..."></textarea>
+                                    </div>
+
+                                    <hr style="border-color:var(--border-light);margin:16px 0;">
+
+                                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">
+                                        <i class="fas fa-info-circle"></i>
+                                        Si une correction de pointage a été effectuée, précisez-la ci-dessous (facultatif) :
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-md-4">
+                                            <input type="text" name="champ_corrige" class="filter-group-input"
+                                                placeholder="Champ (ex: heure_depart)" style="font-size:12px;">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="text" name="ancienne_valeur" class="filter-group-input"
+                                                placeholder="Ancienne valeur" style="font-size:12px;">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="text" name="nouvelle_valeur" class="filter-group-input"
+                                                placeholder="Nouvelle valeur" style="font-size:12px;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                        Annuler
+                                    </button>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-check"></i> Marquer comme traitée
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% empty %}
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            <i class="fas {% if filter_type or filter_statut or filter_search %}fa-search icon-info{% else %}fa-check-circle icon-success{% endif %}"></i>
+                            <h3>
+                                {% if filter_type or filter_statut or filter_search %}
+                                    Aucune anomalie pour ces critères
+                                {% else %}
+                                    Tout est en ordre !
+                                {% endif %}
+                            </h3>
+                            <p>
+                                {% if filter_type or filter_statut or filter_search %}
+                                    Aucune anomalie ne correspond aux filtres sélectionnés.<br>
+                                    Essayez de modifier vos critères de recherche.
+                                {% else %}
+                                    Aucune anomalie de pointage à signaler.<br>
+                                    Tous les pointages sont conformes.
+                                {% endif %}
+                            </p>
+                            {% if filter_type or filter_statut or filter_search %}
+                                <a href="{% url 'alertes_rh' %}" class="btn btn-primary">
+                                    <i class="fas fa-redo"></i> Réinitialiser les filtres
+                                </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===== PAGINATION ===== -->
+    {% if alertes.has_other_pages %}
+    <div class="pagination-wrapper">
+        <div class="pagination-info">
+            Affichage de <strong>{{ alertes.start_index }}</strong> à <strong>{{ alertes.end_index }}</strong>
+            sur <strong>{{ alertes.paginator.count }}</strong> anomalies
+        </div>
+        <nav aria-label="Pagination">
+            <ul class="pagination mb-0">
+                {% if alertes.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ alertes.previous_page_number }}&type={{ filter_type }}&statut={{ filter_statut }}&search={{ filter_search }}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+                </li>
+                {% endif %}
+
+                {% for num in alertes.paginator.page_range %}
+                    {% if alertes.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > alertes.number|add:'-3' and num < alertes.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}&type={{ filter_type }}&statut={{ filter_statut }}&search={{ filter_search }}">
+                            {{ num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if alertes.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ alertes.next_page_number }}&type={{ filter_type }}&statut={{ filter_statut }}&search={{ filter_search }}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ─── Confirmation de clôture ─────────────────────────────
+    document.querySelectorAll('.btn-close-action').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            if (!confirm('Êtes-vous sûr de vouloir clôturer cette anomalie ?\n\nUne fois clôturée, elle ne pourra plus être modifiée.')) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    // ─── Auto-close des modales après soumission ─────────────
+    document.querySelectorAll('.modal form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement...';
+            }
+        });
+    });
+
+    // ─── Raccourci clavier ────────────────────────────────────
+    document.addEventListener('keydown', function(e) {
+        // Ctrl + F pour focus recherche
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            const searchInput = document.querySelector('input[name="search"]');
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.select();
+            }
+        }
+        // Échap pour fermer les modales
+        if (e.key === 'Escape') {
+            const openModals = document.querySelectorAll('.modal.show');
+            openModals.forEach(function(modal) {
+                const closeBtn = modal.querySelector('.btn-close');
+                if (closeBtn) closeBtn.click();
+            });
+        }
+    });
+
+    // ─── Animation des lignes ouvertes ──────────────────────
+    document.querySelectorAll('.alerte-table tbody tr.is-open').forEach(function(row, index) {
+        row.style.animationDelay = (index * 50) + 'ms';
+    });
+
+    // ─── Survol des messages pour afficher le texte complet ──
+    document.querySelectorAll('.alerte-message').forEach(function(msg) {
+        const fullText = msg.getAttribute('title');
+        if (fullText && fullText.length > 80) {
+            msg.addEventListener('click', function() {
+                alert(fullText);
+            });
+            msg.style.cursor = 'pointer';
+            msg.title = 'Cliquez pour voir le message complet';
+        }
+    });
+
+});
+</script>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<h1>Corriger le pointage</h1>
+<p>
+    Anomalie #{{ anomalie.pk }} — {{ anomalie.get_type_display }}
+    {% if anomalie.employe %}— {{ anomalie.employe.prenom }} {{ anomalie.employe.nom }} ({{ anomalie.employe.matricule }}){% endif %}
+</p>
+<p style="color:#666;">{{ anomalie.message }}</p>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <p>
+        <label for="id_commentaire">Commentaire (obligatoire)</label><br>
+        <textarea name="commentaire" id="id_commentaire" rows="3" cols="60" required></textarea>
+    </p>
+    <div class="submit-row">
+        <input type="submit" value="Corriger le pointage" class="default">
+        <a href="/admin/pointage/anomaliepointage/{{ anomalie.pk }}/change/" class="button cancel-link">Annuler</a>
+    </div>
+</form>
+{% endblock %}

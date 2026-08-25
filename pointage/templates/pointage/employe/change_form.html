@@ -1,0 +1,62 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <style>
+        .qr-code-container {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        .qr-code-image {
+            max-width: 300px;
+            height: auto;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .qr-actions {
+            margin-top: 15px;
+        }
+        .qr-info {
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+            word-break: break-all;
+        }
+    </style>
+{% endblock %}
+
+{% block field_sets %}
+    {% for fieldset in adminform %}
+        {% include "admin/includes/fieldset.html" %}
+        
+        {% if fieldset.name == "QR Code" %}
+            <div class="qr-code-container">
+                <h3>QR Code de l'employé</h3>
+                {% if original.qr_code %}
+                    <img src="{{ original.qr_code.url }}" alt="QR Code" class="qr-code-image">
+                    <div class="qr-actions">
+                        <a href="{{ original.qr_code.url }}" download class="button">Télécharger le QR Code</a>
+                        <button type="submit" name="_generate_qr" class="button" style="margin-left: 10px;">
+                            Régénérer le QR Code
+                        </button>
+                    </div>
+                    <div class="qr-info">
+                        Token: {{ original.qr_code_token }}<br>
+                        Matricule: {{ original.matricule }}<br>
+                        Données encodées: EMPLOYE:{{ original.matricule }}:{{ original.qr_code_token }}
+                    </div>
+                {% else %}
+                    <p style="color: #dc3545;">
+                        Le QR Code n'a pas encore été généré. Sauvegardez l'employé pour le générer.
+                    </p>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% endfor %}
+{% endblock %}

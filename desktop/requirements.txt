@@ -1,0 +1,4 @@
+requests>=2.31
+opencv-python>=4.9
+pillow>=10.0
+pyinstaller>=6.3

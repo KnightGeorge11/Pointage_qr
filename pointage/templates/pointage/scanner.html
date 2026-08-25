@@ -1,0 +1,1093 @@
+{% extends 'pointage/base.html' %}
+{% load static %}
+
+{% block title %}Pointage — Pointage QR{% endblock %}
+{% block page_title %}Pointage{% endblock %}
+
+{% block extra_css %}
+<style>
+/* =====================================================
+   SCANNER — Design System épuré
+   ===================================================== */
+
+/* ── En-tête ── */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.page-header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.page-header-left h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.page-header-left h1 i {
+    color: var(--blue-500);
+    margin-right: 8px;
+}
+
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* ── Stats mini ── */
+.stats-mini {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 0;
+}
+
+.stats-mini-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.stats-mini-item .count {
+    font-weight: 700;
+    color: var(--text-primary);
+    background: var(--bg-surface);
+    padding: 0 10px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    line-height: 22px;
+}
+
+.stats-mini-item .count.green { background: var(--green-50); color: var(--green-700); }
+.stats-mini-item .count.blue { background: var(--blue-50); color: var(--blue-700); }
+.stats-mini-item .count.amber { background: var(--amber-50); color: var(--amber-600); }
+.stats-mini-item .count.red { background: var(--red-50); color: var(--red-600); }
+
+/* ── Layout ── */
+.scanner-layout {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 20px;
+    align-items: start;
+}
+
+/* ── Carte principale ── */
+.scanner-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition-base);
+}
+
+.scanner-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.scanner-card-header {
+    background: var(--bg-surface);
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.scanner-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    background: var(--blue-50);
+    color: var(--blue-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.scanner-card-title-group {
+    flex: 1;
+}
+
+.scanner-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.scanner-card-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.scanner-card-body {
+    padding: 24px;
+}
+
+/* ── Feedback ── */
+.scan-feedback {
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: feedbackSlide var(--transition-slow) ease-out both;
+}
+
+@keyframes feedbackSlide {
+    from { transform: translateY(-10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.scan-feedback.success {
+    background: var(--green-50);
+    border-left: 3px solid var(--green-500);
+}
+
+.scan-feedback.error {
+    background: var(--red-50);
+    border-left: 3px solid var(--red-500);
+}
+
+.scan-feedback.warning {
+    background: var(--amber-50);
+    border-left: 3px solid var(--amber-500);
+}
+
+.scan-feedback.info {
+    background: var(--blue-50);
+    border-left: 3px solid var(--blue-500);
+}
+
+.scan-feedback-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.scan-feedback.success .scan-feedback-icon {
+    background: var(--green-500);
+    color: #fff;
+}
+
+.scan-feedback.error .scan-feedback-icon {
+    background: var(--red-500);
+    color: #fff;
+}
+
+.scan-feedback.warning .scan-feedback-icon {
+    background: var(--amber-500);
+    color: #fff;
+}
+
+.scan-feedback.info .scan-feedback-icon {
+    background: var(--blue-500);
+    color: #fff;
+}
+
+.scan-feedback-content {
+    flex: 1;
+}
+
+.scan-feedback-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.scan-feedback.success .scan-feedback-title {
+    color: var(--green-700);
+}
+
+.scan-feedback.error .scan-feedback-title {
+    color: var(--red-600);
+}
+
+.scan-feedback.warning .scan-feedback-title {
+    color: var(--amber-600);
+}
+
+.scan-feedback.info .scan-feedback-title {
+    color: var(--blue-700);
+}
+
+/* ── Formulaire ── */
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.form-group-label i {
+    font-size: 12px;
+}
+
+.form-group-input {
+    width: 100%;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 9px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+    appearance: none;
+}
+
+.form-group-input:focus {
+    outline: none;
+    border-color: var(--blue-500);
+    background: var(--bg-white);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-group-input::placeholder {
+    color: var(--text-light);
+    font-weight: 400;
+}
+
+.form-group-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+/* ── Période toggle ── */
+.periode-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.btn-check {
+    position: absolute;
+    clip: rect(0, 0, 0, 0);
+}
+
+.periode-option {
+    background: var(--bg-surface);
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    transition: all var(--transition-fast);
+}
+
+.periode-option:hover {
+    border-color: var(--text-light);
+    background: var(--bg-hover);
+}
+
+.periode-option .po-icon {
+    font-size: 20px;
+    color: var(--text-muted);
+    line-height: 1;
+    transition: color var(--transition-fast);
+}
+
+.periode-option .po-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    transition: color var(--transition-fast);
+}
+
+.periode-option .po-sub {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-light);
+}
+
+.btn-check:checked + .periode-option {
+    background: var(--bg-primary);
+    border-color: var(--bg-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-check:checked + .periode-option .po-icon,
+.btn-check:checked + .periode-option .po-label {
+    color: #fff;
+}
+
+.btn-check:checked + .periode-option .po-sub {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+#periode_nuit:checked + .periode-option {
+    background: #1E1B4B;
+    border-color: #5B21B6;
+}
+
+#periode_nuit:checked + .periode-option .po-icon {
+    color: #A5B4FC;
+}
+
+#periode_nuit:checked + .periode-option .po-label {
+    color: #C4B5FD;
+}
+
+/* ── Bouton submit ── */
+.btn-submit-scanner {
+    width: 100%;
+    background: var(--blue-600);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 12px 20px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all var(--transition-fast);
+    margin-top: 6px;
+}
+
+.btn-submit-scanner:hover {
+    background: var(--blue-700);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.btn-submit-scanner:active {
+    transform: translateY(0);
+}
+
+.btn-submit-scanner i {
+    font-size: 15px;
+}
+
+.btn-submit-scanner:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* ── Panneau latéral ── */
+.side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.info-panel {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.info-panel-header {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-light);
+    padding: 12px 18px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.info-panel-header i {
+    color: var(--blue-500);
+    font-size: 13px;
+}
+
+.info-panel-body {
+    padding: 18px;
+}
+
+.info-step {
+    display: flex;
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.info-step:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.info-step-number {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-family: 'Inter', monospace;
+}
+
+.info-step-text {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    padding-top: 1px;
+}
+
+/* ── Indicateur période ── */
+.periode-indicator {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.periode-indicator-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.periode-indicator-icon.day {
+    background: var(--amber-50);
+    color: var(--amber-600);
+}
+
+.periode-indicator-icon.night {
+    background: #1E1B4B;
+    color: #A5B4FC;
+}
+
+.periode-indicator-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 1px;
+}
+
+.periode-indicator-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* ── Résumé du jour ── */
+.day-summary {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-light);
+}
+
+.day-summary-title {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.day-summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.day-summary-item {
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    text-align: center;
+}
+
+.day-summary-item.green {
+    background: var(--green-50);
+    border: 1px solid rgba(34, 197, 94, 0.15);
+}
+
+.day-summary-item.amber {
+    background: var(--amber-50);
+    border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.day-summary-item.blue {
+    background: var(--blue-50);
+    border: 1px solid rgba(37, 99, 235, 0.15);
+}
+
+.day-summary-item .value {
+    font-family: 'Inter', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.day-summary-item.green .value {
+    color: var(--green-700);
+}
+
+.day-summary-item.amber .value {
+    color: var(--amber-600);
+}
+
+.day-summary-item.blue .value {
+    color: var(--blue-700);
+}
+
+.day-summary-item .label {
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 3px;
+    opacity: 0.6;
+}
+
+.day-summary-item.green .label {
+    color: var(--green-700);
+}
+
+.day-summary-item.amber .label {
+    color: var(--amber-600);
+}
+
+.day-summary-item.blue .label {
+    color: var(--blue-700);
+}
+
+/* ── Responsive ── */
+@media (max-width: 992px) {
+    .scanner-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .side-panel {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+}
+
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .page-header-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .page-header-actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .stats-mini {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .side-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .scanner-card-body {
+        padding: 18px;
+    }
+
+    .periode-toggle {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .periode-option {
+        padding: 10px 8px;
+    }
+
+    .periode-option .po-icon {
+        font-size: 16px;
+    }
+
+    .periode-option .po-label {
+        font-size: 11px;
+    }
+
+    .day-summary-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .day-summary-item .value {
+        font-size: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-header-left h1 {
+        font-size: 20px;
+    }
+
+    .page-header-left h1 i {
+        font-size: 16px;
+    }
+
+    .scanner-card-header {
+        padding: 12px 16px;
+        flex-wrap: wrap;
+    }
+
+    .scanner-card-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+
+    .scanner-card-title {
+        font-size: 13px;
+    }
+
+    .scanner-card-body {
+        padding: 14px;
+    }
+
+    .form-group-input {
+        font-size: 13px;
+        padding: 8px 12px;
+    }
+
+    .btn-submit-scanner {
+        padding: 10px;
+        font-size: 11px;
+    }
+
+    .day-summary-item {
+        padding: 8px 10px;
+    }
+
+    .day-summary-item .value {
+        font-size: 16px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ===== EN-TÊTE ===== -->
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>
+            <i class="fas fa-qrcode"></i>
+            Pointage
+        </h1>
+    </div>
+    <div class="page-header-actions">
+        <span style="font-size:13px;color:var(--text-muted);">
+            <i class="fas fa-clock"></i> Période : {{ periode_actuelle }}
+        </span>
+    </div>
+</div>
+
+<!-- ===== STATS MINI ===== -->
+<div class="stats-mini">
+    <span class="stats-mini-item">
+        <i class="fas fa-users" style="color:var(--text-light);"></i>
+        Total employés
+        <span class="count">{{ total_employes }}</span>
+    </span>
+    <span class="stats-mini-item">
+        <i class="fas fa-user-check" style="color:var(--green-500);"></i>
+        Présents
+        <span class="count green">{{ presents_aujourdhui }}</span>
+    </span>
+    <span class="stats-mini-item">
+        <i class="fas fa-moon" style="color:#5B21B6;"></i>
+        Gardes
+        <span class="count blue">{{ gardes_en_cours }}</span>
+    </span>
+</div>
+
+<!-- ===== LAYOUT ===== -->
+<div class="scanner-layout">
+
+    <!-- ===== FORMULAIRE PRINCIPAL ===== -->
+    <div class="scanner-card">
+        <div class="scanner-card-header">
+            <div class="scanner-card-icon">
+                <i class="fas fa-qrcode"></i>
+            </div>
+            <div class="scanner-card-title-group">
+                <div class="scanner-card-title">Enregistrer un pointage</div>
+                <div class="scanner-card-subtitle">
+                    Scanner QR USB ou saisie manuelle du matricule
+                </div>
+            </div>
+        </div>
+
+        <div class="scanner-card-body">
+
+
+            <form method="post" id="scanForm">
+                {% csrf_token %}
+
+                <!-- Champs cachés -->
+                <input type="hidden" name="qr_data" id="qrDataInput">
+                <input type="hidden" name="matricule" id="matriculeHidden">
+                <input type="hidden" name="periode_type" id="periodeHidden" value="auto">
+
+                <!-- ═══ SAISIE MANUELLE ═══ -->
+                <div class="form-group">
+                    <label class="form-group-label" for="matriculeInput">
+                        <i class="fas fa-id-card"></i> Matricule de l'employé
+                    </label>
+                    <input type="text"
+                           class="form-group-input"
+                           id="matriculeInput"
+                           placeholder="Ex : EMP-042"
+                           autocomplete="off"
+                           autofocus>
+                    <div class="form-group-hint">
+                        <i class="fas fa-info-circle"></i>
+                        Visible sur la carte ou le QR code de l'employé
+                    </div>
+                </div>
+
+                <!-- ═══ SITE ═══ -->
+                <div class="form-group">
+                    <label class="form-group-label" for="site_id">
+                        <i class="fas fa-building"></i> Site
+                    </label>
+                    <select class="form-group-input" id="site_id" name="site_id" required>
+                        <option value="">Sélectionnez un site…</option>
+                        {% for site in sites %}
+                            <option value="{{ site.id }}">{{ site.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- ═══ PÉRIODE ═══ -->
+                <div class="form-group">
+                    <label class="form-group-label">
+                        <i class="fas fa-clock"></i> Type de période
+                    </label>
+                    <div class="periode-toggle">
+                        <input type="radio" class="btn-check" name="periode_type_radio" id="periode_jour" value="auto" checked>
+                        <label class="periode-option" for="periode_jour">
+                            <div class="po-icon"><i class="fas fa-sun"></i></div>
+                            <div class="po-label">Jour</div>
+                            <div class="po-sub">Matin / Après-midi</div>
+                        </label>
+                        <input type="radio" class="btn-check" name="periode_type_radio" id="periode_nuit" value="garde">
+                        <label class="periode-option" for="periode_nuit">
+                            <div class="po-icon"><i class="fas fa-moon"></i></div>
+                            <div class="po-label">Nuit</div>
+                            <div class="po-sub">Garde de nuit</div>
+                        </label>
+                    </div>
+                    <div class="form-group-hint" style="margin-top:6px;">
+                        <i class="fas fa-info-circle"></i>
+                        "Jour" pour pointage normal · "Nuit" pour démarrer ou clôturer une garde
+                    </div>
+                </div>
+
+                <!-- ═══ BOUTON ═══ -->
+                <button type="submit" class="btn-submit-scanner" id="submitBtn">
+                    <i class="fas fa-check-circle"></i>
+                    <span id="submitText">Enregistrer le pointage</span>
+                </button>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== PANEL LATÉRAL ===== -->
+    <div class="side-panel">
+
+        <!-- Instructions -->
+        <div class="info-panel">
+            <div class="info-panel-header">
+                <i class="fas fa-lightbulb"></i>
+                Instructions
+            </div>
+            <div class="info-panel-body" id="infoBody">
+                <!-- Rempli par JS -->
+            </div>
+        </div>
+
+        <!-- Période en cours -->
+        <div class="info-panel">
+            <div class="info-panel-header">
+                <i class="fas fa-calendar-day"></i>
+                Période en cours
+            </div>
+            <div class="info-panel-body">
+
+                <div class="periode-indicator" id="periodeIndicator">
+                    <div class="periode-indicator-icon day" id="piIcon">
+                        <i class="fas fa-sun"></i>
+                    </div>
+                    <div>
+                        <div class="periode-indicator-label">Mode actif</div>
+                        <div class="periode-indicator-value" id="piValue">Pointage de journée</div>
+                    </div>
+                </div>
+
+                <div class="day-summary">
+                    <div class="day-summary-title">Résumé du jour</div>
+                    <div class="day-summary-grid">
+                        <div class="day-summary-item green">
+                            <div class="value">{{ presents_aujourdhui }}</div>
+                            <div class="label">Présents</div>
+                        </div>
+                        <div class="day-summary-item amber">
+                            <div class="value">{{ gardes_en_cours }}</div>
+                            <div class="label">Gardes</div>
+                        </div>
+                        <div class="day-summary-item blue">
+                            <div class="value">{{ retards_aujourdhui|default:0 }}</div>
+                            <div class="label">Retards</div>
+                        </div>
+                        <div class="day-summary-item" style="background:var(--bg-surface);border:1px solid var(--border-light);">
+                            <div class="value" style="color:var(--text-primary);">{{ absents_aujourdhui|default:0 }}</div>
+                            <div class="label" style="color:var(--text-muted);">Absents</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+
+    const steps = [
+        'Saisissez le matricule de l\'employé visible sur sa carte.',
+        'Sélectionnez le site où l\'employé effectue son pointage.',
+        'Choisissez "Jour" pour matin/après-midi ou "Nuit" pour une garde.',
+        'Cliquez sur Enregistrer — le système détermine automatiquement entrée ou sortie.'
+    ];
+
+    const infoBody = document.getElementById('infoBody');
+    if (infoBody) {
+        infoBody.innerHTML = steps.map(function(s, i) {
+            return '<div class="info-step">' +
+                '<div class="info-step-number">' + String(i + 1).padStart(2, '0') + '</div>' +
+                '<div class="info-step-text">' + s + '</div>' +
+                '</div>';
+        }).join('');
+    }
+
+    const form = document.getElementById('scanForm');
+    const matriculeInput = document.getElementById('matriculeInput');
+    const siteSelect = document.getElementById('site_id');
+    const submitBtn = document.getElementById('submitBtn');
+    const submitText = document.getElementById('submitText');
+    const periodeJour = document.getElementById('periode_jour');
+    const periodeNuit = document.getElementById('periode_nuit');
+    const piIcon = document.getElementById('piIcon');
+    const piValue = document.getElementById('piValue');
+
+    function syncPeriodeUI() {
+        const isNuit = periodeNuit.checked;
+
+        if (isNuit) {
+            piIcon.className = 'periode-indicator-icon night';
+            piIcon.innerHTML = '<i class="fas fa-moon"></i>';
+            piValue.textContent = 'Garde de nuit';
+        } else {
+            piIcon.className = 'periode-indicator-icon day';
+            piIcon.innerHTML = '<i class="fas fa-sun"></i>';
+            piValue.textContent = 'Pointage de journée';
+        }
+    }
+
+    periodeJour.addEventListener('change', syncPeriodeUI);
+    periodeNuit.addEventListener('change', syncPeriodeUI);
+
+    form.addEventListener('submit', function(e) {
+        const mat = matriculeInput.value.trim();
+        const site = siteSelect.value;
+
+        if (!mat) {
+            e.preventDefault();
+            const feedback = document.createElement('div');
+            feedback.className = 'scan-feedback error';
+            feedback.innerHTML = `
+                <div class="scan-feedback-icon"><i class="fas fa-exclamation-circle"></i></div>
+                <div class="scan-feedback-content">
+                    <div class="scan-feedback-title">Matricule requis</div>
+                    <div class="scan-feedback-sub">Veuillez saisir le matricule de l'employé</div>
+                </div>
+            `;
+            const cardBody = document.querySelector('.scanner-card-body');
+            const existing = cardBody.querySelector('.scan-feedback.error');
+            if (existing) existing.remove();
+            cardBody.insertBefore(feedback, cardBody.firstChild);
+
+            setTimeout(function() {
+                feedback.style.transition = 'opacity 0.3s, transform 0.3s';
+                feedback.style.opacity = '0';
+                feedback.style.transform = 'translateX(20px)';
+                setTimeout(function() { feedback.remove(); }, 300);
+            }, 3000);
+
+            matriculeInput.focus();
+            return;
+        }
+
+        if (!site) {
+            e.preventDefault();
+            const feedback = document.createElement('div');
+            feedback.className = 'scan-feedback error';
+            feedback.innerHTML = `
+                <div class="scan-feedback-icon"><i class="fas fa-exclamation-circle"></i></div>
+                <div class="scan-feedback-content">
+                    <div class="scan-feedback-title">Site requis</div>
+                    <div class="scan-feedback-sub">Veuillez sélectionner un site</div>
+                </div>
+            `;
+            const cardBody = document.querySelector('.scanner-card-body');
+            const existing = cardBody.querySelector('.scan-feedback.error');
+            if (existing) existing.remove();
+            cardBody.insertBefore(feedback, cardBody.firstChild);
+
+            setTimeout(function() {
+                feedback.style.transition = 'opacity 0.3s, transform 0.3s';
+                feedback.style.opacity = '0';
+                feedback.style.transform = 'translateX(20px)';
+                setTimeout(function() { feedback.remove(); }, 300);
+            }, 3000);
+
+            siteSelect.focus();
+            return;
+        }
+
+        document.getElementById('matriculeHidden').value = mat;
+        document.getElementById('qrDataInput').value = '';
+        document.getElementById('periodeHidden').value = getSelectedPeriode();
+
+        if (getSelectedPeriode() === 'garde') {
+            if (!confirm('⚠️ Vous allez enregistrer une garde de nuit.\n\nSouhaitez-vous continuer ?')) {
+                e.preventDefault();
+                return;
+            }
+        }
+
+        submitBtn.disabled = true;
+        submitText.textContent = 'Enregistrement en cours...';
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
+    });
+
+    function getSelectedPeriode() {
+        const checked = document.querySelector('input[name="periode_type_radio"]:checked');
+        return checked ? checked.value : 'auto';
+    }
+
+    const djangoMsg = document.getElementById('djangoMsg');
+    if (djangoMsg) {
+        setTimeout(function() {
+            djangoMsg.style.transition = 'opacity 0.4s, transform 0.4s';
+            djangoMsg.style.opacity = '0';
+            djangoMsg.style.transform = 'translateY(-10px)';
+            setTimeout(function() {
+                if (djangoMsg.parentNode) {
+                    djangoMsg.remove();
+                }
+            }, 400);
+        }, 4500);
+    }
+
+    matriculeInput.focus();
+
+    document.addEventListener('keydown', function(e) {
+        if (e.altKey && e.key === 'j') {
+            e.preventDefault();
+            periodeJour.checked = true;
+            syncPeriodeUI();
+        }
+        if (e.altKey && e.key === 'n') {
+            e.preventDefault();
+            periodeNuit.checked = true;
+            syncPeriodeUI();
+        }
+        if (e.key === 'Enter' && document.activeElement === matriculeInput) {
+            e.preventDefault();
+            submitBtn.click();
+        }
+    });
+
+    syncPeriodeUI();
+
+})();
+</script>
+{% endblock %}

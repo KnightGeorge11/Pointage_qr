@@ -1,0 +1,352 @@
+{% extends "admin/base_site.html" %}
+{% load static i18n jazzmin %}
+
+{% block title %}Tableau de bord | Administration{% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="content-wrapper" style="padding: 20px;">
+
+    <!-- ===== EN-TÊTE ===== -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card" style="border-radius: 14px; border: 1px solid #E2E8F0; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);">
+                <div class="card-body" style="padding: 20px 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                        <div>
+                            <h4 style="font-family: 'Inter', sans-serif; font-weight: 700; color: #0F172A; margin: 0;">
+                                <i class="fas fa-chart-line" style="color: #2563EB; margin-right: 10px;"></i>
+                                Tableau de bord
+                            </h4>
+                            <p style="color: #64748B; margin: 4px 0 0 0; font-size: 13px; font-family: 'Inter', sans-serif;">
+                                <i class="fas fa-calendar-alt" style="margin-right: 6px;"></i>
+                                {% now "l d F Y" %} · {{ total_employes|default:"0" }} employés
+                            </p>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-primary btn-sm" onclick="window.location.reload();" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; border-radius: 6px; padding: 8px 20px; background: #2563EB; color: #fff; border: none;">
+                                <i class="fas fa-sync-alt"></i> Actualiser
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="window.print();" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; border-radius: 6px; padding: 8px 20px; background: transparent; color: #64748B; border: 1px solid #E2E8F0;">
+                                <i class="fas fa-print"></i> Imprimer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== CARTES DE STATISTIQUES ===== -->
+    <div class="row" style="margin-top: 20px;">
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-primary" style="border-radius: 14px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); transition: all 200ms ease; overflow: hidden; background: #2563EB !important;">
+                <div class="inner" style="padding: 16px 20px;">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 700; font-size: 32px; color: #fff; margin: 0 0 4px 0; line-height: 1.1;">{{ total_employes|default:"0" }}</h3>
+                    <p style="font-family: 'Inter', sans-serif; font-weight: 500; font-size: 14px; color: rgba(255, 255, 255, 0.8); margin: 0;">Employés total</p>
+                </div>
+                <div class="icon" style="font-size: 48px; opacity: 0.15; color: #fff; position: absolute; right: 15px; top: 15px;">
+                    <i class="fas fa-users"></i>
+                </div>
+                <a href="{% url 'admin:pointage_employe_changelist' %}" class="small-box-footer" style="background: rgba(0, 0, 0, 0.1); padding: 8px 20px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.8); display: block; text-decoration: none; transition: all 150ms ease;">
+                    Voir <i class="fas fa-arrow-circle-right"></i>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-success" style="border-radius: 14px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); transition: all 200ms ease; overflow: hidden; background: #22C55E !important;">
+                <div class="inner" style="padding: 16px 20px;">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 700; font-size: 32px; color: #fff; margin: 0 0 4px 0; line-height: 1.1;">{{ presents_aujourdhui|default:"0" }}</h3>
+                    <p style="font-family: 'Inter', sans-serif; font-weight: 500; font-size: 14px; color: rgba(255, 255, 255, 0.8); margin: 0;">Présents aujourd'hui</p>
+                </div>
+                <div class="icon" style="font-size: 48px; opacity: 0.15; color: #fff; position: absolute; right: 15px; top: 15px;">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <a href="{% url 'admin:pointage_pointage_changelist' %}?date_pointage__exact={% now 'Y-m-d' %}" class="small-box-footer" style="background: rgba(0, 0, 0, 0.1); padding: 8px 20px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.8); display: block; text-decoration: none; transition: all 150ms ease;">
+                    Voir <i class="fas fa-arrow-circle-right"></i>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-warning" style="border-radius: 14px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); transition: all 200ms ease; overflow: hidden; background: #F59E0B !important;">
+                <div class="inner" style="padding: 16px 20px;">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 700; font-size: 32px; color: #fff; margin: 0 0 4px 0; line-height: 1.1;">{{ anomalies_ouvertes|default:"0" }}</h3>
+                    <p style="font-family: 'Inter', sans-serif; font-weight: 500; font-size: 14px; color: rgba(255, 255, 255, 0.8); margin: 0;">Anomalies ouvertes</p>
+                </div>
+                <div class="icon" style="font-size: 48px; opacity: 0.15; color: #fff; position: absolute; right: 15px; top: 15px;">
+                    <i class="fas fa-triangle-exclamation"></i>
+                </div>
+                <a href="{% url 'admin:pointage_anomaliepointage_changelist' %}?statut__exact=ouverte" class="small-box-footer" style="background: rgba(0, 0, 0, 0.1); padding: 8px 20px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.8); display: block; text-decoration: none; transition: all 150ms ease;">
+                    Voir <i class="fas fa-arrow-circle-right"></i>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-info" style="border-radius: 14px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); transition: all 200ms ease; overflow: hidden; background: #3B82F6 !important;">
+                <div class="inner" style="padding: 16px 20px;">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 700; font-size: 32px; color: #fff; margin: 0 0 4px 0; line-height: 1.1;">{{ gardes_en_cours|default:"0" }}</h3>
+                    <p style="font-family: 'Inter', sans-serif; font-weight: 500; font-size: 14px; color: rgba(255, 255, 255, 0.8); margin: 0;">Gardes en cours</p>
+                </div>
+                <div class="icon" style="font-size: 48px; opacity: 0.15; color: #fff; position: absolute; right: 15px; top: 15px;">
+                    <i class="fas fa-moon"></i>
+                </div>
+                <a href="{% url 'admin:pointage_pointage_changelist' %}?periode__exact=nuit&type_journee__exact=garde" class="small-box-footer" style="background: rgba(0, 0, 0, 0.1); padding: 8px 20px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.8); display: block; text-decoration: none; transition: all 150ms ease;">
+                    Voir <i class="fas fa-arrow-circle-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== GRAPHIQUES + ACTIVITÉ RÉCENTE ===== -->
+    <div class="row" style="margin-top: 20px;">
+        <!-- Graphique hebdomadaire -->
+        <div class="col-md-8">
+            <div class="card" style="border-radius: 14px; border: 1px solid #E2E8F0; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);">
+                <div class="card-header" style="background: transparent; border-bottom: 1px solid #E2E8F0; padding: 16px 20px;">
+                    <h3 class="card-title" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; color: #0F172A;">
+                        <i class="fas fa-chart-bar" style="color: #2563EB; margin-right: 8px;"></i>
+                        Pointages de la semaine
+                    </h3>
+                    <div class="card-tools">
+                        <span class="badge badge-secondary" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 10px; padding: 4px 12px; border-radius: 9999px; background: #F8FAFC; color: #64748B;">7 derniers jours</span>
+                    </div>
+                </div>
+                <div class="card-body" style="padding: 20px;">
+                    <canvas id="weeklyChart" style="height: 250px; width: 100%;"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Activité récente -->
+        <div class="col-md-4">
+            <div class="card" style="border-radius: 14px; border: 1px solid #E2E8F0; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);">
+                <div class="card-header" style="background: transparent; border-bottom: 1px solid #E2E8F0; padding: 16px 20px;">
+                    <h3 class="card-title" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; color: #0F172A;">
+                        <i class="fas fa-clock" style="color: #2563EB; margin-right: 8px;"></i>
+                        Dernières activités
+                    </h3>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <ul class="list-group list-group-flush">
+                        {% for log in logs_recents|slice:":10" %}
+                        <li class="list-group-item" style="border-left: 3px solid #2563EB; padding: 10px 16px; border-bottom: 1px solid #E2E8F0; transition: background 150ms ease;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong style="font-size: 12px; color: #0F172A; font-family: 'Inter', sans-serif;">{{ log.user|default:"Système" }}</strong>
+                                    <span style="font-size: 11px; color: #64748B; display: block; font-family: 'Inter', sans-serif;">
+                                        {{ log.action_time|date:"H:i" }} · {{ log.get_action_display }}
+                                    </span>
+                                    <span style="font-size: 11px; color: #94A3B8; font-family: 'Inter', sans-serif;">
+                                        {{ log.content_type|default:"" }}
+                                    </span>
+                                </div>
+                                {% if log.object_repr %}
+                                <span class="badge badge-secondary" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 9px; padding: 2px 10px; border-radius: 9999px; background: #F8FAFC; color: #64748B;">
+                                    {{ log.object_repr|truncatechars:15 }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item" style="text-align: center; padding: 20px; color: #94A3B8; font-family: 'Inter', sans-serif;">
+                            <i class="fas fa-inbox" style="font-size: 24px; display: block; margin-bottom: 8px;"></i>
+                            Aucune activité récente
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ANOMALIES RÉCENTES ===== -->
+    <div class="row" style="margin-top: 20px;">
+        <div class="col-12">
+            <div class="card" style="border-radius: 14px; border: 1px solid #E2E8F0; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);">
+                <div class="card-header" style="background: transparent; border-bottom: 1px solid #E2E8F0; padding: 16px 20px;">
+                    <h3 class="card-title" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; color: #0F172A;">
+                        <i class="fas fa-triangle-exclamation" style="color: #EF4444; margin-right: 8px;"></i>
+                        Anomalies récentes
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{% url 'admin:pointage_anomaliepointage_changelist' %}" class="btn btn-sm btn-outline-secondary" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; border-radius: 6px; padding: 4px 12px; background: transparent; color: #64748B; border: 1px solid #E2E8F0; text-decoration: none; transition: all 150ms ease;">
+                            Voir toutes <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" style="font-family: 'Inter', sans-serif; font-size: 13px; border-collapse: separate; border-spacing: 0;">
+                            <thead>
+                                <tr>
+                                    <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Date</th>
+                                    <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Employé</th>
+                                    <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Type</th>
+                                    <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Message</th>
+                                    <th style="background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid #E2E8F0;">Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for anomalie in anomalies_recentes|slice:":10" %}
+                                <tr style="transition: background 150ms ease;">
+                                    <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0; font-size: 12px; color: #64748B;">{{ anomalie.created_at|date:"d/m/Y H:i" }}</td>
+                                    <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0; vertical-align: middle; color: #0F172A;">
+                                        {% if anomalie.employe %}
+                                            {{ anomalie.employe.get_nom_complet }}
+                                            <span style="display: block; font-size: 10px; color: #94A3B8; font-family: 'Inter', monospace;">#{{ anomalie.employe.matricule }}</span>
+                                        {% else %}
+                                            <span style="color: #94A3B8;">{{ anomalie.matricule_scanne|default:"Inconnu" }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0; vertical-align: middle;">
+                                        <span class="badge badge-info" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 10px; padding: 4px 12px; border-radius: 9999px; background: #DBEAFE; color: #1D4ED8;">{{ anomalie.get_type_display }}</span>
+                                    </td>
+                                    <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0; vertical-align: middle; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #334155;">{{ anomalie.message|truncatechars:50 }}</td>
+                                    <td style="padding: 10px 14px; border-bottom: 1px solid #E2E8F0; vertical-align: middle;">
+                                        {% if anomalie.statut == 'ouverte' %}
+                                            <span class="badge badge-danger" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 10px; padding: 4px 12px; border-radius: 9999px; background: #FEE2E2; color: #B91C1C;">
+                                                <i class="fas fa-circle" style="font-size: 6px; margin-right: 4px;"></i>
+                                                Ouverte
+                                            </span>
+                                        {% elif anomalie.statut == 'traitee' %}
+                                            <span class="badge badge-warning" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 10px; padding: 4px 12px; border-radius: 9999px; background: #FEF3C7; color: #B45309;">
+                                                <i class="fas fa-circle" style="font-size: 6px; margin-right: 4px;"></i>
+                                                Traitée
+                                            </span>
+                                        {% else %}
+                                            <span class="badge badge-success" style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 10px; padding: 4px 12px; border-radius: 9999px; background: #DCFCE7; color: #15803D;">
+                                                <i class="fas fa-circle" style="font-size: 6px; margin-right: 4px;"></i>
+                                                Clôturée
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 40px; color: #94A3B8; font-family: 'Inter', sans-serif;">
+                                        <i class="fas fa-check-circle" style="font-size: 32px; display: block; margin-bottom: 8px; color: #22C55E;"></i>
+                                        Aucune anomalie à signaler
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ============================================================
+    // GRAPHIQUE HEBDOMADAIRE
+    // ============================================================
+    var ctx = document.getElementById('weeklyChart').getContext('2d');
+    
+    // Données (à remplacer par vos données réelles)
+    var chartData = {
+        labels: {{ weekly_labels|default:"['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']"|safe }},
+        datasets: [{
+            label: 'Présents',
+            data: {{ weekly_presents|default:"[12,15,18,14,16,8,5]"|safe }},
+            backgroundColor: 'rgba(37, 99, 235, 0.7)',
+            borderColor: 'rgba(37, 99, 235, 1)',
+            borderWidth: 2,
+            borderRadius: 4,
+            barPercentage: 0.7,
+        }, {
+            label: 'Absents',
+            data: {{ weekly_absents|default:"[3,2,1,4,2,6,8]"|safe }},
+            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+            borderColor: 'rgba(239, 68, 68, 1)',
+            borderWidth: 2,
+            borderRadius: 4,
+            barPercentage: 0.7,
+        }, {
+            label: 'Retards',
+            data: {{ weekly_retards|default:"[1,1,2,1,0,2,3]"|safe }},
+            backgroundColor: 'rgba(245, 158, 11, 0.7)',
+            borderColor: 'rgba(245, 158, 11, 1)',
+            borderWidth: 2,
+            borderRadius: 4,
+            barPercentage: 0.7,
+        }]
+    };
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: {
+                            family: 'Inter',
+                            size: 11,
+                            weight: '600'
+                        },
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        padding: 20,
+                        color: '#64748B'
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#0F172A',
+                    titleFont: { family: 'Inter', size: 12, weight: '700' },
+                    bodyFont: { family: 'Inter', size: 11 },
+                    padding: 10,
+                    cornerRadius: 6,
+                    displayColors: true,
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)',
+                        drawTicks: false,
+                    },
+                    ticks: {
+                        font: {
+                            family: 'Inter',
+                            size: 10
+                        },
+                        color: '#64748B',
+                        padding: 6,
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: {
+                            family: 'Inter',
+                            size: 10
+                        },
+                        color: '#64748B',
+                    }
+                }
+            },
+            animation: {
+                duration: 600
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "admin/change_form.html" %}
+
+{% block submit_buttons_bottom %}
+<div class="submit-row" style="display:flex;flex-direction:column;gap:8px;padding:16px;">
+
+    {% if original.statut == 'en_attente' %}
+
+        <button type="submit" name="_accepter" value="1"
+            style="background:rgba(74,222,128,.15);color:#4ade80;
+            border:1px solid rgba(74,222,128,.35);padding:10px 20px;
+            border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;
+            width:100%;text-align:center;">
+            ✅ Accepter
+        </button>
+
+        <button type="submit" name="_refuser" value="1"
+            style="background:rgba(248,113,113,.15);color:#f87171;
+            border:1px solid rgba(248,113,113,.35);padding:10px 20px;
+            border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;
+            width:100%;text-align:center;">
+            ❌ Refuser
+        </button>
+
+    {% endif %}
+
+    {# Toujours visible #}
+    <a href="../../"
+        style="background:rgba(255,255,255,.06);color:#e8eaf0 !important;
+        border:1px solid rgba(255,255,255,.15);padding:10px 20px;
+        border-radius:6px;font-size:13px;font-weight:600;
+        text-decoration:none;width:100%;text-align:center;
+        display:block;box-sizing:border-box;">
+        ← Retour
+    </a>
+
+</div>
+{% endblock %}
+
+{% block object_tools_items %}{% endblock %}

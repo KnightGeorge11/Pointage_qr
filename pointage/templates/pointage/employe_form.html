@@ -1,0 +1,151 @@
+{% extends 'pointage/base.html' %}
+
+{% block title %}{% if form.instance.pk %}Modifier{% else %}Créer{% endif %} un employé - Pointage QR{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <h1 class="display-5">
+            <i class="fas fa-user"></i> {% if form.instance.pk %}Modifier{% else %}Créer{% endif %} un employé
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.nom.id_for_label }}" class="form-label">Nom</label>
+                            {{ form.nom }}
+                            {% if form.nom.errors %}
+                                <div class="text-danger">{{ form.nom.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.prenom.id_for_label }}" class="form-label">Prénom</label>
+                            {{ form.prenom }}
+                            {% if form.prenom.errors %}
+                                <div class="text-danger">{{ form.prenom.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.matricule.id_for_label }}" class="form-label">Matricule</label>
+                            {{ form.matricule }}
+                            {% if form.matricule.errors %}
+                                <div class="text-danger">{{ form.matricule.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.poste.id_for_label }}" class="form-label">Poste</label>
+                            {{ form.poste }}
+                            {% if form.poste.errors %}
+                                <div class="text-danger">{{ form.poste.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            {{ form.actif }}
+                            <label class="form-check-label" for="{{ form.actif.id_for_label }}">
+                                Employé actif
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- ========== BLOC SÉCURITÉ ADMIN - AJOUTEZ ICI ========== -->
+                    {% if require_admin_code %}
+                    <div class="card mt-4 mb-4 border-warning">
+                        <div class="card-header bg-warning text-white">
+                            <i class="fas fa-shield-alt"></i> Vérification Administrateur Requise
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                Cette action nécessite un code administrateur.
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="admin_code" class="form-label">
+                                    <i class="fas fa-key"></i> Code Administrateur
+                                </label>
+                                <input type="password" 
+                                       class="form-control" 
+                                       id="admin_code" 
+                                       name="admin_code" 
+                                       placeholder="Entrez le code administrateur"
+                                       required>
+                                <div class="form-text">
+                                    Contactez l'administrateur système pour obtenir ce code.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <!-- ========== FIN DU BLOC SÉCURITÉ ========== -->
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'employes' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Retour
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Enregistrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> Informations
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>Lors de la création d'un employé :</p>
+                <ul>
+                    <li>Un QR code unique sera généré automatiquement</li>
+                    <li>Le matricule doit être unique</li>
+                    <li>Un employé inactif ne pourra pas pointer</li>
+                </ul>
+                
+                {% if form.instance.pk and form.instance.qr_code %}
+                    <hr>
+                    <h6>QR Code de l'employé :</h6>
+                    <img src="{{ form.instance.qr_code.url }}" alt="QR Code" class="img-fluid">
+                    <div class="mt-2">
+                        <a href="{{ form.instance.qr_code.url }}" download class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-download"></i> Télécharger
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Ajouter des classes Bootstrap aux champs du formulaire
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputs = document.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            if (!input.classList.contains('form-check-input')) {
+                input.classList.add('form-control');
+            }
+        });
+    });
+</script>
+{% endblock %}

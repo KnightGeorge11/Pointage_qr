@@ -1,0 +1,16 @@
+{% load i18n %}
+<div class="form-group pqr-date-filter" style="min-width:160px;">
+    <label style="font-size:11px;font-weight:600;color:#64748B;display:block;margin-bottom:3px;">{{ title }}</label>
+    {% for choice in choices %}
+    <div style="display:flex;align-items:center;gap:4px;">
+        <input type="date"
+               name="{{ choice.parameter_name }}"
+               value="{{ choice.value }}"
+               class="form-control"
+               style="padding:6px 8px;font-size:13px;height:auto;">
+        {% if choice.value %}
+        <a href="?{{ choice.reset_query_string }}" title="{% trans 'Réinitialiser' %}" style="font-size:14px;color:#94A3B8;text-decoration:none;">✕</a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
