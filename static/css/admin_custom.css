@@ -1,0 +1,278 @@
+/* static/css/admin_custom.css */
+/* Styles harmonisés pour toutes les pages de l'admin */
+
+/* ===== FONTS ===== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body, .card, .btn, .table, .form-control, .nav-link, .dropdown-item {
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* ===== CARDS ===== */
+.card {
+    border-radius: 14px !important;
+    border: 1px solid #E2E8F0 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+    transition: all 200ms ease !important;
+}
+
+.card:hover {
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+}
+
+.card-header {
+    background: transparent !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    padding: 16px 20px !important;
+}
+
+.card-title {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    color: #0F172A !important;
+}
+
+/* ===== BOUTONS ===== */
+.btn {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    border-radius: 6px !important;
+    padding: 8px 20px !important;
+    transition: all 150ms ease !important;
+}
+
+.btn-primary {
+    background: #2563EB !important;
+    border-color: #2563EB !important;
+    color: #fff !important;
+}
+
+.btn-primary:hover {
+    background: #1D4ED8 !important;
+    border-color: #1D4ED8 !important;
+}
+
+.btn-outline-secondary {
+    background: transparent !important;
+    color: #64748B !important;
+    border: 1px solid #E2E8F0 !important;
+}
+
+.btn-outline-secondary:hover {
+    background: #F8FAFC !important;
+}
+
+/* ===== BADGES ===== */
+.badge {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 10px !important;
+    padding: 4px 12px !important;
+    border-radius: 9999px !important;
+}
+
+.badge-success {
+    background: #DCFCE7 !important;
+    color: #15803D !important;
+}
+
+.badge-warning {
+    background: #FEF3C7 !important;
+    color: #B45309 !important;
+}
+
+.badge-danger {
+    background: #FEE2E2 !important;
+    color: #B91C1C !important;
+}
+
+.badge-info {
+    background: #DBEAFE !important;
+    color: #1D4ED8 !important;
+}
+
+.badge-secondary {
+    background: #F8FAFC !important;
+    color: #64748B !important;
+}
+
+/* ===== TABLEAUX ===== */
+.table {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 13px !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+.table thead th {
+    background: #F8FAFC !important;
+    color: #64748B !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    padding: 10px 14px !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+}
+
+.table tbody td {
+    padding: 10px 14px !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    color: #0F172A !important;
+    vertical-align: middle !important;
+}
+
+.table tbody tr:hover {
+    background: #F8FAFC !important;
+}
+
+/* ===== FORMULAIRES ===== */
+.form-control {
+    font-family: 'Inter', sans-serif !important;
+    border-radius: 6px !important;
+    border: 1px solid #E2E8F0 !important;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    transition: all 150ms ease !important;
+}
+
+.form-control:focus {
+    border-color: #2563EB !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
+
+/* ===== JAZZMIN OVERRIDES ===== */
+/* Sidebar */
+.sidebar {
+    background: #0F172A !important;
+}
+
+.sidebar .nav-link {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+    padding: 10px 16px !important;
+    border-radius: 6px !important;
+    margin: 2px 8px !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.sidebar .nav-link:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #fff !important;
+}
+
+.sidebar .nav-link.active {
+    background: rgba(37, 99, 235, 0.25) !important;
+    color: #fff !important;
+}
+
+/* Navbar */
+.navbar {
+    background: #ffffff !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+}
+
+.navbar-brand {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 700 !important;
+    color: #0F172A !important;
+}
+
+/* Fil d'Ariane */
+.breadcrumb {
+    background: transparent !important;
+    padding: 12px 0 !important;
+    margin: 0 !important;
+}
+
+.breadcrumb-item {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 13px !important;
+    color: #64748B !important;
+}
+
+.breadcrumb-item.active {
+    color: #0F172A !important;
+    font-weight: 600 !important;
+}
+
+/* Pagination */
+.pagination .page-link {
+    font-family: 'Inter', sans-serif !important;
+    border-radius: 6px !important;
+    border: 1px solid #E2E8F0 !important;
+    color: #64748B !important;
+    padding: 6px 12px !important;
+    margin: 0 2px !important;
+}
+
+.pagination .page-item.active .page-link {
+    background: #2563EB !important;
+    border-color: #2563EB !important;
+    color: #fff !important;
+}
+
+/* ===== SMALL BOX CARDS (Dashboard) ===== */
+.small-box {
+    border-radius: 14px !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+    transition: all 200ms ease !important;
+    overflow: hidden !important;
+}
+
+.small-box:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1) !important;
+}
+
+.small-box .inner {
+    padding: 16px 20px !important;
+}
+
+.small-box .inner h3 {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 32px !important;
+    color: #fff !important;
+    margin: 0 0 4px 0 !important;
+    line-height: 1.1 !important;
+}
+
+.small-box .inner p {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    margin: 0 !important;
+}
+
+.small-box .icon {
+    font-size: 48px !important;
+    opacity: 0.15 !important;
+    color: #fff !important;
+    position: absolute !important;
+    right: 15px !important;
+    top: 15px !important;
+}
+
+.small-box-footer {
+    background: rgba(0, 0, 0, 0.1) !important;
+    padding: 8px 20px !important;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    display: block !important;
+    text-decoration: none !important;
+    transition: all 150ms ease !important;
+}
+
+.small-box-footer:hover {
+    background: rgba(0, 0, 0, 0.2) !important;
+    color: #fff !important;
+    text-decoration: none !important;
+}

@@ -1,0 +1,138 @@
+{% load i18n jazzmin %}
+{% get_jazzmin_settings as jazzmin_settings %}
+
+<aside class="main-sidebar sidebar-{{ jazzmin_settings.sidebar }} elevation-4 {{ jazzmin_settings.sidebar }}">
+    <a href="{% url 'admin:index' %}" class="brand-link {{ jazzmin_settings.brand_colour }}">
+        {% if jazzmin_settings.site_logo %}
+            <img src="{% static jazzmin_settings.site_logo %}" alt="{{ jazzmin_settings.site_header }}" class="brand-image img-circle elevation-3" style="opacity: .8">
+        {% else %}
+            <span class="brand-image bg-primary rounded-circle p-2" style="width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; color: white;">
+                {{ jazzmin_settings.site_brand|first|upper }}
+            </span>
+        {% endif %}
+        <span class="brand-text font-weight-light">{{ jazzmin_settings.site_brand }}</span>
+    </a>
+
+    <div class="sidebar">
+        <nav class="mt-2">
+            <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                
+                <!-- ============================================================ -->
+                <!-- TABLEAU DE BORD -->
+                <!-- ============================================================ -->
+                <li class="nav-item">
+                    <a href="{% url 'admin:index' %}" class="nav-link">
+                        <i class="nav-icon fas fa-chart-line"></i>
+                        <p>Tableau de bord</p>
+                    </a>
+                </li>
+
+                <!-- ============================================================ -->
+                <!-- DEMANDES DE MODIFICATION AVEC BADGE -->
+                <!-- ============================================================ -->
+                <li class="nav-item">
+                    <a href="{% url 'admin:pointage_demandemodification_changelist' %}" class="nav-link">
+                        <i class="nav-icon fas fa-inbox"></i>
+                        <p>
+                            Demandes de modification
+                            {% if demandes_attente > 0 %}
+                                <span class="badge badge-danger right" style="background: #EF4444; border-radius: 9999px; padding: 2px 8px; font-size: 10px;">
+                                    {{ demandes_attente }}
+                                </span>
+                            {% endif %}
+                        </p>
+                    </a>
+                </li>
+
+                <!-- ============================================================ -->
+                <!-- ANOMALIES AVEC BADGE -->
+                <!-- ============================================================ -->
+                <li class="nav-item">
+                    <a href="{% url 'admin:pointage_anomaliepointage_changelist' %}" class="nav-link">
+                        <i class="nav-icon fas fa-triangle-exclamation"></i>
+                        <p>
+                            Anomalies
+                            {% if anomalies_ouvertes > 0 %}
+                                <span class="badge badge-danger right" style="background: #EF4444; border-radius: 9999px; padding: 2px 8px; font-size: 10px;">
+                                    {{ anomalies_ouvertes }}
+                                </span>
+                            {% endif %}
+                        </p>
+                    </a>
+                </li>
+
+                <!-- ============================================================ -->
+                <!-- EMPLOYÉS -->
+                <!-- ============================================================ -->
+                <li class="nav-item">
+                    <a href="{% url 'admin:pointage_employe_changelist' %}" class="nav-link">
+                        <i class="nav-icon fas fa-users"></i>
+                        <p>Employés</p>
+                    </a>
+                </li>
+
+                <!-- ============================================================ -->
+                <!-- POINTAGES -->
+                <!-- ============================================================ -->
+                <li class="nav-item">
+                    <a href="{% url 'admin:pointage_pointage_changelist' %}" class="nav-link">
+                        <i class="nav-icon fas fa-clock"></i>
+                        <p>Pointages</p>
+                    </a>
+                </li>
+
+                <!-- ============================================================ -->
+                <!-- SITES -->
+                <!-- ============================================================ -->
+                <li class="nav-item">
+                    <a href="{% url 'admin:pointage_site_changelist' %}" class="nav-link">
+                        <i class="nav-icon fas fa-building"></i>
+                        <p>Sites</p>
+                    </a>
+                </li>
+
+                <!-- ============================================================ -->
+                <!-- POSTES -->
+                <!-- ============================================================ -->
+                <li class="nav-item">
+                    <a href="{% url 'admin:pointage_poste_changelist' %}" class="nav-link">
+                        <i class="nav-icon fas fa-briefcase"></i>
+                        <p>Postes</p>
+                    </a>
+                </li>
+
+                <!-- ============================================================ -->
+                <!-- SCANS -->
+                <!-- ============================================================ -->
+                <li class="nav-item">
+                    <a href="{% url 'admin:pointage_scan_changelist' %}" class="nav-link">
+                        <i class="nav-icon fas fa-qrcode"></i>
+                        <p>Scans</p>
+                    </a>
+                </li>
+
+                <!-- ============================================================ -->
+                <!-- UTILISATEURS -->
+                <!-- ============================================================ -->
+                <li class="nav-item">
+                    <a href="{% url 'admin:auth_user_changelist' %}" class="nav-link">
+                        <i class="nav-icon fas fa-user-cog"></i>
+                        <p>Utilisateurs</p>
+                    </a>
+                </li>
+
+            </ul>
+        </nav>
+    </div>
+</aside>
+
+<style>
+/* Animation pour les badges */
+@keyframes pulse-badge {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(0.95); }
+}
+.badge-danger {
+    animation: pulse-badge 2s ease-in-out infinite;
+}
+</style>
