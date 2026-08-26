@@ -449,6 +449,100 @@
         border: 1px solid var(--bg-white);
     }
 
+    .notif-wrap {
+        position: relative;
+    }
+
+    .notif-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        width: 340px;
+        max-height: 420px;
+        background: var(--bg-white);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        box-shadow: 0 8px 24px rgba(0,0,0,.12);
+        z-index: 1000;
+        overflow: hidden;
+    }
+
+    .notif-dropdown.is-open {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .notif-dropdown-header {
+        padding: 10px 14px;
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--text-primary);
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .notif-dropdown-body {
+        overflow-y: auto;
+        max-height: 370px;
+    }
+
+    .notif-empty {
+        padding: 20px 14px;
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 13px;
+    }
+
+    .notif-item {
+        display: flex;
+        gap: 10px;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border-light);
+        text-decoration: none;
+        color: var(--text-primary);
+        font-size: 13px;
+    }
+
+    .notif-item:last-child {
+        border-bottom: none;
+    }
+
+    .notif-item:hover {
+        background: var(--bg-hover);
+    }
+
+    .notif-item-icon {
+        flex-shrink: 0;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+    }
+
+    .notif-item-icon.gravite-critique,
+    .notif-item-icon.gravite-danger { background: rgba(239,68,68,.12); color: #EF4444; }
+    .notif-item-icon.gravite-warning { background: rgba(245,158,11,.12); color: #F59E0B; }
+    .notif-item-icon.gravite-success { background: rgba(34,197,94,.12); color: #22C55E; }
+    .notif-item-icon.gravite-info { background: rgba(59,130,246,.12); color: #3B82F6; }
+
+    .notif-item-text {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .notif-item-message {
+        line-height: 1.4;
+    }
+
+    .notif-item-date {
+        color: var(--text-muted);
+        font-size: 11px;
+        margin-top: 2px;
+    }
+
     .topbar-clock {
         font-family: 'Inter', monospace;
         font-size: 12px;
@@ -1018,13 +1112,6 @@
                 <span>Historique</span>
             </a>
         </li>
-        <li>
-            <a href="{% url 'alertes_rh' %}" class="sb-link {% if request.resolver_match.url_name == 'alertes_rh' %}is-active{% endif %}">
-                <i class="fas fa-triangle-exclamation"></i>
-                <span>Anomalies</span>
-                <span class="sb-badge">3</span>
-            </a>
-        </li>
 
         <li><div class="sb-section-label">Gestion</div></li>
         <li>
@@ -1083,11 +1170,19 @@
         <div class="topbar-page-title">{% block page_title %}Tableau de bord{% endblock %}</div>
 
         <div class="topbar-actions">
-            <!-- Notification (exemple) -->
-            <button class="topbar-btn" aria-label="Notifications">
-                <i class="fas fa-bell"></i>
-                <span class="dot"></span>
-            </button>
+            <!-- Notifications -->
+            <div class="notif-wrap" id="notifWrap">
+                <button class="topbar-btn" id="notifBtn" aria-label="Notifications" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-bell"></i>
+                    <span class="dot" id="notifDot" style="display:none;"></span>
+                </button>
+                <div class="notif-dropdown" id="notifDropdown">
+                    <div class="notif-dropdown-header">Notifications</div>
+                    <div class="notif-dropdown-body" id="notifBody">
+                        <div class="notif-empty">Chargement…</div>
+                    </div>
+                </div>
+            </div>
 
             <div class="topbar-date" id="topDate"></div>
             <div class="topbar-clock" id="topClock"></div>
@@ -1200,6 +1295,74 @@
             }
         }, 5000);
     });
+
+    // ── Notifications (cloche topbar) ──
+    var notifBtn      = document.getElementById('notifBtn');
+    var notifDropdown = document.getElementById('notifDropdown');
+    var notifBody     = document.getElementById('notifBody');
+    var notifDot      = document.getElementById('notifDot');
+
+    function formatNotifDate(iso) {
+        if (!iso) return '';
+        var d = new Date(iso);
+        return d.toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'}) + ' à ' +
+               d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+    }
+
+    function renderNotifications(data) {
+        var items = data.notifications || [];
+        if (notifDot) {
+            notifDot.style.display = items.length > 0 ? 'block' : 'none';
+        }
+        if (!notifBody) return;
+        if (items.length === 0) {
+            notifBody.innerHTML = '<div class="notif-empty">Aucune notification</div>';
+            return;
+        }
+        notifBody.innerHTML = items.map(function(n) {
+            var icon = n.type === 'demande_traitee'
+                ? (n.gravite === 'success' ? 'fa-circle-check' : 'fa-circle-xmark')
+                : (n.type === 'demande_en_attente' ? 'fa-pen-to-square' : 'fa-triangle-exclamation');
+            var tag = n.url ? 'a' : 'div';
+            var hrefAttr = n.url ? ' href="' + n.url + '"' : '';
+            return '<' + tag + ' class="notif-item"' + hrefAttr + '>' +
+                '<span class="notif-item-icon gravite-' + n.gravite + '"><i class="fas ' + icon + '"></i></span>' +
+                '<span class="notif-item-text">' +
+                    '<div class="notif-item-message">' + n.message + '</div>' +
+                    '<div class="notif-item-date">' + formatNotifDate(n.date) + '</div>' +
+                '</span>' +
+            '</' + tag + '>';
+        }).join('');
+    }
+
+    function loadNotifications() {
+        if (!notifBody) return;
+        fetch('{% url "notifications_api" %}', {credentials: 'same-origin'})
+            .then(function(r) { return r.json(); })
+            .then(renderNotifications)
+            .catch(function() {
+                notifBody.innerHTML = '<div class="notif-empty">Impossible de charger les notifications</div>';
+            });
+    }
+
+    if (notifBtn && notifDropdown) {
+        loadNotifications();
+        setInterval(loadNotifications, 60000);
+
+        notifBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var isOpen = notifDropdown.classList.toggle('is-open');
+            notifBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            if (isOpen) loadNotifications();
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!notifDropdown.contains(e.target) && e.target !== notifBtn) {
+                notifDropdown.classList.remove('is-open');
+                notifBtn.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
 
 })();
 </script>

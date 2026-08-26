@@ -75,4 +75,5 @@ urlpatterns = [
     path('api/charts-data/',                          get_charts_data,             name='charts_data'),
     
     path('api/admin-badge-counts/', views.admin_badge_counts_api, name='admin_badge_counts_api'),
+    path('api/notifications/', views.notifications_api, name='notifications_api'),
 ]

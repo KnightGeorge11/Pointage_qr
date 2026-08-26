@@ -978,27 +978,128 @@ class DemandeModificationAdmin(admin.ModelAdmin):
             obj.date_traitement = original.date_traitement
         super().save_model(request, obj, form, change)
 
+    _CIBLE_MODELE = {'employe': Employe, 'site': Site, 'poste': Poste}
+
+    def _label_champ(self, modele, champ):
+        """Libellé humain d'un champ, tiré du modèle réel (verbose_name) —
+        se met à jour tout seul si le modèle change, jamais codé en dur."""
+        try:
+            return modele._meta.get_field(champ).verbose_name.capitalize()
+        except Exception:
+            return champ.replace('_', ' ').capitalize()
+
+    def _valeur_affichable(self, champ, valeur):
+        """Résout les valeurs de clé étrangère (ex: poste=3) vers un
+        libellé lisible (ex: 'Infirmier') plutôt qu'un ID brut."""
+        if valeur is None or valeur == '':
+            return mark_safe('<span style="color:rgba(255,255,255,.35);font-style:italic;">vide</span>')
+        if champ == 'poste':
+            poste = Poste.objects.filter(pk=valeur).first()
+            return poste.nom if poste else f"#{valeur} (introuvable)"
+        return str(valeur)
+
     def donnees_formatees(self, obj):
-        if not obj.donnees:
+        if not obj.donnees and obj.type_action != 'delete':
             return '—'
+
+        modele = self._CIBLE_MODELE.get(obj.cible)
+        cible_actuelle = None
+        if modele and obj.cible_id and obj.type_action in ('update', 'delete'):
+            cible_actuelle = modele.objects.filter(pk=obj.cible_id).first()
+
+        entete_cible = ''
+        if obj.type_action != 'create':
+            if cible_actuelle is not None:
+                entete_cible = format_html(
+                    '<div style="padding:8px 14px;background:rgba(79,142,247,.08);'
+                    'border-radius:6px;margin-bottom:10px;font-size:12px;color:#e8eaf0;">'
+                    'Concerne : <strong>{}</strong></div>',
+                    str(cible_actuelle)
+                )
+            else:
+                entete_cible = mark_safe(
+                    '<div style="padding:8px 14px;background:rgba(248,113,113,.1);'
+                    'border-radius:6px;margin-bottom:10px;font-size:12px;color:#f87171;">'
+                    "⚠️ L'élément visé n'existe plus (déjà supprimé ou modifié depuis)</div>"
+                )
+
+        if obj.type_action == 'delete':
+            if not cible_actuelle:
+                return mark_safe(entete_cible or '—')
+            lignes = []
+            for champ in modele._meta.fields:
+                if champ.name in ('id',):
+                    continue
+                lignes.append(format_html(
+                    '<tr><td style="padding:8px 14px;color:rgba(255,255,255,.45);font-size:11px;'
+                    'text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;'
+                    'border-bottom:1px solid rgba(255,255,255,.06)">{}</td>'
+                    '<td style="padding:8px 14px;font-weight:500;color:#e8eaf0;'
+                    'border-bottom:1px solid rgba(255,255,255,.06)">{}</td></tr>',
+                    self._label_champ(modele, champ.name),
+                    str(getattr(cible_actuelle, champ.name))
+                ))
+            return format_html(
+                '{}<table style="border-collapse:collapse;width:100%;background:#1c2236;'
+                'border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">'
+                '<tr><td colspan="2" style="padding:8px 14px;font-size:11px;color:#f87171;'
+                'text-transform:uppercase;letter-spacing:.08em;">🗑️ Élément qui sera supprimé</td></tr>{}</table>',
+                mark_safe(entete_cible), mark_safe(''.join(lignes))
+            )
+
         lignes = []
-        for cle, valeur in obj.donnees.items():
-            lignes.append(format_html(
-                '<tr>'
-                '<td style="padding:8px 14px;color:rgba(255,255,255,.45);font-size:11px;'
-                'text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;'
-                'border-bottom:1px solid rgba(255,255,255,.06)">{}</td>'
-                '<td style="padding:8px 14px;font-weight:500;color:#e8eaf0;'
-                'border-bottom:1px solid rgba(255,255,255,.06)">{}</td>'
-                '</tr>',
-                cle, valeur
-            ))
-        return format_html(
-            '<table style="border-collapse:collapse;width:100%;background:#1c2236;'
-            'border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">{}</table>',
-            mark_safe(''.join(lignes))
+        for champ, nouvelle_valeur in obj.donnees.items():
+            label = self._label_champ(modele, champ) if modele else champ.replace('_', ' ').capitalize()
+            nouvelle_affichee = self._valeur_affichable(champ, nouvelle_valeur)
+
+            if obj.type_action == 'update' and cible_actuelle is not None:
+                ancienne_brute = getattr(cible_actuelle, f"{champ}_id", None)
+                if ancienne_brute is None and not hasattr(cible_actuelle, f"{champ}_id"):
+                    ancienne_brute = getattr(cible_actuelle, champ, None)
+                ancienne_affichee = self._valeur_affichable(champ, ancienne_brute)
+                a_change = str(ancienne_brute) != str(nouvelle_valeur)
+
+                lignes.append(format_html(
+                    '<tr style="{}">'
+                    '<td style="padding:8px 14px;color:rgba(255,255,255,.45);font-size:11px;'
+                    'text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;'
+                    'border-bottom:1px solid rgba(255,255,255,.06)">{}</td>'
+                    '<td style="padding:8px 14px;color:{};border-bottom:1px solid rgba(255,255,255,.06)">{}</td>'
+                    '<td style="padding:8px 14px;text-align:center;color:rgba(255,255,255,.3);'
+                    'border-bottom:1px solid rgba(255,255,255,.06)">→</td>'
+                    '<td style="padding:8px 14px;font-weight:600;color:{};'
+                    'border-bottom:1px solid rgba(255,255,255,.06)">{}</td></tr>',
+                    'background:rgba(74,222,128,.05);' if a_change else '',
+                    label,
+                    'rgba(255,255,255,.35);text-decoration:line-through;' if a_change else '#e8eaf0;',
+                    ancienne_affichee,
+                    '#4ade80;' if a_change else '#e8eaf0;',
+                    nouvelle_affichee,
+                ))
+            else:
+                # Création (pas de "avant" — l'élément n'existe pas encore)
+                lignes.append(format_html(
+                    '<tr>'
+                    '<td style="padding:8px 14px;color:rgba(255,255,255,.45);font-size:11px;'
+                    'text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;'
+                    'border-bottom:1px solid rgba(255,255,255,.06)">{}</td>'
+                    '<td colspan="3" style="padding:8px 14px;font-weight:500;color:#e8eaf0;'
+                    'border-bottom:1px solid rgba(255,255,255,.06)">{}</td></tr>',
+                    label, nouvelle_affichee
+                ))
+
+        entete_colonnes = '' if obj.type_action == 'create' else (
+            '<tr><td></td><td style="padding:4px 14px;font-size:10px;color:rgba(255,255,255,.35);'
+            'text-transform:uppercase;">Avant</td><td></td>'
+            '<td style="padding:4px 14px;font-size:10px;color:rgba(255,255,255,.35);'
+            'text-transform:uppercase;">Après</td></tr>'
         )
-    donnees_formatees.short_description = "Données de la demande"
+        return format_html(
+            '{}<table style="border-collapse:collapse;width:100%;background:#1c2236;'
+            'border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">{}{}</table>',
+            mark_safe(entete_cible), mark_safe(entete_colonnes), mark_safe(''.join(lignes))
+        )
+    donnees_formatees.short_description = "Détails de la demande"
 
     @admin.action(description="✅ Approuver les demandes sélectionnées")
     def approuver_demandes(self, request, queryset):

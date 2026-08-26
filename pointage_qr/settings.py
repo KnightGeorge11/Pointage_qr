@@ -352,7 +352,7 @@ JAZZMIN_SETTINGS = {
         {
             "name": "🔐 Utilisateurs",
             "icon": "fas fa-user-cog",
-            "url": "admin:auth_user_changelist",
+            "url": "admin:pointage_customuser_changelist",
         },
     ],
 }

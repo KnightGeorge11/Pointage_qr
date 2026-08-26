@@ -7,7 +7,7 @@ from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.views.generic import ListView, DetailView, DeleteView
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.utils import timezone
 from datetime import datetime, timedelta, time
 from django.db.models import Q, Count
@@ -729,7 +729,6 @@ class PointageDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 # ============================================================
 
 @login_required
-@staff_member_required
 def alertes_rh_view(request):
     if request.method == 'POST':
         if not request.user.is_staff:
@@ -1612,3 +1611,61 @@ def admin_badge_counts_api(request):
             statut=AnomaliePointage.STATUT_OUVERTE
         ).count(),
     })
+
+
+@login_required
+def notifications_api(request):
+    """
+    Notifications pour la petite cloche du dashboard (côté utilisateur ET
+    côté admin) :
+      - pour tout le monde : les anomalies OUVERTES les plus récentes
+        (jamais toutes les anomalies — uniquement celles non traitées) ;
+      - pour un admin : les demandes de modification EN ATTENTE de
+        décision (actionnable) ;
+      - pour un utilisateur normal : ses PROPRES demandes récemment
+        acceptées/refusées par un admin.
+    """
+    notifications = []
+
+    anomalies_recentes = AnomaliePointage.objects.filter(
+        statut=AnomaliePointage.STATUT_OUVERTE
+    ).select_related('employe').order_by('-created_at')[:5]
+    for a in anomalies_recentes:
+        qui = a.employe.get_nom_complet() if a.employe else (a.matricule_scanne or '?')
+        notifications.append({
+            'type':    'anomalie',
+            'gravite': a.gravite,
+            'message': f"Anomalie ({a.get_type_display()}) — {qui}",
+            'url':     reverse('alertes_rh'),
+            'date':    a.created_at.isoformat(),
+        })
+
+    if request.user.role == 'admin':
+        demandes_en_attente = DemandeModification.objects.filter(
+            statut='en_attente'
+        ).select_related('demandeur').order_by('-date_creation')[:5]
+        for d in demandes_en_attente:
+            notifications.append({
+                'type':    'demande_en_attente',
+                'gravite': 'warning',
+                'message': f"Demande de {d.demandeur} : {d.get_type_action_display()} {d.get_cible_display()}",
+                'url':     reverse('admin:pointage_demandemodification_changelist'),
+                'date':    d.date_creation.isoformat(),
+            })
+    else:
+        mes_demandes_traitees = DemandeModification.objects.filter(
+            demandeur=request.user
+        ).exclude(statut='en_attente').exclude(date_traitement__isnull=True).order_by('-date_traitement')[:5]
+        for d in mes_demandes_traitees:
+            notifications.append({
+                'type':    'demande_traitee',
+                'gravite': 'success' if d.statut == 'approuvee' else 'danger',
+                'message': f"Votre demande ({d.get_type_action_display()} {d.get_cible_display()}) a été {d.get_statut_display().lower()}",
+                'url':     None,
+                'date':    d.date_traitement.isoformat(),
+            })
+
+    notifications.sort(key=lambda n: n['date'], reverse=True)
+    notifications = notifications[:10]
+
+    return JsonResponse({'notifications': notifications, 'count': len(notifications)})

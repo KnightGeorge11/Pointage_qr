@@ -55,12 +55,15 @@ class AnomaliePermissionsTest(TestCase):
 
     # ─── Tests d'accès à la vue web ─────────────────────────────────────
 
-    def test_normal_user_cannot_access_alertes_rh_view(self):
-        """Un utilisateur normal ne peut pas accéder à la vue des anomalies."""
+    def test_normal_user_can_access_alertes_rh_view(self):
+        """
+        Un utilisateur normal peut consulter la liste des anomalies (vue en
+        lecture) — seul le TRAITEMENT (POST) reste réservé aux admins,
+        vérifié séparément par test_normal_user_cannot_traiter_via_post.
+        """
         self.client.login(username='user', password='user123')
         response = self.client.get(reverse('alertes_rh'))
-        # 302 = redirection (vers login) car staff_member_required redirige
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
 
     def test_admin_user_can_access_alertes_rh_view(self):
         """Un admin peut accéder à la vue des anomalies."""

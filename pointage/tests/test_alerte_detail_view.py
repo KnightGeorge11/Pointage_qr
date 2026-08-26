@@ -80,11 +80,17 @@ class TestPermissionsPageDetail(AlerteDetailTestCase):
         assert response.status_code == 200
         assert "Anomalie #" in response.content.decode()
 
-    def test_alertes_rh_view_liste_egalement_bloquee_pour_utilisateur(self):
+    def test_alertes_rh_view_liste_accessible_a_un_utilisateur_normal(self):
+        """
+        La liste des anomalies (alertes_rh) est en lecture accessible à
+        tout utilisateur connecté — contrairement à la page de détail
+        d'une anomalie (alerte_detail, testée ci-dessus), qui reste
+        réservée aux admins car elle permet de la traiter.
+        """
         client = Client()
         client.force_login(self.utilisateur)
         response = client.get(reverse('alertes_rh'))
-        assert response.status_code == 302
+        assert response.status_code == 200
 
 
 class TestActionCorriger(AlerteDetailTestCase):
