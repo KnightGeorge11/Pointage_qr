@@ -436,16 +436,19 @@ class PointageAdmin(admin.ModelAdmin):
         # comme un lookup de champ à appliquer au queryset -> il faut donc
         # le retirer AVANT de construire le ChangeList, sous peine de
         # IncorrectLookupParameters ("Cannot resolve keyword 'cards_page'").
+        export_excel_requested = 'export_excel' in request.GET
+
         cards_page_value = request.GET.get('cards_page')
-        if 'cards_page' in request.GET:
+        if 'cards_page' in request.GET or export_excel_requested:
             cleaned_get = request.GET.copy()
-            cleaned_get.pop('cards_page')
+            cleaned_get.pop('cards_page', None)
+            cleaned_get.pop('export_excel', None)
             request.GET = cleaned_get
 
         cl = self.get_changelist_instance(request)
         queryset = cl.get_queryset(request)
-        
-        if 'export_excel' in request.GET:
+
+        if export_excel_requested:
             return self.export_excel(request, queryset)
         
         total = queryset.count()
