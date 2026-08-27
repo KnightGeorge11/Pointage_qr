@@ -1,4 +1,4 @@
-export const DEFAULT_API_URL = 'http://pointageqr.local:8000';
+export const DEFAULT_API_URL = 'http://192.168.3.101:8000';
 export const STORAGE_KEYS = {
   API_URL: 'api_url',
   API_TOKEN: 'api_token',

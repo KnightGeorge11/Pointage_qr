@@ -15,7 +15,8 @@
       }
     },
     "android": {
-      "package": "com.knight1811.scanmobileapp"
+      "package": "com.knight1811.scanmobileapp",
+      "usesCleartextTraffic": true
     }
   }
 }
