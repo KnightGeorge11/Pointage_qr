@@ -25,7 +25,14 @@ const AppNavigator = () => {
   // l'utilisateur est déjà connecté.
   if (!authChecked) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface }}>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.surface,
+        }}
+      >
         <ActivityIndicator size="large" color={colors.blue} />
       </View>
     )
