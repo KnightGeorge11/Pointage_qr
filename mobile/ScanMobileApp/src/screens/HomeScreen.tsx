@@ -26,17 +26,24 @@ const HomeScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-
       {/* Status API */}
       <View style={[styles.card, styles.statusCard]}>
-        <View style={[styles.statusDot, { backgroundColor: apiStatus.connected ? colors.green : colors.red }]} />
+        <View
+          style={[
+            styles.statusDot,
+            { backgroundColor: apiStatus.connected ? colors.green : colors.red },
+          ]}
+        />
         <Text style={styles.statusText}>
-          {apiStatus.connected ? 'Connecté à l\'API' : 'Déconnecté'}
+          {apiStatus.connected ? "Connecté à l'API" : 'Déconnecté'}
         </Text>
       </View>
 
       {/* Site sélectionné */}
-      <TouchableOpacity style={[styles.card, styles.siteCard]} onPress={handleSitePress}>
+      <TouchableOpacity
+        style={[styles.card, styles.siteCard]}
+        onPress={handleSitePress}
+      >
         <Ionicons name="location-outline" size={22} color={colors.inkMuted} />
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.siteLabel}>Site actuel</Text>
@@ -51,23 +58,34 @@ const HomeScreen = ({ navigation }: any) => {
       <View style={[styles.card, styles.clockCard]}>
         <Text style={styles.clockText}>{currentTime.toLocaleTimeString()}</Text>
         <Text style={styles.clockDate}>
-          {currentTime.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+          {currentTime.toLocaleDateString('fr-FR', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+          })}
         </Text>
       </View>
 
       {/* Actions */}
       <View style={styles.actionsContainer}>
-        <TouchableOpacity style={[styles.actionButton, styles.scanButton]} onPress={handleScanPress}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.scanButton]}
+          onPress={handleScanPress}
+        >
           <Ionicons name="qr-code-outline" size={30} color={colors.white} />
           <Text style={styles.actionText}>Scanner</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.actionButton, styles.historyButton]} onPress={handleHistoryPress}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.historyButton]}
+          onPress={handleHistoryPress}
+        >
           <Ionicons name="reader-outline" size={30} color={colors.ink} />
-          <Text style={[styles.actionText, { color: colors.ink }]}>Historique</Text>
+          <Text style={[styles.actionText, { color: colors.ink }]}>
+            Historique
+          </Text>
         </TouchableOpacity>
       </View>
-
     </View>
   )
 }
@@ -112,8 +130,19 @@ const styles = StyleSheet.create({
 
   // Site
   siteCard: { justifyContent: 'space-between' },
-  siteLabel: { fontSize: 11, color: colors.inkMuted, fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.5 },
-  siteText: { fontSize: 16, fontWeight: '600', color: colors.ink, marginTop: 2 },
+  siteLabel: {
+    fontSize: 11,
+    color: colors.inkMuted,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  siteText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.ink,
+    marginTop: 2,
+  },
 
   // Horloge
   clockCard: {
