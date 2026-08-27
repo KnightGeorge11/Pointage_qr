@@ -118,13 +118,15 @@ const ConfigScreen = () => {
         </Text>
       )}
 
-      <TouchableOpacity
-        style={[styles.button, styles.logoutButton]}
-        onPress={handleLogout}
-        disabled={isLoggingOut}
-      >
-        {isLoggingOut ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Se déconnecter</Text>}
-      </TouchableOpacity>
+      {currentUser && (
+        <TouchableOpacity
+          style={[styles.button, styles.logoutButton]}
+          onPress={handleLogout}
+          disabled={isLoggingOut}
+        >
+          {isLoggingOut ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Se déconnecter</Text>}
+        </TouchableOpacity>
+      )}
     </View>
   )
 }

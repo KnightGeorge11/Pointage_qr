@@ -75,13 +75,19 @@ const AppNavigator = () => {
               component={HistoryScreen}
               options={{ title: 'Historique' }}
             />
-            <Stack.Screen
-              name="Config"
-              component={ConfigScreen}
-              options={{ title: 'Configuration' }}
-            />
           </>
         )}
+        {/* 'Config' est enregistré en dehors du bloc isAuthenticated : il
+            doit rester joignable AVANT connexion. Si le serveur configuré
+            est injoignable, l'utilisateur ne peut jamais se connecter — sans
+            cet accès, il n'aurait alors aucun moyen de corriger l'URL une
+            fois l'app installée (voir bouton "Paramètres serveur" sur
+            LoginScreen). */}
+        <Stack.Screen
+          name="Config"
+          component={ConfigScreen}
+          options={{ title: 'Configuration' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   )

@@ -7,6 +7,14 @@
           "cameraPermission": "Autoriser $(PRODUCT_NAME) à accéder à la caméra pour scanner les QR codes de pointage",
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
     ],
     "extra": {
@@ -15,8 +23,7 @@
       }
     },
     "android": {
-      "package": "com.knight1811.scanmobileapp",
-      "usesCleartextTraffic": true
+      "package": "com.knight1811.scanmobileapp"
     }
   }
 }

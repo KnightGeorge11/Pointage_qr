@@ -6,7 +6,7 @@ import {
 import { useAppContext } from '../context/AppContext'
 import { colors, radius } from '../theme/colors'
 
-const LoginScreen = () => {
+const LoginScreen = ({ navigation }: any) => {
   const { login } = useAppContext()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -94,6 +94,13 @@ const LoginScreen = () => {
           Utilisez votre compte utilisateur habituel — ce compte identifie
           uniquement l'opérateur de l'application, pas les employés scannés.
         </Text>
+
+        <TouchableOpacity
+          style={styles.settingsLink}
+          onPress={() => navigation.navigate('Config')}
+        >
+          <Text style={styles.settingsLinkText}>⚙ Paramètres serveur</Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   )
@@ -174,6 +181,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     lineHeight: 16,
+  },
+  settingsLink: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  settingsLinkText: {
+    fontSize: 13,
+    color: colors.inkMuted,
+    fontWeight: '600',
   },
 })
 
