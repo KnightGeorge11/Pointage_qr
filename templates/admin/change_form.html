@@ -1,0 +1,20 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{# Bouton "Retour à la liste" ajouté sur TOUS les formulaires (ajout ET
+   modification), pour tous les modèles de l'admin — en un seul endroit
+   plutôt que dupliqué dans chaque ModelAdmin (voir le pattern précédent,
+   bricolé à la main, dans DemandeModificationAdmin.boutons_fiche).
+
+   {{ block.super }} conserve tout le rendu natif Jazzmin (boutons
+   Enregistrer, actions, etc.) — ce fichier n'ajoute rien d'autre. #}
+{% block submit_buttons_bottom %}
+    {{ block.super }}
+    <div class="mt-2">
+        <a href="{% url opts|admin_urlname:'changelist' %}"
+           class="btn btn-outline-secondary"
+           style="width:100%;text-align:center;">
+            <i class="fas fa-arrow-left"></i> {% trans 'Retour à la liste' %}
+        </a>
+    </div>
+{% endblock %}

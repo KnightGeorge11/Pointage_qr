@@ -1,7 +1,8 @@
 // src/navigation/AppNavigator.tsx
 
 import React from 'react'
-import { View, ActivityIndicator } from 'react-native'
+import { View, ActivityIndicator, TouchableOpacity } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { NavigationContainer } from '@react-navigation/native'
 
@@ -53,7 +54,22 @@ const AppNavigator = () => {
             <Stack.Screen
               name="Home"
               component={HomeScreen}
-              options={{ title: 'Accueil' }}
+              options={({ navigation }) => ({
+                title: 'Accueil',
+                // Accès aux paramètres (changer l'IP du serveur, se
+                // déconnecter) UNE FOIS CONNECTÉ — jusqu'ici, ConfigScreen
+                // n'était joignable que depuis Login (avant connexion) :
+                // impossible de changer d'IP sans d'abord se déconnecter.
+                headerRight: () => (
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('Config')}
+                    style={{ padding: 6 }}
+                    accessibilityLabel="Paramètres"
+                  >
+                    <Ionicons name="settings-outline" size={24} color={colors.ink} />
+                  </TouchableOpacity>
+                ),
+              })}
             />
             <Stack.Screen
               name="Scan"

@@ -2,6 +2,7 @@
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
+from django.contrib.auth.models import Group
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 from django.urls import path, reverse
@@ -1278,7 +1279,7 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
     readonly_fields = (
         'type', 'employe', 'matricule_scanne', 'site',
         'message', 'contexte_formate', 'gravite_badge', 'statut_badge',
-        'cloturee_par', 'date_cloture', 'created_at',
+        'cloturee_par', 'date_cloture', 'created_at', 'lien_traitement',
     )
 
     fieldsets = (
@@ -1287,6 +1288,7 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
         }),
         ("Détails", {'fields': ('message', 'contexte_formate')}),
         ("Statut", {'fields': ('statut_badge', 'cloturee_par', 'date_cloture')}),
+        ("Traitement", {'fields': ('lien_traitement',)}),
     )
 
     def has_add_permission(self, request):
@@ -1343,6 +1345,23 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
             json.dumps(obj.contexte, indent=2, ensure_ascii=False, default=str)
         )
     contexte_formate.short_description = "Contexte"
+
+    def lien_traitement(self, obj):
+        # C'est le SEUL point d'accès de l'interface vers
+        # corriger_pointage_view (bug corrigé : la vue et son template
+        # existaient déjà, mais n'étaient reliés à aucun bouton nulle
+        # part — impossible d'y accéder sans taper l'URL à la main).
+        if not obj or not obj.pk:
+            return '—'
+        if obj.statut == AnomaliePointage.STATUT_CLOTUREE:
+            return mark_safe('<span style="color:#8b93a7;font-size:12px;">Anomalie déjà clôturée — aucun traitement possible.</span>')
+        url = reverse('admin:anomalie_corriger_pointage', args=[obj.pk])
+        return format_html(
+            '<a href="{}" class="button" style="text-decoration:none;background:#4f8ef7;'
+            'border-color:#4f8ef7;color:white;">📝 Traiter / corriger le pointage</a>',
+            url
+        )
+    lien_traitement.short_description = 'Action'
 
     @admin.action(description="✅ Marquer comme traitées")
     def marquer_traitees(self, request, queryset):
@@ -1471,6 +1490,13 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
 # ============================================================
 # CONFIGURATION DU SITE ADMIN
 # ============================================================
+
+# "Groupes" (auth.Group, système de permissions Django par groupe) n'est
+# utilisé nulle part dans ce projet — les permissions sont gérées via
+# CustomUser.is_staff. Le désinscrire retire "Groupes" de la sidebar,
+# qui n'affiche alors plus que "Utilisateurs" (déjà enregistré plus haut,
+# sous pointage.CustomUser) à cet endroit.
+admin.site.unregister(Group)
 
 admin.site.site_header = "Pointage QR — Administration"
 admin.site.site_title = "Pointage QR"
