@@ -214,16 +214,23 @@ class SiteAdmin(admin.ModelAdmin):
 
 @admin.register(Employe)
 class EmployeAdmin(admin.ModelAdmin):
-    list_display = ('matricule', 'nom', 'prenom', 'get_poste', 'actif', 'qr_code_preview', 'date_creation')
+    list_display = ('matricule', 'nom', 'prenom', 'get_poste', 'email', 'telephone', 'actif', 'qr_code_preview', 'date_creation')
     list_filter = ('poste', 'actif', 'date_creation')
-    search_fields = ('nom', 'prenom', 'matricule', 'poste__nom')
-    readonly_fields = ('qr_code_token', 'date_creation', 'qr_code_display', 'info_qr_code')
+    search_fields = ('nom', 'prenom', 'matricule', 'poste__nom', 'email', 'telephone')
+    readonly_fields = ('qr_code_token', 'date_creation', 'qr_code_display', 'info_qr_code', 'lien_pointages')
     ordering = ('matricule',)
     actions = ['regenerer_qr_codes', 'activer_employes', 'desactiver_employes']
 
     fieldsets = (
         ('Informations personnelles', {
             'fields': ('nom', 'prenom', 'matricule', 'poste', 'actif')
+        }),
+        ('Contact', {
+            'fields': ('email', 'telephone'),
+            'description': 'Facultatif — utilisé uniquement pour joindre l\'employé, jamais pour l\'identification (le matricule/QR reste la seule identité de pointage).',
+        }),
+        ('Historique de pointage', {
+            'fields': ('lien_pointages',),
         }),
         ('QR Code', {
             'fields': ('info_qr_code', 'qr_code_display', 'qr_code_token'),
@@ -289,6 +296,20 @@ class EmployeAdmin(admin.ModelAdmin):
     def get_poste(self, obj):
         return obj.poste.nom if obj.poste else "Non défini"
     get_poste.short_description = 'Poste'
+
+    def lien_pointages(self, obj):
+        if not obj or not obj.pk:
+            return mark_safe('<span style="color:#8b93a7;font-size:12px;">Disponible après la création de l\'employé.</span>')
+        count = obj.pointages.count()
+        url = reverse('admin:pointage_pointage_changelist') + f'?employe__id__exact={obj.pk}'
+        return format_html(
+            '<div style="display:flex;align-items:center;gap:12px;">'
+            '<a href="{}" class="button" style="text-decoration:none;background:#4f8ef7;'
+            'border-color:#4f8ef7;color:white;">Voir tous les pointages ({})</a>'
+            '</div>',
+            url, count
+        )
+    lien_pointages.short_description = 'Pointages de cet employé'
 
     def response_change(self, request, obj):
         if "_generate_qr" in request.POST:
@@ -436,6 +457,11 @@ class PointageAdmin(admin.ModelAdmin):
         # comme un lookup de champ à appliquer au queryset -> il faut donc
         # le retirer AVANT de construire le ChangeList, sous peine de
         # IncorrectLookupParameters ("Cannot resolve keyword 'cards_page'").
+        # 'export_excel' subit exactement le même problème que 'cards_page'
+        # ci-dessus (paramètre applicatif, pas un lookup de champ) : il doit
+        # être retiré de request.GET AVANT la construction du ChangeList,
+        # sous peine du même IncorrectLookupParameters
+        # ("Cannot resolve keyword 'export_excel' into field").
         export_excel_requested = 'export_excel' in request.GET
 
         cards_page_value = request.GET.get('cards_page')

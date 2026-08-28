@@ -52,6 +52,8 @@ class Employe(models.Model):
     nom             = models.CharField(max_length=100)
     prenom          = models.CharField(max_length=100)
     matricule       = models.CharField(max_length=50, unique=True)
+    email           = models.EmailField(blank=True, verbose_name="E-mail")
+    telephone       = models.CharField(max_length=30, blank=True, verbose_name="Téléphone")
     qr_code         = models.ImageField(upload_to='qr_codes/', blank=True, null=True)
     qr_code_token   = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     date_creation   = models.DateTimeField(auto_now_add=True)
@@ -516,6 +518,12 @@ class AnomaliePointage(models.Model):
     TYPE_SITE_INVALIDE          = 'site_invalide'
     TYPE_HORS_PLAGE_GLOBALE     = 'hors_plage_globale'
     TYPE_GARDE_MULTIPLE_NON_SUPPORTEE = 'garde_multiple_non_supportee'
+    # Type propre à _apply_scan_decision() (services.py) : une sortie
+    # ACCEPTÉE (le pointage est bien enregistré normalement) mais
+    # intervenue nettement avant la fermeture officielle du site pour
+    # cette période. N'existe pas non plus dans AnomalyCode : ce n'est
+    # jamais un refus de scan, seulement un signalement pour suivi RH.
+    TYPE_DEPART_ANTICIPE        = 'depart_anticipe'
 
     TYPE_CHOICES = (
         (TYPE_INVALID_QR,            'QR invalide'),
@@ -530,6 +538,7 @@ class AnomaliePointage(models.Model):
         (TYPE_TRANSITION_IMPOSSIBLE, 'Transition impossible'),
         (TYPE_INVALID_STATE,         'État invalide'),
         (TYPE_GARDE_MULTIPLE_NON_SUPPORTEE, 'Deuxième garde le même jour non prise en charge'),
+        (TYPE_DEPART_ANTICIPE,       'Départ anticipé'),
     )
 
     # Gravité dérivée du type — jamais stockée, toujours recalculée.
@@ -544,6 +553,7 @@ class AnomaliePointage(models.Model):
         TYPE_MISSING_MORNING_EXIT:  'warning',
         TYPE_TRANSITION_IMPOSSIBLE: 'warning',
         TYPE_GARDE_MULTIPLE_NON_SUPPORTEE: 'warning',
+        TYPE_DEPART_ANTICIPE:       'warning',
         TYPE_DAY_COMPLETE:          'info',
         TYPE_DUPLICATE_SCAN:        'info',
     }

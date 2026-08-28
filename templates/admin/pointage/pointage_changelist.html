@@ -110,6 +110,72 @@
             border-color: #16A34A;
         }
 
+        /* =====================================================
+           Barre de recherche / filtres native Jazzmin
+           (#change-list-filters, rendue par {% block search %}
+           ci-dessous) — CSS uniquement, structure HTML intacte.
+           Habille les <select> bruts avec les tokens pqr- pour
+           l'aligner visuellement sur le reste de la page (cartes,
+           bouton Excel, etc.) au lieu du style Bootstrap par défaut.
+           ===================================================== */
+        #change-list-filters {
+            background: var(--pqr-bg-white);
+            border: 1px solid var(--pqr-border-light);
+            border-radius: var(--pqr-radius-lg);
+            padding: 16px 18px;
+            box-shadow: var(--pqr-shadow-sm);
+            margin-bottom: 16px !important;
+        }
+        #changelist-search {
+            row-gap: 10px !important;
+        }
+        #change-list-filters .form-group {
+            margin-bottom: 0;
+        }
+        #change-list-filters select.search-filter,
+        #change-list-filters #searchbar {
+            background: var(--pqr-bg-surface);
+            border: 1px solid var(--pqr-border-light);
+            border-radius: var(--pqr-radius-sm);
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--pqr-text-primary);
+            transition: all var(--pqr-transition);
+            min-width: 170px;
+            height: auto;
+        }
+        #change-list-filters select.search-filter:focus,
+        #change-list-filters #searchbar:focus {
+            outline: none;
+            border-color: var(--pqr-blue-500);
+            background: var(--pqr-bg-white);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+        }
+        #change-list-filters #searchbar {
+            min-width: 220px;
+        }
+        #change-list-filters button[type="submit"] {
+            background: var(--pqr-blue-500);
+            border: 1px solid var(--pqr-blue-500);
+            border-radius: var(--pqr-radius-sm);
+            padding: 8px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all var(--pqr-transition);
+        }
+        #change-list-filters button[type="submit"]:hover {
+            background: var(--pqr-blue-600);
+            border-color: var(--pqr-blue-600);
+        }
+        #change-list-filters .select2-container .select2-selection--single {
+            border: 1px solid var(--pqr-border-light) !important;
+            border-radius: var(--pqr-radius-sm) !important;
+            background: var(--pqr-bg-surface) !important;
+            height: 36px !important;
+            padding-top: 2px;
+        }
+
         .chart-inline {
             background: #fff;
             border: 1px solid #E2E8F0;

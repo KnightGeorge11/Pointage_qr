@@ -17,7 +17,7 @@
 
 import logging
 import uuid
-from datetime import time, timedelta
+from datetime import time, timedelta, datetime
 from django.utils import timezone
 from django.db import transaction
 
@@ -35,6 +35,10 @@ logger = logging.getLogger(__name__)
 SEUIL_DOUBLON_SECONDES = 120          # 2 minutes entre deux scans identiques
 PLAGE_MIN = time(5, 0)                # Heure minimale autorisée (mode normal uniquement)
 PLAGE_MAX = time(23, 0)               # Heure maximale autorisée (mode normal uniquement)
+SEUIL_DEPART_ANTICIPE_MINUTES = 15    # Sortie signalée comme anticipée si elle
+                                       # intervient au moins ce nombre de minutes
+                                       # avant la fermeture officielle du site
+                                       # pour la période (matin/après-midi)
 
 
 # ─── Fonction principale ──────────────────────────────────────────────────────
@@ -389,6 +393,12 @@ def _apply_scan_decision(decision: ScanDecision, employe: Employe, site: Site, n
         else:
             # Une sortie ne modifie jamais le site : celui de l'entrée fait foi.
             pointage.enregistrer_sortie(heure)
+            # Le pointage reste enregistré normalement quoi qu'il arrive
+            # (règle métier : une sortie dans la fenêtre autorisée est
+            # TOUJOURS acceptée). Ce signalement est un simple ajout
+            # d'observation, jamais un blocage — voir docstring de la
+            # fonction ci-dessous.
+            _detecter_depart_anticipe(pointage, employe, site, periode, heure, now)
 
         # Scan et pointage dans la même transaction → cohérence garantie
         scan = Scan.objects.create(
@@ -415,6 +425,60 @@ def _apply_scan_decision(decision: ScanDecision, employe: Employe, site: Site, n
         'message': message,
         'data': _build_response_data(scan, pointage, now)
     }
+
+
+def _detecter_depart_anticipe(pointage: Pointage, employe: Employe, site: Site,
+                               periode: str, heure: time, now) -> None:
+    """
+    Signale (sans jamais bloquer ni modifier le scan, déjà accepté) une
+    sortie intervenue nettement avant la fermeture officielle du site pour
+    cette période — ex. sortie matin à 10h alors que le site ferme à 12h.
+
+    Le pointage est déjà enregistré normalement (enregistrer_sortie() a
+    été appelé juste avant par l'appelant) ; cette fonction ne fait
+    qu'ajouter, en plus, une AnomaliePointage pour suivi et traitement
+    administratif (note via anomalies.marquer_traitee / AnomalieTraitement).
+
+    N'est jamais appelée pour les gardes de nuit : _process_garde() est un
+    chemin de code entièrement séparé, sans notion de fermeture officielle
+    (une garde est par nature ouverte/spontanée).
+    """
+    _, heure_fermeture = site.get_horaires_pour_periode(periode)
+    if not heure_fermeture:
+        return
+
+    fermeture_dt = datetime.combine(now.date(), heure_fermeture)
+    depart_dt    = datetime.combine(now.date(), heure)
+    avance       = fermeture_dt - depart_dt
+
+    if avance.total_seconds() < SEUIL_DEPART_ANTICIPE_MINUTES * 60:
+        return
+
+    minutes_avance = int(avance.total_seconds() // 60)
+    periode_label  = 'matin' if periode == 'matin' else 'après-midi'
+    message = (
+        f"Sortie {periode_label} enregistrée à {heure.strftime('%H:%M')} sur "
+        f"{site.nom}, soit {minutes_avance} min avant la fermeture prévue "
+        f"({heure_fermeture.strftime('%H:%M')})."
+    )
+    enregistrer_anomalie(
+        AnomaliePointage.TYPE_DEPART_ANTICIPE,
+        message=message,
+        employe=employe,
+        site=site,
+        date_pointage=pointage.date_pointage,
+        contexte={
+            'periode': periode,
+            'heure_depart': heure.isoformat(),
+            'heure_fermeture_prevue': heure_fermeture.isoformat(),
+            'minutes_avance': minutes_avance,
+            'pointage_id': pointage.id,
+        },
+    )
+    logger.info(
+        f"[_detecter_depart_anticipe] Signalé pour emp={employe.id} "
+        f"pointage={pointage.id} ({minutes_avance} min d'avance)"
+    )
 
 
 def _build_response_data(scan, pointage, now) -> dict:
