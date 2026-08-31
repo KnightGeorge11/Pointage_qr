@@ -658,7 +658,7 @@ class PointageListView(LoginRequiredMixin, ListView):
 
             jour['heures_total']  = heures_total
             jour['retard_total']  = retard_total
-            jour['heures_sup']    = max(heures_total - timedelta(hours=8), timedelta())
+            jour['heures_sup']    = jour['apres_midi'].get_heures_supplementaires() if jour['apres_midi'] else timedelta()
             jour['statut_global'] = 'present' if (jour['matin'] or jour['apres_midi'] or jour['nuit']) else 'absent'
             jour['badge_type']    = 'garde' if jour['nuit'] and jour['nuit'].type_journee == 'garde' else 'normal'
             jours_list.append(jour)
@@ -1488,11 +1488,12 @@ def get_statut_journee(request, employe_id):
                     statut[k]['type_journee'] = p.type_journee
                 if p.heures_travaillees:
                     statut['heures_travaillees'] = _add_heures(statut['heures_travaillees'], p.heures_travaillees)
-
-        parts = statut['heures_travaillees'].split(':')
-        total = timedelta(seconds=sum(int(x) * 60**i for i, x in enumerate(reversed(parts))))
-        if total > timedelta(hours=8):
-            statut['heures_supplementaires'] = str(total - timedelta(hours=8))
+                if k == 'apres_midi':
+                    # Règle métier : les heures sup commencent après l'heure
+                    # de sortie après-midi officielle du site (voir
+                    # Pointage.get_heures_supplementaires) — jamais un total
+                    # journalier générique moins un seuil fixe.
+                    statut['heures_supplementaires'] = str(p.get_heures_supplementaires())
 
         return Response(statut)
     except Employe.DoesNotExist:

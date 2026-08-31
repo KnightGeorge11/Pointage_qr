@@ -313,6 +313,35 @@ class Pointage(models.Model):
             else:
                 self.heures_travaillees = timedelta(0)
 
+    def get_heures_supplementaires(self) -> timedelta:
+        """
+        Heures supplémentaires de CE pointage — règle métier explicite :
+        les heures sup commencent après l'heure de sortie après-midi
+        officielle DU SITE, jamais avant, et jamais déduites d'un total
+        journalier générique moins un seuil fixe (ancien calcul, faux :
+        il ignorait complètement les horaires réels du site — un site à
+        7h/jour ou à 9h/jour donnait un résultat incorrect dans les deux
+        sens avec un seuil de 8h codé en dur).
+
+        Ne s'applique qu'aux pointages de période 'apres_midi', déjà
+        clôturés (heure_depart renseignée), sur un site dont l'horaire de
+        fermeture après-midi est configuré. Retourne toujours
+        timedelta(0) sinon (matin, garde de nuit, pointage encore ouvert,
+        site sans horaire) — la garde de nuit n'a pas de notion de
+        "sortie après-midi", donc n'est jamais concernée par ce calcul,
+        cohérent avec le reste du projet (gardes toujours traitées à part).
+        """
+        if self.periode != 'apres_midi' or not self.heure_depart or not self.site:
+            return timedelta(0)
+
+        _, heure_fermeture = self.site.get_horaires_pour_periode('apres_midi')
+        if not heure_fermeture:
+            return timedelta(0)
+
+        depart_dt    = datetime.combine(self.date_pointage, self.heure_depart)
+        fermeture_dt = datetime.combine(self.date_pointage, heure_fermeture)
+        return max(depart_dt - fermeture_dt, timedelta(0))
+
     def save(self, *args, **kwargs):
         if self.periode != 'nuit':
             self.calculer_retard()

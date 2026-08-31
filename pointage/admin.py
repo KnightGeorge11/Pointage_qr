@@ -544,7 +544,7 @@ class PointageAdmin(admin.ModelAdmin):
 
             jour['heures_total']  = heures_total
             jour['retard_total']  = retard_total
-            jour['heures_sup']    = max(heures_total - timedelta(hours=8), timedelta())
+            jour['heures_sup']    = jour['apres_midi'].get_heures_supplementaires() if jour['apres_midi'] else timedelta()
             jour['statut_global'] = statut_global
             jour['is_garde']      = bool(jour['nuit'] and jour['nuit'].type_journee == 'garde')
             jour['multisite']     = bool(
