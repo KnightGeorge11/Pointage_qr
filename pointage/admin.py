@@ -1279,7 +1279,7 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
     readonly_fields = (
         'type', 'employe', 'matricule_scanne', 'site',
         'message', 'contexte_formate', 'gravite_badge', 'statut_badge',
-        'cloturee_par', 'date_cloture', 'created_at', 'lien_traitement',
+        'cloturee_par', 'date_cloture', 'created_at',
     )
 
     fieldsets = (
@@ -1288,7 +1288,6 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
         }),
         ("Détails", {'fields': ('message', 'contexte_formate')}),
         ("Statut", {'fields': ('statut_badge', 'cloturee_par', 'date_cloture')}),
-        ("Traitement", {'fields': ('lien_traitement',)}),
     )
 
     def has_add_permission(self, request):
@@ -1347,10 +1346,11 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
     contexte_formate.short_description = "Contexte"
 
     def lien_traitement(self, obj):
-        # C'est le SEUL point d'accès de l'interface vers
-        # corriger_pointage_view (bug corrigé : la vue et son template
-        # existaient déjà, mais n'étaient reliés à aucun bouton nulle
-        # part — impossible d'y accéder sans taper l'URL à la main).
+        # Conservé pour compatibilité / usage éventuel ailleurs, mais n'est
+        # PLUS affiché comme champ de formulaire (voir capture d'écran
+        # utilisateur : ça rendait mal, mélangé aux onglets). Le vrai bouton
+        # est maintenant dans le panneau d'actions, à droite — voir
+        # templates/admin/pointage/anomaliepointage/change_form.html.
         if not obj or not obj.pk:
             return '—'
         if obj.statut == AnomaliePointage.STATUT_CLOTUREE:
