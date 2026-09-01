@@ -1276,18 +1276,29 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
     actions = ['marquer_traitees', 'marquer_cloturees']
     ordering = ('-created_at',)
 
+    # ============================================================
+    # READONLY_FIELDS - Le bouton 'lien_traitement' n'est PAS inclus
+    # pour qu'il n'apparaisse pas automatiquement dans le formulaire
+    # ============================================================
     readonly_fields = (
         'type', 'employe', 'matricule_scanne', 'site',
         'message', 'contexte_formate', 'gravite_badge', 'statut_badge',
         'cloturee_par', 'date_cloture', 'created_at',
+        # 'lien_traitement' N'EST PAS inclus ici - il n'apparaît que
+        # via le template personnalisé change_form.html
     )
 
+    # ============================================================
+    # FIELDSETS - Le champ 'lien_traitement' n'est PAS inclus
+    # ============================================================
     fieldsets = (
         ("Anomalie", {
             'fields': ('type', 'gravite_badge', 'employe', 'matricule_scanne', 'site', 'created_at')
         }),
         ("Détails", {'fields': ('message', 'contexte_formate')}),
         ("Statut", {'fields': ('statut_badge', 'cloturee_par', 'date_cloture')}),
+        # Pas de fieldset pour 'lien_traitement' - il n'apparaît PAS
+        # automatiquement dans le formulaire admin standard
     )
 
     def has_add_permission(self, request):
@@ -1345,12 +1356,17 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
         )
     contexte_formate.short_description = "Contexte"
 
+    # ============================================================
+    # MÉTHODE lien_traitement - Utilisée UNIQUEMENT dans le template
+    # personnalisé change_form.html pour afficher le bouton
+    # Cette méthode n'est PAS incluse dans readonly_fields ni fieldsets
+    # ============================================================
     def lien_traitement(self, obj):
-        # Conservé pour compatibilité / usage éventuel ailleurs, mais n'est
-        # PLUS affiché comme champ de formulaire (voir capture d'écran
-        # utilisateur : ça rendait mal, mélangé aux onglets). Le vrai bouton
-        # est maintenant dans le panneau d'actions, à droite — voir
-        # templates/admin/pointage/anomaliepointage/change_form.html.
+        """
+        Méthode utilitaire pour générer le lien de traitement.
+        Utilisée UNIQUEMENT dans le template :
+        templates/admin/pointage/anomaliepointage/change_form.html
+        """
         if not obj or not obj.pk:
             return '—'
         if obj.statut == AnomaliePointage.STATUT_CLOTUREE:
