@@ -260,6 +260,9 @@ class EmployeAdmin(admin.ModelAdmin):
     ordering = ('matricule',)
     actions = ['regenerer_qr_codes', 'activer_employes', 'desactiver_employes']
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('poste')
+
     fieldsets = (
         ('Informations personnelles', {
             'fields': ('nom', 'prenom', 'matricule', 'poste', 'actif')
@@ -900,6 +903,9 @@ class DemandeModificationAdmin(admin.ModelAdmin):
     search_fields = ('demandeur__username',)
     actions = ['approuver_demandes', 'refuser_demandes']
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('demandeur', 'traitee_par')
+
     readonly_fields = (
         'demandeur', 'type_action', 'cible',
         'donnees_formatees', 'statut_badge',
@@ -1272,6 +1278,12 @@ class ScanAdmin(admin.ModelAdmin):
     search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule')
     readonly_fields = ('timestamp',)
     date_hierarchy = 'timestamp'
+
+    def get_queryset(self, request):
+        # Scan est probablement la table la PLUS volumineuse du projet
+        # (un scan par tentative, y compris refusées) — sans ça, la liste
+        # de 100 lignes déclenchait jusqu'à 200 requêtes SQL supplémentaires.
+        return super().get_queryset(request).select_related('employe', 'site')
 
     def timestamp_local(self, obj):
         return obj.get_timestamp_local().strftime('%d/%m/%Y %H:%M:%S')

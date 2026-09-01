@@ -110,6 +110,10 @@
             background: #FEF3C7;
             color: #F59E0B;
         }
+        .notification-card .notif-icon.incomplets {
+            background: #E0E7FF;
+            color: #6366F1;
+        }
         .notification-card .notif-content {
             flex: 1;
         }
@@ -321,7 +325,7 @@
     <!-- ============================================================ -->
     <!-- NOTIFICATIONS - DEMANDES ET ANOMALIES -->
     <!-- ============================================================ -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 20px;">
         
         <!-- Demandes en attente -->
         <a href="{% url 'admin:pointage_demandemodification_changelist' %}" class="notification-card">
@@ -373,6 +377,35 @@
                         {{ anomalies_ouvertes }} anomalie{{ anomalies_ouvertes|pluralize }} à traiter
                     {% else %}
                         ✅ Aucune anomalie ouverte
+                    {% endif %}
+                </div>
+            </div>
+            <div class="notif-arrow">
+                <i class="fas fa-chevron-right"></i>
+            </div>
+        </a>
+
+        <!-- Pointages incomplets (jours précédents, jamais aujourd'hui) -->
+        <a href="{% url 'admin:pointage_pointage_changelist' %}?incomplet=oui" class="notification-card">
+            <div class="notif-icon {% if pointages_incomplets > 0 %}incomplets{% else %}zero{% endif %}">
+                <i class="fas fa-clock-rotate-left"></i>
+            </div>
+            <div class="notif-content">
+                <div class="notif-number">
+                    {% if pointages_incomplets > 0 %}
+                        <span class="badge-pulse"></span>
+                    {% endif %}
+                    {{ pointages_incomplets|default:0 }}
+                </div>
+                <div class="notif-label">
+                    <i class="fas fa-hourglass-half" style="font-size: 11px; margin-right: 4px; color: #64748B;"></i>
+                    Pointages incomplets
+                </div>
+                <div class="notif-sub">
+                    {% if pointages_incomplets > 0 %}
+                        {{ pointages_incomplets }} sortie{{ pointages_incomplets|pluralize }} jamais enregistrée{{ pointages_incomplets|pluralize }}
+                    {% else %}
+                        ✅ Aucun pointage incomplet
                     {% endif %}
                 </div>
             </div>

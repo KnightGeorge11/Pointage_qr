@@ -48,6 +48,16 @@ def dashboard_context(request):
     ).count()
     
     anomalies_ouvertes = compter_anomalies_ouvertes()
+
+    # Pointages jamais clôturés, d'un jour PRÉCÉDENT uniquement (jamais
+    # aujourd'hui, où une entrée sans sortie est encore normale — la
+    # journée n'est simplement pas finie). Même filtre que
+    # PointageIncompletFilter dans admin.py, gardé identique ici.
+    pointages_incomplets = Pointage.objects.filter(
+        heure_arrivee__isnull=False,
+        heure_depart__isnull=True,
+        date_pointage__lt=today,
+    ).count()
     
     # ============================================================
     # DONNÉES HEBDOMADAIRES + ÉVOLUTION (4 semaines) — UNE SEULE
@@ -241,6 +251,9 @@ def dashboard_context(request):
         # Anomalies récentes
         'anomalies_data': anomalies_data,
         'anomalies_recentes': anomalies_recentes,
+
+        # Pointages incomplets (jours précédents)
+        'pointages_incomplets': pointages_incomplets,
     }
  
 
