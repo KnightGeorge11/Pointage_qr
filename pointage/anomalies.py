@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 # Types représentant un blocage d'ÉTAT PERSISTANT (voir docstring de
-# enregistrer_anomalie ci-dessous pour la distinction avec les refus
-# ponctuels, jamais dédupliqués).
+enregistrer_anomalie ci-dessous pour la distinction avec les refus
+ponctuels, jamais dédupliqués).
 DEDUP_TYPES = frozenset({
     AnomaliePointage.TYPE_MISSING_MORNING_EXIT,
     AnomaliePointage.TYPE_GARDE_MULTIPLE_NON_SUPPORTEE,
@@ -56,13 +56,22 @@ def enregistrer_anomalie(
     contexte = contexte or {}
     try:
         if type_anomalie in DEDUP_TYPES:
+            # Quand l'employé est connu, verrouiller sa ligne rend la
+            # déduplication atomique entre deux scans concurrents du même
+            # employé : sans ce verrou, deux transactions pouvaient toutes
+            # deux constater "aucune anomalie ouverte" puis créer chacune
+            # leur propre ligne.
+            employe_verrouille = None
+            if employe:
+                employe_verrouille = Employe.objects.select_for_update().get(pk=employe.pk)
+
             cle_lookup = {
                 'type': type_anomalie,
                 'statut': AnomaliePointage.STATUT_OUVERTE,
                 'date_pointage': date_pointage,
             }
-            if employe:
-                cle_lookup['employe'] = employe
+            if employe_verrouille:
+                cle_lookup['employe'] = employe_verrouille
             else:
                 cle_lookup['matricule_scanne'] = matricule_scanne or ''
 
@@ -138,7 +147,6 @@ def marquer_traitee(
         Si l'anomalie est déjà clôturée, si le commentaire est vide, ou si
         type_action est invalide.
     """
-    # Vérification des permissions - Seul l'Admin/RH peut traiter une anomalie
     if not administrateur.is_staff:
         raise PermissionError("Seul un administrateur ou RH peut traiter une anomalie.")
 
@@ -151,8 +159,6 @@ def marquer_traitee(
         raise ValueError(f"type_action invalide : {type_action!r}")
 
     with transaction.atomic():
-        # Verrouille la ligne pendant le traitement afin d'éviter que deux
-        # actions RH concurrentes traitent la même anomalie simultanément.
         anomalie_db = AnomaliePointage.objects.select_for_update().get(pk=anomalie.pk)
         if anomalie_db.statut == AnomaliePointage.STATUT_CLOTUREE:
             raise ValueError("Impossible de retraiter une anomalie déjà clôturée.")
@@ -189,7 +195,6 @@ def marquer_cloturee(anomalie: AnomaliePointage, administrateur: CustomUser) -> 
     ValueError
         Si l'anomalie n'a pas encore été traitée (statut != 'traitee').
     """
-    # Vérification des permissions - Seul l'Admin/RH peut clôturer une anomalie
     if not administrateur.is_staff:
         raise PermissionError("Seul un administrateur ou RH peut clôturer une anomalie.")
 
