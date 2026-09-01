@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 # Types représentant un blocage d'ÉTAT PERSISTANT (voir docstring de
-enregistrer_anomalie ci-dessous pour la distinction avec les refus
-ponctuels, jamais dédupliqués).
+# enregistrer_anomalie ci-dessous pour la distinction avec les refus
+# ponctuels, jamais dédupliqués).
 DEDUP_TYPES = frozenset({
     AnomaliePointage.TYPE_MISSING_MORNING_EXIT,
     AnomaliePointage.TYPE_GARDE_MULTIPLE_NON_SUPPORTEE,
@@ -20,8 +20,6 @@ DEDUP_TYPES = frozenset({
     AnomaliePointage.TYPE_INVALID_STATE,
 })
 
-
-# ─── Création ────────────────────────────────────────────────────────────────
 
 def enregistrer_anomalie(
     type_anomalie: str,
@@ -35,32 +33,19 @@ def enregistrer_anomalie(
     """
     Enregistre une anomalie détectée lors d'un scan.
 
-    Déduplique — UNIQUEMENT pour les types qui représentent un blocage
-    d'ÉTAT PERSISTANT (voir DEDUP_TYPES ci-dessous) : tant que rien n'a
-    changé en base, retenter donne exactement la même anomalie sous-jacente
-    (cas typique : sortie matin manquante, retentée plusieurs fois). Sans
-    ça, un employé bloqué créait autant de lignes identiques que de
-    tentatives, polluant la liste des anomalies à traiter par l'admin pour
-    un seul et même problème.
+    Les anomalies correspondant à un état persistant sont dédupliquées.
+    Les refus ponctuels restent des événements distincts.
 
-    Les autres types (during_break, outside_hours, duplicate_scan, etc.)
-    ne sont PAS dédupliqués : ce sont des refus ponctuels liés au moment
-    précis du scan, pas à un état persistant — plusieurs tentatives à des
-    moments distincts de la même journée sont des événements réels et
-    distincts, qui méritent chacun leur propre trace.
-
-    Ne lève jamais d'exception métier : l'enregistrement d'une anomalie
-    ne doit jamais empêcher process_scan() de répondre à l'utilisateur.
-    En cas d'échec d'écriture, l'erreur est journalisée puis ravalée.
+    L'enregistrement d'une anomalie ne doit jamais empêcher process_scan()
+    de répondre à l'utilisateur : les erreurs sont journalisées et ravalées.
     """
     contexte = contexte or {}
     try:
         if type_anomalie in DEDUP_TYPES:
-            # Quand l'employé est connu, verrouiller sa ligne rend la
-            # déduplication atomique entre deux scans concurrents du même
-            # employé : sans ce verrou, deux transactions pouvaient toutes
-            # deux constater "aucune anomalie ouverte" puis créer chacune
-            # leur propre ligne.
+            # Verrouiller l'employé avant la recherche rend la séquence
+            # recherche/création atomique entre deux scans concurrents du
+            # même employé. Sans ce verrou, deux transactions pouvaient
+            # toutes deux constater l'absence d'anomalie et créer un doublon.
             employe_verrouille = None
             if employe:
                 employe_verrouille = Employe.objects.select_for_update().get(pk=employe.pk)
@@ -106,8 +91,6 @@ def enregistrer_anomalie(
         )
         return anomalie
     except Exception:
-        # L'enregistrement d'une anomalie est un effet de bord d'observation :
-        # son échec ne doit jamais faire échouer un scan.
         logger.exception(
             f"[enregistrer_anomalie] Échec de l'enregistrement pour type={type_anomalie}"
         )
@@ -119,8 +102,6 @@ def enregistrer_anomalie(
         )
 
 
-# ─── Traitement / clôture (actions administrateur) ───────────────────────────
-
 def marquer_traitee(
     anomalie: AnomaliePointage,
     administrateur: CustomUser,
@@ -129,24 +110,7 @@ def marquer_traitee(
     pointage_concerne: Optional[Pointage] = None,
     type_action: str = 'correction',
 ) -> AnomalieTraitement:
-    """
-    Marque une anomalie comme traitée et conserve la trace du traitement.
-
-    Paramètres
-    ----------
-    type_action
-        Une des valeurs AnomalieTraitement.ACTION_* (correction /
-        justification / rejet) — l'action RH réellement posée. Ne pas
-        confondre avec AnomaliePointage.statut.
-
-    Lève
-    ----
-    PermissionError
-        Si l'utilisateur n'est pas Admin/RH (is_staff).
-    ValueError
-        Si l'anomalie est déjà clôturée, si le commentaire est vide, ou si
-        type_action est invalide.
-    """
+    """Marque une anomalie comme traitée et conserve la trace du traitement."""
     if not administrateur.is_staff:
         raise PermissionError("Seul un administrateur ou RH peut traiter une anomalie.")
 
@@ -185,16 +149,7 @@ def marquer_traitee(
 
 
 def marquer_cloturee(anomalie: AnomaliePointage, administrateur: CustomUser) -> AnomaliePointage:
-    """
-    Clôture une anomalie déjà traitée.
-
-    Lève
-    ----
-    PermissionError
-        Si l'utilisateur n'est pas Admin/RH (is_staff).
-    ValueError
-        Si l'anomalie n'a pas encore été traitée (statut != 'traitee').
-    """
+    """Clôture une anomalie déjà traitée."""
     if not administrateur.is_staff:
         raise PermissionError("Seul un administrateur ou RH peut clôturer une anomalie.")
 
@@ -211,8 +166,6 @@ def marquer_cloturee(anomalie: AnomaliePointage, administrateur: CustomUser) -> 
     logger.info(f"[marquer_cloturee] anomalie={anomalie.id} clôturée par {administrateur}")
     return anomalie
 
-
-# ─── Lecture (helpers pour vues / dashboard) ─────────────────────────────────
 
 def compter_anomalies_ouvertes() -> int:
     """Nombre d'anomalies au statut 'ouverte' — pour badge/compteur dashboard."""
