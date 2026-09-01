@@ -12,7 +12,9 @@ SECRET_KEY = config('SECRET_KEY')
 # Le développement local peut toujours activer DEBUG=True dans .env.
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ADMIN_SECRET_CODE = config('ADMIN_SECRET_CODE', default='1811')
+# Le code secret d'administration est une donnée d'installation et ne doit
+# jamais avoir de valeur de secours connue publiquement.
+ADMIN_SECRET_CODE = config('ADMIN_SECRET_CODE')
 
 # ── Hosts / réseau ───────────────────────────────────────────────────────────
 ALLOWED_HOSTS = config(
