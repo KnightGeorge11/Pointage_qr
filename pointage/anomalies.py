@@ -9,9 +9,6 @@ from .models import AnomaliePointage, AnomalieTraitement, Employe, Site, Pointag
 logger = logging.getLogger(__name__)
 
 
-# Types représentant un blocage d'ÉTAT PERSISTANT (voir docstring de
-# enregistrer_anomalie ci-dessous pour la distinction avec les refus
-# ponctuels, jamais dédupliqués).
 DEDUP_TYPES = frozenset({
     AnomaliePointage.TYPE_MISSING_MORNING_EXIT,
     AnomaliePointage.TYPE_GARDE_MULTIPLE_NON_SUPPORTEE,
@@ -30,8 +27,7 @@ def enregistrer_anomalie(
     date_pointage=None,
     contexte: Optional[dict] = None,
 ) -> AnomaliePointage:
-    """
-    Enregistre une anomalie détectée lors d'un scan.
+    """Enregistre une anomalie détectée lors d'un scan.
 
     Les anomalies correspondant à un état persistant sont dédupliquées.
     Les refus ponctuels restent des événements distincts.
@@ -42,10 +38,6 @@ def enregistrer_anomalie(
     contexte = contexte or {}
     try:
         if type_anomalie in DEDUP_TYPES:
-            # Verrouiller l'employé avant la recherche rend la séquence
-            # recherche/création atomique entre deux scans concurrents du
-            # même employé. Sans ce verrou, deux transactions pouvaient
-            # toutes deux constater l'absence d'anomalie et créer un doublon.
             employe_verrouille = None
             if employe:
                 employe_verrouille = Employe.objects.select_for_update().get(pk=employe.pk)
@@ -127,7 +119,7 @@ def marquer_traitee(
         if anomalie_db.statut == AnomaliePointage.STATUT_CLOTUREE:
             raise ValueError("Impossible de retraiter une anomalie déjà clôturée.")
 
-        traitement, created = AnomalieTraitement.objects.update_or_create(
+        traitement, _ = AnomalieTraitement.objects.update_or_create(
             anomalie=anomalie_db,
             defaults={
                 'administrateur': administrateur,
@@ -139,32 +131,34 @@ def marquer_traitee(
         )
         anomalie_db.statut = AnomaliePointage.STATUT_TRAITEE
         anomalie_db.save(update_fields=['statut'])
-        anomalie = anomalie_db
 
     logger.info(
-        f"[marquer_traitee] anomalie={anomalie.id} traitée ({type_action}) par "
+        f"[marquer_traitee] anomalie={anomalie.pk} traitée ({type_action}) par "
         f"{administrateur} ({len(corrections or [])} correction(s))"
     )
     return traitement
 
 
 def marquer_cloturee(anomalie: AnomaliePointage, administrateur: CustomUser) -> AnomaliePointage:
-    """Clôture une anomalie déjà traitée."""
+    """Clôture une anomalie déjà traitée, de manière atomique."""
     if not administrateur.is_staff:
         raise PermissionError("Seul un administrateur ou RH peut clôturer une anomalie.")
 
-    if anomalie.statut == AnomaliePointage.STATUT_OUVERTE:
-        raise ValueError("Impossible de clôturer une anomalie qui n'a pas été traitée.")
-    if anomalie.statut == AnomaliePointage.STATUT_CLOTUREE:
-        return anomalie
+    with transaction.atomic():
+        anomalie_db = AnomaliePointage.objects.select_for_update().get(pk=anomalie.pk)
 
-    anomalie.statut = AnomaliePointage.STATUT_CLOTUREE
-    anomalie.cloturee_par = administrateur
-    anomalie.date_cloture = timezone.now()
-    anomalie.save(update_fields=['statut', 'cloturee_par', 'date_cloture'])
+        if anomalie_db.statut == AnomaliePointage.STATUT_OUVERTE:
+            raise ValueError("Impossible de clôturer une anomalie qui n'a pas été traitée.")
+        if anomalie_db.statut == AnomaliePointage.STATUT_CLOTUREE:
+            return anomalie_db
 
-    logger.info(f"[marquer_cloturee] anomalie={anomalie.id} clôturée par {administrateur}")
-    return anomalie
+        anomalie_db.statut = AnomaliePointage.STATUT_CLOTUREE
+        anomalie_db.cloturee_par = administrateur
+        anomalie_db.date_cloture = timezone.now()
+        anomalie_db.save(update_fields=['statut', 'cloturee_par', 'date_cloture'])
+
+    logger.info(f"[marquer_cloturee] anomalie={anomalie.pk} clôturée par {administrateur}")
+    return anomalie_db
 
 
 def compter_anomalies_ouvertes() -> int:
