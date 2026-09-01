@@ -28,63 +28,53 @@ logger = logging.getLogger(__name__)
 
 class DayStateMachine:
     """Machine à états pour le pointage normal d'une journée.
-    
+
     Détermine si un scan est autorisé et quelle action effectuer,
     basé UNIQUEMENT sur :
     - L'état courant (scans enregistrés)
     - L'heure actuelle
     - Les horaires du site
-    
-    Décisions
-    ---------
-    - Premier scan matin → MORNING_STARTED
-    - Premier scan après-midi → AFTERNOON_STARTED + matin marqué absent
-    - Sortie matin → MORNING_FINISHED
-    - Sortie après-midi → DAY_FINISHED
-    - Transitions impossibles → Refusées
-    
-    Les absences ne sont JAMAIS créées comme états.
-    Elles sont calculées lors des rapports RH.
+
+    Une arrivée avant l'heure officielle reste une arrivée anticipée :
+    la tolérance sert uniquement à autoriser le scan et ne doit jamais
+    remplacer l'heure réelle du scan par l'heure théorique d'ouverture.
     """
-    
+
+    @staticmethod
+    def _arrival_details(current_time, open_time):
+        """Retourne les métadonnées d'une arrivée anticipée, sans modifier
+        l'heure réelle enregistrée.
+        """
+        if current_time < open_time:
+            minutes = int((
+                (open_time.hour * 60 + open_time.minute)
+                - (current_time.hour * 60 + current_time.minute)
+            ))
+            return {
+                'early_arrival': True,
+                'early_arrival_minutes': minutes,
+                'scheduled_open': open_time.isoformat(),
+                'actual_arrival': current_time.isoformat(),
+            }
+        return {
+            'early_arrival': False,
+            'early_arrival_minutes': 0,
+            'scheduled_open': open_time.isoformat(),
+            'actual_arrival': current_time.isoformat(),
+        }
+
     def decide(self, context: DayContext) -> ScanDecision:
-        """
-        Décide si un scan est autorisé et quelle action effectuer.
-        
-        Paramètres
-        ----------
-        context : DayContext
-            État courant de la journée (scans enregistrés, heure, horaires)
-        
-        Retour
-        ------
-        ScanDecision
-            Décision (autorisé/refusé, action, prochaine état, anomalies)
-        
-        Notes
-        -----
-        Cette méthode est pure : aucun effet secondaire.
-        """
+        """Décide si un scan est autorisé et quelle action effectuer."""
         logger.debug(
             f"[DayStateMachine] Deciding for {context} "
             f"(site={context.site_id}, emp={context.employee_id})"
         )
-        
-        # 1. Détecter l'état courant
+
         current_state = context.get_current_state()
         logger.debug(f"[DayStateMachine] Current state: {current_state.value}")
-        
-        # 2. Vérifier les heures globales
-        #
-        # Ce filtre ne s'applique PAS à AFTERNOON_STARTED ni à DAY_FINISHED :
-        # - AFTERNOON_STARTED : seule action possible = sortie après-midi.
-        #   Une sortie tardive (heures supplémentaires, urgence médicale...)
-        #   doit TOUJOURS être autorisée (règle métier). C'est
-        #   _decide_from_afternoon_started() qui gère explicitement ce cas
-        #   ("sortie tardive") ; le bloquer ici avant même d'y arriver
-        #   contredirait cette règle.
-        # - DAY_FINISHED : refuse de toute façon systématiquement tout scan,
-        #   peu importe l'heure.
+
+        # Les sorties après-midi tardives doivent rester possibles pour
+        # permettre l'enregistrement des heures supplémentaires.
         if current_state not in (DayState.AFTERNOON_STARTED, DayState.DAY_FINISHED):
             if not context.schedule.is_within_global_hours(context.current_time):
                 logger.info(
@@ -102,8 +92,7 @@ class DayStateMachine:
                         'afternoon_close': context.schedule.afternoon_window.close_time.isoformat(),
                     }
                 )
-        
-        # 3. Décider selon l'état
+
         if current_state == DayState.EMPTY:
             return self._decide_from_empty(context)
         elif current_state == DayState.MORNING_STARTED:
@@ -115,7 +104,6 @@ class DayStateMachine:
         elif current_state == DayState.DAY_FINISHED:
             return self._decide_from_day_finished(context)
         else:
-            # État inconnu (ne devrait jamais arriver ici)
             logger.error(f"[DayStateMachine] Unknown state: {current_state}")
             return ScanDecision(
                 allowed=False,
@@ -123,19 +111,11 @@ class DayStateMachine:
                 anomaly_code=AnomalyCode.INVALID_STATE,
                 details={'state': str(current_state)}
             )
-    
+
     def _decide_from_empty(self, context: DayContext) -> ScanDecision:
-        """De EMPTY, déterminer l'action.
-        
-        Possible :
-        1. Entrée matin (si pendant fenêtre matin)
-        2. Entrée après-midi (si pendant fenêtre après-midi, matin = absent)
-        3. Pause → Refuser
-        4. Hors heures → Refuser
-        """
+        """De EMPTY, déterminer l'action."""
         logger.debug("[DayStateMachine._decide_from_empty]")
-        
-        # Vérifier pause
+
         if context.schedule.is_during_break(context.current_time):
             logger.info("[DayStateMachine] During break")
             return ScanDecision(
@@ -144,8 +124,7 @@ class DayStateMachine:
                 anomaly_code=AnomalyCode.DURING_BREAK,
                 details={'current_time': context.current_time.isoformat()}
             )
-        
-        # Matin ?
+
         if context.schedule.morning_window.contains(
             context.current_time,
             tolerance=context.schedule.tolerance
@@ -157,10 +136,15 @@ class DayStateMachine:
                 action=ScanActionType.MORNING_ENTRY,
                 next_state=DayState.MORNING_STARTED,
                 period=PeriodType.MORNING,
-                details={'window': 'morning'}
+                details={
+                    'window': 'morning',
+                    **self._arrival_details(
+                        context.current_time,
+                        context.schedule.morning_window.open_time,
+                    ),
+                }
             )
-        
-        # Après-midi ?
+
         if context.schedule.afternoon_window.contains(
             context.current_time,
             tolerance=context.schedule.tolerance
@@ -173,10 +157,16 @@ class DayStateMachine:
                 next_state=DayState.AFTERNOON_STARTED,
                 period=PeriodType.AFTERNOON,
                 warning="Le matin sera considéré comme absent.",
-                details={'window': 'afternoon', 'morning_absent': True}
+                details={
+                    'window': 'afternoon',
+                    'morning_absent': True,
+                    **self._arrival_details(
+                        context.current_time,
+                        context.schedule.afternoon_window.open_time,
+                    ),
+                }
             )
-        
-        # Ni matin, ni après-midi, ni pause
+
         logger.warning("[DayStateMachine] Invalid time for first scan")
         return ScanDecision(
             allowed=False,
@@ -184,17 +174,11 @@ class DayStateMachine:
             anomaly_code=AnomalyCode.OUTSIDE_HOURS,
             details={'current_time': context.current_time.isoformat()}
         )
-    
+
     def _decide_from_morning_started(self, context: DayContext) -> ScanDecision:
-        """De MORNING_STARTED, seule action possible : sortie matin.
-        
-        - Si pendant fenêtre matin → Sortie matin
-        - Si pendant fenêtre après-midi → Refuser (sortie matin manquante)
-        - Sinon → Refuser
-        """
+        """De MORNING_STARTED, seule action possible : sortie matin."""
         logger.debug("[DayStateMachine._decide_from_morning_started]")
-        
-        # Sortie matin pendant fenêtre matin ?
+
         if context.schedule.morning_window.contains(
             context.current_time,
             tolerance=context.schedule.tolerance
@@ -208,8 +192,7 @@ class DayStateMachine:
                 period=PeriodType.MORNING,
                 details={'window': 'morning'}
             )
-        
-        # Tentative de passer à l'après-midi sans sortie matin
+
         if context.schedule.afternoon_window.contains(
             context.current_time,
             tolerance=context.schedule.tolerance
@@ -221,8 +204,7 @@ class DayStateMachine:
                 anomaly_code=AnomalyCode.MISSING_MORNING_EXIT,
                 details={'current_time': context.current_time.isoformat()}
             )
-        
-        # Pendant la pause
+
         if context.schedule.is_during_break(context.current_time):
             logger.info("[DayStateMachine] During break")
             return ScanDecision(
@@ -231,8 +213,7 @@ class DayStateMachine:
                 anomaly_code=AnomalyCode.DURING_BREAK,
                 details={'current_time': context.current_time.isoformat()}
             )
-        
-        # Hors horaires
+
         logger.warning("[DayStateMachine] Invalid time for morning exit")
         return ScanDecision(
             allowed=False,
@@ -240,17 +221,11 @@ class DayStateMachine:
             anomaly_code=AnomalyCode.OUTSIDE_HOURS,
             details={'current_time': context.current_time.isoformat()}
         )
-    
+
     def _decide_from_morning_finished(self, context: DayContext) -> ScanDecision:
-        """De MORNING_FINISHED, seule action possible : entrée après-midi.
-        
-        - Si pendant fenêtre après-midi → Entrée après-midi
-        - Si pendant pause → Refuser
-        - Sinon → Refuser
-        """
+        """De MORNING_FINISHED, seule action possible : entrée après-midi."""
         logger.debug("[DayStateMachine._decide_from_morning_finished]")
-        
-        # Entrée après-midi pendant fenêtre après-midi ?
+
         if context.schedule.afternoon_window.contains(
             context.current_time,
             tolerance=context.schedule.tolerance
@@ -262,10 +237,15 @@ class DayStateMachine:
                 action=ScanActionType.AFTERNOON_ENTRY,
                 next_state=DayState.AFTERNOON_STARTED,
                 period=PeriodType.AFTERNOON,
-                details={'window': 'afternoon'}
+                details={
+                    'window': 'afternoon',
+                    **self._arrival_details(
+                        context.current_time,
+                        context.schedule.afternoon_window.open_time,
+                    ),
+                }
             )
-        
-        # Pendant la pause
+
         if context.schedule.is_during_break(context.current_time):
             logger.info("[DayStateMachine] During break, waiting for afternoon")
             return ScanDecision(
@@ -274,8 +254,7 @@ class DayStateMachine:
                 anomaly_code=AnomalyCode.DURING_BREAK,
                 details={'current_time': context.current_time.isoformat()}
             )
-        
-        # Hors horaires
+
         logger.warning("[DayStateMachine] Invalid time for afternoon entry")
         return ScanDecision(
             allowed=False,
@@ -283,17 +262,11 @@ class DayStateMachine:
             anomaly_code=AnomalyCode.OUTSIDE_HOURS,
             details={'current_time': context.current_time.isoformat()}
         )
-    
+
     def _decide_from_afternoon_started(self, context: DayContext) -> ScanDecision:
-        """De AFTERNOON_STARTED, seule action possible : sortie après-midi.
-        
-        - Si pendant fenêtre après-midi → Sortie après-midi
-        - Si après fermeture (sortie tardive) → Sortie après-midi autorisée
-        - Sinon → Refuser
-        """
+        """De AFTERNOON_STARTED, seule action possible : sortie après-midi."""
         logger.debug("[DayStateMachine._decide_from_afternoon_started]")
-        
-        # Sortie après-midi dans la fenêtre ou après (sortie tardive autorisée)
+
         if context.schedule.afternoon_window.contains(
             context.current_time,
             tolerance=context.schedule.tolerance
@@ -307,8 +280,7 @@ class DayStateMachine:
                 period=PeriodType.AFTERNOON,
                 details={'window': 'afternoon'}
             )
-        
-        # Sortie tardive (après 17:30 par exemple)
+
         if context.schedule.afternoon_window.is_after_close(context.current_time):
             logger.info("[DayStateMachine] Allowing late afternoon exit")
             return ScanDecision(
@@ -320,8 +292,7 @@ class DayStateMachine:
                 warning="Sortie enregistrée après les heures de fermeture.",
                 details={'window': 'afternoon', 'late_exit': True}
             )
-        
-        # Hors horaires
+
         logger.warning("[DayStateMachine] Invalid time for afternoon exit")
         return ScanDecision(
             allowed=False,
@@ -329,12 +300,9 @@ class DayStateMachine:
             anomaly_code=AnomalyCode.OUTSIDE_HOURS,
             details={'current_time': context.current_time.isoformat()}
         )
-    
+
     def _decide_from_day_finished(self, context: DayContext) -> ScanDecision:
-        """De DAY_FINISHED, aucune action n'est possible.
-        
-        La journée est terminée.
-        """
+        """De DAY_FINISHED, aucune action n'est possible."""
         logger.info("[DayStateMachine] Day already finished")
         return ScanDecision(
             allowed=False,
