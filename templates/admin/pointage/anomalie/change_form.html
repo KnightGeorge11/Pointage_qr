@@ -2,24 +2,22 @@
 {% load i18n admin_urls jazzmin %}
 {% get_jazzmin_ui_tweaks as jazzmin_ui %}
 
-{# Bouton "Traiter / corriger le pointage" — remplace l'ancienne version
-   qui traînait comme un champ de formulaire dans l'onglet "Traitement"
-   (rendait mal, mélangé au reste du contenu). Il est maintenant un vrai
-   bouton, dans le même panneau que "Enregistrer" / "Historique" /
-   "Retour à la liste", avec exactement le même style
-   (btn w-100 {{ button_classes }} btn-sm) que le bouton "Historique"
-   natif de Jazzmin (voir change_form_object_tools.html du paquet). #}
 {% block extra_actions %}
     {% if change and original %}
         {% if original.statut != 'cloturee' %}
-            <a href="{% url 'admin:anomalie_corriger_pointage' original.pk %}"
-               class="btn w-100 {{ jazzmin_ui.button_classes.primary }} btn-sm">
-                📝 {% trans 'Traiter / corriger le pointage' %}
-            </a>
+            <div class="form-group">
+                <a href="{% url 'admin:anomalie_corriger_pointage' original.pk %}"
+                   class="btn {{ jazzmin_ui.button_classes.primary }} btn-block btn-sm">
+                    📝 {% trans 'Traiter / corriger le pointage' %}
+                </a>
+            </div>
         {% else %}
-            <span class="btn w-100 btn-sm disabled" style="opacity:.6;cursor:default;">
-                {% trans 'Anomalie déjà clôturée' %}
-            </span>
+            <div class="form-group">
+                <span class="btn btn-block btn-sm disabled" style="opacity:.6;cursor:default;">
+                    {% trans 'Anomalie déjà clôturée' %}
+                </span>
+            </div>
         {% endif %}
     {% endif %}
+    {{ block.super }}
 {% endblock %}
