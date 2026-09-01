@@ -32,56 +32,63 @@ def enregistrer_anomalie(
     Les anomalies correspondant à un état persistant sont dédupliquées.
     Les refus ponctuels restent des événements distincts.
 
+    Toute la séquence de déduplication est exécutée dans une transaction :
+    c'est indispensable car les anomalies persistantes verrouillent la ligne
+    de l'employé avec select_for_update(). Sans transaction explicite, un
+    appel depuis un chemin exécuté en autocommit pouvait provoquer un
+    TransactionManagementError en production.
+
     L'enregistrement d'une anomalie ne doit jamais empêcher process_scan()
     de répondre à l'utilisateur : les erreurs sont journalisées et ravalées.
     """
     contexte = contexte or {}
     try:
-        if type_anomalie in DEDUP_TYPES:
-            employe_verrouille = None
-            if employe:
-                employe_verrouille = Employe.objects.select_for_update().get(pk=employe.pk)
+        with transaction.atomic():
+            if type_anomalie in DEDUP_TYPES:
+                employe_verrouille = None
+                if employe:
+                    employe_verrouille = Employe.objects.select_for_update().get(pk=employe.pk)
 
-            cle_lookup = {
-                'type': type_anomalie,
-                'statut': AnomaliePointage.STATUT_OUVERTE,
-                'date_pointage': date_pointage,
-            }
-            if employe_verrouille:
-                cle_lookup['employe'] = employe_verrouille
-            else:
-                cle_lookup['matricule_scanne'] = matricule_scanne or ''
-
-            existante = AnomaliePointage.objects.filter(**cle_lookup).order_by('-created_at').first()
-            if existante:
-                existante.contexte = {
-                    **existante.contexte,
-                    **contexte,
-                    'tentatives': existante.contexte.get('tentatives', 1) + 1,
-                    'derniere_tentative': timezone.now().isoformat(),
-                    'dernier_site_tente': site.nom if site else existante.contexte.get('dernier_site_tente'),
+                cle_lookup = {
+                    'type': type_anomalie,
+                    'statut': AnomaliePointage.STATUT_OUVERTE,
+                    'date_pointage': date_pointage,
                 }
-                existante.save(update_fields=['contexte'])
-                logger.info(
-                    f"[enregistrer_anomalie] {type_anomalie} déjà ouverte (id={existante.id}) — "
-                    f"tentative supplémentaire tracée, pas de doublon créé"
-                )
-                return existante
+                if employe_verrouille:
+                    cle_lookup['employe'] = employe_verrouille
+                else:
+                    cle_lookup['matricule_scanne'] = matricule_scanne or ''
 
-        anomalie = AnomaliePointage.objects.create(
-            type=type_anomalie,
-            employe=employe,
-            matricule_scanne=matricule_scanne or (employe.matricule if employe else ''),
-            site=site,
-            date_pointage=date_pointage,
-            message=message,
-            contexte=contexte,
-        )
-        logger.info(
-            f"[enregistrer_anomalie] {type_anomalie} créée (id={anomalie.id}) "
-            f"emp={employe.id if employe else matricule_scanne!r}"
-        )
-        return anomalie
+                existante = AnomaliePointage.objects.filter(**cle_lookup).order_by('-created_at').first()
+                if existante:
+                    existante.contexte = {
+                        **existante.contexte,
+                        **contexte,
+                        'tentatives': existante.contexte.get('tentatives', 1) + 1,
+                        'derniere_tentative': timezone.now().isoformat(),
+                        'dernier_site_tente': site.nom if site else existante.contexte.get('dernier_site_tente'),
+                    }
+                    existante.save(update_fields=['contexte'])
+                    logger.info(
+                        f"[enregistrer_anomalie] {type_anomalie} déjà ouverte (id={existante.id}) — "
+                        f"tentative supplémentaire tracée, pas de doublon créé"
+                    )
+                    return existante
+
+            anomalie = AnomaliePointage.objects.create(
+                type=type_anomalie,
+                employe=employe,
+                matricule_scanne=matricule_scanne or (employe.matricule if employe else ''),
+                site=site,
+                date_pointage=date_pointage,
+                message=message,
+                contexte=contexte,
+            )
+            logger.info(
+                f"[enregistrer_anomalie] {type_anomalie} créée (id={anomalie.id}) "
+                f"emp={employe.id if employe else matricule_scanne!r}"
+            )
+            return anomalie
     except Exception:
         logger.exception(
             f"[enregistrer_anomalie] Échec de l'enregistrement pour type={type_anomalie}"
