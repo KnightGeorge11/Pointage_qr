@@ -8,9 +8,13 @@ from decouple import config, Csv
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG', default=True, cast=bool)
+# Sécurité : une installation sans variable DEBUG doit démarrer en mode sûr.
+# Le développement local peut toujours activer DEBUG=True dans .env.
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ADMIN_SECRET_CODE = config('ADMIN_SECRET_CODE', default='1811')
+# Le code secret d'administration est une donnée d'installation et ne doit
+# jamais avoir de valeur de secours connue publiquement.
+ADMIN_SECRET_CODE = config('ADMIN_SECRET_CODE')
 
 # ── Hosts / réseau ───────────────────────────────────────────────────────────
 ALLOWED_HOSTS = config(

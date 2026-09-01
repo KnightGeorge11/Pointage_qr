@@ -4,6 +4,7 @@
 # Toute la logique métier est déléguée à services.process_scan().
 
 import json
+import logging
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -18,6 +19,8 @@ from rest_framework.authtoken.models import Token
 
 from .models import Site, Employe, Pointage
 from .services import process_scan, parse_qr_data
+
+logger = logging.getLogger(__name__)
 
 
 class MobileAuthenticatedAPIView(APIView):
@@ -114,7 +117,6 @@ class MobileLogoutAPIView(MobileAuthenticatedAPIView):
     précis renvoie 401 sur tout endpoint protégé, immédiatement.
     """
     def post(self, request):
-        # Supprime le Token en base — révocation réelle, pas symbolique.
         Token.objects.filter(user=request.user).delete()
         return JsonResponse({'status': 'success', 'message': 'Déconnecté.'})
 
@@ -159,8 +161,13 @@ class MobileSitesAPIView(MobileAuthenticatedAPIView):
                 'message': f'{len(sites_data)} sites récupérés',
                 'data':    sites_data
             })
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        except Exception:
+            logger.exception("Erreur inattendue lors de la récupération des sites mobiles")
+            return JsonResponse({
+                'status': 'error',
+                'code': 'ERREUR_SERVEUR',
+                'message': 'Erreur interne du serveur.'
+            }, status=500)
 
 
 # ─── Scan principal ───────────────────────────────────────────────────────────
@@ -179,25 +186,19 @@ class MobileRecordScanAPIView(MobileAuthenticatedAPIView):
         except (json.JSONDecodeError, UnicodeDecodeError):
             return JsonResponse({'status': 'error', 'message': 'JSON invalide'}, status=400)
 
-        raw_qr                 = data.get('employee_qr', '').strip()
-        site_id                = data.get('site_id')
-        mode                   = data.get('mode', 'auto')
-        force_new_garde        = bool(data.get('force_new', False))
+        raw_qr = data.get('employee_qr', '').strip()
+        site_id = data.get('site_id')
+        mode = data.get('mode', 'auto')
+        force_new_garde = bool(data.get('force_new', False))
 
-        # Contrat de mode explicite (Phase 11) : 'day'/'night' sont les
-        # valeurs envoyées par le mobile ET le desktop (convention client).
-        # 'auto'/'garde' sont les valeurs internes attendues par
-        # process_scan(). On accepte les deux jeux de valeurs et on
-        # rejette explicitement tout le reste au lieu de le laisser
-        # passer silencieusement dans la branche "normale" par défaut.
         MODE_NORMALISATION = {
             'day': 'auto', 'auto': 'auto',
             'night': 'garde', 'nuit': 'garde', 'garde': 'garde',
         }
         if mode not in MODE_NORMALISATION:
             return JsonResponse({
-                'status':  'error',
-                'code':    'MODE_INVALIDE',
+                'status': 'error',
+                'code': 'MODE_INVALIDE',
                 'message': f"mode invalide : '{mode}'. Valeurs acceptées : day, night, auto, garde."
             }, status=400)
         mode = MODE_NORMALISATION[mode]
@@ -207,12 +208,11 @@ class MobileRecordScanAPIView(MobileAuthenticatedAPIView):
         if not site_id:
             return JsonResponse({'status': 'error', 'message': 'site_id manquant'}, status=400)
 
-        # Parser le QR code
         parsed = parse_qr_data(raw_qr)
         if not parsed:
             return JsonResponse({
-                'status':  'error',
-                'code':    'QR_FORMAT_INVALIDE',
+                'status': 'error',
+                'code': 'QR_FORMAT_INVALIDE',
                 'message': 'Format QR invalide. Attendu : EMPLOYE:matricule:token'
             }, status=400)
 
@@ -220,12 +220,11 @@ class MobileRecordScanAPIView(MobileAuthenticatedAPIView):
             site_id = int(site_id)
         except (TypeError, ValueError):
             return JsonResponse({
-                'status':  'error',
-                'code':    'SITE_INVALIDE',
+                'status': 'error',
+                'code': 'SITE_INVALIDE',
                 'message': 'site_id invalide'
             }, status=400)
 
-        # Appel au service central
         result = process_scan(
             matricule=parsed['matricule'],
             qr_token=parsed['token'],
@@ -255,7 +254,7 @@ class MobileCheckFirstScanAPIView(MobileAuthenticatedAPIView):
         except (json.JSONDecodeError, UnicodeDecodeError):
             return JsonResponse({'status': 'error', 'message': 'JSON invalide'}, status=400)
 
-        raw_qr  = data.get('employee_qr', '').strip()
+        raw_qr = data.get('employee_qr', '').strip()
         site_id = data.get('site_id')
 
         if not raw_qr or not site_id:
@@ -284,11 +283,10 @@ class MobileCheckFirstScanAPIView(MobileAuthenticatedAPIView):
         except Site.DoesNotExist:
             return JsonResponse({'status': 'error', 'message': f'Site {site_id} introuvable'}, status=404)
 
-        now           = timezone.localtime(timezone.now())
+        now = timezone.localtime(timezone.now())
         date_courante = now.date()
-        heure         = now.time()
+        heure = now.time()
 
-        # Garde en cours ?
         garde_en_cours = Pointage.objects.filter(
             employe=employe, periode='nuit', type_journee='garde',
             heure_depart__isnull=True
@@ -299,18 +297,17 @@ class MobileCheckFirstScanAPIView(MobileAuthenticatedAPIView):
                 'status': 'success',
                 'data': {
                     'prochain_scan': 'fin_garde',
-                    'mode_attendu':  'garde',
-                    'employe':       _employe_dict(employe),
-                    'site':          {'id': site.id, 'nom': site.nom},
+                    'mode_attendu': 'garde',
+                    'employe': _employe_dict(employe),
+                    'site': {'id': site.id, 'nom': site.nom},
                     'garde_en_cours': {
-                        'id':            garde_en_cours.id,
+                        'id': garde_en_cours.id,
                         'date_pointage': garde_en_cours.date_pointage.isoformat(),
                         'heure_arrivee': str(garde_en_cours.heure_arrivee),
                     }
                 }
             })
 
-        # Garde planifiée ?
         garde_planifiee = Pointage.objects.filter(
             employe=employe, date_pointage=date_courante,
             periode='nuit', type_journee='garde', heure_arrivee__isnull=True
@@ -321,23 +318,22 @@ class MobileCheckFirstScanAPIView(MobileAuthenticatedAPIView):
                 'status': 'success',
                 'data': {
                     'prochain_scan': 'debut_garde',
-                    'mode_attendu':  'garde',
-                    'employe':       _employe_dict(employe),
-                    'site':          {'id': site.id, 'nom': site.nom},
+                    'mode_attendu': 'garde',
+                    'employe': _employe_dict(employe),
+                    'site': {'id': site.id, 'nom': site.nom},
                 }
             })
 
-        # Pointages normaux — déterminer le prochain parmi E1/S1/E2/S2
         prochain = _prochain_scan_normal(employe, date_courante, heure)
 
         return JsonResponse({
             'status': 'success',
             'data': {
                 'prochain_scan': prochain,
-                'mode_attendu':  'normal',
-                'employe':       _employe_dict(employe),
-                'site':          {'id': site.id, 'nom': site.nom},
-                'date':          date_courante.isoformat(),
+                'mode_attendu': 'normal',
+                'employe': _employe_dict(employe),
+                'site': {'id': site.id, 'nom': site.nom},
+                'date': date_courante.isoformat(),
             }
         })
 
@@ -348,16 +344,16 @@ class MobileCheckFirstScanAPIView(MobileAuthenticatedAPIView):
 class MobileCurrentPeriodAPIView(MobileAuthenticatedAPIView):
 
     def get(self, request):
-        now    = timezone.localtime(timezone.now())
-        heure  = now.time()
+        now = timezone.localtime(timezone.now())
+        heure = now.time()
         periode = 'matin' if heure < time(12, 0) else 'apres_midi'
         return JsonResponse({
             'status': 'success',
             'data': {
                 'current_time': now.isoformat(),
-                'periode':      periode,
-                'date':         now.date().isoformat(),
-                'heure':        heure.strftime('%H:%M:%S'),
+                'periode': periode,
+                'date': now.date().isoformat(),
+                'heure': heure.strftime('%H:%M:%S'),
             }
         })
 
@@ -368,20 +364,9 @@ class MobileCurrentPeriodAPIView(MobileAuthenticatedAPIView):
 class MobilePointagesAPIView(MobileAuthenticatedAPIView):
 
     def get(self, request):
-        raw_qr    = request.GET.get('employee_qr', '').strip()
-        date_str  = request.GET.get('date')
+        raw_qr = request.GET.get('employee_qr', '').strip()
+        date_str = request.GET.get('date')
 
-        # SÉCURITÉ : l'historique d'un employé ne peut être consulté qu'en
-        # prouvant la possession de son QR (matricule + token UUID), jamais
-        # avec un matricule seul. Un jeton d'appareil scanner valide ne doit
-        # jamais suffire à lire les données RH de n'importe quel employé
-        # (audit sécurité — accès aux données API, corrigé).
-        #
-        # L'ancien mode "matricule seul" (compatibilité ascendante) a été
-        # retiré : vérifié qu'aucun client (mobile ScanMobileApp, desktop)
-        # ne l'utilise plus — apiService.getEmployeePointages() et
-        # api_client.get_employee_pointages() étaient définis mais jamais
-        # appelés depuis un écran.
         if not raw_qr:
             return JsonResponse({'status': 'error', 'message': 'employee_qr requis'}, status=400)
 
@@ -410,25 +395,25 @@ class MobilePointagesAPIView(MobileAuthenticatedAPIView):
         ).select_related('site').order_by('periode')
 
         pointages_data = [{
-            'id':                 p.id,
-            'periode':            p.periode,
-            'type_journee':       p.type_journee,
-            'site':               p.site.nom if p.site else None,
-            'site_id':            p.site.id  if p.site else None,
-            'heure_arrivee':      str(p.heure_arrivee)       if p.heure_arrivee      else None,
-            'heure_depart':       str(p.heure_depart)        if p.heure_depart       else None,
-            'retard':             str(p.retard)              if p.retard             else None,
-            'heures_travaillees': str(p.heures_travaillees)  if p.heures_travaillees else None,
-            'statut':             p.statut,
-            'date_pointage':      p.date_pointage.isoformat(),
+            'id': p.id,
+            'periode': p.periode,
+            'type_journee': p.type_journee,
+            'site': p.site.nom if p.site else None,
+            'site_id': p.site.id if p.site else None,
+            'heure_arrivee': str(p.heure_arrivee) if p.heure_arrivee else None,
+            'heure_depart': str(p.heure_depart) if p.heure_depart else None,
+            'retard': str(p.retard) if p.retard else None,
+            'heures_travaillees': str(p.heures_travaillees) if p.heures_travaillees else None,
+            'statut': p.statut,
+            'date_pointage': p.date_pointage.isoformat(),
         } for p in pointages]
 
         return JsonResponse({
             'status': 'success',
             'data': {
-                'employe':         _employe_dict(employe),
-                'date':            date_courante.isoformat(),
-                'pointages':       pointages_data,
+                'employe': _employe_dict(employe),
+                'date': date_courante.isoformat(),
+                'pointages': pointages_data,
                 'total_pointages': len(pointages_data),
             }
         })
@@ -438,10 +423,10 @@ class MobilePointagesAPIView(MobileAuthenticatedAPIView):
 
 def _employe_dict(employe) -> dict:
     return {
-        'id':          employe.id,
+        'id': employe.id,
         'nom_complet': employe.get_nom_complet(),
-        'matricule':   employe.matricule,
-        'poste':       employe.poste.nom if employe.poste else None,
+        'matricule': employe.matricule,
+        'poste': employe.poste.nom if employe.poste else None,
     }
 
 
@@ -474,7 +459,6 @@ class MobileTodayPointagesAPIView(MobileAuthenticatedAPIView):
     """
 
     def get(self, request):
-        # Date
         date_str = request.GET.get('date', '').strip()
         if date_str:
             try:
@@ -484,42 +468,43 @@ class MobileTodayPointagesAPIView(MobileAuthenticatedAPIView):
         else:
             date_cible = timezone.localtime(timezone.now()).date()
 
-        # Queryset de base
         qs = Pointage.objects.filter(date_pointage=date_cible).select_related('employe', 'site', 'employe__poste')
 
-        # Filtre site optionnel
         site_id = request.GET.get('site_id', '').strip()
         if site_id:
             try:
                 qs = qs.filter(site_id=int(site_id))
             except (ValueError, TypeError):
-                pass
+                return JsonResponse({
+                    'status': 'error',
+                    'code': 'SITE_INVALIDE',
+                    'message': 'site_id invalide'
+                }, status=400)
 
-        # Tri : heure d'arrivée décroissante (les plus récents en premier)
         qs = qs.order_by('-heure_arrivee', '-id')
 
         data = []
         for p in qs:
             data.append({
-                'id':                 p.id,
-                'employe_nom':        p.employe.get_nom_complet(),
-                'employe_matricule':  p.employe.matricule,
-                'employe_poste':      p.employe.poste.nom if p.employe.poste else None,
-                'site':               p.site.nom if p.site else None,
-                'site_id':            p.site.id  if p.site else None,
-                'date_pointage':      p.date_pointage.isoformat(),
-                'periode':            p.periode,
-                'type_journee':       p.type_journee,
-                'heure_arrivee':      str(p.heure_arrivee)         if p.heure_arrivee       else None,
-                'heure_depart':       str(p.heure_depart)          if p.heure_depart        else None,
-                'retard':             str(p.retard)                if p.retard              else None,
-                'heures_travaillees': str(p.heures_travaillees)    if p.heures_travaillees  else None,
-                'statut':             p.statut,
+                'id': p.id,
+                'employe_nom': p.employe.get_nom_complet(),
+                'employe_matricule': p.employe.matricule,
+                'employe_poste': p.employe.poste.nom if p.employe.poste else None,
+                'site': p.site.nom if p.site else None,
+                'site_id': p.site.id if p.site else None,
+                'date_pointage': p.date_pointage.isoformat(),
+                'periode': p.periode,
+                'type_journee': p.type_journee,
+                'heure_arrivee': str(p.heure_arrivee) if p.heure_arrivee else None,
+                'heure_depart': str(p.heure_depart) if p.heure_depart else None,
+                'retard': str(p.retard) if p.retard else None,
+                'heures_travaillees': str(p.heures_travaillees) if p.heures_travaillees else None,
+                'statut': p.statut,
             })
 
         return JsonResponse({
             'status': 'success',
-            'date':   date_cible.isoformat(),
-            'count':  len(data),
-            'data':   data,
+            'date': date_cible.isoformat(),
+            'count': len(data),
+            'data': data,
         })
