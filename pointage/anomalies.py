@@ -135,22 +135,30 @@ def marquer_traitee(
     PermissionError
         Si l'utilisateur n'est pas Admin/RH (is_staff).
     ValueError
-        Si l'anomalie est déjà clôturée, ou si type_action est invalide.
+        Si l'anomalie est déjà clôturée, si le commentaire est vide, ou si
+        type_action est invalide.
     """
     # Vérification des permissions - Seul l'Admin/RH peut traiter une anomalie
     if not administrateur.is_staff:
         raise PermissionError("Seul un administrateur ou RH peut traiter une anomalie.")
 
-    if anomalie.statut == AnomaliePointage.STATUT_CLOTUREE:
-        raise ValueError("Impossible de retraiter une anomalie déjà clôturée.")
+    commentaire = (commentaire or '').strip()
+    if not commentaire:
+        raise ValueError("Un commentaire est obligatoire pour traiter une anomalie.")
 
     valides = {choice for choice, _ in AnomalieTraitement.TYPE_ACTION_CHOICES}
     if type_action not in valides:
         raise ValueError(f"type_action invalide : {type_action!r}")
 
     with transaction.atomic():
+        # Verrouille la ligne pendant le traitement afin d'éviter que deux
+        # actions RH concurrentes traitent la même anomalie simultanément.
+        anomalie_db = AnomaliePointage.objects.select_for_update().get(pk=anomalie.pk)
+        if anomalie_db.statut == AnomaliePointage.STATUT_CLOTUREE:
+            raise ValueError("Impossible de retraiter une anomalie déjà clôturée.")
+
         traitement, created = AnomalieTraitement.objects.update_or_create(
-            anomalie=anomalie,
+            anomalie=anomalie_db,
             defaults={
                 'administrateur': administrateur,
                 'commentaire': commentaire,
@@ -159,8 +167,9 @@ def marquer_traitee(
                 'type_action': type_action,
             }
         )
-        anomalie.statut = AnomaliePointage.STATUT_TRAITEE
-        anomalie.save(update_fields=['statut'])
+        anomalie_db.statut = AnomaliePointage.STATUT_TRAITEE
+        anomalie_db.save(update_fields=['statut'])
+        anomalie = anomalie_db
 
     logger.info(
         f"[marquer_traitee] anomalie={anomalie.id} traitée ({type_action}) par "
