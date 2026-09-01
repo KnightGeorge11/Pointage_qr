@@ -5,14 +5,18 @@
 {% block extra_actions %}
     {% if change and original %}
         {% if original.statut != 'cloturee' %}
-            <a href="{% url 'admin:anomalie_corriger_pointage' original.pk %}"
-               class="btn w-100 {{ jazzmin_ui.button_classes.primary }} btn-sm">
-                📝 {% trans 'Traiter / corriger le pointage' %}
-            </a>
+            <div class="form-group" style="margin-top: 15px;">
+                <a href="{% url 'admin:anomalie_corriger_pointage' original.pk %}"
+                   class="btn {{ jazzmin_ui.button_classes.primary }} btn-block btn-sm">
+                    📝 {% trans 'Traiter / corriger le pointage' %}
+                </a>
+            </div>
         {% else %}
-            <span class="btn w-100 btn-sm disabled" style="opacity:.6;cursor:default;">
-                {% trans 'Anomalie déjà clôturée' %}
-            </span>
+            <div class="form-group" style="margin-top: 15px;">
+                <span class="btn btn-block btn-sm disabled" style="opacity:.6;cursor:default;background:#6c757d;color:white;">
+                    {% trans 'Anomalie déjà clôturée' %}
+                </span>
+            </div>
         {% endif %}
     {% endif %}
 {% endblock %}
