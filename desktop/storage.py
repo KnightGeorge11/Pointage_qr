@@ -14,7 +14,7 @@ import logging
 from pathlib import Path
 
 import keyring
-from keyring.errors import KeyringError
+from keyring.errors import KeyringError, PasswordDeleteError
 
 APP_DIR = Path.home() / ".pointage_qr_desktop"
 SETTINGS_FILE = APP_DIR / "settings.json"
@@ -23,10 +23,10 @@ TOKEN_KEY = "api_token"
 
 DEFAULTS = {
     "api_base_url": "http://pointageqr.local:8000",
-    "current_user": None,          # dict {username, first_name, last_name, is_staff}
-    "selected_site": None,         # dict {id, nom, adresse, ...}
-    "user_matricule": None,        # str
-    "cached_sites": None,          # list[dict]
+    "current_user": None,
+    "selected_site": None,
+    "user_matricule": None,
+    "cached_sites": None,
     "cached_sites_timestamp": None,
 }
 
@@ -44,9 +44,6 @@ def _load_all() -> dict:
             data = json.load(f)
         merged = dict(DEFAULTS)
         merged.update(data)
-        # Ne jamais laisser un ancien token en mémoire dans le dictionnaire
-        # destiné à être réécrit sur disque. Une ancienne installation peut
-        # encore contenir api_token : il sera migré dans get() puis supprimé.
         merged.pop(TOKEN_KEY, None)
         return merged
     except (json.JSONDecodeError, OSError) as e:
@@ -65,11 +62,7 @@ def _save_all(data: dict):
 
 
 def _legacy_token() -> str | None:
-    """Lit une seule fois un ancien token JSON pour migration.
-
-    La valeur n'est jamais renvoyée par _load_all(), afin d'empêcher sa
-    réécriture accidentelle. Après migration réussie, elle est supprimée.
-    """
+    """Lit une seule fois un ancien token JSON pour migration."""
     if not SETTINGS_FILE.exists():
         return None
     try:
@@ -88,13 +81,10 @@ def _get_token() -> str | None:
         if token:
             return token
 
-        # Migration transparente des anciennes installations qui stockaient
-        # le token dans settings.json.
         legacy = _legacy_token()
         if legacy:
             keyring.set_password(KEYRING_SERVICE, username, legacy)
-            data = _load_all()
-            _save_all(data)
+            _save_all(_load_all())
             return legacy
     except KeyringError as exc:
         logging.warning("Gestionnaire d'identifiants indisponible : %s", exc)
@@ -107,16 +97,17 @@ def _set_token(value: str | None):
         if value is None or not str(value).strip():
             try:
                 keyring.delete_password(KEYRING_SERVICE, username)
-            except keyring.errors.PasswordDeleteError:
+            except PasswordDeleteError:
                 pass
         else:
             keyring.set_password(KEYRING_SERVICE, username, str(value).strip())
 
         # Supprime systématiquement toute ancienne copie en clair.
-        data = _load_all()
-        _save_all(data)
+        _save_all(_load_all())
     except KeyringError as exc:
-        raise RuntimeError("Impossible de sécuriser le jeton dans le gestionnaire d'identifiants du système.") from exc
+        raise RuntimeError(
+            "Impossible de sécuriser le jeton dans le gestionnaire d'identifiants du système."
+        ) from exc
 
 
 def get(key: str):
