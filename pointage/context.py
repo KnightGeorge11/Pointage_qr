@@ -231,7 +231,7 @@ def collect_day_context(
         current_time = timezone.localtime(timezone.now()).time()
     
     # 3. Construire le schedule du site
-    schedule = build_site_schedule(site)
+    schedule = build_site_schedule(site, tolerance_minutes=site.tolerance_minutes)
     
     # 4. Récupérer les pointages existants
     morning_pointage = _get_morning_pointage(employee_id, date_target, lock=lock)

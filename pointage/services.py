@@ -451,7 +451,8 @@ def _detecter_depart_anticipe(pointage: Pointage, employe: Employe, site: Site,
     depart_dt    = datetime.combine(now.date(), heure)
     avance       = fermeture_dt - depart_dt
 
-    if avance.total_seconds() < SEUIL_DEPART_ANTICIPE_MINUTES * 60:
+    seuil_minutes = site.seuil_depart_anticipe_minutes or SEUIL_DEPART_ANTICIPE_MINUTES
+    if avance.total_seconds() < seuil_minutes * 60:
         return
 
     minutes_avance = int(avance.total_seconds() // 60)

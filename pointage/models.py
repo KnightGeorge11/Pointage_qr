@@ -30,6 +30,22 @@ class Site(models.Model):
     heure_fermeture_matin     = models.TimeField(default='12:00')
     heure_ouverture_apres_midi = models.TimeField(default='13:30')
     heure_fermeture_apres_midi = models.TimeField(default='17:30')
+    tolerance_minutes          = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        verbose_name="Tolérance (minutes)",
+        help_text="Marge acceptée avant/après les horaires du site pour "
+                   "accepter un scan (ex : arriver 10 min avant l'ouverture "
+                   "reste accepté). Laisser vide pour utiliser la valeur "
+                   "par défaut du système (15 min).",
+    )
+    seuil_depart_anticipe_minutes = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        verbose_name="Seuil départ anticipé (minutes)",
+        help_text="Nombre de minutes avant la fermeture officielle "
+                   "au-delà duquel une sortie déclenche une anomalie "
+                   "\"Départ anticipé\". Laisser vide pour utiliser la "
+                   "valeur par défaut du système (15 min).",
+    )
 
     def __str__(self):
         return f"{self.nom} - {self.adresse[:30]}..."
@@ -197,6 +213,7 @@ class Pointage(models.Model):
     heure_depart     = models.TimeField(null=True, blank=True)
     retard           = models.DurationField(null=True, blank=True)
     heures_travaillees = models.DurationField(null=True, blank=True)
+    heures_supplementaires = models.DurationField(null=True, blank=True)
 
     statut           = models.CharField(max_length=20, choices=STATUT_CHOICES, default='present')
     notes            = models.TextField(blank=True)
@@ -313,39 +330,56 @@ class Pointage(models.Model):
             else:
                 self.heures_travaillees = timedelta(0)
 
-    def get_heures_supplementaires(self) -> timedelta:
+    def calculer_heures_supplementaires(self):
         """
-        Heures supplémentaires de CE pointage — règle métier explicite :
-        les heures sup commencent après l'heure de sortie après-midi
-        officielle DU SITE, jamais avant, et jamais déduites d'un total
-        journalier générique moins un seuil fixe (ancien calcul, faux :
-        il ignorait complètement les horaires réels du site — un site à
-        7h/jour ou à 9h/jour donnait un résultat incorrect dans les deux
-        sens avec un seuil de 8h codé en dur).
+        Calcule et FIGE les heures supplémentaires de ce pointage dans le
+        champ `heures_supplementaires`, au moment du save() — jamais
+        recalculées en direct à chaque affichage. Sans ce figement, modifier
+        les horaires d'un site aujourd'hui changeait rétroactivement et
+        silencieusement tout l'historique des heures sup déjà rapportées
+        (export Excel d'un mois précédent, etc.), puisque le calcul relisait
+        toujours les horaires ACTUELS du site — problème de fiabilité réel
+        pour tout ce qui touche à la paie.
 
-        Ne s'applique qu'aux pointages de période 'apres_midi', déjà
-        clôturés (heure_depart renseignée), sur un site dont l'horaire de
-        fermeture après-midi est configuré. Retourne toujours
-        timedelta(0) sinon (matin, garde de nuit, pointage encore ouvert,
-        site sans horaire) — la garde de nuit n'a pas de notion de
-        "sortie après-midi", donc n'est jamais concernée par ce calcul,
-        cohérent avec le reste du projet (gardes toujours traitées à part).
+        Règle métier : les heures sup commencent après l'heure de sortie
+        après-midi officielle DU SITE, jamais avant. Ne s'applique qu'aux
+        pointages de période 'apres_midi', déjà clôturés (heure_depart
+        renseignée), sur un site dont l'horaire de fermeture après-midi est
+        configuré. Reste à timedelta(0) sinon (matin — la pause d'1h ne
+        justifie pas d'heure sup ; garde de nuit — aucune notion de "sortie
+        après-midi" ; pointage encore ouvert ; site sans horaire).
         """
         if self.periode != 'apres_midi' or not self.heure_depart or not self.site:
-            return timedelta(0)
+            self.heures_supplementaires = timedelta(0)
+            return
 
         _, heure_fermeture = self.site.get_horaires_pour_periode('apres_midi')
         if not heure_fermeture:
-            return timedelta(0)
+            self.heures_supplementaires = timedelta(0)
+            return
 
         depart_dt    = datetime.combine(self.date_pointage, self.heure_depart)
         fermeture_dt = datetime.combine(self.date_pointage, heure_fermeture)
-        return max(depart_dt - fermeture_dt, timedelta(0))
+        self.heures_supplementaires = max(depart_dt - fermeture_dt, timedelta(0))
+
+    def get_heures_supplementaires(self) -> timedelta:
+        """
+        Accesseur : lit la valeur figée à save() (voir
+        calculer_heures_supplementaires). Filet de sécurité pour les
+        pointages jamais resauvegardés depuis l'ajout de ce champ (recalcule
+        à la volée dans ce seul cas, plutôt que de planter ou renvoyer une
+        valeur fausse).
+        """
+        if self.heures_supplementaires is not None:
+            return self.heures_supplementaires
+        self.calculer_heures_supplementaires()
+        return self.heures_supplementaires
 
     def save(self, *args, **kwargs):
         if self.periode != 'nuit':
             self.calculer_retard()
         self.calculer_heures_travaillees()
+        self.calculer_heures_supplementaires()
 
         if self.periode == 'nuit':
             self.statut = 'present' if self.heure_arrivee else 'absent'

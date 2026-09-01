@@ -152,6 +152,34 @@ class PeriodeTypeFilter(SimpleListFilter):
         return queryset
 
 
+class PointageIncompletFilter(SimpleListFilter):
+    """
+    Pointages jamais clôturés (heure_depart manquante) d'un JOUR PRÉCÉDENT
+    — jamais d'aujourd'hui, où une entrée sans sortie est encore normale
+    (la journée n'est simplement pas finie). Un pointage matin/après-midi
+    d'hier ou avant, resté ouvert, ne bloque jamais rien automatiquement
+    (le jour suivant repart toujours à zéro) et restait donc invisible sauf
+    recherche manuelle — ce filtre le rend enfin repérable directement
+    depuis la liste existante, sans nouvelle page.
+    """
+    title = 'Pointages incomplets'
+    parameter_name = 'incomplet'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('oui', 'Incomplets (jours précédents)'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'oui':
+            return queryset.filter(
+                heure_arrivee__isnull=False,
+                heure_depart__isnull=True,
+                date_pointage__lt=timezone.localdate(),
+            )
+        return queryset
+
+
 # ============================================================
 # CUSTOM USER
 # ============================================================
@@ -207,6 +235,16 @@ class PosteAdmin(admin.ModelAdmin):
 class SiteAdmin(admin.ModelAdmin):
     list_display = ('nom', 'adresse', 'heure_ouverture_matin', 'heure_fermeture_matin')
     search_fields = ('nom', 'adresse')
+    fieldsets = (
+        ('Site', {'fields': ('nom', 'adresse')}),
+        ('Horaires matin', {'fields': ('heure_ouverture_matin', 'heure_fermeture_matin')}),
+        ('Horaires après-midi', {'fields': ('heure_ouverture_apres_midi', 'heure_fermeture_apres_midi')}),
+        ('Réglages avancés (facultatif)', {
+            'fields': ('tolerance_minutes', 'seuil_depart_anticipe_minutes'),
+            'description': "Laisser vide pour utiliser les valeurs par défaut du système (15 min pour les deux).",
+            'classes': ('collapse',),
+        }),
+    )
 
 
 # ============================================================
@@ -352,6 +390,13 @@ class EmployeAdmin(admin.ModelAdmin):
 @admin.register(Pointage)
 class PointageAdmin(admin.ModelAdmin):
     change_list_template = "admin/pointage/pointage_changelist.html"
+
+    def get_queryset(self, request):
+        # Évite le N+1 : 'employe' et 'site' sont affichés sur CHAQUE ligne
+        # de list_display, sans ça la liste (souvent la plus volumineuse du
+        # projet) déclenche 2 requêtes SQL supplémentaires par ligne affichée
+        # au lieu d'une seule requête groupée.
+        return super().get_queryset(request).select_related('employe', 'site')
     
     list_display = [
         'employe',
@@ -375,6 +420,7 @@ class PointageAdmin(admin.ModelAdmin):
         EmployeFilter,        # Employé
         SiteFilter,           # Site
         PeriodeTypeFilter,    # Type de période (Jour/Nuit)
+        PointageIncompletFilter,  # Pointages jamais clôturés (jours précédents)
     ]
     
     search_fields = [
@@ -384,7 +430,7 @@ class PointageAdmin(admin.ModelAdmin):
         'site__nom',
     ]
     
-    readonly_fields = ('retard', 'heures_travaillees', 'date_creation', 'date_modification')
+    readonly_fields = ('retard', 'heures_travaillees', 'heures_supplementaires', 'date_creation', 'date_modification')
     date_hierarchy = 'date_pointage'
     
     # ============================================================
@@ -1276,29 +1322,23 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
     actions = ['marquer_traitees', 'marquer_cloturees']
     ordering = ('-created_at',)
 
-    # ============================================================
-    # READONLY_FIELDS - Le bouton 'lien_traitement' n'est PAS inclus
-    # pour qu'il n'apparaisse pas automatiquement dans le formulaire
-    # ============================================================
+    def get_queryset(self, request):
+        # Même raison que PointageAdmin.get_queryset : 'employe', 'site' et
+        # 'cloturee_par' sont affichés/utilisés sur chaque ligne.
+        return super().get_queryset(request).select_related('employe', 'site', 'cloturee_par')
+
     readonly_fields = (
         'type', 'employe', 'matricule_scanne', 'site',
         'message', 'contexte_formate', 'gravite_badge', 'statut_badge',
         'cloturee_par', 'date_cloture', 'created_at',
-        # 'lien_traitement' N'EST PAS inclus ici - il n'apparaît que
-        # via le template personnalisé change_form.html
     )
 
-    # ============================================================
-    # FIELDSETS - Le champ 'lien_traitement' n'est PAS inclus
-    # ============================================================
     fieldsets = (
         ("Anomalie", {
             'fields': ('type', 'gravite_badge', 'employe', 'matricule_scanne', 'site', 'created_at')
         }),
         ("Détails", {'fields': ('message', 'contexte_formate')}),
         ("Statut", {'fields': ('statut_badge', 'cloturee_par', 'date_cloture')}),
-        # Pas de fieldset pour 'lien_traitement' - il n'apparaît PAS
-        # automatiquement dans le formulaire admin standard
     )
 
     def has_add_permission(self, request):
@@ -1356,17 +1396,12 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
         )
     contexte_formate.short_description = "Contexte"
 
-    # ============================================================
-    # MÉTHODE lien_traitement - Utilisée UNIQUEMENT dans le template
-    # personnalisé change_form.html pour afficher le bouton
-    # Cette méthode n'est PAS incluse dans readonly_fields ni fieldsets
-    # ============================================================
     def lien_traitement(self, obj):
-        """
-        Méthode utilitaire pour générer le lien de traitement.
-        Utilisée UNIQUEMENT dans le template :
-        templates/admin/pointage/anomaliepointage/change_form.html
-        """
+        # Conservé pour compatibilité / usage éventuel ailleurs, mais n'est
+        # PLUS affiché comme champ de formulaire (voir capture d'écran
+        # utilisateur : ça rendait mal, mélangé aux onglets). Le vrai bouton
+        # est maintenant dans le panneau d'actions, à droite — voir
+        # templates/admin/pointage/anomaliepointage/change_form.html.
         if not obj or not obj.pk:
             return '—'
         if obj.statut == AnomaliePointage.STATUT_CLOTUREE:
@@ -1479,13 +1514,25 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
 
             return redirect(f'/admin/pointage/anomaliepointage/{anomalie.pk}/change/')
 
-        # GET : préremplir avec le pointage existant s'il y en a un
+        # GET : préremplir avec le pointage existant s'il y en a un.
+        # Priorité à anomalie.contexte['periode'] quand disponible (ex:
+        # départ anticipé) — sinon, .order_by('periode').first() trie
+        # alphabétiquement ('apres_midi' < 'matin') et peut présélectionner
+        # le MAUVAIS pointage si les deux existent le même jour (bug réel :
+        # une anomalie concernant le matin faisait apparaître le pointage
+        # après-midi dans le formulaire, risque de corriger/écraser le
+        # mauvais enregistrement sans s'en rendre compte).
         initial = {}
         pointage_existant = None
         if anomalie.employe and anomalie.date_pointage:
-            pointage_existant = Pointage.objects.filter(
+            periode_anomalie = (anomalie.contexte or {}).get('periode')
+            qs = Pointage.objects.filter(
                 employe=anomalie.employe, date_pointage=anomalie.date_pointage,
-            ).order_by('periode').first()
+            )
+            if periode_anomalie:
+                pointage_existant = qs.filter(periode=periode_anomalie).first()
+            if not pointage_existant:
+                pointage_existant = qs.order_by('periode').first()
         if pointage_existant:
             initial = {
                 'employe': pointage_existant.employe_id, 'site': pointage_existant.site_id,
