@@ -124,15 +124,39 @@ export const clearAuth = async (): Promise<void> => {
   await refreshApi();
 };
 
-const createApi = (baseURL: string, token: string | null) => axios.create({
-  baseURL,
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    ...(token ? { 'Authorization': `Token ${token}` } : {}),
-  },
-});
+const createApi = (baseURL: string, token: string | null) => {
+  const instance = axios.create({
+    baseURL,
+    timeout: 15000,
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(token ? { 'Authorization': `Token ${token}` } : {}),
+    },
+  });
+
+  // Installer l'intercepteur sur CHAQUE nouvelle instance. refreshApi()
+  // recrée l'instance après login/logout/changement d'URL : l'ancien code
+  // n'attachait l'intercepteur qu'à l'instance initiale, ce qui faisait
+  // perdre la normalisation des erreurs réseau après un refresh.
+  instance.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (!error.response) {
+        if (error.code === 'ECONNABORTED') {
+          error.message = 'Timeout : le serveur ne répond pas';
+        } else {
+          error.message = 'Impossible de joindre le serveur';
+        }
+      } else if (error.response.status === 401) {
+        error.message = error.response.data?.message || 'Session expirée. Veuillez vous reconnecter.';
+      }
+      return Promise.reject(error);
+    }
+  );
+
+  return instance;
+};
 
 let api = createApi(DEFAULT_API_URL, null);
 
@@ -141,20 +165,6 @@ const refreshApi = async () => {
   const token = await getScannerToken();
   api = createApi(url, token);
 };
-
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (!error.response) {
-      if (error.code === 'ECONNABORTED') {
-        error.message = 'Timeout : le serveur ne répond pas';
-      } else {
-        error.message = 'Impossible de joindre le serveur';
-      }
-    }
-    return Promise.reject(error);
-  }
-);
 
 export const testConnection = async (overrideUrl?: string): Promise<ConnectionTestResult> => {
   // Si overrideUrl est fourni (candidat pas encore enregistré, saisi dans
@@ -228,8 +238,11 @@ export const apiService = {
       throw new Error(response.data.message || 'Erreur de connexion');
     }
     const { token, user } = response.data.data;
-    await setScannerToken(token);
+    if (!token || !user) {
+      throw new Error('Réponse d\'authentification invalide');
+    }
     await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+    await setScannerToken(token);
     return user;
   },
 
@@ -254,7 +267,8 @@ export const apiService = {
   /** Vrai uniquement si un jeton ET des infos utilisateur sont stockés localement. */
   async isAuthenticated(): Promise<boolean> {
     const token = await getScannerToken();
-    return !!token;
+    const user = await getCurrentUser();
+    return Boolean(token && user?.username);
   },
 
   async isServerAvailable(): Promise<boolean> {
