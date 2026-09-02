@@ -8,6 +8,7 @@ from django.utils.html import format_html
 from django.urls import path, reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
+from django.db import transaction
 from django.contrib.auth.admin import UserAdmin
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
@@ -467,19 +468,34 @@ class PointageAdmin(admin.ModelAdmin):
     
     actions = ['marquer_present', 'marquer_retard', 'marquer_absent', 'supprimer_selection']
     
+    @transaction.atomic
     def marquer_present(self, request, queryset):
-        queryset.update(statut='present')
-        self.message_user(request, f"✅ {queryset.count()} pointage(s) marqué(s) comme présent.")
+        queryset = queryset.select_for_update()
+        count = queryset.count()
+        for pointage in queryset:
+            pointage.statut = 'present'
+            pointage.save()
+        self.message_user(request, f"✅ {count} pointage(s) marqué(s) comme présent.")
     marquer_present.short_description = "✅ Marquer comme présent"
     
+    @transaction.atomic
     def marquer_retard(self, request, queryset):
-        queryset.update(statut='retard')
-        self.message_user(request, f"⚠️ {queryset.count()} pointage(s) marqué(s) comme retard.")
+        queryset = queryset.select_for_update()
+        count = queryset.count()
+        for pointage in queryset:
+            pointage.statut = 'retard'
+            pointage.save()
+        self.message_user(request, f"⚠️ {count} pointage(s) marqué(s) comme retard.")
     marquer_retard.short_description = "⚠️ Marquer comme retard"
     
+    @transaction.atomic
     def marquer_absent(self, request, queryset):
-        queryset.update(statut='absent')
-        self.message_user(request, f"❌ {queryset.count()} pointage(s) marqué(s) comme absent.")
+        queryset = queryset.select_for_update()
+        count = queryset.count()
+        for pointage in queryset:
+            pointage.statut = 'absent'
+            pointage.save()
+        self.message_user(request, f"❌ {count} pointage(s) marqué(s) comme absent.")
     marquer_absent.short_description = "❌ Marquer comme absent"
     
     def supprimer_selection(self, request, queryset):
@@ -1470,8 +1486,9 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
         ]
         return custom + urls
 
+    @transaction.atomic
     def corriger_pointage_view(self, request, anomalie_id):
-        anomalie = get_object_or_404(AnomaliePointage, pk=anomalie_id)
+        anomalie = get_object_or_404(AnomaliePointage.objects.select_for_update(), pk=anomalie_id)
 
         if anomalie.statut == AnomaliePointage.STATUT_CLOTUREE:
             self.message_user(request, "❌ Cette anomalie est déjà clôturée.", level=messages.ERROR)

@@ -10,6 +10,7 @@ from django.views.generic import ListView, DetailView, DeleteView
 from django.urls import reverse_lazy, reverse
 from django.utils import timezone
 from datetime import datetime, timedelta, time
+from django.db import transaction
 from django.db.models import Q, Count
 from django.http import JsonResponse
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
@@ -816,6 +817,7 @@ def alertes_rh_view(request):
 # ============================================================
 @login_required
 @staff_member_required
+@transaction.atomic
 def alerte_detail_view(request, pk):
     anomalie = get_object_or_404(
         AnomaliePointage.objects.select_related(

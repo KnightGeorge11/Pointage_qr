@@ -216,3 +216,56 @@ class TestCorrectionReelleDuPointage(TestCase):
         assert 'process_scan' not in source
         assert 'DayStateMachine' not in source
         assert 'collect_day_context' not in source
+
+
+class TestAtomiciteCorrectionRH(TestCase):
+    """Une correction RH ne doit jamais être partiellement persistée.
+    Si le traitement de l'anomalie échoue après form.save(), le Pointage
+    et l'Anomalie doivent revenir exactement à leur état initial.
+    """
+
+    def setUp(self):
+        self.admin = CustomUser.objects.create_user(
+            username="admin_atomic", password="pass1234",
+            role="admin", is_staff=True, is_superuser=True,
+        )
+        self.employe = Employe.objects.create(
+            nom="Atomic", prenom="Test", matricule="AT001", actif=True,
+        )
+        self.site = Site.objects.create(
+            nom="Site Atomic", adresse="1 rue Atomic",
+            heure_ouverture_matin=dtime(8, 0), heure_fermeture_matin=dtime(12, 0),
+            heure_ouverture_apres_midi=dtime(13, 0), heure_fermeture_apres_midi=dtime(17, 0),
+        )
+        self.pointage = Pointage.objects.create(
+            employe=self.employe, site=self.site, date_pointage=date.today(),
+            periode='matin', type_journee='normal', heure_arrivee=dtime(8, 0),
+        )
+        self.anomalie = enregistrer_anomalie(
+            AnomaliePointage.TYPE_MISSING_MORNING_EXIT,
+            message="Sortie matin manquante", employe=self.employe,
+            site=self.site, date_pointage=date.today(),
+        )
+        self.client = Client()
+        self.client.force_login(self.admin)
+
+    def test_correction_rollback_si_traitement_echoue(self):
+        from unittest.mock import patch
+
+        url = reverse('admin:anomalie_corriger_pointage', args=[self.anomalie.pk])
+        with patch('pointage.admin.marquer_traitee', side_effect=RuntimeError('echec traitement')):
+            self.client.post(url, {
+                'employe': self.employe.id, 'site': self.site.id,
+                'date_pointage': date.today().isoformat(), 'periode': 'matin',
+                'type_journee': 'normal', 'heure_arrivee': '08:00',
+                'heure_depart': '12:00', 'statut': 'present', 'notes': '',
+                'commentaire': 'Correction test transactionnelle.',
+            })
+
+        self.pointage.refresh_from_db()
+        self.anomalie.refresh_from_db()
+        assert self.pointage.heure_depart is None
+        assert self.anomalie.statut == AnomaliePointage.STATUT_OUVERTE
+        assert not AnomalieTraitement.objects.filter(
+            anomalie=self.anomalie
+        ).exists()
