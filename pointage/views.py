@@ -595,13 +595,33 @@ class PointageListView(LoginRequiredMixin, ListView):
         date_fin   = self.request.GET.get('date_fin')
         from django.db.models import Q
 
-        if date_debut:
+        if date_debut and date_fin:
+            # Un pointage de nuit chevauche la période si son début est avant la fin
+            # et sa fin est après le début (ou reste encore ouvert).
             queryset = queryset.filter(
-                Q(date_pointage__gte=date_debut) | Q(periode='nuit', date_depart__gte=date_debut)
+                Q(
+                    periode='nuit',
+                    date_pointage__lte=date_fin,
+                ) & (
+                    Q(date_depart__isnull=True) | Q(date_depart__gte=date_debut)
+                )
+                | Q(
+                    ~Q(periode='nuit'),
+                    date_pointage__gte=date_debut,
+                    date_pointage__lte=date_fin,
+                )
             )
-        if date_fin:
+        elif date_debut:
             queryset = queryset.filter(
-                Q(date_pointage__lte=date_fin) | Q(periode='nuit', date_depart__lte=date_fin)
+                Q(periode='nuit') & (
+                    Q(date_depart__isnull=True) | Q(date_depart__gte=date_debut)
+                )
+                | Q(~Q(periode='nuit'), date_pointage__gte=date_debut)
+            )
+        elif date_fin:
+            queryset = queryset.filter(
+                Q(periode='nuit', date_pointage__lte=date_fin)
+                | Q(~Q(periode='nuit'), date_pointage__lte=date_fin)
             )
 
         employe_filter = self.request.GET.get('employe')
