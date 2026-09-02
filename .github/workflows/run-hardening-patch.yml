@@ -1,0 +1,29 @@
+name: Run hardening patch
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply source fixes
+        run: |
+          python scripts/apply_hardening.py
+          cd mobile/ScanMobileApp
+          npm install expo-secure-store@~15.0.8 --save
+      - name: Commit source fixes and remove patch tooling
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm scripts/apply_hardening.py .github/workflows/run-hardening-patch.yml .github/workflows/apply-hardening-fix.yml .github/workflows/major-hardening.yml || true
+          git add mobile/ScanMobileApp/package.json mobile/ScanMobileApp/package-lock.json mobile/ScanMobileApp/src/services/api.ts mobile/ScanMobileApp/src/screens/SiteSelectionScreen.tsx pointage/models.py
+          git commit -m 'security: harden mobile auth and offline queue'
+          git push
