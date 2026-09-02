@@ -1,0 +1,91 @@
+name: Apply major hardening
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Secure mobile token storage
+        working-directory: mobile/ScanMobileApp
+        run: |
+          npm install expo-secure-store@~15.0.8 --save
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/services/api.ts')
+          s = p.read_text()
+          s = s.replace("import AsyncStorage from '@react-native-async-storage/async-storage';", "import AsyncStorage from '@react-native-async-storage/async-storage';\nimport * as SecureStore from 'expo-secure-store';")
+          s = s.replace("return await AsyncStorage.getItem(STORAGE_KEYS.API_TOKEN);", "return await SecureStore.getItemAsync(STORAGE_KEYS.API_TOKEN);")
+          s = s.replace("await AsyncStorage.setItem(STORAGE_KEYS.API_TOKEN, token.trim());", "await SecureStore.setItemAsync(STORAGE_KEYS.API_TOKEN, token.trim());")
+          s = s.replace("await AsyncStorage.multiRemove([STORAGE_KEYS.API_TOKEN, STORAGE_KEYS.CURRENT_USER]);", "await SecureStore.deleteItemAsync(STORAGE_KEYS.API_TOKEN);\n  await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER);")
+          p.write_text(s)
+          PY
+
+      - name: Harden offline queue against concurrent writes and preserve permanent failures
+        working-directory: mobile/ScanMobileApp
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/services/api.ts')
+          s = p.read_text()
+          old = """  async recordScan(\n    employeeQr: string, siteId: number, mode: 'day' | 'night' = 'day',\n    options: { forceNew?: boolean; } = {}\n  ): Promise<any> {"""
+          new = """  async recordScan(\n    employeeQr: string, siteId: number, mode: 'day' | 'night' = 'day',\n    options: { forceNew?: boolean; } = {}\n  ): Promise<any> {"""
+          if old not in s: raise SystemExit('recordScan signature not found')
+          # Replace the fragile read-modify-write queue append with a serialized helper.
+          marker = "const createApi = (baseURL: string, token: string | null) => {"
+          helper = """let pendingQueueLock: Promise<void> = Promise.resolve();\n\nconst withPendingQueueLock = async <T>(operation: () => Promise<T>): Promise<T> => {\n  const previous = pendingQueueLock;\n  let release!: () => void;\n  pendingQueueLock = new Promise<void>((resolve) => { release = resolve; });\n  await previous;\n  try { return await operation(); } finally { release(); }\n};\n\n"""
+          s = s.replace(marker, helper + marker, 1)
+          old_block = """        const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);\n        const pending = raw ? JSON.parse(raw) : []; pending.push(payload);\n        await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(pending));"""
+          new_block = """        await withPendingQueueLock(async () => {\n          const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);\n          const pending = raw ? JSON.parse(raw) : [];\n          if (!pending.some((item: any) => item.client_event_id === payload.client_event_id)) {\n            pending.push(payload);\n            await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(pending));\n          }\n        });"""
+          if old_block not in s: raise SystemExit('offline append block not found')
+          s = s.replace(old_block, new_block, 1)
+          old_sync = """    await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(remaining));\n    return { synced, remaining: remaining.length };"""
+          new_sync = """    await withPendingQueueLock(async () => {\n      const latestRaw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);\n      const latest = latestRaw ? JSON.parse(latestRaw) : [];\n      const processedIds = new Set(queue.map((item: any) => item.client_event_id));\n      const concurrent = Array.isArray(latest) ? latest.filter((item: any) => !processedIds.has(item.client_event_id)) : [];\n      await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify([...remaining, ...concurrent]));\n    });\n    return { synced, remaining: remaining.length };"""
+          if old_sync not in s: raise SystemExit('sync write block not found')
+          s = s.replace(old_sync, new_sync, 1)
+          p.write_text(s)
+          PY
+
+      - name: Automatic queue sync on app foreground
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/screens/SiteSelectionScreen.tsx')
+          s = p.read_text()
+          s = s.replace("import React, { useState, useEffect, useCallback } from 'react'", "import React, { useState, useEffect, useCallback } from 'react'\nimport { AppState } from 'react-native'")
+          marker = "  useEffect(() => {\n    initialize()\n  }, [])"
+          replacement = """  useEffect(() => {\n    initialize()\n\n    const subscription = AppState.addEventListener('change', (state) => {\n      if (state === 'active') {\n        apiService.syncPendingScans().catch(() => undefined)\n      }\n    })\n    return () => subscription.remove()\n  }, [])"""
+          if marker not in s: raise SystemExit('SiteSelection effect marker not found')
+          s = s.replace(marker, replacement, 1)
+          p.write_text(s)
+          PY
+
+      - name: Remove dead retard assignment
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('pointage/models.py')
+          s = p.read_text()
+          s = s.replace("            if self.periode == 'apres_midi':\n                _, fermeture_matin = self.site.get_horaires_pour_periode('matin')\n                if fermeture_matin:\n                    pause_duree = datetime.combine(\n                        self.date_pointage, heure_ouverture\n                    ) - datetime.combine(\n                        self.date_pointage, fermeture_matin\n                    )\n                    if pause_duree > timedelta(0):\n                        retard_brut = retard_brut\n\n", "")
+          p.write_text(s)
+          PY
+
+      - name: TypeScript check
+        working-directory: mobile/ScanMobileApp
+        run: npx tsc --noEmit
+
+      - name: Commit changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add mobile/ScanMobileApp/package.json mobile/ScanMobileApp/package-lock.json mobile/ScanMobileApp/src/services/api.ts mobile/ScanMobileApp/src/screens/SiteSelectionScreen.tsx pointage/models.py
+          git diff --cached --quiet || git commit -m 'security: harden mobile auth and offline queue'
+          git push
