@@ -189,7 +189,13 @@ class MobileRecordScanAPIView(MobileAuthenticatedAPIView):
         raw_qr = data.get('employee_qr', '').strip()
         site_id = data.get('site_id')
         mode = data.get('mode', 'auto')
-        force_new_garde = bool(data.get('force_new', False))
+        force_new_garde = _parse_bool(data.get('force_new', False), default=False)
+        if force_new_garde is None:
+            return JsonResponse({
+                'status': 'error',
+                'code': 'FORCE_NEW_INVALIDE',
+                'message': 'force_new doit être un booléen (true/false).',
+            }, status=400)
 
         MODE_NORMALISATION = {
             'day': 'auto', 'auto': 'auto',
@@ -421,6 +427,23 @@ class MobilePointagesAPIView(MobileAuthenticatedAPIView):
 
 # ─── Helpers internes ─────────────────────────────────────────────────────────
 
+def _parse_bool(value, default=False):
+    """Parse strictement un booléen venant du JSON/API."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in ('true', '1', 'yes', 'oui'):
+            return True
+        if normalized in ('false', '0', 'no', 'non'):
+            return False
+    return None
+
+
 def _employe_dict(employe) -> dict:
     return {
         'id': employe.id,
@@ -448,6 +471,9 @@ def _prochain_scan_normal(employe, date_courante, heure_courante) -> str:
 # GET /api/mobile/pointages/today/?date=YYYY-MM-DD&site_id=N
 # ─────────────────────────────────────────────────────────────────────────────
 class MobileTodayPointagesAPIView(MobileAuthenticatedAPIView):
+    # Cet endpoint expose le journal global des employés : il est réservé
+    # aux superviseurs/RH et ne doit pas être accessible à tout opérateur.
+    permission_classes = [IsAuthenticated & IsAdminUser]
     """
     Retourne TOUS les pointages d'une journée (par défaut aujourd'hui),
     triés du plus récent au plus ancien, avec les infos employé.

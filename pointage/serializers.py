@@ -18,8 +18,13 @@ class EmployeSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Employe
-        fields = '__all__'
-        read_only_fields = ['qr_code', 'qr_code_token', 'date_creation']
+        # Le token QR est un secret d'authentification du badge : il ne doit
+        # jamais être exposé par l'API générale des employés.
+        fields = [
+            field.name for field in model._meta.fields
+            if field.name != 'qr_code_token'
+        ] + ['poste_details']
+        read_only_fields = ['qr_code', 'date_creation']
 
 class PointageSerializer(serializers.ModelSerializer):
     employe_nom_complet = serializers.CharField(source='employe.__str__', read_only=True)

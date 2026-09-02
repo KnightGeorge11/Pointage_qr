@@ -1261,13 +1261,21 @@ def export_resume_excel(request):
 class EmployeViewSet(viewsets.ModelViewSet):
     queryset           = Employe.objects.filter(actif=True)
     serializer_class   = EmployeSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
 
 
 class SiteViewSet(viewsets.ModelViewSet):
     queryset           = Site.objects.all()
     serializer_class   = SiteSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
 
 
 class PointageViewSet(viewsets.ModelViewSet):
@@ -1309,7 +1317,9 @@ class PointageViewSet(viewsets.ModelViewSet):
 
 
 class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    # Les anomalies RH peuvent contenir des informations nominatives et
+    # des détails de traitement : lecture réservée aux comptes staff/RH.
+    permission_classes = [IsAdminUser]
 
     def get_serializer_class(self):
         return AnomaliePointageDetailSerializer if self.action == 'retrieve' else AnomaliePointageSerializer
