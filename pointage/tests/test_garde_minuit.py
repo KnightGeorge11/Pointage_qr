@@ -53,7 +53,7 @@ class GardeTraversantMinuitTestCase(TestCase):
         assert result_fin['status'] == 'success'
         assert result_fin['code'] == 'fin_garde'
 
-        pointage = Pointage.objects.get(employe=self.employe, periode='nuit')
+        pointage = Pointage.objects.get(employe=self.employe, periode='nuit', heure_arrivee__isnull=False)
         assert pointage.date_pointage == date(2026, 8, 10)
         assert pointage.heure_arrivee == dtime(20, 0)
         assert pointage.heure_depart == dtime(6, 0)
@@ -64,7 +64,7 @@ class GardeTraversantMinuitTestCase(TestCase):
         self._debut_garde(date(2026, 8, 10), 22, 0)
         self._debut_garde(date(2026, 8, 11), 7, 0)
 
-        pointage = Pointage.objects.get(employe=self.employe, periode='nuit')
+        pointage = Pointage.objects.get(employe=self.employe, periode='nuit', heure_arrivee__isnull=False)
         pointage.calculer_heures_travaillees()
         assert pointage.heures_travaillees == timedelta(hours=9)
 
@@ -72,7 +72,7 @@ class GardeTraversantMinuitTestCase(TestCase):
         self._debut_garde(date(2026, 8, 10), 23, 0)
         self._debut_garde(date(2026, 8, 11), 5, 0)
 
-        pointage = Pointage.objects.get(employe=self.employe, periode='nuit')
+        pointage = Pointage.objects.get(employe=self.employe, periode='nuit', heure_arrivee__isnull=False)
         pointage.calculer_heures_travaillees()
         assert pointage.heures_travaillees == timedelta(hours=6)
 

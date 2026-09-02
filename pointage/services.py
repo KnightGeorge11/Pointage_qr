@@ -78,6 +78,25 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
     with transaction.atomic():
         employe = Employe.objects.select_for_update().get(pk=employe.pk)
 
+        # Re-check after the employee lock so concurrent requests carrying
+        # the same client event cannot both apply the state transition.
+        if client_event_id:
+            existing_scan = Scan.objects.select_related('employe', 'site', 'pointage').filter(
+                client_event_id=client_event_id
+            ).first()
+            if existing_scan:
+                pointage = existing_scan.pointage
+                data = _build_response_data(
+                    existing_scan, pointage, timezone.localtime(existing_scan.timestamp)
+                ) if pointage else None
+                return {
+                    'status': 'success',
+                    'code': existing_scan.type_scan,
+                    'message': 'Scan déjà synchronisé (événement idempotent).',
+                    'data': data,
+                    'idempotent': True,
+                }
+
         if not employe.actif:
             enregistrer_anomalie(
                 AnomaliePointage.TYPE_EMPLOYE_INACTIF,

@@ -348,12 +348,33 @@ export const apiService = {
   },
 
   async syncPendingScans(): Promise<{ synced: number; remaining: number }> {
-    const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS); const queue = raw ? JSON.parse(raw) : [];
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);
+    const queue = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(queue) || queue.length === 0) return { synced: 0, remaining: 0 };
-    const remaining: any[] = []; let synced = 0;
+
+    const remaining: any[] = [];
+    let synced = 0;
     for (const item of queue) {
-      try { const response = await api.post('/api/mobile/scan/record/', item); if (response.data?.status === 'success') synced++; else remaining.push(item); }
-      catch (error: any) { remaining.push(item); if (!error.response) break; }
+      try {
+        const response = await api.post('/api/mobile/scan/record/', item);
+        if (response.data?.status === 'success') {
+          synced++;
+        } else {
+          remaining.push(item);
+        }
+      } catch (error: any) {
+        if (!error.response) {
+          remaining.push(item);
+          break;
+        }
+        const status = error.response.status;
+        const retryable = status === 401 || status === 408 || status === 409 || status === 429 || status >= 500;
+        if (retryable) {
+          remaining.push(item);
+          break;
+        }
+        // Permanent business/validation rejection: do not retry forever.
+      }
     }
     await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(remaining));
     return { synced, remaining: remaining.length };

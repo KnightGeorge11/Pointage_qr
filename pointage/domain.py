@@ -153,25 +153,22 @@ class SiteSchedule:
         return close_morning_dt < now_dt < open_afternoon_dt
     
     def is_within_global_hours(self, current_time: time) -> bool:
-        """Vérifie si on est entre l'ouverture matin et fermeture après-midi.
-        
-        Inclut la tolérance avant et après.
-        
-        Paramètres
-        ----------
-        current_time : time
-        
-        Retour
-        ------
-        bool : True si l'heure est acceptée globalement
+        """Vérifie si l'heure appartient à une période de travail normale.
+
+        La tolérance s'applique autour des limites extérieures : avant
+        l'ouverture du matin et après la fermeture de l'après-midi.
+        L'intervalle 12:00-13:00 reste une pause et n'est pas une plage
+        globale valide.
         """
         today = date.today()
         now_dt = datetime.combine(today, current_time)
-        open_dt = datetime.combine(today, self.morning_window.open_time) - self.tolerance
-        close_dt = datetime.combine(today, self.afternoon_window.close_time) + self.tolerance
-        
-        return open_dt <= now_dt <= close_dt
-    
+        morning_open = datetime.combine(today, self.morning_window.open_time) - self.tolerance
+        morning_close = datetime.combine(today, self.morning_window.close_time)
+        afternoon_open = datetime.combine(today, self.afternoon_window.open_time)
+        afternoon_close = datetime.combine(today, self.afternoon_window.close_time) + self.tolerance
+
+        return (morning_open <= now_dt <= morning_close) or (afternoon_open <= now_dt <= afternoon_close)
+
     def __repr__(self) -> str:
         return (f"SiteSchedule("
                 f"matin={self.morning_window}, "

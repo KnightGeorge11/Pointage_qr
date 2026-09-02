@@ -164,7 +164,7 @@ class TestParisGardeEtMinuit(PointageSerializerProcessScanTestCase):
         assert pointage.heure_depart == dtime(6, 0)
         assert pointage.date_depart == jour2
 
-    def test_force_new_via_api_pointages_ignore_garde_oubliee(self):
+    def test_force_new_via_api_pointages_refuse_garde_anterieure_ouverte(self):
         avant_hier = date(2026, 8, 8)
         Pointage.objects.create(employe=self.employe, site=self.site, date_pointage=avant_hier, periode="nuit", type_journee="garde", statut="absent")
         with patch("pointage.services.timezone.now", return_value=_aware(avant_hier, 20, 0)):
@@ -176,8 +176,9 @@ class TestParisGardeEtMinuit(PointageSerializerProcessScanTestCase):
                 extra={"periode": "nuit", "type_journee": "garde", "force_new": True}
             )
 
-        assert response.status_code == 201, response.content
-        assert Pointage.objects.filter(
+        assert response.status_code == 400, response.content
+        assert response.json()["code"] == "GARDE_PRECEDENTE_NON_CLOTUREE"
+        assert not Pointage.objects.filter(
             employe=self.employe, periode="nuit", date_pointage=aujourdhui
         ).exists()
 
