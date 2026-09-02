@@ -30,6 +30,25 @@ DEFAULT_TOLERANCE_MINUTES = 30
 """Tolérance par défaut en minutes. Peut être surchargée par site."""
 
 
+def _as_time(value: time | str) -> time:
+    """Normalise une heure Django ou une chaîne HH:MM[:SS] en datetime.time.
+
+    Les valeurs TimeField provenant d'une instance fraîchement créée peuvent
+    encore être des chaînes lorsque la valeur par défaut du modèle est
+    déclarée sous forme de texte. La couche d'adaptation convertit donc
+    explicitement les deux représentations avant de les transmettre au
+    domaine pur.
+    """
+    if isinstance(value, time):
+        return value
+    if isinstance(value, str):
+        try:
+            return time.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError(f"Heure invalide : {value!r}") from exc
+    raise TypeError(f"Heure attendue, reçu : {type(value).__name__}")
+
+
 def build_site_schedule(site: Site, tolerance_minutes: Optional[int] = None) -> SiteSchedule:
     """Construit un SiteSchedule à partir d'un modèle Site Django."""
     if tolerance_minutes is None:
@@ -40,7 +59,12 @@ def build_site_schedule(site: Site, tolerance_minutes: Optional[int] = None) -> 
     if tolerance_minutes < 0:
         raise ValueError("La tolérance ne peut pas être négative")
 
-    if site.heure_fermeture_matin <= site.heure_ouverture_matin:
+    morning_open = _as_time(site.heure_ouverture_matin)
+    morning_close = _as_time(site.heure_fermeture_matin)
+    afternoon_open = _as_time(site.heure_ouverture_apres_midi)
+    afternoon_close = _as_time(site.heure_fermeture_apres_midi)
+
+    if morning_close <= morning_open:
         logger.error(
             "[build_site_schedule] Site %s: fermeture matin <= ouverture matin",
             site.id,
@@ -49,7 +73,7 @@ def build_site_schedule(site: Site, tolerance_minutes: Optional[int] = None) -> 
             f"Site {site.nom}: heure de fermeture matin doit être après ouverture"
         )
 
-    if site.heure_fermeture_apres_midi <= site.heure_ouverture_apres_midi:
+    if afternoon_close <= afternoon_open:
         logger.error(
             "[build_site_schedule] Site %s: fermeture après-midi <= ouverture après-midi",
             site.id,
@@ -59,12 +83,12 @@ def build_site_schedule(site: Site, tolerance_minutes: Optional[int] = None) -> 
         )
 
     morning_window = TimeWindow(
-        open_time=site.heure_ouverture_matin,
-        close_time=site.heure_fermeture_matin,
+        open_time=morning_open,
+        close_time=morning_close,
     )
     afternoon_window = TimeWindow(
-        open_time=site.heure_ouverture_apres_midi,
-        close_time=site.heure_fermeture_apres_midi,
+        open_time=afternoon_open,
+        close_time=afternoon_close,
     )
 
     tolerance = timedelta(minutes=tolerance_minutes)
