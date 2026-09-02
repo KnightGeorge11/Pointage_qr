@@ -41,10 +41,12 @@ def dashboard_context(request):
     absents_aujourdhui = total_employes - presents_aujourdhui
     
     gardes_en_cours = Pointage.objects.filter(
-        date_pointage=today, 
         periode='nuit',
-        type_journee='garde', 
-        heure_depart__isnull=True
+        type_journee='garde',
+        heure_arrivee__isnull=False,
+        heure_depart__isnull=True,
+        date_pointage__gte=today - timedelta(days=1),
+        date_pointage__lte=today,
     ).count()
     
     anomalies_ouvertes = compter_anomalies_ouvertes()

@@ -88,8 +88,11 @@ def dashboard(request):
     retards = today_pointages.filter(
         periode__in=['matin', 'apres_midi'], retard__gt=timedelta(0)
     ).count()
-    gardes_en_cours = today_pointages.filter(
-        periode='nuit', type_journee='garde', heure_depart__isnull=True
+    gardes_en_cours = Pointage.objects.filter(
+        periode='nuit', type_journee='garde', heure_arrivee__isnull=False,
+        heure_depart__isnull=True,
+        date_pointage__gte=today - timedelta(days=1),
+        date_pointage__lte=today,
     ).count()
 
     pointages_recents = today_pointages.select_related('employe', 'site').order_by('-date_creation')[:10]
@@ -239,8 +242,10 @@ def scanner_view(request):
     pointages_aujourdhui = Pointage.objects.filter(date_pointage=today)
     presents_aujourdhui  = pointages_aujourdhui.values('employe').distinct().count()
     gardes_en_cours      = Pointage.objects.filter(
-        date_pointage=today, periode='nuit',
-        type_journee='garde', heure_depart__isnull=True
+        periode='nuit', type_journee='garde', heure_arrivee__isnull=False,
+        heure_depart__isnull=True,
+        date_pointage__gte=today - timedelta(days=1),
+        date_pointage__lte=today,
     ).count()
 
     context = {
@@ -1522,9 +1527,17 @@ def get_prochain_scan(request, employe_id):
         employe = Employe.objects.get(id=employe_id, actif=True)
         today   = timezone.localtime(timezone.now()).date()
 
-        if Pointage.objects.filter(employe=employe, date_pointage=today, periode='nuit', type_journee='garde', heure_depart__isnull=True).exists():
-            return Response({'prochain_scan': 'fin_garde',   'type': 'garde',    'message': 'Fin de garde attendue'})
-        if Pointage.objects.filter(employe=employe, date_pointage=today, periode='nuit', type_journee='garde', heure_arrivee__isnull=True).exists():
+        if Pointage.objects.filter(
+            employe=employe, periode='nuit', type_journee='garde',
+            heure_arrivee__isnull=False, heure_depart__isnull=True,
+            date_pointage__gte=today - timedelta(days=1),
+            date_pointage__lte=today,
+        ).exists():
+            return Response({'prochain_scan': 'fin_garde', 'type': 'garde', 'message': 'Fin de garde attendue'})
+        if Pointage.objects.filter(
+            employe=employe, date_pointage=today, periode='nuit',
+            type_journee='garde', heure_arrivee__isnull=True, heure_depart__isnull=True
+        ).exists():
             return Response({'prochain_scan': 'debut_garde', 'type': 'garde',    'message': 'Début de garde attendu'})
 
         maintenant = timezone.localtime(timezone.now()).time()
