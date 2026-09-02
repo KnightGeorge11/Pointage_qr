@@ -109,7 +109,13 @@ def marquer_traitee(
     pointage_concerne: Optional[Pointage] = None,
     type_action: str = 'correction',
 ) -> AnomalieTraitement:
-    """Marque une anomalie comme traitée et conserve la trace du traitement."""
+    """Marque une anomalie comme traitée et conserve la trace du traitement.
+
+    Le pointage concerné est verrouillé dans la même transaction que
+    l'anomalie. Cela évite qu'un second traitement RH ou une autre écriture
+    concurrente ne modifie le même pointage entre sa correction et la clôture
+    logique de l'anomalie.
+    """
     if not administrateur.is_staff:
         raise PermissionError("Seul un administrateur ou RH peut traiter une anomalie.")
 
@@ -126,13 +132,20 @@ def marquer_traitee(
         if anomalie_db.statut == AnomaliePointage.STATUT_CLOTUREE:
             raise ValueError("Impossible de retraiter une anomalie déjà clôturée.")
 
+        # Toujours verrouiller la ligne de pointage réellement utilisée par
+        # le traitement, et non l'instance potentiellement devenue obsolète
+        # entre l'affichage du formulaire RH et sa soumission.
+        pointage_db = None
+        if pointage_concerne and pointage_concerne.pk:
+            pointage_db = Pointage.objects.select_for_update().get(pk=pointage_concerne.pk)
+
         traitement, _ = AnomalieTraitement.objects.update_or_create(
             anomalie=anomalie_db,
             defaults={
                 'administrateur': administrateur,
                 'commentaire': commentaire,
                 'corrections': corrections or [],
-                'pointage_concerne': pointage_concerne,
+                'pointage_concerne': pointage_db,
                 'type_action': type_action,
             }
         )
