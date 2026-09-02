@@ -32,3 +32,5 @@ jobs:
           git add pointage/views_mobile.py
           git diff --cached --quiet || git commit -m 'fix: import uuid in mobile scan API'
           git push
+
+# Trigger validation run after workflow installation.
