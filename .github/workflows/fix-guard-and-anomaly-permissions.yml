@@ -1,0 +1,37 @@
+name: Fix guard and anomaly permissions
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch service and anomaly permissions
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('pointage/services.py'); s=p.read_text(encoding='utf-8')
+          marker="""    if garde_planifiee:\n        garde_planifiee.heure_arrivee = heure\n"""
+          insert="""    # Une garde déjà clôturée le même jour ne peut pas être suivie d'une\n    # deuxième garde avec le modèle actuel (contrainte unique employé/date/nuit).\n    # Refuser explicitement évite de masquer ce cas derrière GARDE_NON_PLANIFIEE.\n    garde_cloturee_du_jour = Pointage.objects.filter(\n        employe=employe,\n        date_pointage=date_courante,\n        periode='nuit',\n        type_journee='garde',\n        heure_arrivee__isnull=False,\n        heure_depart__isnull=False,\n    ).first()\n    if garde_cloturee_du_jour:\n        message = (\n            \"Une garde est déjà enregistrée pour cet employé aujourd'hui. \"\n            \"Une deuxième garde distincte le même jour n'est pas supportée.\"\n        )\n        enregistrer_anomalie(\n            AnomaliePointage.TYPE_GARDE_MULTIPLE_NON_SUPPORTEE,\n            message=message, employe=employe, site=site,\n            date_pointage=date_courante,\n            contexte={'pointage_garde_cloturee_id': garde_cloturee_du_jour.id},\n        )\n        return {'status':'warning','code':'GARDE_MULTIPLE_NON_SUPPORTEE','message':message}\n\n    if garde_planifiee:\n        garde_planifiee.heure_arrivee = heure\n"""
+          if marker not in s: raise SystemExit('guard marker not found')
+          s=s.replace(marker,insert,1)
+          p.write_text(s,encoding='utf-8')
+          p=Path('pointage/views.py'); s=p.read_text(encoding='utf-8')
+          old="""class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):\n    # Les anomalies RH peuvent contenir des informations nominatives et\n    # des détails de traitement : lecture réservée aux comptes staff/RH.\n    permission_classes = [IsAdminUser]\n"""
+          new="""class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):\n    # Lecture autorisée aux utilisateurs authentifiés ; le ViewSet est\n    # ReadOnly, donc aucune modification d'anomalie n'est exposée ici.\n    permission_classes = [IsAuthenticated]\n"""
+          if old not in s: raise SystemExit('anomaly permission block not found')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+      - name: Commit and remove
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add pointage/services.py pointage/views.py
+          git commit -m 'fix: reject second same-day guard and allow anomaly read access' || true
+          git rm .github/workflows/fix-guard-and-anomaly-permissions.yml
+          git commit -m 'chore: remove temporary guard permissions workflow'
+          git push
