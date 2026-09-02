@@ -29,9 +29,6 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
     """Point d'entrée unique pour tout scan QR."""
     now = timezone.localtime(timezone.now())
 
-    # Le contrat central n'accepte que ces deux modes. Les couches API
-    # valident déjà ce champ, mais le service doit aussi se protéger lorsqu'il
-    # est appelé directement (web, tests, scripts, tâches internes).
     if mode not in ('auto', 'garde'):
         return {
             'status': 'error',
@@ -69,10 +66,6 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
             'message': f"Site {site_id} introuvable."
         }
 
-    # Le verrou de ligne employé englobe le contrôle d'activité, l'anti-
-    # doublon et toute la transition de pointage. Deux requêtes simultanées
-    # pour le même badge ne peuvent donc plus toutes les deux passer le
-    # contrôle "dernier scan" avant d'écrire.
     with transaction.atomic():
         employe = Employe.objects.select_for_update().get(pk=employe.pk)
 
@@ -138,11 +131,38 @@ def _process_garde(employe, site, now, force_new=False):
         employe=employe,
         periode='nuit',
         type_journee='garde',
+        heure_arrivee__isnull=False,
         heure_depart__isnull=True
-    ).order_by('-date_pointage').first()
+    ).order_by('-date_pointage', '-date_creation').first()
 
-    if garde_en_cours and force_new and garde_en_cours.date_pointage != date_courante:
-        garde_en_cours = None
+    # Une garde ouverte d'un jour précédent est une garde de nuit potentiellement
+    # en cours après minuit. Elle doit être clôturée par le scan normal de fin.
+    # Le mode force_new ne doit jamais fabriquer une nouvelle garde en laissant
+    # l'ancienne ouverte : cela créerait des pointages orphelins et des ambiguïtés.
+    if garde_en_cours and garde_en_cours.date_pointage != date_courante and force_new:
+        message = (
+            "Une garde précédente est encore ouverte. Impossible de créer une "
+            "nouvelle garde tant que cette garde n'est pas clôturée ou corrigée "
+            "par un administrateur."
+        )
+        enregistrer_anomalie(
+            AnomaliePointage.TYPE_GARDE_MULTIPLE_NON_SUPPORTEE,
+            message=message,
+            employe=employe,
+            site=site,
+            date_pointage=date_courante,
+            contexte={'pointage_garde_ouverte_id': garde_en_cours.id},
+        )
+        return {
+            'status': 'warning',
+            'code': 'GARDE_PRECEDENTE_NON_CLOTUREE',
+            'message': message,
+        }
+
+    if garde_en_cours and force_new and garde_en_cours.date_pointage == date_courante:
+        # Compatibilité avec le comportement historique : un force_new sur
+        # une garde du même jour clôture la garde ouverte existante.
+        force_new = False
 
     if garde_en_cours:
         garde_en_cours.heure_depart = heure
@@ -160,16 +180,22 @@ def _process_garde(employe, site, now, force_new=False):
             'data': _build_response_data(scan, garde_en_cours, now)
         }
 
+    # Le planning de garde est représenté par un Pointage vide :
+    # date_pointage + periode=nuit + type_journee=garde + heure_arrivee NULL.
+    # Il est désormais obligatoire pour démarrer une garde ; le service ne
+    # crée plus silencieusement de garde non planifiée.
     garde_planifiee = Pointage.objects.select_for_update().filter(
         employe=employe,
         date_pointage=date_courante,
         periode='nuit',
         type_journee='garde',
-        heure_arrivee__isnull=True
+        heure_arrivee__isnull=True,
+        heure_depart__isnull=True,
     ).first()
 
     if garde_planifiee:
         garde_planifiee.heure_arrivee = heure
+        garde_planifiee.date_depart = None
         garde_planifiee.site = site
         garde_planifiee.save()
         scan = Scan.objects.create(
@@ -184,43 +210,22 @@ def _process_garde(employe, site, now, force_new=False):
             'data': _build_response_data(scan, garde_planifiee, now)
         }
 
-    garde_deja_cloturee_ce_jour = Pointage.objects.filter(
-        employe=employe, date_pointage=date_courante,
-        periode='nuit', type_journee='garde',
-    ).exclude(heure_depart__isnull=True).exists()
-
-    if garde_deja_cloturee_ce_jour:
-        message = (
-            "Une garde a déjà été effectuée et clôturée aujourd'hui pour "
-            "cet employé. Une deuxième garde distincte le même jour n'est "
-            "pas prise en charge automatiquement — contactez un administrateur."
-        )
-        enregistrer_anomalie(
-            AnomaliePointage.TYPE_GARDE_MULTIPLE_NON_SUPPORTEE,
-            message=message, employe=employe, site=site, date_pointage=date_courante,
-        )
-        return {
-            'status': 'warning',
-            'code': 'GARDE_MULTIPLE_NON_SUPPORTEE',
-            'message': message
-        }
-
-    pointage = Pointage.objects.create(
-        employe=employe, site=site,
-        date_pointage=date_courante,
-        periode='nuit', type_journee='garde',
-        heure_arrivee=heure, statut='present'
+    message = (
+        "Aucune garde n'est planifiée pour cet employé aujourd'hui. "
+        "La garde doit être planifiée par un administrateur avant le scan."
     )
-    scan = Scan.objects.create(
-        employe=employe, site=site,
-        timestamp=now, type_scan='debut_garde',
-        pointage=pointage
+    enregistrer_anomalie(
+        AnomaliePointage.TYPE_GARDE_MULTIPLE_NON_SUPPORTEE,
+        message=message,
+        employe=employe,
+        site=site,
+        date_pointage=date_courante,
+        contexte={'raison': 'garde_non_planifiee'},
     )
     return {
-        'status': 'success',
-        'code': 'debut_garde',
-        'message': f"Début de garde enregistré à {heure.strftime('%H:%M')}",
-        'data': _build_response_data(scan, pointage, now)
+        'status': 'warning',
+        'code': 'GARDE_NON_PLANIFIEE',
+        'message': message,
     }
 
 
