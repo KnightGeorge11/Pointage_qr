@@ -1,3 +1,4 @@
+# Temporary workflow: patches overnight guard filters, then removes itself.
 name: Fix overnight guard filters
 on:
   push:
