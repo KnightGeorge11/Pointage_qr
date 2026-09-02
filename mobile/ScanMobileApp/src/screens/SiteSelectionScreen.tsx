@@ -1,6 +1,7 @@
 // screens/SiteSelectionScreen.tsx
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { AppState } from 'react-native'
 import {
   View,
   Text,
@@ -32,6 +33,13 @@ const SiteSelectionScreen = () => {
 
   useEffect(() => {
     initialize()
+
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        apiService.syncPendingScans().catch(() => undefined)
+      }
+    })
+    return () => subscription.remove()
   }, [])
 
   const initialize = async () => {

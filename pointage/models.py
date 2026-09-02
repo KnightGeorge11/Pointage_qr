@@ -252,17 +252,6 @@ class Pointage(models.Model):
             ouverture_dt = datetime.combine(self.date_pointage, heure_ouverture)
             retard_brut  = arrivee_dt - ouverture_dt
 
-            if self.periode == 'apres_midi':
-                _, fermeture_matin = self.site.get_horaires_pour_periode('matin')
-                if fermeture_matin:
-                    pause_duree = datetime.combine(
-                        self.date_pointage, heure_ouverture
-                    ) - datetime.combine(
-                        self.date_pointage, fermeture_matin
-                    )
-                    if pause_duree > timedelta(0):
-                        retard_brut = retard_brut
-
             self.retard = max(retard_brut, timedelta(0))
         else:
             self.retard = timedelta(0)

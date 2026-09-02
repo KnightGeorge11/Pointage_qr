@@ -1,5 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { DEFAULT_API_URL, STORAGE_KEYS } from '../utils/constants';
 
 export interface Site {
@@ -90,14 +91,14 @@ const getBaseUrl = async (): Promise<string> => {
 // seul ce jeton l'est, comme n'importe quelle clé API.
 const getScannerToken = async (): Promise<string | null> => {
   try {
-    return await AsyncStorage.getItem(STORAGE_KEYS.API_TOKEN);
+    return await SecureStore.getItemAsync(STORAGE_KEYS.API_TOKEN);
   } catch {
     return null;
   }
 };
 
 export const setScannerToken = async (token: string): Promise<void> => {
-  await AsyncStorage.setItem(STORAGE_KEYS.API_TOKEN, token.trim());
+  await SecureStore.setItemAsync(STORAGE_KEYS.API_TOKEN, token.trim());
   await refreshApi();
 };
 
@@ -120,8 +121,19 @@ export const getCurrentUser = async (): Promise<CurrentUser | null> => {
 /** Purge complète de l'authentification locale (token + infos utilisateur).
  * Jamais de mot de passe à effacer : il n'est jamais stocké. */
 export const clearAuth = async (): Promise<void> => {
-  await AsyncStorage.multiRemove([STORAGE_KEYS.API_TOKEN, STORAGE_KEYS.CURRENT_USER]);
+  await SecureStore.deleteItemAsync(STORAGE_KEYS.API_TOKEN);
+  await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
   await refreshApi();
+};
+
+let pendingQueueLock: Promise<void> = Promise.resolve();
+
+const withPendingQueueLock = async <T>(operation: () => Promise<T>): Promise<T> => {
+  const previous = pendingQueueLock;
+  let release!: () => void;
+  pendingQueueLock = new Promise<void>((resolve) => { release = resolve; });
+  await previous;
+  try { return await operation(); } finally { release(); }
 };
 
 const createApi = (baseURL: string, token: string | null) => {
@@ -333,9 +345,14 @@ export const apiService = {
       await this.syncPendingScans(); return response.data;
     } catch (error: any) {
       if (!error.response) {
-        const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);
-        const pending = raw ? JSON.parse(raw) : []; pending.push(payload);
-        await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(pending));
+        await withPendingQueueLock(async () => {
+          const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);
+          const pending = raw ? JSON.parse(raw) : [];
+          if (!pending.some((item: any) => item.client_event_id === payload.client_event_id)) {
+            pending.push(payload);
+            await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(pending));
+          }
+        });
         return { status: 'success', code: 'SCAN_HORS_LIGNE', message: 'Scan enregistré localement. Il sera synchronisé dès le retour du réseau.', data: { offline: true } };
       }
       throw error;
@@ -376,7 +393,13 @@ export const apiService = {
         // Permanent business/validation rejection: do not retry forever.
       }
     }
-    await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(remaining));
+    await withPendingQueueLock(async () => {
+      const latestRaw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);
+      const latest = latestRaw ? JSON.parse(latestRaw) : [];
+      const processedIds = new Set(queue.map((item: any) => item.client_event_id));
+      const concurrent = Array.isArray(latest) ? latest.filter((item: any) => !processedIds.has(item.client_event_id)) : [];
+      await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify([...remaining, ...concurrent]));
+    });
     return { synced, remaining: remaining.length };
   },
 
