@@ -471,9 +471,6 @@ def _prochain_scan_normal(employe, date_courante, heure_courante) -> str:
 # GET /api/mobile/pointages/today/?date=YYYY-MM-DD&site_id=N
 # ─────────────────────────────────────────────────────────────────────────────
 class MobileTodayPointagesAPIView(MobileAuthenticatedAPIView):
-    # Cet endpoint expose le journal global des employés : il est réservé
-    # aux superviseurs/RH et ne doit pas être accessible à tout opérateur.
-    permission_classes = [IsAuthenticated & IsAdminUser]
     """
     Retourne TOUS les pointages d'une journée (par défaut aujourd'hui),
     triés du plus récent au plus ancien, avec les infos employé.
@@ -483,6 +480,7 @@ class MobileTodayPointagesAPIView(MobileAuthenticatedAPIView):
       ?site_id=N         — filtre par site
       ?refresh=1         — ignoré côté serveur, utile pour forcer le rechargement côté client
     """
+    permission_classes = [IsAdminUser]
 
     def get(self, request):
         date_str = request.GET.get('date', '').strip()
