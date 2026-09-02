@@ -1,0 +1,172 @@
+name: Apply remaining hardening
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  hardening:
+    if: ${{ !contains(github.event.head_commit.message, '[hardening-run]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply remaining production corrections
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # 1) Backend: overtime authorization + immutable pointage audit trail.
+          p = Path('pointage/models.py')
+          s = p.read_text(encoding='utf-8')
+          marker = "    heures_supplementaires = models.DurationField(null=True, blank=True)\n"
+          if "heures_supplementaires_autorisees" not in s:
+              replacement = marker + "    heures_supplementaires_autorisees = models.BooleanField(\n        default=False,\n        verbose_name='Heures supplémentaires autorisées',\n        help_text='Une heure supplémentaire calculée n’est comptabilisée qu’après validation RH.',\n    )\n    heures_supplementaires_autorisees_par = models.ForeignKey(\n        'CustomUser', on_delete=models.SET_NULL, null=True, blank=True,\n        related_name='heures_supplementaires_validees', db_constraint=False,\n    )\n    date_autorisation_heures_supplementaires = models.DateTimeField(null=True, blank=True)\n    motif_autorisation_heures_supplementaires = models.TextField(blank=True)\n"
+              if marker not in s:
+                  raise SystemExit('Pointage overtime marker not found')
+              s = s.replace(marker, replacement, 1)
+
+          audit_marker = "\n\nclass Scan(models.Model):\n"
+          if "class PointageAudit(models.Model):" not in s:
+              audit = '''\n\nclass PointageAudit(models.Model):\n    """Journal immuable des créations, corrections et suppressions de pointages."""\n    ACTION_CREATE = 'create'\n    ACTION_UPDATE = 'update'\n    ACTION_DELETE = 'delete'\n    ACTION_CHOICES = (\n        (ACTION_CREATE, 'Création'),\n        (ACTION_UPDATE, 'Modification'),\n        (ACTION_DELETE, 'Suppression'),\n    )\n\n    pointage = models.ForeignKey(\n        Pointage, on_delete=models.SET_NULL, null=True, blank=True,\n        related_name='audit_entries',\n    )\n    administrateur = models.ForeignKey(\n        'CustomUser', on_delete=models.SET_NULL, null=True, blank=True,\n        related_name='pointages_audites', db_constraint=False,\n    )\n    action = models.CharField(max_length=10, choices=ACTION_CHOICES)\n    avant = models.JSONField(default=dict, blank=True)\n    apres = models.JSONField(default=dict, blank=True)\n    motif = models.TextField(blank=True)\n    created_at = models.DateTimeField(auto_now_add=True)\n\n    class Meta:\n        ordering = ['-created_at']\n        verbose_name = 'Audit de pointage'\n        verbose_name_plural = 'Audits de pointage'\n        indexes = [\n            models.Index(fields=['pointage', 'created_at']),\n            models.Index(fields=['administrateur', 'created_at']),\n        ]\n'''
+              if audit_marker not in s:
+                  raise SystemExit('Scan marker not found')
+              s = s.replace(audit_marker, audit + audit_marker, 1)
+
+          p.write_text(s, encoding='utf-8')
+
+          # 2) Backend: captured_at must be plausible for offline replay.
+          p = Path('pointage/views_mobile.py')
+          s = p.read_text(encoding='utf-8')
+          if 'CAPTURED_AT_MAX_AGE = timedelta(days=7)' not in s:
+              s = s.replace(
+                  "from datetime import datetime, time\n",
+                  "from datetime import datetime, time, timedelta\n",
+                  1,
+              )
+              anchor = "logger = logging.getLogger(__name__)\n"
+              constants = anchor + "\n# Tolérance destinée aux appareils réellement hors ligne : les événements\n# plus anciens sont rejetés et les horloges manifestement dans le futur aussi.\nCAPTURED_AT_MAX_AGE = timedelta(days=7)\nCAPTURED_AT_MAX_FUTURE = timedelta(minutes=5)\n"
+              if anchor not in s:
+                  raise SystemExit('logger marker not found')
+              s = s.replace(anchor, constants, 1)
+
+          old = """                if timezone.is_naive(captured_at): captured_at = timezone.make_aware(captured_at, timezone.get_current_timezone())\n                else: captured_at = timezone.localtime(captured_at)\n"""
+          new = old + """                server_now = timezone.localtime(timezone.now())\n                if captured_at < server_now - CAPTURED_AT_MAX_AGE:\n                    return JsonResponse({'status':'error','code':'CAPTURED_AT_TROP_ANCIEN','message':'Événement hors ligne trop ancien (maximum 7 jours).'}, status=400)\n                if captured_at > server_now + CAPTURED_AT_MAX_FUTURE:\n                    return JsonResponse({'status':'error','code':'CAPTURED_AT_DANS_LE_FUTUR','message':'Horodatage de capture incohérent avec l’heure du serveur.'}, status=400)\n"""
+          if 'CAPTURED_AT_TROP_ANCIEN' not in s:
+              if old not in s:
+                  raise SystemExit('captured_at normalization marker not found')
+              s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+
+          # 3) Backend admin: every RH pointage edit/delete is auditable.
+          p = Path('pointage/admin.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace(
+              "    AnomaliePointage, AnomalieTraitement,\n)",
+              "    AnomaliePointage, AnomalieTraitement, PointageAudit,\n)",
+              1,
+          )
+          if 'def save_model(self, request, obj, form, change):' not in s[s.find('@admin.register(Pointage)'):s.find('@admin.register(Scan)') if '@admin.register(Scan)' in s else len(s)]:
+              marker = "    # ============================================================\n    # GET QUERYSET\n    # ============================================================\n"
+              methods = '''    def _audit_snapshot(self, obj):\n        return {\n            'employe_id': obj.employe_id,\n            'site_id': obj.site_id,\n            'date_pointage': obj.date_pointage.isoformat() if obj.date_pointage else None,\n            'date_depart': obj.date_depart.isoformat() if obj.date_depart else None,\n            'periode': obj.periode,\n            'type_journee': obj.type_journee,\n            'heure_arrivee': obj.heure_arrivee.isoformat() if obj.heure_arrivee else None,\n            'heure_depart': obj.heure_depart.isoformat() if obj.heure_depart else None,\n            'retard': str(obj.retard) if obj.retard else None,\n            'heures_travaillees': str(obj.heures_travaillees) if obj.heures_travaillees else None,\n            'heures_supplementaires': str(obj.heures_supplementaires) if obj.heures_supplementaires else None,\n            'heures_supplementaires_autorisees': obj.heures_supplementaires_autorisees,\n            'statut': obj.statut,\n            'notes': obj.notes,\n        }\n\n    def save_model(self, request, obj, form, change):\n        before = {}\n        if change and obj.pk:\n            previous = Pointage.objects.get(pk=obj.pk)\n            before = self._audit_snapshot(previous)\n        super().save_model(request, obj, form, change)\n        PointageAudit.objects.create(\n            pointage=obj,\n            administrateur=request.user if request.user.is_authenticated else None,\n            action=PointageAudit.ACTION_UPDATE if change else PointageAudit.ACTION_CREATE,\n            avant=before,\n            apres=self._audit_snapshot(obj),\n            motif=(request.POST.get('audit_motif') or '').strip(),\n        )\n\n    def delete_model(self, request, obj):\n        before = self._audit_snapshot(obj)\n        PointageAudit.objects.create(\n            pointage=obj,\n            administrateur=request.user if request.user.is_authenticated else None,\n            action=PointageAudit.ACTION_DELETE,\n            avant=before,\n            apres={},\n            motif=(request.POST.get('audit_motif') or '').strip(),\n        )\n        super().delete_model(request, obj)\n\n'''
+              if marker not in s:
+                  raise SystemExit('PointageAdmin queryset marker not found')
+              s = s.replace(marker, methods + marker, 1)
+          p.write_text(s, encoding='utf-8')
+
+          # 4) Desktop USB scanner: restore a real keyboard-wedge input path.
+          p = Path('desktop/screens/scan.py')
+          s = p.read_text(encoding='utf-8')
+          if 'self.usb_entry = tk.Entry(' not in s:
+              marker = "        tk.Label(\n            self.usb_panel,\n            text=\"Présentez le badge devant la douchette\",\n"
+              insert = '''        self.usb_entry = tk.Entry(\n            self.usb_panel,\n            font=("Segoe UI", 12),\n            justify="center",\n            relief="solid",\n            bd=1,\n        )\n        self.usb_entry.pack(fill="x", padx=50, pady=(0, 12), ipady=8)\n        self.usb_entry.bind("<Return>", self._on_usb_enter)\n\n'''
+              if marker not in s:
+                  raise SystemExit('USB label marker not found')
+              s = s.replace(marker, insert + marker, 1)
+
+          old_usb = '''    def _focus_usb_entry(self):\n        # Fonction vide car nous n'avons plus de champ de saisie\n        pass\n\n    def _on_usb_enter(self, event=None):\n        # Fonction vide car nous n'avons plus de champ de saisie\n        pass\n'''
+          new_usb = '''    def _focus_usb_entry(self):\n        self.usb_entry.focus_set()\n\n    def _on_usb_enter(self, event=None):\n        if self.source != "usb" or self.loading:\n            return "break"\n        data = self.usb_entry.get().strip()\n        self.usb_entry.delete(0, "end")\n        if data:\n            self._on_qr_detected(data)\n        return "break"\n'''
+          if old_usb in s:
+              s = s.replace(old_usb, new_usb, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+          # Migration for the two backend model changes.
+          cat > pointage/migrations/0019_pointage_audit_and_overtime_authorization.py <<'PY'
+          from django.db import migrations, models
+          import django.db.models.deletion
+
+          class Migration(migrations.Migration):
+              dependencies = [('pointage', '0018_scan_client_event_id')]
+              operations = [
+                  migrations.AddField(
+                      model_name='pointage', name='heures_supplementaires_autorisees',
+                      field=models.BooleanField(default=False, help_text='Une heure supplémentaire calculée n’est comptabilisée qu’après validation RH.', verbose_name='Heures supplémentaires autorisées'),
+                  ),
+                  migrations.AddField(
+                      model_name='pointage', name='heures_supplementaires_autorisees_par',
+                      field=models.ForeignKey(blank=True, db_constraint=False, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='heures_supplementaires_validees', to='pointage.customuser'),
+                  ),
+                  migrations.AddField(
+                      model_name='pointage', name='date_autorisation_heures_supplementaires',
+                      field=models.DateTimeField(blank=True, null=True),
+                  ),
+                  migrations.AddField(
+                      model_name='pointage', name='motif_autorisation_heures_supplementaires',
+                      field=models.TextField(blank=True),
+                  ),
+                  migrations.CreateModel(
+                      name='PointageAudit',
+                      fields=[
+                          ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                          ('action', models.CharField(choices=[('create','Création'),('update','Modification'),('delete','Suppression')], max_length=10)),
+                          ('avant', models.JSONField(blank=True, default=dict)),
+                          ('apres', models.JSONField(blank=True, default=dict)),
+                          ('motif', models.TextField(blank=True)),
+                          ('created_at', models.DateTimeField(auto_now_add=True)),
+                          ('administrateur', models.ForeignKey(blank=True, db_constraint=False, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='pointages_audites', to='pointage.customuser')),
+                          ('pointage', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='audit_entries', to='pointage.pointage')),
+                      ],
+                      options={
+                          'verbose_name': 'Audit de pointage',
+                          'verbose_name_plural': 'Audits de pointage',
+                          'ordering': ['-created_at'],
+                          'indexes': [models.Index(fields=['pointage','created_at'], name='pointage_po_pointag_5b5c2d_idx'), models.Index(fields=['administrateur','created_at'], name='pointage_po_adminis_8a1b12_idx')],
+                      },
+                  ),
+              ]
+          PY
+
+          # 5) Production security defaults: HSTS/cookies only when DEBUG=False.
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('pointage_qr/settings.py')
+          s = p.read_text(encoding='utf-8')
+          anchor = "CORS_ALLOW_HEADERS = [\n"
+          block = "# Sécurité HTTP en production : activée uniquement quand DEBUG=False.\nif not DEBUG:\n    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)\n    SESSION_COOKIE_SECURE = True\n    CSRF_COOKIE_SECURE = True\n    SECURE_BROWSER_XSS_FILTER = True\n    SECURE_CONTENT_TYPE_NOSNIFF = True\n    SECURE_REFERRER_POLICY = 'same-origin'\n    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000, cast=int)\n    SECURE_HSTS_INCLUDE_SUBDOMAINS = True\n    SECURE_HSTS_PRELOAD = True\n\n"
+          if 'SECURE_HSTS_SECONDS' not in s:
+              if anchor not in s:
+                  raise SystemExit('settings security anchor not found')
+              s = s.replace(anchor, block + anchor, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pointage/models.py pointage/views_mobile.py pointage/admin.py pointage/migrations/0019_pointage_audit_and_overtime_authorization.py desktop/screens/scan.py pointage_qr/settings.py
+          git diff --cached --quiet || git commit -m "security: complete attendance audit and hardening [hardening-run]"
+          git push
+
+      - name: Remove temporary hardening workflows
+        if: always()
+        run: |
+          rm -f .github/workflows/apply-remaining-hardening.yml .github/workflows/major-hardening.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A .github/workflows
+          git diff --cached --quiet || git commit -m "chore: remove temporary hardening workflows [hardening-run]"
+          git push || true
