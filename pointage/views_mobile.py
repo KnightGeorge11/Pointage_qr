@@ -13,7 +13,7 @@ from django.contrib.auth import authenticate
 from datetime import datetime, time
 
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
 
