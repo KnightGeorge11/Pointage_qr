@@ -851,7 +851,7 @@ def alerte_detail_view(request, pk):
             employe_id = request.POST.get('employe')
             date_pointage = request.POST.get('date_pointage')
             periode = request.POST.get('periode')
-            pointage_existant = Pointage.objects.filter(
+            pointage_existant = Pointage.objects.select_for_update().filter(
                 employe_id=employe_id, date_pointage=date_pointage, periode=periode
             ).first()
 
