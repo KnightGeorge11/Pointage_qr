@@ -1,0 +1,92 @@
+name: Apply security hardening
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply targeted hardening
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def patch(path, replacements):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              original = text
+              for old, new in replacements:
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{path}: expected exactly 1 occurrence, found {count}: {old[:100]!r}')
+                  text = text.replace(old, new, 1)
+              if text != original:
+                  p.write_text(text, encoding='utf-8')
+                  print(f'patched {path}')
+              else:
+                  print(f'already patched {path}')
+
+          patch('pointage/views.py', [
+              (
+                  "class EmployeViewSet(viewsets.ModelViewSet):\n    queryset           = Employe.objects.filter(actif=True)\n    serializer_class   = EmployeSerializer\n    permission_classes = [IsAuthenticated]",
+                  "class EmployeViewSet(viewsets.ModelViewSet):\n    queryset           = Employe.objects.filter(actif=True)\n    serializer_class   = EmployeSerializer\n\n    def get_permissions(self):\n        if self.action in ('create', 'update', 'partial_update', 'destroy'):\n            return [IsAdminUser()]\n        return [IsAuthenticated()]",
+              ),
+              (
+                  "class SiteViewSet(viewsets.ModelViewSet):\n    queryset           = Site.objects.all()\n    serializer_class   = SiteSerializer\n    permission_classes = [IsAuthenticated]",
+                  "class SiteViewSet(viewsets.ModelViewSet):\n    queryset           = Site.objects.all()\n    serializer_class   = SiteSerializer\n\n    def get_permissions(self):\n        if self.action in ('create', 'update', 'partial_update', 'destroy'):\n            return [IsAdminUser()]\n        return [IsAuthenticated()]",
+              ),
+              (
+                  "class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):\n    permission_classes = [IsAuthenticated]",
+                  "class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):\n    # Les anomalies RH peuvent contenir des informations nominatives et\n    # des détails de traitement : lecture réservée aux comptes staff/RH.\n    permission_classes = [IsAdminUser]",
+              ),
+          ])
+
+          patch('pointage/serializers.py', [
+              (
+                  "    class Meta:\n        model = Employe\n        fields = '__all__'\n        read_only_fields = ['qr_code', 'qr_code_token', 'date_creation']",
+                  "    class Meta:\n        model = Employe\n        # Le token QR est un secret d'authentification du badge : il ne doit\n        # jamais être exposé par l'API générale des employés.\n        fields = [\n            field.name for field in model._meta.fields\n            if field.name != 'qr_code_token'\n        ] + ['poste_details']\n        read_only_fields = ['qr_code', 'date_creation']",
+              ),
+          ])
+
+          patch('pointage/views_mobile.py', [
+              (
+                  "        raw_qr = data.get('employee_qr', '').strip()\n        site_id = data.get('site_id')\n        mode = data.get('mode', 'auto')\n        force_new_garde = bool(data.get('force_new', False))",
+                  "        raw_qr = data.get('employee_qr', '').strip()\n        site_id = data.get('site_id')\n        mode = data.get('mode', 'auto')\n        force_new_garde = _parse_bool(data.get('force_new', False), default=False)\n        if force_new_garde is None:\n            return JsonResponse({\n                'status': 'error',\n                'code': 'FORCE_NEW_INVALIDE',\n                'message': 'force_new doit être un booléen (true/false).',\n            }, status=400)"
+              ),
+              (
+                  "class MobileTodayPointagesAPIView(MobileAuthenticatedAPIView):",
+                  "class MobileTodayPointagesAPIView(MobileAuthenticatedAPIView):\n    # Cet endpoint expose le journal global des employés : il est réservé\n    # aux superviseurs/RH et ne doit pas être accessible à tout opérateur.\n    permission_classes = [IsAuthenticated & IsAdminUser]"
+              ),
+              (
+                  "# ─── Helpers internes ─────────────────────────────────────────────────────────\n\ndef _employe_dict(employe) -> dict:",
+                  "# ─── Helpers internes ─────────────────────────────────────────────────────────\n\ndef _parse_bool(value, default=False):\n    \"\"\"Parse strictement un booléen venant du JSON/API.\"\"\"\n    if value is None:\n        return default\n    if isinstance(value, bool):\n        return value\n    if isinstance(value, int) and value in (0, 1):\n        return bool(value)\n    if isinstance(value, str):\n        normalized = value.strip().lower()\n        if normalized in ('true', '1', 'yes', 'oui'):\n            return True\n        if normalized in ('false', '0', 'no', 'non'):\n            return False\n    return None\n\n\ndef _employe_dict(employe) -> dict:"
+              ),
+          ])
+
+      - name: Commit hardening
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pointage/views.py pointage/serializers.py pointage/views_mobile.py
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Harden API permissions and mobile boolean parsing"
+          git push
+
+      - name: Remove temporary workflow
+        shell: bash
+        run: |
+          git rm .github/workflows/apply-security-hardening.yml
+          git commit -m "Remove temporary hardening workflow"
+          git push
