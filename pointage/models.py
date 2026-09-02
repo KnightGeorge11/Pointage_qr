@@ -28,15 +28,15 @@ class Site(models.Model):
     adresse                   = models.TextField()
     heure_ouverture_matin     = models.TimeField(default='08:00')
     heure_fermeture_matin     = models.TimeField(default='12:00')
-    heure_ouverture_apres_midi = models.TimeField(default='13:30')
-    heure_fermeture_apres_midi = models.TimeField(default='17:30')
+    heure_ouverture_apres_midi = models.TimeField(default='13:00')
+    heure_fermeture_apres_midi = models.TimeField(default='17:00')
     tolerance_minutes          = models.PositiveSmallIntegerField(
         null=True, blank=True,
         verbose_name="Tolérance (minutes)",
         help_text="Marge acceptée avant/après les horaires du site pour "
                    "accepter un scan (ex : arriver 10 min avant l'ouverture "
                    "reste accepté). Laisser vide pour utiliser la valeur "
-                   "par défaut du système (15 min).",
+                   "par défaut du système (30 min).",
     )
     seuil_depart_anticipe_minutes = models.PositiveSmallIntegerField(
         null=True, blank=True,
@@ -79,10 +79,6 @@ class Employe(models.Model):
         return f"{self.prenom} {self.nom} ({self.matricule})"
 
     def save(self, *args, **kwargs):
-        # Régénérer le QR à la création, ET si le matricule a changé —
-        # sinon le badge physique garde l'ancien matricule encodé et
-        # cesse silencieusement de fonctionner après un renommage
-        # (Point 8 — cohérence matricule/QR).
         matricule_a_change = False
         if self.pk:
             ancien_matricule = Employe.objects.filter(pk=self.pk).values_list('matricule', flat=True).first()
@@ -205,7 +201,7 @@ class Pointage(models.Model):
     employe          = models.ForeignKey(Employe, on_delete=models.PROTECT, related_name='pointages')
     site             = models.ForeignKey(Site, on_delete=models.PROTECT, related_name='pointages')
     date_pointage    = models.DateField()
-    date_depart      = models.DateField(null=True, blank=True)  # ✅ NOUVEAU : date réelle de fin pour les gardes
+    date_depart      = models.DateField(null=True, blank=True)
     periode          = models.CharField(max_length=20, choices=PERIODE_CHOICES)
     type_journee     = models.CharField(max_length=20, choices=TYPE_JOURNEE_CHOICES, default='normal', db_index=True)
 
@@ -280,16 +276,11 @@ class Pointage(models.Model):
         tz = timezone.get_current_timezone()
         
         if self.periode == 'nuit':
-            # GARDE DE NUIT
             if self.heure_depart:
-                # Date d'arrivée = date_pointage
                 date_arrivee = self.date_pointage
-                
-                # Date de départ = date_depart si renseignée, sinon date_pointage
                 if self.date_depart:
                     date_depart = self.date_depart
                 else:
-                    # Fallback : si heure_depart < heure_arrivee, c'est le lendemain
                     date_depart = self.date_pointage
                     if self.heure_depart < self.heure_arrivee:
                         date_depart += timedelta(days=1)
@@ -305,7 +296,6 @@ class Pointage(models.Model):
                 
                 self.heures_travaillees = depart - arrivee
             else:
-                # Pas encore terminé → on calcule jusqu'à maintenant
                 maintenant = timezone.localtime(timezone.now())
                 arrivee = timezone.make_aware(
                     datetime.combine(self.date_pointage, self.heure_arrivee),
@@ -314,7 +304,6 @@ class Pointage(models.Model):
                 self.heures_travaillees = maintenant - arrivee
                 
         else:
-            # PÉRIODE NORMALE (matin / après-midi)
             if self.heure_arrivee and self.heure_depart:
                 arrivee = timezone.make_aware(
                     datetime.combine(self.date_pointage, self.heure_arrivee),
@@ -334,20 +323,7 @@ class Pointage(models.Model):
         """
         Calcule et FIGE les heures supplémentaires de ce pointage dans le
         champ `heures_supplementaires`, au moment du save() — jamais
-        recalculées en direct à chaque affichage. Sans ce figement, modifier
-        les horaires d'un site aujourd'hui changeait rétroactivement et
-        silencieusement tout l'historique des heures sup déjà rapportées
-        (export Excel d'un mois précédent, etc.), puisque le calcul relisait
-        toujours les horaires ACTUELS du site — problème de fiabilité réel
-        pour tout ce qui touche à la paie.
-
-        Règle métier : les heures sup commencent après l'heure de sortie
-        après-midi officielle DU SITE, jamais avant. Ne s'applique qu'aux
-        pointages de période 'apres_midi', déjà clôturés (heure_depart
-        renseignée), sur un site dont l'horaire de fermeture après-midi est
-        configuré. Reste à timedelta(0) sinon (matin — la pause d'1h ne
-        justifie pas d'heure sup ; garde de nuit — aucune notion de "sortie
-        après-midi" ; pointage encore ouvert ; site sans horaire).
+        recalculées en direct à chaque affichage.
         """
         if self.periode != 'apres_midi' or not self.heure_depart or not self.site:
             self.heures_supplementaires = timedelta(0)
@@ -363,13 +339,6 @@ class Pointage(models.Model):
         self.heures_supplementaires = max(depart_dt - fermeture_dt, timedelta(0))
 
     def get_heures_supplementaires(self) -> timedelta:
-        """
-        Accesseur : lit la valeur figée à save() (voir
-        calculer_heures_supplementaires). Filet de sécurité pour les
-        pointages jamais resauvegardés depuis l'ajout de ce champ (recalcule
-        à la volée dans ce seul cas, plutôt que de planter ou renvoyer une
-        valeur fausse).
-        """
         if self.heures_supplementaires is not None:
             return self.heures_supplementaires
         self.calculer_heures_supplementaires()
@@ -540,32 +509,7 @@ class DemandeModification(models.Model):
         verbose_name_plural = "Demandes de modification"
 
 
-# ============================================================
-# GESTION DES ANOMALIES DE POINTAGE (Phase 4)
-# ============================================================
-#
-# Couche de persistance et de traçabilité posée AU-DESSUS du moteur
-# métier (domain.py / state_machine.py / context.py / services.py),
-# sans jamais le modifier :
-#
-#   - "type" reprend, pour les anomalies venant d'une ScanDecision
-#     refusée, exactement la valeur de domain.AnomalyCode.value
-#     (ex: 'during_break', 'missing_morning_exit'...) ;
-#   - trois types supplémentaires (invalid_qr et duplicate_scan mis à
-#     part, déjà présents dans AnomalyCode) couvrent les refus détectés
-#     en amont de la machine à états, dans process_scan() : QR invalide,
-#     employé inactif, site invalide, hors plage horaire globale.
-#
-# Cette couche ne décide jamais rien : elle enregistre, après coup, ce
-# que le moteur métier a déjà décidé.
-
 class AnomaliePointage(models.Model):
-    """Anomalie détectée lors d'un scan (refus, cas limite, échec de
-    validation), conservée pour suivi et traitement administratif.
-    """
-
-    # Types issus de domain.AnomalyCode (mêmes valeurs, pour rester alignés
-    # avec la couche métier sans avoir à la modifier ni à la réimporter ici)
     TYPE_INVALID_QR             = 'invalid_qr'
     TYPE_DUPLICATE_SCAN         = 'duplicate_scan'
     TYPE_OUTSIDE_HOURS          = 'outside_hours'
@@ -574,18 +518,10 @@ class AnomaliePointage(models.Model):
     TYPE_MISSING_MORNING_EXIT   = 'missing_morning_exit'
     TYPE_TRANSITION_IMPOSSIBLE  = 'transition_impossible'
     TYPE_INVALID_STATE          = 'invalid_state'
-    # Types propres aux pré-contrôles de process_scan() (n'existent pas
-    # dans AnomalyCode, qui ne concerne que les décisions de la machine
-    # à états) :
     TYPE_EMPLOYE_INACTIF        = 'employe_inactif'
     TYPE_SITE_INVALIDE          = 'site_invalide'
     TYPE_HORS_PLAGE_GLOBALE     = 'hors_plage_globale'
     TYPE_GARDE_MULTIPLE_NON_SUPPORTEE = 'garde_multiple_non_supportee'
-    # Type propre à _apply_scan_decision() (services.py) : une sortie
-    # ACCEPTÉE (le pointage est bien enregistré normalement) mais
-    # intervenue nettement avant la fermeture officielle du site pour
-    # cette période. N'existe pas non plus dans AnomalyCode : ce n'est
-    # jamais un refus de scan, seulement un signalement pour suivi RH.
     TYPE_DEPART_ANTICIPE        = 'depart_anticipe'
 
     TYPE_CHOICES = (
@@ -604,7 +540,6 @@ class AnomaliePointage(models.Model):
         (TYPE_DEPART_ANTICIPE,       'Départ anticipé'),
     )
 
-    # Gravité dérivée du type — jamais stockée, toujours recalculée.
     GRAVITE_PAR_TYPE = {
         TYPE_INVALID_QR:            'critique',
         TYPE_EMPLOYE_INACTIF:       'critique',
@@ -668,7 +603,6 @@ class AnomaliePointage(models.Model):
 
     @property
     def gravite(self) -> str:
-        """Gravité dérivée du type — jamais persistée."""
         return self.GRAVITE_PAR_TYPE.get(self.type, 'info')
 
     def get_gravite_display(self) -> str:
@@ -686,23 +620,6 @@ class AnomaliePointage(models.Model):
 
 
 class AnomalieTraitement(models.Model):
-    """Trace de traitement d'une anomalie : qui, quand, pourquoi, et — le
-    cas échéant — quelles valeurs de pointage ont été corrigées.
-
-    Une anomalie n'a qu'un seul traitement (OneToOne) : si elle doit être
-    retraitée, elle repasse par le service dédié qui met à jour cet
-    enregistrement plutôt que d'en créer un second, pour garder un
-    historique simple et non ambigu.
-    """
-    # ================================================================
-    # ACTION — l'action de traitement effectuée sur l'anomalie.
-    # À NE PAS CONFONDRE avec AnomaliePointage.statut (ouverte/traitee/
-    # cloturee), qui décrit l'état de l'anomalie. Ici on décrit QUELLE
-    # action RH a été posée. La clôture n'est PAS une valeur de ce champ :
-    # elle est gérée séparément par marquer_cloturee() sur AnomaliePointage
-    # (cloturee_par/date_cloture) et ne modifie jamais le type_action du
-    # dernier traitement réel (correction/justification/rejet).
-    # ================================================================
     ACTION_CORRECTION    = 'correction'
     ACTION_JUSTIFICATION = 'justification'
     ACTION_REJET          = 'rejet'
@@ -717,7 +634,6 @@ class AnomalieTraitement(models.Model):
         default=ACTION_CORRECTION,
         verbose_name="Type d'action"
     )
-    # ================================================================
     anomalie        = models.OneToOneField(
         AnomaliePointage, on_delete=models.CASCADE, related_name='traitement'
     )
@@ -725,17 +641,12 @@ class AnomalieTraitement(models.Model):
         CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='anomalies_traitees', db_constraint=False
     )
-    # auto_now (pas auto_now_add) : cet enregistrement est mis à jour en
-    # place si l'anomalie est retraitée (cf. docstring de la classe) —
-    # la date doit donc refléter le DERNIER traitement, pas le premier.
     date_traitement = models.DateTimeField(auto_now=True)
     commentaire     = models.TextField(blank=True)
     pointage_concerne = models.ForeignKey(
         Pointage, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='corrections_anomalies'
     )
-    # Liste de corrections effectuées, le cas échéant :
-    # [{'champ': 'heure_arrivee', 'ancienne_valeur': '08:15', 'nouvelle_valeur': '08:00'}, ...]
     corrections     = models.JSONField(default=list, blank=True)
 
     def __str__(self):
