@@ -1,0 +1,42 @@
+name: Fix hardening placement
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix placement
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('pointage/views_mobile.py')
+          text = p.read_text(encoding='utf-8')
+          old = '''class MobileTodayPointagesAPIView(MobileAuthenticatedAPIView):\n    # Cet endpoint expose le journal global des employés : il est réservé\n    # aux superviseurs/RH et ne doit pas être accessible à tout opérateur.\n    permission_classes = [IsAuthenticated & IsAdminUser]\n    \"\"\"'''
+          new = '''class MobileTodayPointagesAPIView(MobileAuthenticatedAPIView):\n    \"\"\"'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected placement block once, found {text.count(old)}')
+          text = text.replace(old, new, 1)
+          marker = '''    Paramètres optionnels :\n      ?date=YYYY-MM-DD   — date ciblée (défaut : aujourd'hui)\n      ?site_id=N         — filtre par site\n      ?refresh=1         — ignoré côté serveur, utile pour forcer le rechargement côté client\n    \"\"\"'''
+          replacement = marker + '''\n    permission_classes = [IsAdminUser]'''
+          if text.count(marker) != 1:
+              raise SystemExit(f'expected docstring marker once, found {text.count(marker)}')
+          text = text.replace(marker, replacement, 1)
+          p.write_text(text, encoding='utf-8')
+      - name: Commit and remove workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pointage/views_mobile.py
+          git commit -m "Fix mobile supervisor permission placement"
+          git push
+          git rm .github/workflows/fix-hardening-placement.yml
+          git commit -m "Remove temporary permission workflow"
+          git push
