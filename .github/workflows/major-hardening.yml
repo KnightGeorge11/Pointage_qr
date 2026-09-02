@@ -1,0 +1,113 @@
+name: Apply major hardening
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply major corrections
+        working-directory: .
+        run: |
+          npm --prefix mobile/ScanMobileApp install expo-secure-store@~15.0.8 --save
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('mobile/ScanMobileApp/src/services/api.ts')
+          s = p.read_text()
+          if "import * as SecureStore from 'expo-secure-store';" not in s:
+              s = s.replace("import AsyncStorage from '@react-native-async-storage/async-storage';", "import AsyncStorage from '@react-native-async-storage/async-storage';\nimport * as SecureStore from 'expo-secure-store';", 1)
+          s = s.replace("return await AsyncStorage.getItem(STORAGE_KEYS.API_TOKEN);", "return await SecureStore.getItemAsync(STORAGE_KEYS.API_TOKEN);", 1)
+          s = s.replace("await AsyncStorage.setItem(STORAGE_KEYS.API_TOKEN, token.trim());", "await SecureStore.setItemAsync(STORAGE_KEYS.API_TOKEN, token.trim());", 1)
+          s = s.replace("await AsyncStorage.multiRemove([STORAGE_KEYS.API_TOKEN, STORAGE_KEYS.CURRENT_USER]);", "await SecureStore.deleteItemAsync(STORAGE_KEYS.API_TOKEN);\n  await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER);", 1)
+          if 'let pendingQueueLock: Promise<void> = Promise.resolve();' not in s:
+              marker = "const createApi = (baseURL: string, token: string | null) => {"
+              helper = """let pendingQueueLock: Promise<void> = Promise.resolve();
+
+          const withPendingQueueLock = async <T>(operation: () => Promise<T>): Promise<T> => {
+            const previous = pendingQueueLock;
+            let release!: () => void;
+            pendingQueueLock = new Promise<void>((resolve) => { release = resolve; });
+            await previous;
+            try { return await operation(); } finally { release(); }
+          };
+
+          """
+              s = s.replace(marker, helper + marker, 1)
+          old = """        const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);
+          const pending = raw ? JSON.parse(raw) : []; pending.push(payload);
+          await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(pending));"""
+          new = """        await withPendingQueueLock(async () => {
+            const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);
+            const pending = raw ? JSON.parse(raw) : [];
+            if (!pending.some((item: any) => item.client_event_id === payload.client_event_id)) {
+              pending.push(payload);
+              await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(pending));
+            }
+          });"""
+          if old in s:
+              s = s.replace(old, new, 1)
+          old_sync = "    await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(remaining));"
+          new_sync = """    await withPendingQueueLock(async () => {
+            const latestRaw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);
+            const latest = latestRaw ? JSON.parse(latestRaw) : [];
+            const processedIds = new Set(queue.map((item: any) => item.client_event_id));
+            const concurrent = Array.isArray(latest) ? latest.filter((item: any) => !processedIds.has(item.client_event_id)) : [];
+            await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify([...remaining, ...concurrent]));
+          });"""
+          if old_sync in s and 'const processedIds' not in s:
+              s = s.replace(old_sync, new_sync, 1)
+          p.write_text(s)
+
+          p = Path('mobile/ScanMobileApp/src/screens/SiteSelectionScreen.tsx')
+          s = p.read_text()
+          if "import { AppState } from 'react-native'" not in s:
+              s = s.replace("import React, { useState, useEffect, useCallback } from 'react'", "import React, { useState, useEffect, useCallback } from 'react'\nimport { AppState } from 'react-native'", 1)
+          marker = "  useEffect(() => {\n    initialize()\n  }, [])"
+          replacement = """  useEffect(() => {
+            initialize()
+
+            const subscription = AppState.addEventListener('change', (state) => {
+              if (state === 'active') {
+                apiService.syncPendingScans().catch(() => undefined)
+              }
+            })
+            return () => subscription.remove()
+          }, [])"""
+          if marker in s and 'AppState.addEventListener' not in s:
+              s = s.replace(marker, replacement, 1)
+          p.write_text(s)
+
+          p = Path('pointage/models.py')
+          s = p.read_text()
+          dead = """            if self.periode == 'apres_midi':
+                _, fermeture_matin = self.site.get_horaires_pour_periode('matin')
+                if fermeture_matin:
+                    pause_duree = datetime.combine(
+                        self.date_pointage, heure_ouverture
+                    ) - datetime.combine(
+                        self.date_pointage, fermeture_matin
+                    )
+                    if pause_duree > timedelta(0):
+                        retard_brut = retard_brut
+
+"""
+          s = s.replace(dead, '', 1)
+          p.write_text(s)
+          PY
+
+      - name: Commit corrections
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add mobile/ScanMobileApp/package.json mobile/ScanMobileApp/package-lock.json mobile/ScanMobileApp/src/services/api.ts mobile/ScanMobileApp/src/screens/SiteSelectionScreen.tsx pointage/models.py
+          git diff --cached --quiet || git commit -m 'security: apply major mobile and attendance hardening'
+          git push
