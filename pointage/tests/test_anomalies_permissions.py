@@ -209,7 +209,11 @@ class AnomaliePermissionsTest(TestCase):
     def test_marquer_traitee_accepts_admin_user(self):
         """marquer_traitee() accepte un utilisateur admin."""
         from pointage.anomalies import marquer_traitee
-        traitement = marquer_traitee(self.anomalie, self.admin_user)
+        traitement = marquer_traitee(
+            self.anomalie,
+            self.admin_user,
+            commentaire='Traitement administratif de test',
+        )
         self.assertIsNotNone(traitement)
         self.anomalie.refresh_from_db()
         self.assertEqual(self.anomalie.statut, 'traitee')
