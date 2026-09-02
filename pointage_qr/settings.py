@@ -48,6 +48,11 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# La session web est conservée uniquement pendant la durée de vie de la
+# fenêtre du navigateur. À la fermeture du navigateur, le cookie de session
+# est supprimé et le compte devra se reconnecter à la prochaine ouverture.
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
 CORS_ALLOWED_ORIGINS = config(
     'CORS_EXTRA_ORIGINS',
     default='http://localhost:8000,http://127.0.0.1:8000,http://pointageqr.local:8000',
@@ -107,8 +112,8 @@ AUTH_USER_MODEL = 'pointage.CustomUser'
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {'NAME': django.contrib.auth.password_validation.CommonPasswordValidator},
+    {'NAME': django.contrib.auth.password_validation.NumericPasswordValidator},
 ]
 
 LANGUAGE_CODE = 'fr-fr'
