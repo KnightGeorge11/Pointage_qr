@@ -318,20 +318,45 @@ export const apiService = {
   },
 
   async recordScan(
-    employeeQr: string,
-    siteId: number,
-    mode: 'day' | 'night' = 'day',
-    options: {
-      forceNew?: boolean;
-    } = {}
+    employeeQr: string, siteId: number, mode: 'day' | 'night' = 'day',
+    options: { forceNew?: boolean; } = {}
   ): Promise<any> {
-    const response = await api.post('/api/mobile/scan/record/', {
-      employee_qr: employeeQr,
-      site_id:     siteId,
-      mode,
-      force_new:   options.forceNew ?? false,
-    });
-    return response.data;
+    const uuidv4 = (): string => {
+      const bytes = Array.from({ length: 16 }, () => Math.floor(Math.random() * 256));
+      bytes[6] = (bytes[6] & 0x0f) | 0x40; bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+      return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+    };
+    const payload = { employee_qr: employeeQr, site_id: siteId, mode, force_new: options.forceNew ?? false, client_event_id: uuidv4(), captured_at: new Date().toISOString() };
+    try {
+      const response = await api.post('/api/mobile/scan/record/', payload);
+      await this.syncPendingScans(); return response.data;
+    } catch (error: any) {
+      if (!error.response) {
+        const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);
+        const pending = raw ? JSON.parse(raw) : []; pending.push(payload);
+        await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(pending));
+        return { status: 'success', code: 'SCAN_HORS_LIGNE', message: 'Scan enregistré localement. Il sera synchronisé dès le retour du réseau.', data: { offline: true } };
+      }
+      throw error;
+    }
+  },
+
+  async getPendingScanCount(): Promise<number> {
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS); const queue = raw ? JSON.parse(raw) : [];
+    return Array.isArray(queue) ? queue.length : 0;
+  },
+
+  async syncPendingScans(): Promise<{ synced: number; remaining: number }> {
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS); const queue = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(queue) || queue.length === 0) return { synced: 0, remaining: 0 };
+    const remaining: any[] = []; let synced = 0;
+    for (const item of queue) {
+      try { const response = await api.post('/api/mobile/scan/record/', item); if (response.data?.status === 'success') synced++; else remaining.push(item); }
+      catch (error: any) { remaining.push(item); if (!error.response) break; }
+    }
+    await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(remaining));
+    return { synced, remaining: remaining.length };
   },
 
   async getCurrentPeriod(): Promise<any> {

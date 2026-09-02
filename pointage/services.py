@@ -25,9 +25,18 @@ SEUIL_DEPART_ANTICIPE_MINUTES = 15
 
 
 def process_scan(matricule: str, qr_token: str, site_id: int,
-                 mode: str = 'auto', force_new_garde: bool = False) -> dict:
+                 mode: str = 'auto', force_new_garde: bool = False,
+                 client_event_id=None, captured_at=None) -> dict:
     """Point d'entrée unique pour tout scan QR."""
-    now = timezone.localtime(timezone.now())
+    now = captured_at or timezone.localtime(timezone.now())
+    if timezone.is_naive(now):
+        now = timezone.make_aware(now, timezone.get_current_timezone())
+    if client_event_id:
+        existing_scan = Scan.objects.select_related('employe', 'site', 'pointage').filter(client_event_id=client_event_id).first()
+        if existing_scan:
+            pointage = existing_scan.pointage
+            data = _build_response_data(existing_scan, pointage, timezone.localtime(existing_scan.timestamp)) if pointage else None
+            return {'status':'success','code':existing_scan.type_scan,'message':'Scan déjà synchronisé (événement idempotent).','data':data,'idempotent':True}
 
     if mode not in ('auto', 'garde'):
         return {
@@ -119,11 +128,11 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
             }
 
         if mode == 'garde':
-            return _process_garde(employe, site, now, force_new=force_new_garde)
-        return _process_normal(employe, site, now)
+            return _process_garde(employe, site, now, force_new=force_new_garde, client_event_id=client_event_id)
+        return _process_normal(employe, site, now, client_event_id=client_event_id)
 
 
-def _process_garde(employe, site, now, force_new=False):
+def _process_garde(employe, site, now, force_new=False, client_event_id=None):
     date_courante = now.date()
     heure = now.time()
 
@@ -171,7 +180,8 @@ def _process_garde(employe, site, now, force_new=False):
         scan = Scan.objects.create(
             employe=employe, site=site,
             timestamp=now, type_scan='fin_garde',
-            pointage=garde_en_cours
+            pointage=garde_en_cours,
+            client_event_id=client_event_id
         )
         return {
             'status': 'success',
@@ -225,7 +235,8 @@ def _process_garde(employe, site, now, force_new=False):
         scan = Scan.objects.create(
             employe=employe, site=site,
             timestamp=now, type_scan='debut_garde',
-            pointage=garde_planifiee
+            pointage=garde_planifiee,
+            client_event_id=client_event_id
         )
         return {
             'status': 'success',
@@ -253,7 +264,7 @@ def _process_garde(employe, site, now, force_new=False):
     }
 
 
-def _process_normal(employe, site, now):
+def _process_normal(employe, site, now, client_event_id=None):
     date_courante = now.date()
     context = collect_day_context(
         employee_id=employe.id,
@@ -267,10 +278,10 @@ def _process_normal(employe, site, now):
         f"[_process_normal] emp={employe.id} site={site.id} "
         f"time={now.time()} -> {decision}"
     )
-    return _apply_scan_decision(decision, employe=employe, site=site, now=now)
+    return _apply_scan_decision(decision, employe=employe, site=site, now=now, client_event_id=client_event_id)
 
 
-def _apply_scan_decision(decision: ScanDecision, employe: Employe, site: Site, now) -> dict:
+def _apply_scan_decision(decision: ScanDecision, employe: Employe, site: Site, now, client_event_id=None) -> dict:
     if not decision.allowed:
         code = decision.anomaly_code.value if decision.anomaly_code else 'REFUSE'
         logger.info(
@@ -316,7 +327,8 @@ def _apply_scan_decision(decision: ScanDecision, employe: Employe, site: Site, n
     scan = Scan.objects.create(
         employe=employe, site=site,
         timestamp=now, type_scan=type_scan,
-        pointage=pointage
+        pointage=pointage,
+        client_event_id=client_event_id
     )
 
     logger.info(

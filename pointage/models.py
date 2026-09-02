@@ -415,6 +415,8 @@ class Scan(models.Model):
     type_scan = models.CharField(max_length=20, choices=TYPE_SCAN, null=True, blank=True)
     pointage  = models.ForeignKey(Pointage, on_delete=models.SET_NULL, null=True, blank=True, related_name='scans')
     actif     = models.BooleanField(default=True)
+    # UUID généré par le client pour rendre les retransmissions offline idempotentes.
+    client_event_id = models.UUIDField(null=True, blank=True, unique=True, editable=False, db_index=True)
 
     def __str__(self):
         return f"Scan {self.employe} - {self.get_type_scan_display()} - {self.get_timestamp_local().strftime('%H:%M')}"

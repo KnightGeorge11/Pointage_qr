@@ -12,4 +12,5 @@ export const STORAGE_KEYS = {
   SELECTED_SITE: 'selected_site',
   CACHED_SITES: 'cached_sites',
   CACHED_SITES_TIMESTAMP: 'cached_sites_timestamp',
+  PENDING_SCANS: 'pending_scans',
 };

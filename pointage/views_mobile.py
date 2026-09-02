@@ -190,6 +190,20 @@ class MobileRecordScanAPIView(MobileAuthenticatedAPIView):
         site_id = data.get('site_id')
         mode = data.get('mode', 'auto')
         force_new_garde = _parse_bool(data.get('force_new', False), default=False)
+        client_event_id = data.get('client_event_id')
+        captured_at_raw = data.get('captured_at')
+        captured_at = None
+        if client_event_id:
+            try: client_event_id = uuid.UUID(str(client_event_id))
+            except (ValueError, TypeError, AttributeError):
+                return JsonResponse({'status':'error','code':'CLIENT_EVENT_ID_INVALIDE','message':'client_event_id invalide.'}, status=400)
+        if captured_at_raw:
+            try:
+                captured_at = datetime.fromisoformat(str(captured_at_raw).replace('Z', '+00:00'))
+                if timezone.is_naive(captured_at): captured_at = timezone.make_aware(captured_at, timezone.get_current_timezone())
+                else: captured_at = timezone.localtime(captured_at)
+            except (ValueError, TypeError):
+                return JsonResponse({'status':'error','code':'CAPTURED_AT_INVALIDE','message':'captured_at invalide.'}, status=400)
         if force_new_garde is None:
             return JsonResponse({
                 'status': 'error',
@@ -237,6 +251,8 @@ class MobileRecordScanAPIView(MobileAuthenticatedAPIView):
             site_id=site_id,
             mode=mode,
             force_new_garde=force_new_garde,
+            client_event_id=client_event_id,
+            captured_at=captured_at,
         )
 
         http_status = 201 if result['status'] == 'success' else (

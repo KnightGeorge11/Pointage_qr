@@ -37,6 +37,7 @@ const SiteSelectionScreen = () => {
   const initialize = async () => {
     await loadSelectedSite()
     await loadSites()
+    await apiService.syncPendingScans()
   }
 
   const loadSelectedSite = async () => {
