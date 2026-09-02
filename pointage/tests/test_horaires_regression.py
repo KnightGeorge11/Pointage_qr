@@ -3,7 +3,7 @@ from datetime import time, timedelta
 from django.test import TestCase
 
 from pointage.context import build_site_schedule, DEFAULT_TOLERANCE_MINUTES
-from pointage.domain import DayContext, DayState
+from pointage.domain import DayContext, DayState, AnomalyCode
 from pointage.state_machine import DayStateMachine
 from pointage.models import Site
 
@@ -34,6 +34,13 @@ class HorairesMetierRegressionTests(TestCase):
             employee_id=1,
         )
 
+    def test_defaults_du_modele_site_sont_0800_1200_1300_1700(self):
+        site = Site.objects.create(nom="Site defaults", adresse="Test")
+        self.assertEqual(site.heure_ouverture_matin, time(8, 0))
+        self.assertEqual(site.heure_fermeture_matin, time(12, 0))
+        self.assertEqual(site.heure_ouverture_apres_midi, time(13, 0))
+        self.assertEqual(site.heure_fermeture_apres_midi, time(17, 0))
+
     def test_tolerance_systeme_est_de_trente_minutes(self):
         schedule = build_site_schedule(self.site)
         self.assertEqual(schedule.tolerance, timedelta(minutes=30))
@@ -48,6 +55,12 @@ class HorairesMetierRegressionTests(TestCase):
         self.assertEqual(decision.details['early_arrival_minutes'], 10)
         self.assertEqual(decision.details['actual_arrival'], '07:50:00')
 
+    def test_premier_scan_apres_fermeture_matin_ne_devient_pas_une_entree_matin(self):
+        decision = DayStateMachine().decide(self._context(time(12, 15)))
+
+        self.assertFalse(decision.allowed)
+        self.assertEqual(decision.anomaly_code, AnomalyCode.OUTSIDE_HOURS)
+
     def test_heure_1300_est_le_debut_apres_midi(self):
         decision = DayStateMachine().decide(self._context(
             time(13, 0), morning_entry=True, morning_exit=True
@@ -56,6 +69,15 @@ class HorairesMetierRegressionTests(TestCase):
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.next_state, DayState.AFTERNOON_STARTED)
 
+    def test_sortie_apres_midi_a_1715_est_acceptee_et_signalee_tardive(self):
+        decision = DayStateMachine().decide(self._context(
+            time(17, 15), morning_entry=True, morning_exit=True, afternoon_entry=True
+        ))
+
+        self.assertTrue(decision.allowed)
+        self.assertEqual(decision.next_state, DayState.DAY_FINISHED)
+        self.assertTrue(decision.details['late_exit'])
+
     def test_sortie_apres_midi_apres_17h_est_acceptee_pour_heures_sup(self):
         decision = DayStateMachine().decide(self._context(
             time(18, 15), morning_entry=True, morning_exit=True, afternoon_entry=True
@@ -63,7 +85,7 @@ class HorairesMetierRegressionTests(TestCase):
 
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.next_state, DayState.DAY_FINISHED)
-        self.assertEqual(decision.details.get('late_exit'), True)
+        self.assertTrue(decision.details['late_exit'])
 
     def test_sortie_apres_midi_a_17h_est_normale_sans_heures_sup(self):
         decision = DayStateMachine().decide(self._context(
@@ -72,3 +94,4 @@ class HorairesMetierRegressionTests(TestCase):
 
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.next_state, DayState.DAY_FINISHED)
+        self.assertFalse(decision.details['late_exit'])
