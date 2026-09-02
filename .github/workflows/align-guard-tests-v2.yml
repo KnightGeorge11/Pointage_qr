@@ -1,0 +1,50 @@
+name: Align guard tests v2
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch tests
+        shell: python
+        run: |
+          from pathlib import Path
+          # test_garde_minuit: helper creates the required planning row.
+          p=Path('pointage/tests/test_garde_minuit.py'); s=p.read_text()
+          marker='    def _debut_garde(self, jour, hh, mm):\n'
+          helper='''    def _debut_garde(self, jour, hh, mm):\n        if not Pointage.objects.filter(employe=self.employe, date_pointage=jour, periode="nuit", type_journee="garde", heure_arrivee__isnull=True, heure_depart__isnull=True).exists():\n            Pointage.objects.create(employe=self.employe, site=self.site, date_pointage=jour, periode="nuit", type_journee="garde", statut="absent")\n'''
+          if marker in s and 'def _debut_garde' in s:
+              start=s.index(marker); end=s.index('        now = _aware', start)
+              s=s[:start]+helper+s[end:]
+          p.write_text(s)
+
+          # Other guard tests: create an explicit planning row before the first guard scan.
+          p=Path('pointage/tests/test_depart_anticipe.py'); s=p.read_text()
+          needle='        fake_now = _aware(self.today, 22, 0)\n'
+          repl='        Pointage.objects.create(employe=self.employe, site=self.site, date_pointage=self.today, periode="nuit", type_journee="garde", statut="absent")\n        fake_now = _aware(self.today, 22, 0)\n'
+          if needle in s: s=s.replace(needle,repl,1)
+          p.write_text(s)
+
+          # API guard tests: planning must exist before POST scan.
+          p=Path('pointage/tests/test_pointage_serializer_process_scan.py'); s=p.read_text()
+          s=s.replace('    def test_garde_via_api_pointages(self):\n        now = _aware', '    def test_garde_via_api_pointages(self):\n        Pointage.objects.create(employe=self.employe, site=self.site, date_pointage=date(2026, 8, 10), periode="nuit", type_journee="garde", statut="absent")\n        now = _aware')
+          s=s.replace('    def test_garde_apres_minuit_via_api_pointages(self):\n        jour1, jour2', '    def test_garde_apres_minuit_via_api_pointages(self):\n        jour1, jour2')
+          s=s.replace('        jour1, jour2 = date(2026, 8, 10), date(2026, 8, 11)\n\n        with patch("pointage.services.timezone.now", return_value=_aware(jour1, 22, 0)):', '        jour1, jour2 = date(2026, 8, 10), date(2026, 8, 11)\n        Pointage.objects.create(employe=self.employe, site=self.site, date_pointage=jour1, periode="nuit", type_journee="garde", statut="absent")\n\n        with patch("pointage.services.timezone.now", return_value=_aware(jour1, 22, 0)):')
+          s=s.replace('        avant_hier = date(2026, 8, 8)\n        with patch("pointage.services.timezone.now", return_value=_aware(avant_hier, 20, 0)):', '        avant_hier = date(2026, 8, 8)\n        Pointage.objects.create(employe=self.employe, site=self.site, date_pointage=avant_hier, periode="nuit", type_journee="garde", statut="absent")\n        with patch("pointage.services.timezone.now", return_value=_aware(avant_hier, 20, 0)):')
+          p.write_text(s)
+
+          # Remove the broken temporary workflow.
+          Path('.github/workflows/fix-guard-tests.yml').unlink(missing_ok=True)
+          Path('.github/workflows/align-guard-tests-v2.yml').unlink()
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pointage/tests/test_garde_minuit.py pointage/tests/test_depart_anticipe.py pointage/tests/test_pointage_serializer_process_scan.py .github/workflows/fix-guard-tests.yml .github/workflows/align-guard-tests-v2.yml
+          git commit -m "Align guard tests with explicit planning"
+          git push origin main
