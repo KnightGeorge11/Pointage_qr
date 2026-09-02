@@ -34,6 +34,8 @@ class GardeTraversantMinuitTestCase(TestCase):
         )
 
     def _debut_garde(self, jour, hh, mm):
+        if not Pointage.objects.filter(employe=self.employe, date_pointage=jour, periode="nuit", type_journee="garde", heure_arrivee__isnull=True, heure_depart__isnull=True).exists():
+            Pointage.objects.create(employe=self.employe, site=self.site, date_pointage=jour, periode="nuit", type_journee="garde", statut="absent")
         now = _aware(jour, hh, mm)
         with __import__('unittest.mock', fromlist=['patch']).patch('pointage.services.timezone.now', return_value=now):
             return process_scan(
@@ -97,7 +99,7 @@ class GardeTraversantMinuitTestCase(TestCase):
         assert result['code'] == 'fin_garde'
         assert Pointage.objects.filter(employe=self.employe, periode='nuit').count() == 1
 
-    def test_force_new_ignore_une_garde_oubliee_dun_jour_precedent(self):
+    def test_force_new_refuse_si_une_garde_anterieure_reste_ouverte(self):
         """
         Usage prévu de force_new : une garde d'un jour PRÉCÉDENT, jamais
         fermée (oubliée), ne doit pas empêcher de démarrer une garde
@@ -116,10 +118,9 @@ class GardeTraversantMinuitTestCase(TestCase):
                 site_id=self.site.id, mode='garde', force_new_garde=True,
             )
 
-        assert result['status'] == 'success'
-        assert result['code'] == 'debut_garde'
-        assert Pointage.objects.filter(employe=self.employe, periode='nuit').count() == 2
-        # La garde oubliée reste ouverte (non touchée par force_new)
+        assert result['status'] == 'warning'
+        assert result['code'] == 'GARDE_PRECEDENTE_NON_CLOTUREE'
+        assert Pointage.objects.filter(employe=self.employe, periode='nuit').count() == 1
         vieille = Pointage.objects.get(employe=self.employe, periode='nuit', date_pointage=avant_hier)
         assert vieille.heure_depart is None
 

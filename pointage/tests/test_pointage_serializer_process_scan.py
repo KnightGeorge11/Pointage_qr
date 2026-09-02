@@ -136,6 +136,7 @@ class TestParitePointageNormal(PointageSerializerProcessScanTestCase):
 
 class TestParisGardeEtMinuit(PointageSerializerProcessScanTestCase):
     def test_garde_via_api_pointages(self):
+        Pointage.objects.create(employe=self.employe, site=self.site, date_pointage=date(2026, 8, 10), periode="nuit", type_journee="garde", statut="absent")
         now = _aware(date(2026, 8, 10), 20, 0)
         with patch("pointage.services.timezone.now", return_value=now):
             response = self._post_pointages_api(extra={"periode": "nuit", "type_journee": "garde"})
@@ -147,6 +148,7 @@ class TestParisGardeEtMinuit(PointageSerializerProcessScanTestCase):
 
     def test_garde_apres_minuit_via_api_pointages(self):
         jour1, jour2 = date(2026, 8, 10), date(2026, 8, 11)
+        Pointage.objects.create(employe=self.employe, site=self.site, date_pointage=jour1, periode="nuit", type_journee="garde", statut="absent")
 
         with patch("pointage.services.timezone.now", return_value=_aware(jour1, 22, 0)):
             resp_debut = self._post_pointages_api(extra={"periode": "nuit", "type_journee": "garde"})
@@ -164,6 +166,7 @@ class TestParisGardeEtMinuit(PointageSerializerProcessScanTestCase):
 
     def test_force_new_via_api_pointages_ignore_garde_oubliee(self):
         avant_hier = date(2026, 8, 8)
+        Pointage.objects.create(employe=self.employe, site=self.site, date_pointage=avant_hier, periode="nuit", type_journee="garde", statut="absent")
         with patch("pointage.services.timezone.now", return_value=_aware(avant_hier, 20, 0)):
             self._post_pointages_api(extra={"periode": "nuit", "type_journee": "garde"})
 

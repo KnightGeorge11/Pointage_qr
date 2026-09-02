@@ -100,6 +100,7 @@ class DepartAnticipeTestCase(TestCase):
 
     def test_garde_de_nuit_jamais_concernee(self):
         """_process_garde() est un chemin séparé : jamais de détection dessus."""
+        Pointage.objects.create(employe=self.employe, site=self.site, date_pointage=self.today, periode="nuit", type_journee="garde", statut="absent")
         fake_now = _aware(self.today, 22, 0)
         with patch('pointage.services.timezone.now', return_value=fake_now):
             result = process_scan(
