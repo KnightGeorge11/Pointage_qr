@@ -20,6 +20,7 @@ from rest_framework.authtoken.models import Token
 
 from .models import Site, Employe, Pointage
 from .services import process_scan, parse_qr_data
+from .mobile_throttle import MobileLoginRateThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ class MobileLoginAPIView(APIView):
     """
     authentication_classes = []
     permission_classes = [AllowAny]
+    throttle_classes = [MobileLoginRateThrottle]
 
     def post(self, request):
         try:
