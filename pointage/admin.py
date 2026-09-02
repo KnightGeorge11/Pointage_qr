@@ -1540,6 +1540,9 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
                 self.message_user(request, f"✅ Pointage {'créé' if created else 'corrigé'}, anomalie #{anomalie.pk} traitée.")
             except (ValueError, PermissionError) as e:
                 self.message_user(request, f"❌ {e}", level=messages.ERROR)
+            except Exception:
+                transaction.set_rollback(True)
+                self.message_user(request, "❌ Le traitement de la correction a échoué. Aucune modification n'a été enregistrée.", level=messages.ERROR)
 
             return redirect(f'/admin/pointage/anomaliepointage/{anomalie.pk}/change/')
 

@@ -14,7 +14,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 
 from pointage.models import (
-    AnomaliePointage, CustomUser, Employe, Site, Pointage,
+    AnomaliePointage, AnomalieTraitement, CustomUser, Employe, Site, Pointage,
 )
 from pointage.anomalies import enregistrer_anomalie
 

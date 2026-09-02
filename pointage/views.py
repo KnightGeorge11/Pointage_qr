@@ -840,6 +840,9 @@ def alerte_detail_view(request, pk):
                 messages.success(request, f"🔒 Anomalie #{anomalie.pk} clôturée.")
             except (ValueError, PermissionError) as e:
                 messages.error(request, f"❌ {e}")
+            except Exception as e:
+                transaction.set_rollback(True)
+                messages.error(request, "❌ Le traitement de la correction a échoué. Aucune modification n'a été enregistrée.")
             return redirect('alerte_detail', pk=pk)
 
         commentaire = request.POST.get('commentaire', '').strip()
