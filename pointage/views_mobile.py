@@ -396,9 +396,12 @@ class MobilePointagesAPIView(MobileAuthenticatedAPIView):
         else:
             date_courante = timezone.localtime(timezone.now()).date()
 
+        from django.db.models import Q
+
         pointages = Pointage.objects.filter(
-            employe=employe, date_pointage=date_courante
-        ).select_related('site').order_by('periode')
+            Q(employe=employe, date_pointage=date_courante)
+            | Q(employe=employe, periode='nuit', date_depart=date_courante)
+        ).select_related('site').order_by('date_pointage', 'periode')
 
         pointages_data = [{
             'id': p.id,

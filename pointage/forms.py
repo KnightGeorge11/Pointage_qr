@@ -95,6 +95,15 @@ class PointageForm(forms.ModelForm):
         if periode != 'nuit' and type_journee == 'garde':
             self.add_error('type_journee', "Le type 'Garde de nuit' ne peut être utilisé qu'avec la période 'nuit'.")
 
+        # Une nouvelle garde créée depuis l'admin représente un PLANNING :
+        # elle doit rester vide jusqu'au scan réel. Les corrections d'une
+        # garde existante passent par une instance déjà persistée.
+        if not self.instance.pk and periode == 'nuit' and (heure_arrivee or heure_depart):
+            self.add_error(
+                None,
+                "Pour planifier une garde, laissez les heures d'arrivée et de départ vides."
+            )
+
         # Validation des heures
         if heure_arrivee and heure_depart:
             # Pour les nuits, on autorise le départ après minuit (heure <= heure_arrivee)

@@ -593,10 +593,16 @@ class PointageListView(LoginRequiredMixin, ListView):
 
         date_debut = self.request.GET.get('date_debut')
         date_fin   = self.request.GET.get('date_fin')
+        from django.db.models import Q
+
         if date_debut:
-            queryset = queryset.filter(date_pointage__gte=date_debut)
+            queryset = queryset.filter(
+                Q(date_pointage__gte=date_debut) | Q(periode='nuit', date_depart__gte=date_debut)
+            )
         if date_fin:
-            queryset = queryset.filter(date_pointage__lte=date_fin)
+            queryset = queryset.filter(
+                Q(date_pointage__lte=date_fin) | Q(periode='nuit', date_depart__lte=date_fin)
+            )
 
         employe_filter = self.request.GET.get('employe')
         if employe_filter:
