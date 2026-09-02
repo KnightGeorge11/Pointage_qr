@@ -21,18 +21,64 @@ jobs:
           p = Path('pointage/tests/test_garde_minuit.py')
           s = p.read_text(encoding='utf-8')
 
-          old = """    def _debut_garde(self, jour, hh, mm):\n        now = _aware(jour, hh, mm)\n        with __import__('unittest.mock', fromlist=['patch']).patch('pointage.services.timezone.now', return_value=now):\n            return process_scan(\n                matricule=self.employe.matricule,\n                qr_token=str(self.employe.qr_code_token),\n                site_id=self.site.id, mode='garde',\n            )"""
-          new = """    def _planifier_garde(self, jour):\n        return Pointage.objects.create(\n            employe=self.employe, site=self.site, date_pointage=jour,\n            periode='nuit', type_journee='garde', heure_arrivee=None,\n            heure_depart=None, statut='absent',\n        )\n\n    def _debut_garde(self, jour, hh, mm):\n        # Depuis l'audit, une garde doit être planifiée explicitement.\n        if not Pointage.objects.filter(\n            employe=self.employe, date_pointage=jour, periode='nuit',\n            type_journee='garde', heure_arrivee__isnull=True, heure_depart__isnull=True\n        ).exists():\n            self._planifier_garde(jour)\n        now = _aware(jour, hh, mm)\n        with __import__('unittest.mock', fromlist=['patch']).patch('pointage.services.timezone.now', return_value=now):\n            return process_scan(\n                matricule=self.employe.matricule,\n                qr_token=str(self.employe.qr_code_token),\n                site_id=self.site.id, mode='garde',\n            )"""
+          old = '''    def _debut_garde(self, jour, hh, mm):
+        now = _aware(jour, hh, mm)
+        with __import__('unittest.mock', fromlist=['patch']).patch('pointage.services.timezone.now', return_value=now):
+            return process_scan(
+                matricule=self.employe.matricule,
+                qr_token=str(self.employe.qr_code_token),
+                site_id=self.site.id, mode='garde',
+            )'''
+          new = '''    def _planifier_garde(self, jour):
+        return Pointage.objects.create(
+            employe=self.employe, site=self.site, date_pointage=jour,
+            periode='nuit', type_journee='garde', heure_arrivee=None,
+            heure_depart=None, statut='absent',
+        )
+
+    def _debut_garde(self, jour, hh, mm):
+        # Depuis l'audit, une garde doit être planifiée explicitement.
+        if not Pointage.objects.filter(
+            employe=self.employe, date_pointage=jour, periode='nuit',
+            type_journee='garde', heure_arrivee__isnull=True, heure_depart__isnull=True
+        ).exists():
+            self._planifier_garde(jour)
+        now = _aware(jour, hh, mm)
+        with __import__('unittest.mock', fromlist=['patch']).patch('pointage.services.timezone.now', return_value=now):
+            return process_scan(
+                matricule=self.employe.matricule,
+                qr_token=str(self.employe.qr_code_token),
+                site_id=self.site.id, mode='garde',
+            )'''
           assert s.count(old) == 1
           s = s.replace(old, new)
 
-          old = """    def test_force_new_ignore_une_garde_oubliee_dun_jour_precedent(self):\n        \"\"\"\n        Usage prévu de force_new : une garde d'un jour PRÉCÉDENT, jamais\n        fermée (oubliée), ne doit pas empêcher de démarrer une garde\n        aujourd'hui. force_new l'ignore et une nouvelle garde est créée.\n        \"\"\"""
-          new = """    def test_force_new_refuse_si_une_garde_anterieure_reste_ouverte(self):\n        \"\"\"\n        Une garde oubliée d'un jour précédent ne doit jamais être ignorée\n        silencieusement par force_new : cela créerait plusieurs gardes ouvertes\n        et rendrait la clôture ambiguë. L'opérateur doit faire corriger la garde.\n        \"\"\"""
+          old = '''    def test_force_new_ignore_une_garde_oubliee_dun_jour_precedent(self):
+        """
+        Usage prévu de force_new : une garde d'un jour PRÉCÉDENT, jamais
+        fermée (oubliée), ne doit pas empêcher de démarrer une garde
+        aujourd'hui. force_new l'ignore et une nouvelle garde est créée.
+        """'''
+          new = '''    def test_force_new_refuse_si_une_garde_anterieure_reste_ouverte(self):
+        """
+        Une garde oubliée d'un jour précédent ne doit jamais être ignorée
+        silencieusement par force_new : cela créerait plusieurs gardes ouvertes
+        et rendrait la clôture ambiguë. L'opérateur doit faire corriger la garde.
+        """'''
           assert s.count(old) == 1
           s = s.replace(old, new)
 
-          old = """        assert result['status'] == 'success'\n        assert result['code'] == 'debut_garde'\n        assert Pointage.objects.filter(employe=self.employe, periode='nuit').count() == 2\n        # La garde oubliée reste ouverte (non touchée par force_new)\n        vieille = Pointage.objects.get(employe=self.employe, periode='nuit', date_pointage=avant_hier)\n        assert vieille.heure_depart is None"""
-          new = """        assert result['status'] == 'warning'\n        assert result['code'] == 'GARDE_PRECEDENTE_NON_CLOTUREE'\n        assert Pointage.objects.filter(employe=self.employe, periode='nuit').count() == 1\n        vieille = Pointage.objects.get(employe=self.employe, periode='nuit', date_pointage=avant_hier)\n        assert vieille.heure_depart is None"""
+          old = '''        assert result['status'] == 'success'
+        assert result['code'] == 'debut_garde'
+        assert Pointage.objects.filter(employe=self.employe, periode='nuit').count() == 2
+        # La garde oubliée reste ouverte (non touchée par force_new)
+        vieille = Pointage.objects.get(employe=self.employe, periode='nuit', date_pointage=avant_hier)
+        assert vieille.heure_depart is None'''
+          new = '''        assert result['status'] == 'warning'
+        assert result['code'] == 'GARDE_PRECEDENTE_NON_CLOTUREE'
+        assert Pointage.objects.filter(employe=self.employe, periode='nuit').count() == 1
+        vieille = Pointage.objects.get(employe=self.employe, periode='nuit', date_pointage=avant_hier)
+        assert vieille.heure_depart is None'''
           assert s.count(old) == 1
           s = s.replace(old, new)
           p.write_text(s, encoding='utf-8')
