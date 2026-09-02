@@ -73,6 +73,11 @@ jobs:
         env:
           SECRET_KEY: ci-offline-scan-test-key
           ADMIN_SECRET_CODE: ci-admin-secret
+          DB_PASSWORD: ci-db-password
+          DB_NAME: pointage_qr
+          DB_USER: knight
+          DB_HOST: localhost
+          DB_PORT: '5432'
         run: |
           python manage.py makemigrations pointage --noinput
           git config user.name 'github-actions[bot]'
