@@ -16,49 +16,44 @@ jobs:
           from pathlib import Path
           import re
 
-          # Lunch interval must not be part of the normal working-time predicate.
           p = Path('pointage/domain.py')
           s = p.read_text(encoding='utf-8')
           pattern = r'    def is_within_global_hours\(self, current_time: time\) -> bool:\n.*?\n    def __repr__\(self\) -> str:'
           replacement = '''    def is_within_global_hours(self, current_time: time) -> bool:\n        """Vérifie si l'heure appartient à une période de travail normale.\n\n        La tolérance s'applique autour des limites extérieures : avant\n        l'ouverture du matin et après la fermeture de l'après-midi.\n        L'intervalle 12:00-13:00 reste une pause et n'est pas une plage\n        globale valide.\n        """\n        today = date.today()\n        now_dt = datetime.combine(today, current_time)\n        morning_open = datetime.combine(today, self.morning_window.open_time) - self.tolerance\n        morning_close = datetime.combine(today, self.morning_window.close_time)\n        afternoon_open = datetime.combine(today, self.afternoon_window.open_time)\n        afternoon_close = datetime.combine(today, self.afternoon_window.close_time) + self.tolerance\n\n        return (morning_open <= now_dt <= morning_close) or (afternoon_open <= now_dt <= afternoon_close)\n\n    def __repr__(self) -> str:'''
-          s2, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
-          if n != 1:
-              raise SystemExit('domain schedule method not found')
-          p.write_text(s2, encoding='utf-8')
+          s, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
+          if n != 1: raise SystemExit('domain schedule method not found')
+          p.write_text(s, encoding='utf-8')
 
-          # Guard tests: select the actual started guard, not an empty planning row.
           p = Path('pointage/tests/test_garde_minuit.py')
           s = p.read_text(encoding='utf-8')
           old_line = "Pointage.objects.get(employe=self.employe, periode='nuit')"
           new_line = "Pointage.objects.get(employe=self.employe, periode='nuit', heure_arrivee__isnull=False)"
-          if s.count(old_line) != 3:
-              raise SystemExit('guard lookup count mismatch')
+          if s.count(old_line) != 3: raise SystemExit('guard lookup count mismatch')
           p.write_text(s.replace(old_line, new_line), encoding='utf-8')
 
-          # force_new semantics: an older open guard is a hard stop, not an instruction to ignore it.
           p = Path('pointage/tests/test_pointage_serializer_process_scan.py')
           s = p.read_text(encoding='utf-8')
           s = s.replace('def test_force_new_via_api_pointages_ignore_garde_oubliee(self):', 'def test_force_new_via_api_pointages_refuse_garde_anterieure_ouverte(self):', 1)
-          s = s.replace('''        assert response.status_code == 201, response.content\n        assert Pointage.objects.filter(\n            employe=self.employe, periode="nuit", date_pointage=aujourdhui\n        ).exists()\n''', '''        assert response.status_code == 400, response.content\n        assert response.json()["code"] == "GARDE_PRECEDENTE_NON_CLOTUREE"\n        assert not Pointage.objects.filter(\n            employe=self.employe, periode="nuit", date_pointage=aujourdhui\n        ).exists()\n''', 1)
-          p.write_text(s, encoding='utf-8')
+          old_assert = '''        assert response.status_code == 201, response.content\n        assert Pointage.objects.filter(\n            employe=self.employe, periode="nuit", date_pointage=aujourdhui\n        ).exists()\n'''
+          new_assert = '''        assert response.status_code == 400, response.content\n        assert response.json()["code"] == "GARDE_PRECEDENTE_NON_CLOTUREE"\n        assert not Pointage.objects.filter(\n            employe=self.employe, periode="nuit", date_pointage=aujourdhui\n        ).exists()\n'''
+          if old_assert not in s: raise SystemExit('force_new assertion block not found')
+          p.write_text(s.replace(old_assert, new_assert, 1), encoding='utf-8')
 
-          # Idempotency: re-check after locking the employee to serialize concurrent requests.
           p = Path('pointage/services.py')
           s = p.read_text(encoding='utf-8')
           needle = """    with transaction.atomic():\n        employe = Employe.objects.select_for_update().get(pk=employe.pk)\n\n        if not employe.actif:\n"""
-          replacement = """    with transaction.atomic():\n        employe = Employe.objects.select_for_update().get(pk=employe.pk)\n\n        # Fast-path lookup above is not sufficient under concurrency. The\n        # employee lock serializes requests, so re-check the event now.\n        if client_event_id:\n            existing_scan = Scan.objects.select_related('employe', 'site', 'pointage').filter(\n                client_event_id=client_event_id\n            ).first()\n            if existing_scan:\n                pointage = existing_scan.pointage\n                data = _build_response_data(\n                    existing_scan, pointage, timezone.localtime(existing_scan.timestamp)\n                ) if pointage else None\n                return {\n                    'status': 'success',\n                    'code': existing_scan.type_scan,\n                    'message': 'Scan déjà synchronisé (événement idempotent).',\n                    'data': data,\n                    'idempotent': True,\n                }\n\n        if not employe.actif:\n"""
-          if needle not in s:
-              raise SystemExit('services lock block not found')
+          replacement = """    with transaction.atomic():\n        employe = Employe.objects.select_for_update().get(pk=employe.pk)\n\n        # Re-check after the employee lock so concurrent requests carrying\n        # the same client event cannot both apply the state transition.\n        if client_event_id:\n            existing_scan = Scan.objects.select_related('employe', 'site', 'pointage').filter(\n                client_event_id=client_event_id\n            ).first()\n            if existing_scan:\n                pointage = existing_scan.pointage\n                data = _build_response_data(\n                    existing_scan, pointage, timezone.localtime(existing_scan.timestamp)\n                ) if pointage else None\n                return {\n                    'status': 'success',\n                    'code': existing_scan.type_scan,\n                    'message': 'Scan déjà synchronisé (événement idempotent).',\n                    'data': data,\n                    'idempotent': True,\n                }\n\n        if not employe.actif:\n"""
+          if needle not in s: raise SystemExit('services lock block not found')
           p.write_text(s.replace(needle, replacement, 1), encoding='utf-8')
 
-          # Offline queue: permanent 4xx business/validation errors must not retry forever.
+          # Replace the complete queue-sync method so permanent 4xx errors are not retried forever.
           p = Path('mobile/ScanMobileApp/src/services/api.ts')
           s = p.read_text(encoding='utf-8')
-          old = """      }\n      catch (error: any) { remaining.push(item); if (!error.response) break; }\n    }\n"""
-          new = """      }\n      catch (error: any) {\n        if (!error.response) {\n          remaining.push(item);\n          break;\n        }\n        const status = error.response.status;\n        const retryable = status === 401 || status === 408 || status === 409 || status === 429 || status >= 500;\n        if (retryable) {\n          remaining.push(item);\n          break;\n        }\n        // Permanent business/validation rejection: do not retry forever.\n      }\n    }\n"""
-          if old not in s:
-              raise SystemExit('offline queue catch block not found')
-          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          pattern = r'  async syncPendingScans\(\): Promise<\{ synced: number; remaining: number \}> \{.*?\n  \},\n\n  async getCurrentPeriod'
+          replacement = '''  async syncPendingScans(): Promise<{ synced: number; remaining: number }> {\n    const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);\n    const queue = raw ? JSON.parse(raw) : [];\n    if (!Array.isArray(queue) || queue.length === 0) return { synced: 0, remaining: 0 };\n\n    const remaining: any[] = [];\n    let synced = 0;\n    for (const item of queue) {\n      try {\n        const response = await api.post('/api/mobile/scan/record/', item);\n        if (response.data?.status === 'success') {\n          synced++;\n        } else {\n          remaining.push(item);\n        }\n      } catch (error: any) {\n        if (!error.response) {\n          remaining.push(item);\n          break;\n        }\n        const status = error.response.status;\n        const retryable = status === 401 || status === 408 || status === 409 || status === 429 || status >= 500;\n        if (retryable) {\n          remaining.push(item);\n          break;\n        }\n        // Permanent business/validation rejection: the server received the\n        // event, so it must not be retried forever from local storage.\n      }\n    }\n    await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(remaining));\n    return { synced, remaining: remaining.length };\n  },\n\n  async getCurrentPeriod'''
+          s2, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
+          if n != 1: raise SystemExit('syncPendingScans method not found')
+          p.write_text(s2, encoding='utf-8')
           print('All patches applied.')
 
       - name: Run focused tests
