@@ -1,0 +1,53 @@
+name: Fix guard history
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch guard history
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('pointage/views.py')
+          s = p.read_text(encoding='utf-8')
+          old = """        if date_debut:\n            queryset = queryset.filter(date_pointage__gte=date_debut)\n        if date_fin:\n            queryset = queryset.filter(date_pointage__lte=date_fin)\n"""
+          new = """        from django.db.models import Q\n\n        if date_debut:\n            queryset = queryset.filter(\n                Q(date_pointage__gte=date_debut) | Q(periode='nuit', date_depart__gte=date_debut)\n            )\n        if date_fin:\n            queryset = queryset.filter(\n                Q(date_pointage__lte=date_fin) | Q(periode='nuit', date_depart__lte=date_fin)\n            )\n"""
+          if s.count(old) != 1:
+              raise SystemExit(f'views.py: expected 1 date filter block, found {s.count(old)}')
+          s = s.replace(old, new)
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('pointage/views_mobile.py')
+          s = p.read_text(encoding='utf-8')
+          old = """        pointages = Pointage.objects.filter(\n            employe=employe, date_pointage=date_courante\n        ).select_related('site').order_by('periode')\n"""
+          new = """        from django.db.models import Q\n\n        pointages = Pointage.objects.filter(\n            Q(employe=employe, date_pointage=date_courante)\n            | Q(employe=employe, periode='nuit', date_depart=date_courante)\n        ).select_related('site').order_by('date_pointage', 'periode')\n"""
+          if s.count(old) != 1:
+              raise SystemExit(f'views_mobile.py: expected 1 pointages query, found {s.count(old)}')
+          s = s.replace(old, new)
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('pointage/forms.py')
+          s = p.read_text(encoding='utf-8')
+          marker = """        # Validation des heures\n        if heure_arrivee and heure_depart:\n"""
+          insert = """        # Une nouvelle garde créée depuis l'admin représente un PLANNING :\n        # elle doit rester vide jusqu'au scan réel. Les corrections d'une\n        # garde existante passent par une instance déjà persistée.\n        if not self.instance.pk and periode == 'nuit' and (heure_arrivee or heure_depart):\n            self.add_error(\n                None,\n                \"Pour planifier une garde, laissez les heures d'arrivée et de départ vides.\"\n            )\n\n        # Validation des heures\n        if heure_arrivee and heure_depart:\n"""
+          if s.count(marker) != 1:
+              raise SystemExit(f'forms.py: expected 1 validation marker, found {s.count(marker)}')
+          s = s.replace(marker, insert)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit changes and remove workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add pointage/views.py pointage/views_mobile.py pointage/forms.py .github/workflows/fix-guard-history.yml
+          git commit -m 'Fix overnight guard history and planning form' || exit 0
+          git rm .github/workflows/fix-guard-history.yml
+          git commit -m 'Remove temporary guard history workflow'
+          git push
