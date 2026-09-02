@@ -17,7 +17,7 @@ import json
 from .models import (
     Employe, Site, Pointage, Scan, Poste,
     CustomUser, DemandeModification,
-    AnomaliePointage, AnomalieTraitement,
+    AnomaliePointage, AnomalieTraitement, PointageAudit,
 )
 from .anomalies import marquer_traitee, marquer_cloturee
 from .forms import PointageForm

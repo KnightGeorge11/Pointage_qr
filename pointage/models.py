@@ -210,6 +210,17 @@ class Pointage(models.Model):
     retard           = models.DurationField(null=True, blank=True)
     heures_travaillees = models.DurationField(null=True, blank=True)
     heures_supplementaires = models.DurationField(null=True, blank=True)
+    heures_supplementaires_autorisees = models.BooleanField(
+        default=False,
+        verbose_name='Heures supplémentaires autorisées',
+        help_text='Une heure supplémentaire calculée n’est comptabilisée qu’après validation RH.',
+    )
+    heures_supplementaires_autorisees_par = models.ForeignKey(
+        'CustomUser', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='heures_supplementaires_validees', db_constraint=False,
+    )
+    date_autorisation_heures_supplementaires = models.DateTimeField(null=True, blank=True)
+    motif_autorisation_heures_supplementaires = models.TextField(blank=True)
 
     statut           = models.CharField(max_length=20, choices=STATUT_CHOICES, default='present')
     notes            = models.TextField(blank=True)
@@ -385,6 +396,41 @@ class Pointage(models.Model):
             models.Index(fields=['date_pointage', 'periode', 'retard']),
             models.Index(fields=['date_pointage', 'heure_arrivee']),
             models.Index(fields=['date_pointage', 'heure_depart']),
+        ]
+
+
+class PointageAudit(models.Model):
+    """Journal immuable des créations, corrections et suppressions de pointages."""
+    ACTION_CREATE = 'create'
+    ACTION_UPDATE = 'update'
+    ACTION_DELETE = 'delete'
+    ACTION_CHOICES = (
+        (ACTION_CREATE, 'Création'),
+        (ACTION_UPDATE, 'Modification'),
+        (ACTION_DELETE, 'Suppression'),
+    )
+
+    pointage = models.ForeignKey(
+        Pointage, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='audit_entries',
+    )
+    administrateur = models.ForeignKey(
+        'CustomUser', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pointages_audites', db_constraint=False,
+    )
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    avant = models.JSONField(default=dict, blank=True)
+    apres = models.JSONField(default=dict, blank=True)
+    motif = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Audit de pointage'
+        verbose_name_plural = 'Audits de pointage'
+        indexes = [
+            models.Index(fields=['pointage', 'created_at']),
+            models.Index(fields=['administrateur', 'created_at']),
         ]
 
 

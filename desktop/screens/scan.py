@@ -270,6 +270,16 @@ class ScanScreen(tk.Frame):
             font=("Segoe UI", 14, "bold"),
         ).pack()
 
+        self.usb_entry = tk.Entry(
+            self.usb_panel,
+            font=("Segoe UI", 12),
+            justify="center",
+            relief="solid",
+            bd=1,
+        )
+        self.usb_entry.pack(fill="x", padx=50, pady=(0, 12), ipady=8)
+        self.usb_entry.bind("<Return>", self._on_usb_enter)
+
         tk.Label(
             self.usb_panel,
             text="Présentez le badge devant la douchette",
@@ -639,12 +649,16 @@ class ScanScreen(tk.Frame):
     # ================================================================
 
     def _focus_usb_entry(self):
-        # Fonction vide car nous n'avons plus de champ de saisie
-        pass
+        self.usb_entry.focus_set()
 
     def _on_usb_enter(self, event=None):
-        # Fonction vide car nous n'avons plus de champ de saisie
-        pass
+        if self.source != "usb" or self.loading:
+            return "break"
+        data = self.usb_entry.get().strip()
+        self.usb_entry.delete(0, "end")
+        if data:
+            self._on_qr_detected(data)
+        return "break"
 
     # ================================================================
     # LOGIQUE DE SCAN

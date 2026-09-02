@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.contrib.auth import authenticate
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
@@ -23,6 +23,11 @@ from .services import process_scan, parse_qr_data
 from .mobile_throttle import MobileLoginRateThrottle
 
 logger = logging.getLogger(__name__)
+
+# Tolérance destinée aux appareils réellement hors ligne : les événements
+# plus anciens sont rejetés et les horloges manifestement dans le futur aussi.
+CAPTURED_AT_MAX_AGE = timedelta(days=7)
+CAPTURED_AT_MAX_FUTURE = timedelta(minutes=5)
 
 
 class MobileAuthenticatedAPIView(APIView):
@@ -205,6 +210,11 @@ class MobileRecordScanAPIView(MobileAuthenticatedAPIView):
                 captured_at = datetime.fromisoformat(str(captured_at_raw).replace('Z', '+00:00'))
                 if timezone.is_naive(captured_at): captured_at = timezone.make_aware(captured_at, timezone.get_current_timezone())
                 else: captured_at = timezone.localtime(captured_at)
+                server_now = timezone.localtime(timezone.now())
+                if captured_at < server_now - CAPTURED_AT_MAX_AGE:
+                    return JsonResponse({'status':'error','code':'CAPTURED_AT_TROP_ANCIEN','message':'Événement hors ligne trop ancien (maximum 7 jours).'}, status=400)
+                if captured_at > server_now + CAPTURED_AT_MAX_FUTURE:
+                    return JsonResponse({'status':'error','code':'CAPTURED_AT_DANS_LE_FUTUR','message':'Horodatage de capture incohérent avec l’heure du serveur.'}, status=400)
             except (ValueError, TypeError):
                 return JsonResponse({'status':'error','code':'CAPTURED_AT_INVALIDE','message':'captured_at invalide.'}, status=400)
         if force_new_garde is None:
