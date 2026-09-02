@@ -6,6 +6,20 @@ on:
 jobs:
   patch:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: pointage_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pointage_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     permissions:
       contents: write
     steps:
@@ -46,14 +60,13 @@ jobs:
           if needle not in s: raise SystemExit('services lock block not found')
           p.write_text(s.replace(needle, replacement, 1), encoding='utf-8')
 
-          # Replace the complete queue-sync method so permanent 4xx errors are not retried forever.
           p = Path('mobile/ScanMobileApp/src/services/api.ts')
           s = p.read_text(encoding='utf-8')
           pattern = r'  async syncPendingScans\(\): Promise<\{ synced: number; remaining: number \}> \{.*?\n  \},\n\n  async getCurrentPeriod'
-          replacement = '''  async syncPendingScans(): Promise<{ synced: number; remaining: number }> {\n    const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);\n    const queue = raw ? JSON.parse(raw) : [];\n    if (!Array.isArray(queue) || queue.length === 0) return { synced: 0, remaining: 0 };\n\n    const remaining: any[] = [];\n    let synced = 0;\n    for (const item of queue) {\n      try {\n        const response = await api.post('/api/mobile/scan/record/', item);\n        if (response.data?.status === 'success') {\n          synced++;\n        } else {\n          remaining.push(item);\n        }\n      } catch (error: any) {\n        if (!error.response) {\n          remaining.push(item);\n          break;\n        }\n        const status = error.response.status;\n        const retryable = status === 401 || status === 408 || status === 409 || status === 429 || status >= 500;\n        if (retryable) {\n          remaining.push(item);\n          break;\n        }\n        // Permanent business/validation rejection: the server received the\n        // event, so it must not be retried forever from local storage.\n      }\n    }\n    await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(remaining));\n    return { synced, remaining: remaining.length };\n  },\n\n  async getCurrentPeriod'''
-          s2, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
+          replacement = '''  async syncPendingScans(): Promise<{ synced: number; remaining: number }> {\n    const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);\n    const queue = raw ? JSON.parse(raw) : [];\n    if (!Array.isArray(queue) || queue.length === 0) return { synced: 0, remaining: 0 };\n\n    const remaining: any[] = [];\n    let synced = 0;\n    for (const item of queue) {\n      try {\n        const response = await api.post('/api/mobile/scan/record/', item);\n        if (response.data?.status === 'success') {\n          synced++;\n        } else {\n          remaining.push(item);\n        }\n      } catch (error: any) {\n        if (!error.response) {\n          remaining.push(item);\n          break;\n        }\n        const status = error.response.status;\n        const retryable = status === 401 || status === 408 || status === 409 || status === 429 || status >= 500;\n        if (retryable) {\n          remaining.push(item);\n          break;\n        }\n        // Permanent business/validation rejection: do not retry forever.\n      }\n    }\n    await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify(remaining));\n    return { synced, remaining: remaining.length };\n  },\n\n  async getCurrentPeriod'''
+          s, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
           if n != 1: raise SystemExit('syncPendingScans method not found')
-          p.write_text(s2, encoding='utf-8')
+          p.write_text(s, encoding='utf-8')
           print('All patches applied.')
 
       - name: Run focused tests
