@@ -1348,9 +1348,9 @@ class PointageViewSet(viewsets.ModelViewSet):
 
 
 class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
-    # Les anomalies RH peuvent contenir des informations nominatives et
-    # des détails de traitement : lecture réservée aux comptes staff/RH.
-    permission_classes = [IsAdminUser]
+    # Lecture autorisée aux utilisateurs authentifiés ; le ViewSet est
+    # ReadOnly, donc aucune modification d'anomalie n'est exposée ici.
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         return AnomaliePointageDetailSerializer if self.action == 'retrieve' else AnomaliePointageSerializer

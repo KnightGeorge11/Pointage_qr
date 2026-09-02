@@ -193,6 +193,30 @@ def _process_garde(employe, site, now, force_new=False):
         heure_depart__isnull=True,
     ).first()
 
+    # Une garde déjà clôturée le même jour ne peut pas être suivie d'une
+    # deuxième garde avec le modèle actuel (contrainte unique employé/date/nuit).
+    # Refuser explicitement évite de masquer ce cas derrière GARDE_NON_PLANIFIEE.
+    garde_cloturee_du_jour = Pointage.objects.filter(
+        employe=employe,
+        date_pointage=date_courante,
+        periode='nuit',
+        type_journee='garde',
+        heure_arrivee__isnull=False,
+        heure_depart__isnull=False,
+    ).first()
+    if garde_cloturee_du_jour:
+        message = (
+            "Une garde est déjà enregistrée pour cet employé aujourd'hui. "
+            "Une deuxième garde distincte le même jour n'est pas supportée."
+        )
+        enregistrer_anomalie(
+            AnomaliePointage.TYPE_GARDE_MULTIPLE_NON_SUPPORTEE,
+            message=message, employe=employe, site=site,
+            date_pointage=date_courante,
+            contexte={'pointage_garde_cloturee_id': garde_cloturee_du_jour.id},
+        )
+        return {'status':'warning','code':'GARDE_MULTIPLE_NON_SUPPORTEE','message':message}
+
     if garde_planifiee:
         garde_planifiee.heure_arrivee = heure
         garde_planifiee.date_depart = None
