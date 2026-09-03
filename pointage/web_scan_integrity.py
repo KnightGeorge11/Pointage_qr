@@ -4,8 +4,9 @@ Le scanner Web doit utiliser le QR physique comme preuve d'identité de
 l'employé. Le matricule seul est une donnée publique/devinable et ne doit
 jamais être transformé côté serveur en qr_code_token.
 
-Ce module conserve la vue existante intacte et bloque uniquement le raccourci
-matricule-only. Les scans QR valides continuent de passer par process_scan().
+Ce module conserve les vues existantes intactes et bloque uniquement les
+raccourcis qui contournent le badge ou confondent une garde planifiée avec une
+présence réelle. Les scans QR valides continuent de passer par process_scan().
 """
 
 from django.contrib import messages
@@ -69,5 +70,42 @@ def _install_presence_helper_guard():
     views.get_statut_employe_journee = guarded_helper
 
 
+def _install_api_day_status_guard():
+    """L'endpoint de statut ne doit pas compter une réservation de garde."""
+    view = views.get_statut_journee
+    if getattr(view, "_planned_guard_integrity_installed", False):
+        return
+
+    original_view = view
+
+    def guarded_status(request, employe_id, *args, **kwargs):
+        response = original_view(request, employe_id, *args, **kwargs)
+        if getattr(response, "status_code", 500) != 200:
+            return response
+
+        try:
+            payload = response.data if hasattr(response, "data") else None
+            if payload is None:
+                return response
+
+            for periode in ("matin", "apres_midi", "nuit"):
+                bucket = payload.get(periode)
+                if not bucket:
+                    continue
+                if bucket.get("heure_arrivee") in (None, "None", ""):
+                    bucket["present"] = False
+        except Exception:
+            # Ce garde-fou ne doit jamais casser un endpoint de lecture.
+            return response
+
+        return response
+
+    guarded_status.__name__ = getattr(original_view, "__name__", "get_statut_journee")
+    guarded_status.__doc__ = getattr(original_view, "__doc__", None)
+    guarded_status._planned_guard_integrity_installed = True
+    views.get_statut_journee = guarded_status
+
+
 _install_web_scanner_guard()
 _install_presence_helper_guard()
+_install_api_day_status_guard()
