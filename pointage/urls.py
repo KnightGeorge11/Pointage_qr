@@ -16,10 +16,11 @@ from .views import (
     # API
     get_statut_journee, get_prochain_scan,
     get_dashboard_stats, get_charts_data, employe_qr_data,
-
-    # Anomalies
+)
+from .admin_security import (
     alertes_rh_view,
-    alerte_detail_view,
+    admin_badge_counts_api,
+    notifications_api,
 )
 from rest_framework.routers import DefaultRouter
 
@@ -59,14 +60,14 @@ urlpatterns = [
     path('postes/',                     PosteListView.as_view(),    name='postes'),
     path('postes/nouveau/',             poste_create_view,          name='poste_create'),
     path('postes/<int:pk>/modifier/',   poste_update_view,          name='poste_update'),
-    path('postes/<int:pk>/supprimer/',  poste_delete_view,          name='poste_delete'),
+    path('postes/<int:pk>/supprimer/',  poste_delete_view,           name='poste_delete'),
 
     # Scanner
     path('scanner/', scanner_view, name='scanner'),
 
-    # Anomalies
+    # Anomalies — accès RH uniquement via admin_security.py
     path('anomalies/', alertes_rh_view, name='alertes_rh'),
-    path('anomalies/<int:pk>/', alerte_detail_view, name='alerte_detail'),
+    path('anomalies/<int:pk>/', views.alerte_detail_view, name='alerte_detail'),
 
     # API
     path('api/',                                      include(router.urls)),
@@ -74,8 +75,8 @@ urlpatterns = [
     path('api/statut-journee/<int:employe_id>/',      get_statut_journee,          name='statut_journee'),
     path('api/prochain-scan/<int:employe_id>/',       get_prochain_scan,           name='prochain_scan'),
     path('api/dashboard-stats/',                      get_dashboard_stats,         name='dashboard_stats'),
-    path('api/charts-data/',                          get_charts_data,             name='charts_data'),
+    path('api/charts-data/',                          get_charts_data,              name='charts_data'),
 
-    path('api/admin-badge-counts/', views.admin_badge_counts_api, name='admin_badge_counts_api'),
-    path('api/notifications/', views.notifications_api, name='notifications_api'),
+    path('api/admin-badge-counts/', admin_badge_counts_api, name='admin_badge_counts_api'),
+    path('api/notifications/', notifications_api, name='notifications_api'),
 ]
