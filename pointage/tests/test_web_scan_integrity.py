@@ -2,8 +2,10 @@ from datetime import time
 
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from pointage.models import CustomUser, Employe, Pointage, Poste, Site
+from pointage.views import get_statut_employe_journee
 
 
 class WebScanIntegrityTests(TestCase):
@@ -64,23 +66,17 @@ class WebScanIntegrityTests(TestCase):
         )
 
     def test_garde_planifiee_sans_arrivee_n_est_pas_une_presence(self):
+        today = timezone.localtime(timezone.now()).date()
         Pointage.objects.create(
             employe=self.employe,
             site=self.site,
-            date_pointage=__import__("django.utils.timezone", fromlist=["timezone"]).localtime(
-                __import__("django.utils.timezone", fromlist=["timezone"]).timezone.now()
-            ).date(),
+            date_pointage=today,
             periode="nuit",
             type_journee="garde",
             heure_arrivee=None,
             heure_depart=None,
         )
 
-        from pointage.views import get_statut_employe_journee
-
-        statut = get_statut_employe_journee(
-            self.employe,
-            Pointage.objects.get(employe=self.employe).date_pointage,
-        )
+        statut = get_statut_employe_journee(self.employe, today)
 
         self.assertFalse(statut["nuit"]["present"])
