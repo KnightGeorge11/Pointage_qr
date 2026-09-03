@@ -260,10 +260,9 @@ JAZZMIN_UI_TWEAKS = {
     
     # ── Thème ──
     "theme": "flatly",
-    # dark_mode_theme est supprimé depuis Jazzmin 3.x, remplacé par
-    # default_theme_mode ("light"/"dark"/"auto") — même comportement
-    # que l'ancien fallback automatique de Jazzmin pour cette clé.
-    "default_theme_mode": "auto",
+    # On force le thème clair pour éviter que le mode sombre du navigateur
+    # transforme le dashboard personnalisé (conçu en palette claire).
+    "default_theme_mode": "light",
     
     # ── Boutons ──
     "button_classes": {
