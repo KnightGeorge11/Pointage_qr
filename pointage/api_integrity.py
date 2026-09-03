@@ -39,8 +39,6 @@ def install():
     # create() est volontairement conservé : PointageSerializer.create()
     # appelle process_scan(), donc ce chemin partage la même state machine,
     # les mêmes contrôles horaires, l'anti-doublon et les règles de garde.
-    # Interdire create() ici casserait les tests de parité API/mobile et les
-    # usages RH existants sans apporter de sécurité supplémentaire.
     viewset.update = _deny_update
     viewset.partial_update = _deny_update
     viewset.destroy = _deny_destroy
