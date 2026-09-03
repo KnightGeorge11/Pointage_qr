@@ -12,20 +12,11 @@ from openpyxl import load_workbook
 from rest_framework.response import Response
 from rest_framework import status as drf_status
 
-from .models import (
-    CustomUser,
-    Pointage,
-    Scan,
-    DemandeModification,
-    AnomaliePointage,
-    AnomalieTraitement,
-    PointageAudit,
-)
+from .models import CustomUser, Pointage, Scan, DemandeModification, AnomaliePointage, AnomalieTraitement, PointageAudit
 
 
 def _is_rh(user):
     return bool(user and user.is_authenticated and (user.is_superuser or getattr(user, "role", None) == "admin"))
-
 
 def _rh_module_permission(self, request): return _is_rh(request.user)
 def _rh_view_permission(self, request, obj=None): return _is_rh(request.user)
@@ -33,23 +24,19 @@ def _rh_add_permission(self, request): return _is_rh(request.user)
 def _rh_change_permission(self, request, obj=None): return _is_rh(request.user)
 def _rh_delete_permission(self, request, obj=None): return _is_rh(request.user)
 
-
 def _immutable_readonly_fields(self, request, obj=None):
     existing = getattr(self, "readonly_fields", ()) or ()
     concrete = tuple(field.name for field in self.model._meta.concrete_fields)
     return tuple(dict.fromkeys((*existing, *concrete)))
 
-
 def _no_add(self, request): return False
 def _no_delete(self, request, obj=None): return False
-
 
 def _remove_unsafe_pointage_actions(self):
     self.actions = [
         action for action in (getattr(self, "actions", []) or [])
         if action not in {"marquer_present", "marquer_retard", "marquer_absent", "supprimer_selection"}
     ]
-
 
 def _custom_user_fieldsets(self, request, obj=None):
     return (
@@ -58,7 +45,6 @@ def _custom_user_fieldsets(self, request, obj=None):
         ("Rôle & accès", {"fields": ("role", "is_active", "is_staff")}),
     )
 
-
 def _custom_user_add_fieldsets(self, request):
     return (
         (None, {"classes": ("wide",), "fields": ("username", "password1", "password2")}),
@@ -66,15 +52,12 @@ def _custom_user_add_fieldsets(self, request):
         ("Rôle & accès", {"fields": ("role", "is_active")}),
     )
 
-
 def _custom_user_readonly_fields(self, request, obj=None): return ("is_staff",)
 
 
 def _sanitize_overtime_export(response):
     """Ne présente comme H.Supp que les heures explicitement validées RH."""
-    if getattr(response, "status_code", 200) != 200:
-        return response
-    if "spreadsheetml" not in response.get("Content-Type", ""):
+    if getattr(response, "status_code", 200) != 200 or "spreadsheetml" not in response.get("Content-Type", ""):
         return response
     try:
         workbook = load_workbook(io.BytesIO(response.content))
@@ -115,7 +98,6 @@ def _sanitize_overtime_export(response):
                     cell = worksheet.cell(row=row + 6, column=col)
                     if isinstance(cell.value, str) and cell.value.startswith("H.sup"):
                         cell.value = "—"
-
             total_cell = worksheet.cell(row=row, column=worksheet.max_column)
             if isinstance(total_cell.value, str) and "H. Supp :" in total_cell.value:
                 lines = total_cell.value.split("\n")
@@ -126,7 +108,6 @@ def _sanitize_overtime_export(response):
                         lines[i + 1] = f"{hours}h{minutes:02d}" if total_payable > 0 else "0h00"
                         break
                 total_cell.value = "\n".join(lines)
-
         output = io.BytesIO()
         workbook.save(output)
         response.content = output.getvalue()
@@ -138,8 +119,7 @@ def _sanitize_overtime_export(response):
 def _wrap_web_export():
     from . import views
     original = getattr(views, "export_resume_excel", None)
-    if not original or getattr(original, "_overtime_sanitized", False):
-        return
+    if not original or getattr(original, "_overtime_sanitized", False): return
     def wrapped(request, *args, **kwargs):
         return _sanitize_overtime_export(original(request, *args, **kwargs))
     wrapped._overtime_sanitized = True
@@ -149,10 +129,7 @@ def _wrap_web_export():
 def _deny_pointage_delete_web(self): return False
 
 def _deny_pointage_delete_api(self, request, *args, **kwargs):
-    return Response(
-        {"detail": "Les pointages sont des traces immuables et ne peuvent pas être supprimés."},
-        status=drf_status.HTTP_403_FORBIDDEN,
-    )
+    return Response({"detail": "Les pointages sont des traces immuables et ne peuvent pas être supprimés."}, status=drf_status.HTTP_403_FORBIDDEN)
 
 
 @transaction.atomic
@@ -168,8 +145,8 @@ def _safe_request_action(self, request, pk, approve):
         return redirect("../../")
     if request.method == "GET":
         return render(request, "admin/pointage/demande/confirm_action.html", {
-            "title": f"Confirmer : {action} la demande #{pk}",
-            "demande": demande, "action": action, "opts": self.model._meta, "cancel_url": "../../",
+            "title": f"Confirmer : {action} la demande #{pk}", "demande": demande,
+            "action": action, "opts": self.model._meta, "cancel_url": "../../",
         })
     if request.method != "POST":
         self.message_user(request, "Méthode HTTP non autorisée.", level=messages.ERROR)
@@ -183,16 +160,11 @@ def _safe_request_action(self, request, pk, approve):
         demande.traitee_par = request.user
         demande.date_traitement = timezone.now()
         demande.save(update_fields=("statut", "traitee_par", "date_traitement"))
-        self.message_user(
-            request,
-            f"Demande #{pk} {'approuvée et appliquée' if approve else 'refusée'}.",
-            level=messages.SUCCESS,
-        )
+        self.message_user(request, f"Demande #{pk} {'approuvée et appliquée' if approve else 'refusée'}.", level=messages.SUCCESS)
     except Exception:
         transaction.set_rollback(True)
         self.message_user(request, "Le traitement a échoué. Aucune modification n'a été enregistrée.", level=messages.ERROR)
     return redirect("../../")
-
 
 def _safe_approve(self, request, pk): return _safe_request_action(self, request, pk, True)
 def _safe_refuse(self, request, pk): return _safe_request_action(self, request, pk, False)
@@ -255,18 +227,18 @@ def install():
         cls.has_view_permission = _rh_view_permission
         cls.has_add_permission = _rh_add_permission
         cls.has_change_permission = _rh_change_permission
-        cls.has_delete_permission = _rh_delete_permission
+        # Suppression physique interdite : utiliser is_active=False afin de
+        # préserver les demandes, audits et historiques liés à l'utilisateur.
+        cls.has_delete_permission = _no_delete
         cls.get_fieldsets = _custom_user_fieldsets
         cls.get_add_fieldsets = _custom_user_add_fieldsets
         cls.get_readonly_fields = _custom_user_readonly_fields
         original_save_model = getattr(cls, "save_model", None)
         def save_model(self, request, obj, form, change):
-            if not _is_rh(request.user):
-                return
+            if not _is_rh(request.user): return
             obj.is_superuser = False
             obj.is_staff = getattr(obj, "role", None) == "admin"
-            if original_save_model:
-                original_save_model(self, request, obj, form, change)
+            if original_save_model: original_save_model(self, request, obj, form, change)
         cls.save_model = save_model
 
     from . import views
@@ -277,7 +249,6 @@ def install():
         )
     if hasattr(views, "PointageViewSet"):
         views.PointageViewSet.destroy = _deny_pointage_delete_api
-
     _wrap_web_export()
 
 
