@@ -1,0 +1,118 @@
+/* ==========================================================
+   ADMIN THEME FIX
+   Final overrides loaded after Jazzmin + custom_admin.css.
+   The administration UI is intentionally light; the sidebar
+   remains dark blue as part of the application visual identity.
+   ========================================================== */
+
+html[data-bs-theme="light"] {
+    color-scheme: light !important;
+
+    --bs-body-bg: #F8FAFC !important;
+    --bs-body-color: #0F172A !important;
+    --bs-emphasis-color: #0F172A !important;
+    --bs-secondary-color: #64748B !important;
+    --bs-tertiary-bg: #F8FAFC !important;
+    --bs-secondary-bg: #F1F5F9 !important;
+    --bs-border-color: #E2E8F0 !important;
+}
+
+html[data-bs-theme="light"] body,
+html[data-bs-theme="light"] .content-wrapper,
+html[data-bs-theme="light"] .content,
+html[data-bs-theme="light"] .main-footer {
+    background-color: #F8FAFC !important;
+    color: #0F172A !important;
+}
+
+/* Generic Jazzmin / Bootstrap surfaces */
+html[data-bs-theme="light"] .card,
+html[data-bs-theme="light"] .card-body,
+html[data-bs-theme="light"] .card-header,
+html[data-bs-theme="light"] .card-footer,
+html[data-bs-theme="light"] .module,
+html[data-bs-theme="light"] .results,
+html[data-bs-theme="light"] .form-row,
+html[data-bs-theme="light"] .submit-row {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border-color: #E2E8F0 !important;
+}
+
+html[data-bs-theme="light"] .card-header,
+html[data-bs-theme="light"] .card-footer {
+    border-color: #E2E8F0 !important;
+}
+
+/* Forms */
+html[data-bs-theme="light"] input:not([type="checkbox"]):not([type="radio"]),
+html[data-bs-theme="light"] textarea,
+html[data-bs-theme="light"] select,
+html[data-bs-theme="light"] .form-control,
+html[data-bs-theme="light"] .form-select {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border-color: #CBD5E1 !important;
+}
+
+html[data-bs-theme="light"] input::placeholder,
+html[data-bs-theme="light"] textarea::placeholder {
+    color: #94A3B8 !important;
+    opacity: 1 !important;
+}
+
+/* Dashboard stat boxes: never allow dark Jazzmin variables to paint
+   the value/label/footer strips black. */
+html[data-bs-theme="light"] .small-box {
+    color: #FFFFFF !important;
+}
+
+html[data-bs-theme="light"] .small-box .inner,
+html[data-bs-theme="light"] .small-box .inner h3,
+html[data-bs-theme="light"] .small-box .inner p {
+    background: transparent !important;
+}
+
+html[data-bs-theme="light"] .small-box .inner h3 {
+    color: #FFFFFF !important;
+}
+
+html[data-bs-theme="light"] .small-box .inner p {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+html[data-bs-theme="light"] .small-box .small-box-footer {
+    background: rgba(0, 0, 0, 0.10) !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+html[data-bs-theme="light"] .small-box.bg-primary { background-color: #2563EB !important; }
+html[data-bs-theme="light"] .small-box.bg-success { background-color: #22C55E !important; }
+html[data-bs-theme="light"] .small-box.bg-warning { background-color: #F59E0B !important; }
+html[data-bs-theme="light"] .small-box.bg-danger  { background-color: #EF4444 !important; }
+html[data-bs-theme="light"] .small-box.bg-info    { background-color: #3B82F6 !important; }
+
+/* Text elements accidentally affected by dark-mode component rules. */
+html[data-bs-theme="light"] h1,
+html[data-bs-theme="light"] h2,
+html[data-bs-theme="light"] h3,
+html[data-bs-theme="light"] h4,
+html[data-bs-theme="light"] h5,
+html[data-bs-theme="light"] h6,
+html[data-bs-theme="light"] label,
+html[data-bs-theme="light"] .card-title {
+    color: #0F172A !important;
+}
+
+/* Keep the intentionally dark sidebar/header identity untouched. */
+html[data-bs-theme="light"] .sidebar,
+html[data-bs-theme="light"] .brand-link {
+    background-color: #0F172A !important;
+}
+
+html[data-bs-theme="light"] .sidebar,
+html[data-bs-theme="light"] .sidebar a,
+html[data-bs-theme="light"] .brand-link,
+html[data-bs-theme="light"] .brand-link .brand-text {
+    color: #FFFFFF !important;
+}
