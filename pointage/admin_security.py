@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
+from django.utils import timezone
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework import status as drf_status
@@ -14,7 +15,6 @@ from rest_framework.decorators import action
 
 from . import views
 from .models import Employe, Pointage
-from django.utils import timezone
 
 
 def _is_rh(user):
@@ -91,7 +91,8 @@ def _rh_function_wrapper(function):
     return wrapped
 
 
-def _correct_pointage_statistics(self, request):
+@action(detail=False, methods=['get'])
+def statistiques(self, request):
     """Statistiques RH : une réservation de garde n'est pas une présence."""
     today = timezone.localtime(timezone.now()).date()
     total_employes = Employe.objects.filter(actif=True).count()
@@ -100,7 +101,7 @@ def _correct_pointage_statistics(self, request):
         heure_arrivee__isnull=False,
     )
     presents = today_attendance.values('employe').distinct().count()
-    data = {
+    return Response({
         'total_employes': total_employes,
         'presents_aujourdhui': presents,
         'absents_aujourdhui': max(0, total_employes - presents),
@@ -116,8 +117,7 @@ def _correct_pointage_statistics(self, request):
             heure_depart__isnull=True,
         ).count(),
         'date': today,
-    }
-    return Response(data)
+    })
 
 
 def secure_sensitive_apis():
@@ -127,12 +127,9 @@ def secure_sensitive_apis():
         if viewset is not None:
             viewset.permission_classes = [IsRHPermission]
 
-    # Corriger le endpoint de statistiques du ViewSet avant l'enregistrement
-    # du routeur : l'ancienne version comptait les réservations de garde
-    # (heure_arrivee=NULL) comme des présences.
     pointage_viewset = getattr(views, "PointageViewSet", None)
     if pointage_viewset is not None:
-        pointage_viewset.statistiques = action(detail=False, methods=['get'])(_correct_pointage_statistics)
+        pointage_viewset.statistiques = statistiques
 
     sensitive_functions = (
         "employe_qr_data",
