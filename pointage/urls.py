@@ -3,7 +3,7 @@ from django.urls import path, include
 from django.views.generic import RedirectView
 from . import views
 from .views import (
-    dashboard, scanner_view, employe_create_view, employe_update_view, employe_delete_view,
+    dashboard, employe_create_view, employe_update_view, employe_delete_view,
     site_create_view, site_update_view, site_delete_view,
     poste_create_view, poste_update_view, poste_delete_view,
 
@@ -23,6 +23,7 @@ from .admin_security import (
     export_resume_excel,
     admin_badge_counts_api,
     notifications_api,
+    scanner_view,
     RHAnomaliePointageViewSet,
 )
 from rest_framework.routers import DefaultRouter
