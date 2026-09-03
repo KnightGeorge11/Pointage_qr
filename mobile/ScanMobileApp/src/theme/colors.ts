@@ -1,52 +1,49 @@
 // theme/colors.ts
 //
-// Palette partagée par toute l'app mobile — reprend exactement les
-// variables CSS de l'app web (pointage/templates/pointage/base.html)
-// pour que web / mobile / desktop se ressemblent visuellement.
-//
-// Toujours importer les couleurs depuis ce fichier plutôt que d'écrire
-// des couleurs en dur dans un écran : ça garantit que l'app reste
-// cohérente si la palette évolue un jour.
+// Source de vérité visuelle de l'application mobile.
+// Les tokens sémantiques sont alignés sur le Design System Web Pointage QR
+// (pointage/templates/pointage/base.html). Les écrans ne doivent pas écrire
+// de couleurs arbitraires : ils importent toujours ce fichier.
 
 export const colors = {
-  // Neutres (texte / fonds sombres)
-  ink:        '#0b0e17',
-  inkSoft:    '#1c2235',
-  inkMuted:   '#374163',
+  // Neutres
+  ink:        '#0F172A',
+  inkSoft:    '#334155',
+  inkMuted:   '#64748B',
 
-  // Fonds clairs
-  surface:    '#f2f4f8',
-  surfaceAlt: '#e8eaf0',
-  white:      '#ffffff',
+  // Fonds
+  surface:    '#F8FAFC',
+  surfaceAlt: '#F1F5F9',
+  white:      '#FFFFFF',
 
   // Bordures
-  line:       '#dde1ec',
-  lineSoft:   '#eceef5',
+  line:       '#E2E8F0',
+  lineSoft:   '#F1F5F9',
 
-  // Sémantique — succès
-  green:      '#00c27a',
-  greenDim:   '#e4f9f1',
-  greenText:  '#007a4d',
+  // Succès
+  green:      '#22C55E',
+  greenDim:   '#F0FDF4',
+  greenText:  '#15803D',
 
-  // Sémantique — avertissement / garde de nuit
-  amber:      '#f5a623',
-  amberDim:   '#fef4e3',
-  amberText:  '#a86f00',
+  // Avertissement / garde de nuit
+  amber:      '#F59E0B',
+  amberDim:   '#FFFBEB',
+  amberText:  '#D97706',
 
-  // Sémantique — erreur
-  red:        '#e8344a',
-  redDim:     '#fdeaed',
-  redText:    '#b01f32',
+  // Erreur
+  red:        '#EF4444',
+  redDim:     '#FEF2F2',
+  redText:    '#DC2626',
 
-  // Accent — liens, info, actions secondaires
-  blue:       '#2962ff',
-  blueDim:    '#e6ecff',
-  blueText:   '#1940cc',
+  // Primaire / information
+  blue:       '#2563EB',
+  blueDim:    '#EFF6FF',
+  blueText:   '#1D4ED8',
 } as const;
 
-// Rayons de bordure — mêmes crans que le web (--r-xs à --r-xl)
+// Rayons — mêmes crans fonctionnels que le Web.
 export const radius = {
-  xs: 4,
+  xs: 6,
   sm: 6,
   md: 10,
   lg: 14,
