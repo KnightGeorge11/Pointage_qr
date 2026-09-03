@@ -2,8 +2,10 @@
 
 import json
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
+from django.shortcuts import redirect
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework import status as drf_status
@@ -116,17 +118,19 @@ def secure_sensitive_apis():
 def scanner_view(request, *args, **kwargs):
     """Le scanner Web doit recevoir le QR réel, jamais un matricule seul.
 
-    Le matricule seul permettait auparavant à la vue d'aller chercher elle-même
-    le secret QR de l'employé puis de fabriquer un scan valide. C'était une
-    possibilité d'usurpation directe de pointage. Le chemin QR reste inchangé.
+    Le matricule seul permettait auparavant à la vue de récupérer le secret QR
+    de l'employé puis de fabriquer un scan valide : cela permettait d'usurper
+    un pointage. Le chemin QR réel reste inchangé.
     """
     if request.method == "POST":
         raw_qr = (request.POST.get("qr_data") or "").strip()
         matricule = (request.POST.get("matricule") or "").strip()
         if not raw_qr and matricule:
-            messages = __import__("django.contrib.messages", fromlist=["messages"]).messages
-            messages.error(request, "❌ Le pointage Web doit être effectué par lecture du QR code. Le matricule seul est refusé.")
-            from django.shortcuts import redirect
+            messages.error(
+                request,
+                "❌ Le pointage Web doit être effectué par lecture du QR code. "
+                "Le matricule seul est refusé.",
+            )
             return redirect("scanner")
     return views.scanner_view(request, *args, **kwargs)
 
