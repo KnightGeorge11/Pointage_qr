@@ -2,6 +2,7 @@ from datetime import date, time
 
 from django.test import Client, TestCase
 from django.urls import reverse
+from rest_framework.test import APIClient
 
 from pointage.models import CustomUser, Employe, Pointage, Poste, Site
 
@@ -72,3 +73,29 @@ class CriticalAttendanceAuditTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["presents_aujourdhui"], 1)
         self.assertEqual(response.context["absents_aujourdhui"], 0)
+
+    def test_api_pointage_ne_permet_pas_creation_directe(self):
+        client = APIClient()
+        client.force_authenticate(user=self.rh)
+        response = client.post("/api/pointages/", {})
+        self.assertEqual(response.status_code, 405)
+
+    def test_api_pointage_ne_permet_pas_modification_directe(self):
+        pointage = Pointage.objects.create(
+            employe=self.employe,
+            site=self.site,
+            date_pointage=date.today(),
+            periode="matin",
+            type_journee="normal",
+            heure_arrivee=time(8, 0),
+        )
+        client = APIClient()
+        client.force_authenticate(user=self.rh)
+        response = client.patch(
+            f"/api/pointages/{pointage.id}/",
+            {"heure_arrivee": "09:00:00"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+        pointage.refresh_from_db()
+        self.assertEqual(pointage.heure_arrivee, time(8, 0))
