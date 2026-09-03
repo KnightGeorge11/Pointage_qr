@@ -15,3 +15,4 @@ class PointageConfig(AppConfig):
         import pointage.model_integrity  # noqa: F401
         import pointage.mobile_integrity  # noqa: F401
         import pointage.web_integrity  # noqa: F401
+        import pointage.timestamp_integrity  # noqa: F401
