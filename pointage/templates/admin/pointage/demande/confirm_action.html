@@ -1,0 +1,32 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+  <div class="module">
+    <h1>{{ title }}</h1>
+    <p>
+      Vous êtes sur le point de <strong>{{ action }}</strong> la demande
+      <strong>#{{ demande.pk }}</strong>.
+    </p>
+    <dl>
+      <dt>Demandeur</dt>
+      <dd>{{ demande.demandeur }}</dd>
+      <dt>Action</dt>
+      <dd>{{ demande.get_type_action_display }}</dd>
+      <dt>Cible</dt>
+      <dd>{{ demande.cible }}</dd>
+      <dt>Créée le</dt>
+      <dd>{{ demande.date_creation|date:"d/m/Y H:i" }}</dd>
+    </dl>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="submit-row">
+        <input type="submit" value="{% if action == 'approuver' %}Confirmer l'approbation{% else %}Confirmer le refus{% endif %}" class="default">
+        <a href="{{ cancel_url }}" class="button cancel-link">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
