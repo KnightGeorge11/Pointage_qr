@@ -3,6 +3,7 @@
 import json
 
 from django.http import HttpResponseForbidden, JsonResponse
+from rest_framework.permissions import BasePermission
 
 from . import views
 
@@ -15,11 +16,32 @@ def _is_rh(user):
     )
 
 
+class IsRHPermission(BasePermission):
+    """Permission DRF stricte : superuser ou rôle métier admin."""
+
+    def has_permission(self, request, view):
+        return _is_rh(request.user)
+
+
 def alertes_rh_view(request, *args, **kwargs):
     """La page des anomalies est strictement réservée au RH."""
     if not _is_rh(request.user):
         return HttpResponseForbidden("Accès réservé au personnel RH.")
     return views.alertes_rh_view(request, *args, **kwargs)
+
+
+def alerte_detail_view(request, *args, **kwargs):
+    """Le détail et les actions sur une anomalie sont réservés au RH."""
+    if not _is_rh(request.user):
+        return HttpResponseForbidden("Accès réservé au personnel RH.")
+    return views.alerte_detail_view(request, *args, **kwargs)
+
+
+def export_resume_excel(request, *args, **kwargs):
+    """L'export RH ne doit pas être accessible au simple compte staff."""
+    if not _is_rh(request.user):
+        return HttpResponseForbidden("Accès réservé au personnel RH.")
+    return views.export_resume_excel(request, *args, **kwargs)
 
 
 def admin_badge_counts_api(request, *args, **kwargs):
@@ -51,3 +73,9 @@ def notifications_api(request, *args, **kwargs):
         if item.get("type") != "anomalie"
     ]
     return JsonResponse({"notifications": notifications, "count": len(notifications)})
+
+
+class RHAnomaliePointageViewSet(views.AnomaliePointageViewSet):
+    """Version API RH : aucune lecture d'anomalies par les comptes ordinaires."""
+
+    permission_classes = [IsRHPermission]
