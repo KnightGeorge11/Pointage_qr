@@ -1,4 +1,4 @@
-{% load i18n jazzmin %}
+{% load i18n jazzmin static %}
 {% get_jazzmin_settings as jazzmin_settings %}
 
 <aside class="main-sidebar sidebar-{{ jazzmin_settings.sidebar }} elevation-4 {{ jazzmin_settings.sidebar }}">
@@ -16,10 +16,7 @@
     <div class="sidebar">
         <nav class="mt-2">
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-                
-                <!-- ============================================================ -->
-                <!-- TABLEAU DE BORD -->
-                <!-- ============================================================ -->
+
                 <li class="nav-item">
                     <a href="{% url 'admin:index' %}" class="nav-link">
                         <i class="nav-icon fas fa-chart-line"></i>
@@ -27,16 +24,13 @@
                     </a>
                 </li>
 
-                <!-- ============================================================ -->
-                <!-- DEMANDES DE MODIFICATION AVEC BADGE -->
-                <!-- ============================================================ -->
                 <li class="nav-item">
                     <a href="{% url 'admin:pointage_demandemodification_changelist' %}" class="nav-link">
                         <i class="nav-icon fas fa-inbox"></i>
                         <p>
                             Demandes de modification
                             {% if demandes_attente > 0 %}
-                                <span class="badge badge-danger right" style="background: #EF4444; border-radius: 9999px; padding: 2px 8px; font-size: 10px;">
+                                <span class="badge badge-danger right">
                                     {{ demandes_attente }}
                                 </span>
                             {% endif %}
@@ -44,16 +38,13 @@
                     </a>
                 </li>
 
-                <!-- ============================================================ -->
-                <!-- ANOMALIES AVEC BADGE -->
-                <!-- ============================================================ -->
                 <li class="nav-item">
                     <a href="{% url 'admin:pointage_anomaliepointage_changelist' %}" class="nav-link">
                         <i class="nav-icon fas fa-triangle-exclamation"></i>
                         <p>
                             Anomalies
                             {% if anomalies_ouvertes > 0 %}
-                                <span class="badge badge-danger right" style="background: #EF4444; border-radius: 9999px; padding: 2px 8px; font-size: 10px;">
+                                <span class="badge badge-danger right">
                                     {{ anomalies_ouvertes }}
                                 </span>
                             {% endif %}
@@ -61,9 +52,6 @@
                     </a>
                 </li>
 
-                <!-- ============================================================ -->
-                <!-- EMPLOYÉS -->
-                <!-- ============================================================ -->
                 <li class="nav-item">
                     <a href="{% url 'admin:pointage_employe_changelist' %}" class="nav-link">
                         <i class="nav-icon fas fa-users"></i>
@@ -71,9 +59,6 @@
                     </a>
                 </li>
 
-                <!-- ============================================================ -->
-                <!-- POINTAGES -->
-                <!-- ============================================================ -->
                 <li class="nav-item">
                     <a href="{% url 'admin:pointage_pointage_changelist' %}" class="nav-link">
                         <i class="nav-icon fas fa-clock"></i>
@@ -81,9 +66,6 @@
                     </a>
                 </li>
 
-                <!-- ============================================================ -->
-                <!-- SITES -->
-                <!-- ============================================================ -->
                 <li class="nav-item">
                     <a href="{% url 'admin:pointage_site_changelist' %}" class="nav-link">
                         <i class="nav-icon fas fa-building"></i>
@@ -91,9 +73,6 @@
                     </a>
                 </li>
 
-                <!-- ============================================================ -->
-                <!-- POSTES -->
-                <!-- ============================================================ -->
                 <li class="nav-item">
                     <a href="{% url 'admin:pointage_poste_changelist' %}" class="nav-link">
                         <i class="nav-icon fas fa-briefcase"></i>
@@ -101,9 +80,6 @@
                     </a>
                 </li>
 
-                <!-- ============================================================ -->
-                <!-- SCANS -->
-                <!-- ============================================================ -->
                 <li class="nav-item">
                     <a href="{% url 'admin:pointage_scan_changelist' %}" class="nav-link">
                         <i class="nav-icon fas fa-qrcode"></i>
@@ -111,11 +87,15 @@
                     </a>
                 </li>
 
-                <!-- ============================================================ -->
-                <!-- UTILISATEURS -->
-                <!-- ============================================================ -->
                 <li class="nav-item">
-                    <a href="{% url 'admin:auth_user_changelist' %}" class="nav-link">
+                    <a href="{% url 'admin:pointage_pointageaudit_changelist' %}" class="nav-link">
+                        <i class="nav-icon fas fa-shield-halved"></i>
+                        <p>Journal d'audit</p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{% url 'admin:pointage_customuser_changelist' %}" class="nav-link">
                         <i class="nav-icon fas fa-user-cog"></i>
                         <p>Utilisateurs</p>
                     </a>
@@ -127,12 +107,15 @@
 </aside>
 
 <style>
-/* Animation pour les badges */
 @keyframes pulse-badge {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.7; transform: scale(0.95); }
 }
 .badge-danger {
     animation: pulse-badge 2s ease-in-out infinite;
+    background: #EF4444;
+    border-radius: 9999px;
+    padding: 2px 8px;
+    font-size: 10px;
 }
 </style>
