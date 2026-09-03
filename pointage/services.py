@@ -22,16 +22,84 @@ SEUIL_DOUBLON_SECONDES = 120
 PLAGE_MIN = time(5, 0)
 PLAGE_MAX = time(23, 0)
 SEUIL_DEPART_ANTICIPE_MINUTES = 15
+OFFLINE_MAX_AGE = timedelta(hours=24)
+OFFLINE_FUTURE_TOLERANCE = timedelta(minutes=5)
+
+
+def _normaliser_captured_at(captured_at, client_event_id):
+    """Valide une date cliente avant qu'elle ne devienne une heure métier.
+
+    Le timestamp d'un téléphone n'est jamais une preuve cryptographique de
+    l'heure réelle. Il reste nécessaire au mode offline, mais il est limité à
+    24 h, interdit dans le futur au-delà de 5 min, et exige un UUID d'événement
+    pour permettre l'idempotence et limiter les rejouements.
+    """
+    server_now = timezone.localtime(timezone.now())
+    if captured_at is None:
+        return server_now, None
+
+    if not client_event_id:
+        return None, {
+            'status': 'error',
+            'code': 'CAPTURED_AT_REQUIERT_EVENT_ID',
+            'message': "Une date de scan cliente doit être accompagnée d'un identifiant d'événement unique.",
+        }
+
+    try:
+        uuid.UUID(str(client_event_id))
+    except (ValueError, TypeError, AttributeError):
+        return None, {
+            'status': 'error',
+            'code': 'EVENT_ID_INVALIDE',
+            'message': "L'identifiant d'événement offline est invalide.",
+        }
+
+    if not isinstance(captured_at, datetime):
+        return None, {
+            'status': 'error',
+            'code': 'CAPTURED_AT_INVALIDE',
+            'message': "La date de capture du scan est invalide.",
+        }
+
+    if timezone.is_naive(captured_at):
+        captured_at = timezone.make_aware(captured_at, timezone.get_current_timezone())
+    captured_at = timezone.localtime(captured_at)
+
+    delta = server_now - captured_at
+    if delta < -OFFLINE_FUTURE_TOLERANCE:
+        return None, {
+            'status': 'warning',
+            'code': 'DATE_SCAN_FUTURE',
+            'message': "Le scan indique une date future non autorisée. Synchronisation refusée.",
+        }
+    if delta > OFFLINE_MAX_AGE:
+        return None, {
+            'status': 'warning',
+            'code': 'SCAN_OFFLINE_TROP_ANCIEN',
+            'message': "Le scan offline est trop ancien pour être synchronisé automatiquement (maximum 24 heures).",
+        }
+
+    return captured_at, None
 
 
 def process_scan(matricule: str, qr_token: str, site_id: int,
                  mode: str = 'auto', force_new_garde: bool = False,
                  client_event_id=None, captured_at=None) -> dict:
     """Point d'entrée unique pour tout scan QR."""
-    now = captured_at or timezone.localtime(timezone.now())
-    if timezone.is_naive(now):
-        now = timezone.make_aware(now, timezone.get_current_timezone())
+    now, timestamp_error = _normaliser_captured_at(captured_at, client_event_id)
+    if timestamp_error:
+        return timestamp_error
+
     if client_event_id:
+        try:
+            client_event_id = uuid.UUID(str(client_event_id))
+        except (ValueError, TypeError, AttributeError):
+            return {
+                'status': 'error',
+                'code': 'EVENT_ID_INVALIDE',
+                'message': "L'identifiant d'événement offline est invalide.",
+            }
+
         existing_scan = Scan.objects.select_related('employe', 'site', 'pointage').filter(client_event_id=client_event_id).first()
         if existing_scan:
             pointage = existing_scan.pointage
@@ -78,8 +146,6 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
     with transaction.atomic():
         employe = Employe.objects.select_for_update().get(pk=employe.pk)
 
-        # Re-check after the employee lock so concurrent requests carrying
-        # the same client event cannot both apply the state transition.
         if client_event_id:
             existing_scan = Scan.objects.select_related('employe', 'site', 'pointage').filter(
                 client_event_id=client_event_id
@@ -163,10 +229,6 @@ def _process_garde(employe, site, now, force_new=False, client_event_id=None):
         heure_depart__isnull=True
     ).order_by('-date_pointage', '-date_creation').first()
 
-    # Une garde ouverte d'un jour précédent est une garde de nuit potentiellement
-    # en cours après minuit. Elle doit être clôturée par le scan normal de fin.
-    # Le mode force_new ne doit jamais fabriquer une nouvelle garde en laissant
-    # l'ancienne ouverte : cela créerait des pointages orphelins et des ambiguïtés.
     if garde_en_cours and garde_en_cours.date_pointage != date_courante and force_new:
         message = (
             "Une garde précédente est encore ouverte. Impossible de créer une "
@@ -188,8 +250,6 @@ def _process_garde(employe, site, now, force_new=False, client_event_id=None):
         }
 
     if garde_en_cours and force_new and garde_en_cours.date_pointage == date_courante:
-        # Compatibilité avec le comportement historique : un force_new sur
-        # une garde du même jour clôture la garde ouverte existante.
         force_new = False
 
     if garde_en_cours:
@@ -209,10 +269,6 @@ def _process_garde(employe, site, now, force_new=False, client_event_id=None):
             'data': _build_response_data(scan, garde_en_cours, now)
         }
 
-    # Le planning de garde est représenté par un Pointage vide :
-    # date_pointage + periode=nuit + type_journee=garde + heure_arrivee NULL.
-    # Il est désormais obligatoire pour démarrer une garde ; le service ne
-    # crée plus silencieusement de garde non planifiée.
     garde_planifiee = Pointage.objects.select_for_update().filter(
         employe=employe,
         date_pointage=date_courante,
@@ -222,9 +278,6 @@ def _process_garde(employe, site, now, force_new=False, client_event_id=None):
         heure_depart__isnull=True,
     ).first()
 
-    # Une garde déjà clôturée le même jour ne peut pas être suivie d'une
-    # deuxième garde avec le modèle actuel (contrainte unique employé/date/nuit).
-    # Refuser explicitement évite de masquer ce cas derrière GARDE_NON_PLANIFIEE.
     garde_cloturee_du_jour = Pointage.objects.filter(
         employe=employe,
         date_pointage=date_courante,
@@ -381,62 +434,35 @@ def _detecter_depart_anticipe(pointage: Pointage, employe: Employe, site: Site,
     if avance.total_seconds() < seuil_minutes * 60:
         return
 
-    minutes_avance = int(avance.total_seconds() // 60)
-    periode_label = 'matin' if periode == 'matin' else 'après-midi'
-    message = (
-        f"Sortie {periode_label} enregistrée à {heure.strftime('%H:%M')} sur "
-        f"{site.nom}, soit {minutes_avance} min avant la fermeture prévue "
-        f"({heure_fermeture.strftime('%H:%M')})."
-    )
+    minutes = int(avance.total_seconds() // 60)
     enregistrer_anomalie(
         AnomaliePointage.TYPE_DEPART_ANTICIPE,
-        message=message,
+        message=(
+            f"Départ anticipé de {minutes} minute(s) pour {employe.get_nom_complet()} "
+            f"({periode}). Sortie à {heure.strftime('%H:%M')}, "
+            f"fermeture prévue à {heure_fermeture.strftime('%H:%M')}."
+        ),
         employe=employe,
         site=site,
-        date_pointage=pointage.date_pointage,
+        pointage=pointage,
+        date_pointage=now.date(),
         contexte={
             'periode': periode,
-            'heure_depart': heure.isoformat(),
-            'heure_fermeture_prevue': heure_fermeture.isoformat(),
-            'minutes_avance': minutes_avance,
-            'pointage_id': pointage.id,
+            'heure_depart': heure.strftime('%H:%M:%S'),
+            'heure_fermeture': heure_fermeture.strftime('%H:%M:%S'),
+            'avance_minutes': minutes,
         },
     )
-    logger.info(
-        f"[_detecter_depart_anticipe] Signalé pour emp={employe.id} "
-        f"pointage={pointage.id} ({minutes_avance} min d'avance)"
-    )
 
 
-def _build_response_data(scan, pointage, now) -> dict:
+def _build_response_data(scan: Scan, pointage: Pointage, now) -> dict:
     return {
         'scan_id': scan.id,
+        'pointage_id': pointage.id if pointage else None,
+        'timestamp': now.isoformat() if now else None,
         'type_scan': scan.type_scan,
-        'type_scan_display': scan.get_type_scan_display(),
-        'timestamp': now.isoformat(),
-        'employe': {
-            'id': scan.employe.id,
-            'nom_complet': scan.employe.get_nom_complet(),
-            'matricule': scan.employe.matricule,
-            'poste': scan.employe.poste.nom if scan.employe.poste else None,
-        },
-        'site': scan.site.nom,
-        'periode': pointage.periode,
-        'type_journee': pointage.type_journee,
-        'date': pointage.date_pointage.isoformat(),
-        'heure_arrivee': str(pointage.heure_arrivee) if pointage.heure_arrivee else None,
-        'heure_depart': str(pointage.heure_depart) if pointage.heure_depart else None,
+        'periode': pointage.periode if pointage else None,
+        'heure_arrivee': pointage.heure_arrivee.strftime('%H:%M:%S') if pointage and pointage.heure_arrivee else None,
+        'heure_depart': pointage.heure_depart.strftime('%H:%M:%S') if pointage and pointage.heure_depart else None,
+        'message': 'Scan enregistré avec succès',
     }
-
-
-def parse_qr_data(raw: str) -> dict | None:
-    """Parse EMPLOYE:matricule:uuid_token et valide le token UUID."""
-    parts = raw.strip().split(':', 2)
-    if len(parts) != 3 or parts[0] != 'EMPLOYE':
-        return None
-    matricule, token = parts[1], parts[2]
-    try:
-        uuid.UUID(token)
-    except (ValueError, AttributeError, TypeError):
-        return None
-    return {'matricule': matricule, 'token': token}
