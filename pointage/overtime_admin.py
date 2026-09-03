@@ -96,8 +96,6 @@ def refuser_heures_supplementaires(modeladmin, request, queryset):
             ),
         }
 
-        # Le modèle/trigger garantit que la valeur brute repasse à zéro
-        # lorsqu'elle n'est plus autorisée.
         pointage.heures_supplementaires_autorisees = False
         pointage.heures_supplementaires_autorisees_par = None
         pointage.date_autorisation_heures_supplementaires = None
@@ -150,6 +148,15 @@ def _heures_sup_autorisees_display(self, obj):
 _heures_sup_autorisees_display.short_description = "H. supp."
 
 
+def _has_delete_permission(self, request, obj=None):
+    """Un pointage est une trace de présence : pas de suppression depuis l'admin.
+
+    Les corrections doivent passer par le workflow de modification/anomalie,
+    afin de conserver la traçabilité dans PointageAudit.
+    """
+    return False
+
+
 def install():
     pointage_admin = _get_pointage_admin()
     if pointage_admin is None:
@@ -160,8 +167,12 @@ def install():
         return
 
     setattr(cls, 'heures_sup_autorisees_display', _heures_sup_autorisees_display)
+    setattr(cls, 'has_delete_permission', _has_delete_permission)
 
     actions = list(getattr(pointage_admin, 'actions', []) or [])
+    # Suppression physique interdite : le journal de pointage doit rester
+    # traçable. Retirer aussi l'action historique qui contournait ce garde-fou.
+    actions = [a for a in actions if a != 'supprimer_selection']
     for action_name in ('autoriser_heures_supplementaires', 'refuser_heures_supplementaires'):
         if action_name not in actions:
             actions.append(action_name)
