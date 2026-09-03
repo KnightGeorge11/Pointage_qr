@@ -132,6 +132,13 @@ def _deny_pointage_delete_api(self, request, *args, **kwargs):
     return Response({"detail": "Les pointages sont des traces immuables et ne peuvent pas être supprimés."}, status=drf_status.HTTP_403_FORBIDDEN)
 
 
+def _pointage_delete_no_permission(self):
+    """Anonyme -> comportement Django normal; authentifié -> 403 explicite."""
+    if getattr(self.request.user, "is_authenticated", False):
+        return HttpResponseForbidden("Les pointages sont des traces immuables et ne peuvent pas être supprimés.")
+    return super(type(self), self).handle_no_permission()
+
+
 @transaction.atomic
 def _safe_request_action(self, request, pk, approve):
     """GET affiche une confirmation ; seul POST + CSRF change l'état."""
@@ -227,8 +234,6 @@ def install():
         cls.has_view_permission = _rh_view_permission
         cls.has_add_permission = _rh_add_permission
         cls.has_change_permission = _rh_change_permission
-        # Suppression physique interdite : utiliser is_active=False afin de
-        # préserver les demandes, audits et historiques liés à l'utilisateur.
         cls.has_delete_permission = _no_delete
         cls.get_fieldsets = _custom_user_fieldsets
         cls.get_add_fieldsets = _custom_user_add_fieldsets
@@ -244,9 +249,7 @@ def install():
     from . import views
     if hasattr(views, "PointageDeleteView"):
         views.PointageDeleteView.test_func = _deny_pointage_delete_web
-        views.PointageDeleteView.handle_no_permission = lambda self: HttpResponseForbidden(
-            "Les pointages sont des traces immuables et ne peuvent pas être supprimés."
-        )
+        views.PointageDeleteView.handle_no_permission = _pointage_delete_no_permission
     if hasattr(views, "PointageViewSet"):
         views.PointageViewSet.destroy = _deny_pointage_delete_api
     _wrap_web_export()
