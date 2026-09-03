@@ -12,8 +12,10 @@
 
 {% block extrastyle %}
     {{ block.super }}
-    <!-- Admin Custom CSS must load after Jazzmin/Bootstrap to keep the light palette authoritative. -->
+    <!-- Custom admin styles load after Jazzmin/Bootstrap. -->
     <link rel="stylesheet" href="{% static 'admin/css/custom_admin.css' %}">
+    <!-- Final light-theme compatibility overrides. -->
+    <link rel="stylesheet" href="{% static 'admin/css/admin_theme_fix.css' %}">
     <style>
         html[data-bs-theme="light"],
         html[data-bs-theme="light"] body {
