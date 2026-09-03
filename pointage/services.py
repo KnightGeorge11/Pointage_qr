@@ -100,12 +100,6 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
                 'message': "L'identifiant d'événement offline est invalide.",
             }
 
-        existing_scan = Scan.objects.select_related('employe', 'site', 'pointage').filter(client_event_id=client_event_id).first()
-        if existing_scan:
-            pointage = existing_scan.pointage
-            data = _build_response_data(existing_scan, pointage, timezone.localtime(existing_scan.timestamp)) if pointage else None
-            return {'status':'success','code':existing_scan.type_scan,'message':'Scan déjà synchronisé (événement idempotent).','data':data,'idempotent':True}
-
     if mode not in ('auto', 'garde'):
         return {
             'status': 'error',
@@ -151,6 +145,21 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
                 client_event_id=client_event_id
             ).first()
             if existing_scan:
+                if existing_scan.employe_id != employe.pk or existing_scan.site_id != site.pk:
+                    logger.warning(
+                        "[process_scan] Réutilisation d'un client_event_id pour un autre "
+                        "employé/site : event=%s emp=%s site=%s attendu_emp=%s attendu_site=%s",
+                        client_event_id,
+                        existing_scan.employe_id,
+                        existing_scan.site_id,
+                        employe.pk,
+                        site.pk,
+                    )
+                    return {
+                        'status': 'error',
+                        'code': 'EVENT_ID_REUTILISE',
+                        'message': "Cet événement offline appartient déjà à un autre scan.",
+                    }
                 pointage = existing_scan.pointage
                 data = _build_response_data(
                     existing_scan, pointage, timezone.localtime(existing_scan.timestamp)
