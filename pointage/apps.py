@@ -8,3 +8,4 @@ class PointageConfig(AppConfig):
     def ready(self):
         import pointage.signals  # noqa: F401 — enregistre les @receiver définis dans signals.py
         import pointage.overtime_admin  # noqa: F401 — ajoute les actions RH d'autorisation des heures supplémentaires
+        import pointage.admin_hardening  # noqa: F401 — verrouille l'administration RH et les traces immuables
