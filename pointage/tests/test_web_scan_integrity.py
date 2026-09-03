@@ -1,4 +1,5 @@
-from datetime import time
+from datetime import datetime, time
+from unittest.mock import patch
 
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -49,13 +50,16 @@ class WebScanIntegrityTests(TestCase):
 
     def test_qr_valide_reste_accepte_par_le_scanner_web(self):
         qr = f"EMPLOYE:{self.employe.matricule}:{self.employe.qr_code_token}"
-        response = self.client.post(
-            reverse("scanner"),
-            {
-                "qr_data": qr,
-                "site_id": self.site.id,
-            },
-        )
+        fake_now = timezone.make_aware(datetime(2026, 7, 1, 9, 0))
+
+        with patch("pointage.services.timezone.now", return_value=fake_now):
+            response = self.client.post(
+                reverse("scanner"),
+                {
+                    "qr_data": qr,
+                    "site_id": self.site.id,
+                },
+            )
 
         self.assertEqual(response.status_code, 302)
         self.assertTrue(
