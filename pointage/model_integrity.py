@@ -1,7 +1,7 @@
 """Garde-fous d'intégrité sur les helpers métier des modèles.
 
-Ces helpers sont utilisés par plusieurs vues/clients. Une trace de garde
-planifiée (date/shift créés mais sans arrivée) n'est pas une présence réelle.
+Ces protections complètent les contraintes DB sans déplacer la logique métier
+centrale hors des services existants.
 """
 
 from django.utils import timezone
@@ -35,8 +35,6 @@ def _employee_day_status(self, date=None):
     }
 
     for pointage in self.pointages.filter(date_pointage=date).select_related('site'):
-        # Une présence exige une arrivée réelle. Les placeholders de garde
-        # (heure_arrivee=NULL) représentent une planification, pas une entrée.
         if pointage.heure_arrivee is None:
             continue
         bucket = statut.get(pointage.periode)
@@ -54,10 +52,55 @@ def _employee_day_status(self, date=None):
     return statut
 
 
+def _install_pointage_save_guard():
+    """Révoque une autorisation H.Supp si ses données de calcul changent.
+
+    Une autorisation RH porte sur le montant calculé au moment de la
+    validation. Si une arrivée, un départ, une date, une période ou le site
+    change ensuite, conserver l'autorisation permettrait d'augmenter ou de
+    modifier les heures supplémentaires payables sans nouvelle validation.
+    La modification reste possible, mais elle repart non autorisée.
+    """
+    if getattr(Pointage, '_overtime_input_guard_installed', False):
+        return
+
+    original_save = Pointage.save
+
+    def guarded_save(self, *args, **kwargs):
+        if self.pk and self.heures_supplementaires_autorisees:
+            try:
+                previous = Pointage.objects.get(pk=self.pk)
+            except Pointage.DoesNotExist:
+                previous = None
+
+            if previous is not None:
+                inputs_changed = any([
+                    previous.date_pointage != self.date_pointage,
+                    previous.periode != self.periode,
+                    previous.heure_arrivee != self.heure_arrivee,
+                    previous.heure_depart != self.heure_depart,
+                    previous.site_id != self.site_id,
+                ])
+                if inputs_changed:
+                    self.heures_supplementaires_autorisees = False
+                    self.heures_supplementaires_autorisees_par = None
+                    self.date_autorisation_heures_supplementaires = None
+                    self.motif_autorisation_heures_supplementaires = (
+                        "Autorisation H.Supp révoquée automatiquement : "
+                        "les données du pointage ont été modifiées."
+                    )
+
+        return original_save(self, *args, **kwargs)
+
+    Pointage.save = guarded_save
+    Pointage._overtime_input_guard_installed = True
+
+
 def install():
     Employe.est_present_aujourdhui = _employee_present_today
     Employe.get_statut_journee = _employee_day_status
     Employe._model_integrity_hardened = True
+    _install_pointage_save_guard()
 
 
 install()
