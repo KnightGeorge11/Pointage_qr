@@ -17,3 +17,4 @@ class PointageConfig(AppConfig):
         import pointage.web_integrity  # noqa: F401
         import pointage.web_scan_integrity  # noqa: F401
         import pointage.timestamp_integrity  # noqa: F401
+        import pointage.scan_mode_integrity  # noqa: F401
