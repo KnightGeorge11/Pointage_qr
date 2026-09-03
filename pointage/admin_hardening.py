@@ -60,9 +60,9 @@ def _no_delete(self, request, obj=None):
     return False
 
 
-def _pointage_actions(self, request):
-    """Retire les anciennes actions qui falsifiaient directement le statut."""
-    return [
+def _remove_unsafe_pointage_actions(self):
+    """Retire les actions qui pouvaient falsifier directement un pointage."""
+    self.actions = [
         action
         for action in (getattr(self, "actions", []) or [])
         if action not in {
@@ -194,7 +194,7 @@ def install():
 
     pointage_admin = registry.get(Pointage)
     if pointage_admin:
-        pointage_admin.__class__.get_actions = _pointage_actions
+        _remove_unsafe_pointage_actions(pointage_admin)
 
     # Une anomalie ne doit être créée/modifiée/supprimée que par ses workflows.
     anomalie_admin = registry.get(AnomaliePointage)
