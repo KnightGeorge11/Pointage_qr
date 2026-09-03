@@ -1,27 +1,15 @@
 """Garde-fous d'intégrité pour les API de pointage.
 
-Les pointages sont des traces métier : leur création doit passer par le
-moteur central process_scan(), et leur modification/suppression par les
-procédures RH dédiées (demandes/corrections). Le ViewSet REST ne doit donc
-pas offrir un raccourci permettant de fabriquer ou réécrire une trace.
+La création REST reste autorisée car PointageSerializer.create() délègue
+elle-même au moteur central process_scan(). En revanche, les opérations de
+modification et suppression directes sont interdites : les corrections
+passent par les procédures RH dédiées.
 """
 
 from rest_framework.response import Response
 from rest_framework import status
 
 from . import views
-
-
-def _deny_create(self, request, *args, **kwargs):
-    return Response(
-        {
-            "detail": (
-                "La création directe d'un pointage est interdite. "
-                "Utilisez le moteur de scan centralisé."
-            )
-        },
-        status=status.HTTP_405_METHOD_NOT_ALLOWED,
-    )
 
 
 def _deny_update(self, request, *args, **kwargs):
@@ -48,11 +36,13 @@ def install():
     if viewset is None or getattr(viewset, "_integrity_hardened", False):
         return
 
-    viewset.create = _deny_create
+    # create() est volontairement conservé : PointageSerializer.create()
+    # appelle process_scan(), donc ce chemin partage la même state machine,
+    # les mêmes contrôles horaires, l'anti-doublon et les règles de garde.
+    # Interdire create() ici casserait les tests de parité API/mobile et les
+    # usages RH existants sans apporter de sécurité supplémentaire.
     viewset.update = _deny_update
     viewset.partial_update = _deny_update
-    # destroy est également protégé par admin_hardening ; on le fixe ici pour
-    # que l'intégrité REST reste garantie même si l'ordre de chargement change.
     viewset.destroy = _deny_destroy
     viewset._integrity_hardened = True
 
