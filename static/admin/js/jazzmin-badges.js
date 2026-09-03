@@ -6,25 +6,36 @@
     $(document).ready(function() {
         // Récupérer les compteurs via l'API
         $.getJSON('/api/admin-badge-counts/', function(data) {
-            
             // Badge pour les demandes
             if (data.demandes_attente > 0) {
-                var badge = $('<span class="badge badge-danger right" style="background: #EF4444; border-radius: 9999px; padding: 2px 8px; font-size: 10px; margin-left: 5px;">' + data.demandes_attente + '</span>');
+                var badge = $('<span class="badge badge-danger right"></span>')
+                    .css({
+                        background: '#EF4444',
+                        borderRadius: '9999px',
+                        padding: '2px 8px',
+                        fontSize: '10px',
+                        marginLeft: '5px'
+                    })
+                    .text(data.demandes_attente);
                 $('a[href*="demandemodification"]').find('p').append(badge);
             }
-            
-            // Badge pour les anomalies non traitées (jamais toutes les
-            // anomalies, uniquement celles au statut "ouverte")
+
+            // Badge pour les anomalies non traitées (uniquement "ouverte")
             if (data.anomalies_ouvertes > 0) {
-                var badge = $('<span class="badge badge-danger right" style="background: #EF4444; border-radius: 9999px; padding: 2px 8px; font-size: 10px; margin-left: 5px;">' + data.anomalies_ouvertes + '</span>');
+                var badge = $('<span class="badge badge-danger right"></span>')
+                    .css({
+                        background: '#EF4444',
+                        borderRadius: '9999px',
+                        padding: '2px 8px',
+                        fontSize: '10px',
+                        marginLeft: '5px'
+                    })
+                    .text(data.anomalies_ouvertes);
                 $('a[href*="anomaliepointage"]').find('p').append(badge);
             }
-            
         });
 
-        // ── Cloche de notifications (même API/contenu que le dashboard
-        // côté utilisateur : anomalies ouvertes récentes + demandes de
-        // modification en attente de décision) ──
+        // ── Cloche de notifications ──
         var $navbar = $('.navbar-nav.ms-auto');
         if ($navbar.length === 0) return;
 
@@ -49,31 +60,77 @@
                    d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
         }
 
+        function addNotificationItem($body, n) {
+            var colorMap = {
+                critique: '#EF4444',
+                danger: '#EF4444',
+                warning: '#F59E0B',
+                success: '#22C55E',
+                info: '#3B82F6'
+            };
+            var color = colorMap[n.gravite] || '#3B82F6';
+            var icon = n.type === 'demande_traitee'
+                ? (n.gravite === 'success' ? 'fa-circle-check' : 'fa-circle-xmark')
+                : (n.type === 'demande_en_attente' ? 'fa-pen-to-square' : 'fa-triangle-exclamation');
+
+            // Construire le DOM avec .text() et .attr() : les messages, noms
+            // et URLs provenant de l'API ne doivent jamais être interprétés
+            // comme du HTML (protection XSS côté administration).
+            var $item = n.url ? $('<a></a>').attr('href', n.url) : $('<div></div>');
+            $item.css({
+                display: 'flex',
+                gap: '10px',
+                padding: '9px 14px',
+                borderBottom: '1px solid rgba(0,0,0,.06)',
+                textDecoration: 'none',
+                color: '#333',
+                fontSize: '12.5px'
+            });
+
+            var $icon = $('<span></span>').css({
+                flexShrink: 0,
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                background: color + '22',
+                color: color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '10px'
+            }).append($('<i></i>').addClass('fas ' + icon));
+
+            var $content = $('<span></span>').css({flex: 1, minWidth: 0});
+            $('<div></div>').text(n.message || '').appendTo($content);
+            $('<div></div>').css({
+                color: '#999',
+                fontSize: '11px',
+                marginTop: '2px'
+            }).text(formatDate(n.date)).appendTo($content);
+
+            $item.append($icon, $content);
+            $body.append($item);
+        }
+
         function loadAdminNotifications() {
             $.getJSON('/api/notifications/', function(data) {
-                var items = data.notifications || [];
+                var items = Array.isArray(data.notifications) ? data.notifications : [];
                 $('#jazzminNotifDot').css('display', items.length > 0 ? 'block' : 'none');
-                var $body = $('#jazzminNotifBody');
+                var $body = $('#jazzminNotifBody').empty();
+
                 if (items.length === 0) {
-                    $body.html('<div style="padding:16px;text-align:center;color:#999;font-size:13px;">Aucune notification</div>');
+                    $('<div></div>').css({
+                        padding: '16px',
+                        textAlign: 'center',
+                        color: '#999',
+                        fontSize: '13px'
+                    }).text('Aucune notification').appendTo($body);
                     return;
                 }
-                var html = items.map(function(n) {
-                    var color = {critique: '#EF4444', danger: '#EF4444', warning: '#F59E0B', success: '#22C55E', info: '#3B82F6'}[n.gravite] || '#3B82F6';
-                    var icon = n.type === 'demande_traitee'
-                        ? (n.gravite === 'success' ? 'fa-circle-check' : 'fa-circle-xmark')
-                        : (n.type === 'demande_en_attente' ? 'fa-pen-to-square' : 'fa-triangle-exclamation');
-                    var tag = n.url ? 'a href="' + n.url + '"' : 'div';
-                    var closeTag = n.url ? 'a' : 'div';
-                    return '<' + tag + ' style="display:flex;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(0,0,0,.06);text-decoration:none;color:#333;font-size:12.5px;">' +
-                        '<span style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:' + color + '22;color:' + color + ';display:flex;align-items:center;justify-content:center;font-size:10px;"><i class="fas ' + icon + '"></i></span>' +
-                        '<span style="flex:1;min-width:0;">' +
-                            '<div>' + n.message + '</div>' +
-                            '<div style="color:#999;font-size:11px;margin-top:2px;">' + formatDate(n.date) + '</div>' +
-                        '</span>' +
-                    '</' + closeTag + '>';
-                }).join('');
-                $body.html(html);
+
+                items.forEach(function(n) {
+                    addNotificationItem($body, n);
+                });
             });
         }
 
