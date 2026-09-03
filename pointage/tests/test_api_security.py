@@ -11,7 +11,7 @@ class TestSensitiveAttendanceApis(TestCase):
             username="rh_api_security", password="pass1234", role="admin", is_staff=True
         )
         self.user = CustomUser.objects.create_user(
-            username="employee_api_security", password="pass1234", role="employe", is_staff=False
+            username="employee_api_security", password="pass1234", role="user", is_staff=False
         )
         self.poste = Poste.objects.create(nom="Test Security")
         self.site = Site.objects.create(
