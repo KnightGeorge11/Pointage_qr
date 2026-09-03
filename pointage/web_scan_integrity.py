@@ -4,8 +4,9 @@ Le scanner Web doit utiliser le QR physique comme preuve d'identité de
 l'employé. Le matricule seul ne doit jamais être transformé côté serveur en
 qr_code_token.
 
-Le module corrige également un helper de statut qui considérait auparavant
-une ligne de garde planifiée (heure_arrivee NULL) comme une présence réelle.
+Le calcul du statut journalier est délégué au helper métier durci installé
+sur ``Employe`` afin d'éviter plusieurs implémentations concurrentes de la
+même règle de présence.
 """
 
 from django.contrib import messages
@@ -44,25 +45,18 @@ def _install_web_scanner_guard():
 
 
 def _install_presence_helper_guard():
-    """Une ligne de garde planifiée sans arrivée n'est pas une présence."""
-    original_helper = views.get_statut_employe_journee
-    if getattr(original_helper, "_planned_guard_integrity_installed", False):
+    """Utilise une seule source métier pour le statut journalier."""
+    if getattr(views.get_statut_employe_journee, "_model_status_integrity_installed", False):
         return
 
     def guarded_helper(employe, date_courante):
-        statut = original_helper(employe, date_courante)
-        pointages = employe.pointages.filter(date_pointage=date_courante)
+        return employe.get_statut_journee(date_courante)
 
-        for periode in ("matin", "apres_midi", "nuit"):
-            pointage = pointages.filter(periode=periode).first()
-            if pointage is None or pointage.heure_arrivee is None:
-                statut[periode]["present"] = False
-
-        return statut
-
-    guarded_helper.__name__ = getattr(original_helper, "__name__", "get_statut_employe_journee")
-    guarded_helper.__doc__ = getattr(original_helper, "__doc__", None)
-    guarded_helper._planned_guard_integrity_installed = True
+    guarded_helper.__name__ = "get_statut_employe_journee"
+    guarded_helper.__doc__ = (
+        "Délègue le calcul du statut journalier au helper métier durci d'Employe."
+    )
+    guarded_helper._model_status_integrity_installed = True
     views.get_statut_employe_journee = guarded_helper
 
 
