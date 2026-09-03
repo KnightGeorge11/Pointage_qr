@@ -1,8 +1,9 @@
 # pointage/urls.py
 from django.urls import path, include
+from django.views.generic import RedirectView
 from . import views
 from .views import (
-    dashboard, index, scanner_view, employe_create_view, employe_update_view, employe_delete_view,
+    dashboard, scanner_view, employe_create_view, employe_update_view, employe_delete_view,
     site_create_view, site_update_view, site_delete_view,
     poste_create_view, poste_update_view, poste_delete_view,
 
@@ -30,10 +31,11 @@ router = DefaultRouter()
 router.register(r'anomalies', views.AnomaliePointageViewSet, basename='anomalie')
 
 urlpatterns = [
-    # Dashboard
-    path('',          dashboard,        name='dashboard'),
-    path('dashboard/', views.dashboard, name='dashboard'),
-    path('index/',     index,           name='index'),
+    # Navigation canonique : /dashboard/ est l'unique URL officielle.
+    # Les anciennes URLs restent compatibles via redirection.
+    path('',          RedirectView.as_view(pattern_name='dashboard', permanent=False), name='root'),
+    path('dashboard/', dashboard, name='dashboard'),
+    path('index/',     RedirectView.as_view(pattern_name='dashboard', permanent=False), name='index'),
 
     # Employés
     path('employes/',                   EmployeListView.as_view(),  name='employes'),
@@ -45,7 +47,7 @@ urlpatterns = [
     path('sites/',                      SiteListView.as_view(),     name='sites'),
     path('sites/nouveau/',              site_create_view,           name='site_create'),
     path('sites/<int:pk>/modifier/',    site_update_view,           name='site_update'),
-    path('sites/<int:pk>/supprimer/',   site_delete_view,           name='site_delete'),
+    path('sites/<int:pk>/supprimer/',   site_delete_view,            name='site_delete'),
 
     # Pointages
     path('pointages/',                          PointageListView.as_view(),   name='pointages'),
@@ -73,7 +75,7 @@ urlpatterns = [
     path('api/prochain-scan/<int:employe_id>/',       get_prochain_scan,           name='prochain_scan'),
     path('api/dashboard-stats/',                      get_dashboard_stats,         name='dashboard_stats'),
     path('api/charts-data/',                          get_charts_data,             name='charts_data'),
-    
+
     path('api/admin-badge-counts/', views.admin_badge_counts_api, name='admin_badge_counts_api'),
     path('api/notifications/', views.notifications_api, name='notifications_api'),
 ]
