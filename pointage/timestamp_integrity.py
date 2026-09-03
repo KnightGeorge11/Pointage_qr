@@ -18,10 +18,6 @@ from django.utils import timezone
 
 from .models import AnomaliePointage
 
-# Au-delà de cette durée, l'écart entre l'heure de capture déclarée par le
-# client et l'heure de synchronisation serveur devient suffisamment important
-# pour nécessiter une vérification humaine. Le scan reste accepté afin de ne
-# pas casser le mode hors ligne.
 SUSPICIOUS_OFFSET = timedelta(minutes=15)
 
 
@@ -69,9 +65,6 @@ def _install_mobile_timestamp_guard():
         if captured_at is None:
             return response
 
-        # L'endpoint a déjà validé les bornes absolues et exécuté process_scan.
-        # Ici nous ne bloquons pas le scan : nous signalons seulement les écarts
-        # qui ont un impact potentiel sur la rémunération ou le retard.
         delta = captured_at - server_received_at
         if abs(delta) <= SUSPICIOUS_OFFSET:
             return response
@@ -86,25 +79,29 @@ def _install_mobile_timestamp_guard():
                 return response
 
             code = result.get("code")
-            beneficiaire = code in {
+            if code not in {
                 "entree_matin",
                 "entree_apres_midi",
                 "debut_garde",
                 "sortie_apres_midi",
                 "fin_garde",
-            }
-            if not beneficiaire:
+            }:
                 return response
 
-            if delta.total_seconds() < 0 and code in {"entree_matin", "entree_apres_midi", "debut_garde"}:
+            if delta.total_seconds() < 0 and code in {
+                "entree_matin", "entree_apres_midi", "debut_garde"
+            }:
                 motif = "capture déclarée antérieure à la réception serveur"
-            elif delta.total_seconds() > 0 and code in {"sortie_apres_midi", "fin_garde"}:
+            elif delta.total_seconds() > 0 and code in {
+                "sortie_apres_midi", "fin_garde"
+            }:
                 motif = "capture déclarée postérieure à la réception serveur"
             else:
                 return response
 
             data = result.get("data") or {}
-            employe_id = data.get("employe_id")
+            employe_data = data.get("employe") or {}
+            employe_id = employe_data.get("id")
             pointage_id = data.get("pointage_id")
             employe = None
             if employe_id:
@@ -132,8 +129,7 @@ def _install_mobile_timestamp_guard():
             )
         except Exception:
             # Le garde-fou ne doit jamais transformer un scan fonctionnel en
-            # erreur 500. L'échec de signalement est journalisé par Django via
-            # le logger global du serveur et le scan reste inchangé.
+            # erreur 500. Le scan reste inchangé si le signalement échoue.
             return response
 
         return response
