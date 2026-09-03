@@ -112,5 +112,18 @@ def _install():
     setattr(guarded_process_scan, _INSTALL_FLAG, True)
     services.process_scan = guarded_process_scan
 
+    # Les vues importent process_scan par référence au chargement du module.
+    # Elles doivent donc recevoir le wrapper, sinon elles pourraient contourner
+    # le garde-fou en appelant l'ancienne référence locale.
+    from . import views
+    views.process_scan = guarded_process_scan
+
+    try:
+        from . import views_mobile
+        views_mobile.process_scan = guarded_process_scan
+    except ImportError:
+        # Le module mobile est optionnel au moment de certains démarrages.
+        pass
+
 
 _install()
