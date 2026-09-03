@@ -2,6 +2,7 @@
 
 import json
 from datetime import timedelta
+from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -79,16 +80,19 @@ def notifications_api(request, *args, **kwargs):
     return JsonResponse({"notifications": notifications, "count": len(notifications)})
 
 
-def _rh_function_wrapper(function):
-    def wrapped(request, *args, **kwargs):
-        if not _is_rh(request.user):
-            return Response(
-                {"detail": "Accès réservé au personnel RH."},
-                status=drf_status.HTTP_403_FORBIDDEN,
-            )
-        return function(request, *args, **kwargs)
-    wrapped._rh_secured = True
-    return wrapped
+def _secure_api_function(function):
+    """Applique la permission RH au vrai wrapper DRF, sans remplacer celui-ci.
+
+    Les fonctions décorées par @api_view sont déjà des APIViews. Remplacer
+    directement la fonction par un wrapper Django ferait perdre le cycle de
+    négociation DRF et provoquerait ``accepted_renderer not set on Response``.
+    On modifie donc la classe générée par @api_view.
+    """
+    view_class = getattr(function, "cls", None)
+    if view_class is not None:
+        view_class.permission_classes = [IsRHPermission]
+        return function
+    return function
 
 
 @action(detail=False, methods=['get'])
@@ -121,11 +125,23 @@ def statistiques(self, request):
 
 
 def secure_sensitive_apis():
+    """Installe les permissions sans casser les wrappers DRF existants."""
     sensitive_viewsets = ("EmployeViewSet", "SiteViewSet", "PointageViewSet")
     for name in sensitive_viewsets:
         viewset = getattr(views, name, None)
         if viewset is not None:
-            viewset.permission_classes = [IsRHPermission]
+            # Ces ViewSets possèdent un get_permissions() métier qui doit être
+            # remplacé, pas seulement permission_classes, sinon il continue à
+            # retourner IsAuthenticated pour les lectures.
+            original = getattr(viewset, "_rh_original_get_permissions", None)
+            if original is None:
+                original = viewset.get_permissions
+                viewset._rh_original_get_permissions = original
+
+                def rh_get_permissions(self, _original=original):
+                    return [IsRHPermission()]
+
+                viewset.get_permissions = rh_get_permissions
 
     pointage_viewset = getattr(views, "PointageViewSet", None)
     if pointage_viewset is not None:
@@ -140,8 +156,8 @@ def secure_sensitive_apis():
     )
     for name in sensitive_functions:
         function = getattr(views, name, None)
-        if function is not None and not getattr(function, "_rh_secured", False):
-            setattr(views, name, _rh_function_wrapper(function))
+        if function is not None:
+            _secure_api_function(function)
 
 
 @login_required
