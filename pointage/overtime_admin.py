@@ -1,7 +1,14 @@
 from django.contrib import admin, messages
 from django.utils import timezone
+from django.db import transaction
+from django.utils.html import format_html
 
 from .models import Pointage
+
+
+def _has_rh_permission(user):
+    """Les actions RH sensibles sont réservées aux administrateurs/superusers."""
+    return bool(user and user.is_authenticated and (user.is_superuser or user.role == 'admin'))
 
 
 def _get_pointage_admin():
@@ -20,14 +27,17 @@ def _audit_overtime_change(pointage, user, before, after, motif):
     )
 
 
+@transaction.atomic
 def autoriser_heures_supplementaires(modeladmin, request, queryset):
-    if not request.user.is_staff:
-        modeladmin.message_user(request, "Permission refusée.", level=messages.ERROR)
+    if not _has_rh_permission(request.user):
+        modeladmin.message_user(request, "Permission refusée : validation RH requise.", level=messages.ERROR)
         return
 
     count = 0
-    for pointage in queryset.select_related('site', 'employe'):
+    for pointage in queryset.select_for_update().select_related('site', 'employe'):
         if not pointage.heures_supplementaires or pointage.heures_supplementaires.total_seconds() <= 0:
+            continue
+        if pointage.heures_supplementaires_autorisees:
             continue
 
         before = {
@@ -64,22 +74,30 @@ def autoriser_heures_supplementaires(modeladmin, request, queryset):
         level=messages.SUCCESS,
     )
 
+
 autoriser_heures_supplementaires.short_description = "✅ Autoriser les heures supplémentaires"
 
 
+@transaction.atomic
 def refuser_heures_supplementaires(modeladmin, request, queryset):
-    if not request.user.is_staff:
-        modeladmin.message_user(request, "Permission refusée.", level=messages.ERROR)
+    if not _has_rh_permission(request.user):
+        modeladmin.message_user(request, "Permission refusée : validation RH requise.", level=messages.ERROR)
         return
 
     count = 0
-    for pointage in queryset:
+    for pointage in queryset.select_for_update():
         before = {
             'heures_supplementaires': str(pointage.heures_supplementaires or 0),
             'heures_supplementaires_autorisees': pointage.heures_supplementaires_autorisees,
             'autorisees_par': pointage.heures_supplementaires_autorisees_par_id,
+            'date_autorisation': (
+                pointage.date_autorisation_heures_supplementaires.isoformat()
+                if pointage.date_autorisation_heures_supplementaires else None
+            ),
         }
 
+        # Le modèle/trigger garantit que la valeur brute repasse à zéro
+        # lorsqu'elle n'est plus autorisée.
         pointage.heures_supplementaires_autorisees = False
         pointage.heures_supplementaires_autorisees_par = None
         pointage.date_autorisation_heures_supplementaires = None
@@ -90,6 +108,7 @@ def refuser_heures_supplementaires(modeladmin, request, queryset):
             'heures_supplementaires': str(pointage.heures_supplementaires or 0),
             'heures_supplementaires_autorisees': False,
             'autorisees_par': None,
+            'date_autorisation': None,
         }
         _audit_overtime_change(
             pointage, request.user, before, after,
@@ -103,16 +122,30 @@ def refuser_heures_supplementaires(modeladmin, request, queryset):
         level=messages.SUCCESS,
     )
 
+
 refuser_heures_supplementaires.short_description = "🚫 Révoquer les heures supplémentaires"
 
 
 def _heures_sup_autorisees_display(self, obj):
     if not obj.heures_supplementaires or obj.heures_supplementaires.total_seconds() <= 0:
         return "—"
+
     minutes = int(obj.heures_supplementaires.total_seconds() // 60)
+    label = f"{minutes // 60}h{minutes % 60:02d}"
+
     if obj.heures_supplementaires_autorisees:
-        return f"✅ {minutes // 60}h{minutes % 60:02d}"
-    return f"⏳ {minutes // 60}h{minutes % 60:02d} (non autorisées)"
+        return format_html(
+            '<span style="background:#F0FDF4;color:#15803D;padding:3px 9px;'
+            'border-radius:9999px;font-weight:600;font-size:11px;">✓ {} validées</span>',
+            label,
+        )
+
+    return format_html(
+        '<span style="background:#FFFBEB;color:#D97706;padding:3px 9px;'
+        'border-radius:9999px;font-weight:600;font-size:11px;">⏳ {} à valider</span>',
+        label,
+    )
+
 
 _heures_sup_autorisees_display.short_description = "H. supp."
 
