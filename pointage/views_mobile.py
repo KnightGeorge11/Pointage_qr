@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.contrib.auth import authenticate
-from datetime import datetime
+from datetime import datetime, time, timedelta
 
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
@@ -24,9 +24,10 @@ from .mobile_throttle import MobileLoginRateThrottle
 
 logger = logging.getLogger(__name__)
 
-# La validation métier de captured_at est centralisée dans services.process_scan().
-# Les vues mobiles ne doivent pas appliquer une politique différente (le service
-# accepte au maximum 24 h de décalage vers le passé et 5 min vers le futur).
+# Tolérance destinée aux appareils réellement hors ligne : les événements
+# plus anciens sont rejetés et les horloges manifestement dans le futur aussi.
+CAPTURED_AT_MAX_AGE = timedelta(days=7)
+CAPTURED_AT_MAX_FUTURE = timedelta(minutes=5)
 
 
 class MobileAuthenticatedAPIView(APIView):
@@ -209,6 +210,11 @@ class MobileRecordScanAPIView(MobileAuthenticatedAPIView):
                 captured_at = datetime.fromisoformat(str(captured_at_raw).replace('Z', '+00:00'))
                 if timezone.is_naive(captured_at): captured_at = timezone.make_aware(captured_at, timezone.get_current_timezone())
                 else: captured_at = timezone.localtime(captured_at)
+                server_now = timezone.localtime(timezone.now())
+                if captured_at < server_now - CAPTURED_AT_MAX_AGE:
+                    return JsonResponse({'status':'error','code':'CAPTURED_AT_TROP_ANCIEN','message':'Événement hors ligne trop ancien (maximum 7 jours).'}, status=400)
+                if captured_at > server_now + CAPTURED_AT_MAX_FUTURE:
+                    return JsonResponse({'status':'error','code':'CAPTURED_AT_DANS_LE_FUTUR','message':'Horodatage de capture incohérent avec l’heure du serveur.'}, status=400)
             except (ValueError, TypeError):
                 return JsonResponse({'status':'error','code':'CAPTURED_AT_INVALIDE','message':'captured_at invalide.'}, status=400)
         if force_new_garde is None:
@@ -272,3 +278,289 @@ class MobileRecordScanAPIView(MobileAuthenticatedAPIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class MobileCheckFirstScanAPIView(MobileAuthenticatedAPIView):
+    """
+    Indique à l'app quel sera le prochain scan attendu pour cet employé.
+    Rôle purement informatif (aide UI) — la décision finale reste dans process_scan().
+    """
+
+    def post(self, request):
+        try:
+            data = json.loads(request.body.decode('utf-8')) if request.body else {}
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({'status': 'error', 'message': 'JSON invalide'}, status=400)
+
+        raw_qr = data.get('employee_qr', '').strip()
+        site_id = data.get('site_id')
+
+        if not raw_qr or not site_id:
+            return JsonResponse({'status': 'error', 'message': 'employee_qr et site_id requis'}, status=400)
+
+        parsed = parse_qr_data(raw_qr)
+        if not parsed:
+            return JsonResponse({'status': 'error', 'message': 'Format QR invalide'}, status=400)
+
+        try:
+            employe = Employe.objects.get(
+                matricule=parsed['matricule'],
+                qr_code_token=parsed['token'],
+                actif=True
+            )
+        except Employe.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Employé non trouvé ou QR invalide'}, status=404)
+
+        try:
+            site_id = int(site_id)
+        except (TypeError, ValueError):
+            return JsonResponse({'status': 'error', 'message': 'site_id invalide'}, status=400)
+
+        try:
+            site = Site.objects.get(id=site_id)
+        except Site.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': f'Site {site_id} introuvable'}, status=404)
+
+        now = timezone.localtime(timezone.now())
+        date_courante = now.date()
+        heure = now.time()
+
+        garde_en_cours = Pointage.objects.filter(
+            employe=employe, periode='nuit', type_journee='garde',
+            heure_depart__isnull=True
+        ).order_by('-date_pointage').first()
+
+        if garde_en_cours:
+            return JsonResponse({
+                'status': 'success',
+                'data': {
+                    'prochain_scan': 'fin_garde',
+                    'mode_attendu': 'garde',
+                    'employe': _employe_dict(employe),
+                    'site': {'id': site.id, 'nom': site.nom},
+                    'garde_en_cours': {
+                        'id': garde_en_cours.id,
+                        'date_pointage': garde_en_cours.date_pointage.isoformat(),
+                        'heure_arrivee': str(garde_en_cours.heure_arrivee),
+                    }
+                }
+            })
+
+        garde_planifiee = Pointage.objects.filter(
+            employe=employe, date_pointage=date_courante,
+            periode='nuit', type_journee='garde', heure_arrivee__isnull=True
+        ).first()
+
+        if garde_planifiee:
+            return JsonResponse({
+                'status': 'success',
+                'data': {
+                    'prochain_scan': 'debut_garde',
+                    'mode_attendu': 'garde',
+                    'employe': _employe_dict(employe),
+                    'site': {'id': site.id, 'nom': site.nom},
+                }
+            })
+
+        prochain = _prochain_scan_normal(employe, date_courante, heure)
+
+        return JsonResponse({
+            'status': 'success',
+            'data': {
+                'prochain_scan': prochain,
+                'mode_attendu': 'normal',
+                'employe': _employe_dict(employe),
+                'site': {'id': site.id, 'nom': site.nom},
+                'date': date_courante.isoformat(),
+            }
+        })
+
+
+# ─── Période courante ─────────────────────────────────────────────────────────
+
+@method_decorator(csrf_exempt, name='dispatch')
+class MobileCurrentPeriodAPIView(MobileAuthenticatedAPIView):
+
+    def get(self, request):
+        now = timezone.localtime(timezone.now())
+        heure = now.time()
+        periode = 'matin' if heure < time(12, 0) else 'apres_midi'
+        return JsonResponse({
+            'status': 'success',
+            'data': {
+                'current_time': now.isoformat(),
+                'periode': periode,
+                'date': now.date().isoformat(),
+                'heure': heure.strftime('%H:%M:%S'),
+            }
+        })
+
+
+# ─── Pointages d'un employé ───────────────────────────────────────────────────
+
+@method_decorator(csrf_exempt, name='dispatch')
+class MobilePointagesAPIView(MobileAuthenticatedAPIView):
+
+    def get(self, request):
+        raw_qr = request.GET.get('employee_qr', '').strip()
+        date_str = request.GET.get('date')
+
+        if not raw_qr:
+            return JsonResponse({'status': 'error', 'message': 'employee_qr requis'}, status=400)
+
+        parsed = parse_qr_data(raw_qr)
+        if not parsed:
+            return JsonResponse({'status': 'error', 'message': 'Format QR invalide'}, status=400)
+        try:
+            employe = Employe.objects.get(
+                matricule=parsed['matricule'],
+                qr_code_token=parsed['token'],
+                actif=True
+            )
+        except Employe.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'QR invalide'}, status=404)
+
+        if date_str:
+            try:
+                date_courante = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return JsonResponse({'status': 'error', 'message': 'Format date invalide (YYYY-MM-DD)'}, status=400)
+        else:
+            date_courante = timezone.localtime(timezone.now()).date()
+
+        from django.db.models import Q
+
+        pointages = Pointage.objects.filter(
+            Q(employe=employe, date_pointage=date_courante)
+            | Q(employe=employe, periode='nuit', date_depart=date_courante)
+        ).select_related('site').order_by('date_pointage', 'periode')
+
+        pointages_data = [{
+            'id': p.id,
+            'periode': p.periode,
+            'type_journee': p.type_journee,
+            'site': p.site.nom if p.site else None,
+            'site_id': p.site.id if p.site else None,
+            'heure_arrivee': str(p.heure_arrivee) if p.heure_arrivee else None,
+            'heure_depart': str(p.heure_depart) if p.heure_depart else None,
+            'retard': str(p.retard) if p.retard else None,
+            'heures_travaillees': str(p.heures_travaillees) if p.heures_travaillees else None,
+            'statut': p.statut,
+            'date_pointage': p.date_pointage.isoformat(),
+        } for p in pointages]
+
+        return JsonResponse({
+            'status': 'success',
+            'data': {
+                'employe': _employe_dict(employe),
+                'date': date_courante.isoformat(),
+                'pointages': pointages_data,
+                'total_pointages': len(pointages_data),
+            }
+        })
+
+
+# ─── Helpers internes ─────────────────────────────────────────────────────────
+
+def _parse_bool(value, default=False):
+    """Parse strictement un booléen venant du JSON/API."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in ('true', '1', 'yes', 'oui'):
+            return True
+        if normalized in ('false', '0', 'no', 'non'):
+            return False
+    return None
+
+
+def _employe_dict(employe) -> dict:
+    return {
+        'id': employe.id,
+        'nom_complet': employe.get_nom_complet(),
+        'matricule': employe.matricule,
+        'poste': employe.poste.nom if employe.poste else None,
+    }
+
+
+def _prochain_scan_normal(employe, date_courante, heure_courante) -> str:
+    """Retourne le code du prochain scan attendu dans la séquence E1→S1→E2→S2."""
+    for periode in ['matin', 'apres_midi']:
+        p = Pointage.objects.filter(
+            employe=employe, date_pointage=date_courante, periode=periode
+        ).first()
+        if not p or not p.heure_arrivee:
+            return f'entree_{periode}'
+        if not p.heure_depart:
+            return f'sortie_{periode}'
+    return 'journee_complete'
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Endpoint : tableau de bord du jour — tous les scans (vue superviseur)
+# GET /api/mobile/pointages/today/?date=YYYY-MM-DD&site_id=N
+# ─────────────────────────────────────────────────────────────────────────────
+class MobileTodayPointagesAPIView(MobileAuthenticatedAPIView):
+    """
+    Retourne TOUS les pointages d'une journée (par défaut aujourd'hui),
+    triés du plus récent au plus ancien, avec les infos employé.
+
+    Paramètres optionnels :
+      ?date=YYYY-MM-DD   — date ciblée (défaut : aujourd'hui)
+      ?site_id=N         — filtre par site
+      ?refresh=1         — ignoré côté serveur, utile pour forcer le rechargement côté client
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        date_str = request.GET.get('date', '').strip()
+        if date_str:
+            try:
+                date_cible = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return JsonResponse({'status': 'error', 'message': 'Format date invalide (YYYY-MM-DD)'}, status=400)
+        else:
+            date_cible = timezone.localtime(timezone.now()).date()
+
+        qs = Pointage.objects.filter(date_pointage=date_cible).select_related('employe', 'site', 'employe__poste')
+
+        site_id = request.GET.get('site_id', '').strip()
+        if site_id:
+            try:
+                qs = qs.filter(site_id=int(site_id))
+            except (ValueError, TypeError):
+                return JsonResponse({
+                    'status': 'error',
+                    'code': 'SITE_INVALIDE',
+                    'message': 'site_id invalide'
+                }, status=400)
+
+        qs = qs.order_by('-heure_arrivee', '-id')
+
+        data = []
+        for p in qs:
+            data.append({
+                'id': p.id,
+                'employe_nom': p.employe.get_nom_complet(),
+                'employe_matricule': p.employe.matricule,
+                'employe_poste': p.employe.poste.nom if p.employe.poste else None,
+                'site': p.site.nom if p.site else None,
+                'site_id': p.site.id if p.site else None,
+                'date_pointage': p.date_pointage.isoformat(),
+                'periode': p.periode,
+                'type_journee': p.type_journee,
+                'heure_arrivee': str(p.heure_arrivee) if p.heure_arrivee else None,
+                'heure_depart': str(p.heure_depart) if p.heure_depart else None,
+                'retard': str(p.retard) if p.retard else None,
+                'heures_travaillees': str(p.heures_travaillees) if p.heures_travaillees else None,
+                'statut': p.statut,
+            })
+
+        return JsonResponse({
+            'status': 'success',
+            'date': date_cible.isoformat(),
+            'count': len(data),
+            'data': data,
+        })
