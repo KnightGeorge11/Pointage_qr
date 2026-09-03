@@ -1,4 +1,3 @@
-# Tests de permissions pour les pointages et les anomalies.
 from datetime import time as dtime, date, datetime
 from unittest.mock import patch
 
@@ -34,46 +33,42 @@ class PointagePermissionsTestCase(TestCase):
 
 class TestSuppressionWebPointage(PointagePermissionsTestCase):
     def test_utilisateur_ne_peut_pas_supprimer_un_pointage(self):
-        assert self.utilisateur.is_staff is False
         client = Client()
         client.force_login(self.utilisateur)
-        response = client.post(
-            reverse('pointage_supprimer', args=[self.pointage.pk]), follow=True
-        )
+        response = client.post(reverse('pointage_supprimer', args=[self.pointage.pk]), follow=True)
         assert Pointage.objects.filter(pk=self.pointage.pk).exists()
-        assert response.status_code == 200
+        assert response.status_code == 403
 
     def test_anonyme_ne_peut_pas_supprimer_un_pointage(self):
-        client = Client()
-        response = client.post(reverse('pointage_supprimer', args=[self.pointage.pk]))
+        response = Client().post(reverse('pointage_supprimer', args=[self.pointage.pk]))
         assert Pointage.objects.filter(pk=self.pointage.pk).exists()
         assert response.status_code == 302
 
-    def test_admin_peut_supprimer_un_pointage(self):
+    def test_admin_ne_peut_pas_supprimer_un_pointage(self):
         client = Client()
         client.force_login(self.admin)
-        client.post(reverse('pointage_supprimer', args=[self.pointage.pk]))
-        assert not Pointage.objects.filter(pk=self.pointage.pk).exists()
+        response = client.post(reverse('pointage_supprimer', args=[self.pointage.pk]))
+        assert Pointage.objects.filter(pk=self.pointage.pk).exists()
+        assert response.status_code == 403
 
 
 class TestAPIPointagePermissions(PointagePermissionsTestCase):
     def test_utilisateur_peut_consulter_la_liste_via_api(self):
-        client = Client()
-        client.force_login(self.utilisateur)
-        response = client.get('/api/pointages/')
+        response = self._client().get('/api/pointages/')
         assert response.status_code == 200
 
     def test_utilisateur_peut_consulter_le_detail_via_api(self):
-        client = Client()
-        client.force_login(self.utilisateur)
-        response = client.get(f'/api/pointages/{self.pointage.pk}/')
+        response = self._client().get(f'/api/pointages/{self.pointage.pk}/')
         assert response.status_code == 200
 
-    def test_utilisateur_ne_peut_pas_creer_via_api(self):
+    def _client(self):
         client = Client()
         client.force_login(self.utilisateur)
+        return client
+
+    def test_utilisateur_ne_peut_pas_creer_via_api(self):
         count_avant = Pointage.objects.count()
-        response = client.post('/api/pointages/', {
+        response = self._client().post('/api/pointages/', {
             'employe': self.employe.id, 'site': self.site.id,
             'date_pointage': date.today().isoformat(), 'periode': 'apres_midi',
             'type_journee': 'normal',
@@ -82,9 +77,7 @@ class TestAPIPointagePermissions(PointagePermissionsTestCase):
         assert Pointage.objects.count() == count_avant
 
     def test_utilisateur_ne_peut_pas_modifier_via_api_patch(self):
-        client = Client()
-        client.force_login(self.utilisateur)
-        response = client.patch(
+        response = self._client().patch(
             f'/api/pointages/{self.pointage.pk}/',
             data='{"heure_depart": "12:00:00"}', content_type='application/json',
         )
@@ -93,9 +86,7 @@ class TestAPIPointagePermissions(PointagePermissionsTestCase):
         assert self.pointage.heure_depart is None
 
     def test_utilisateur_ne_peut_pas_modifier_via_api_put(self):
-        client = Client()
-        client.force_login(self.utilisateur)
-        response = client.put(
+        response = self._client().put(
             f'/api/pointages/{self.pointage.pk}/',
             data='{"heure_depart": "12:00:00"}', content_type='application/json',
         )
@@ -104,9 +95,7 @@ class TestAPIPointagePermissions(PointagePermissionsTestCase):
         assert self.pointage.heure_depart is None
 
     def test_utilisateur_ne_peut_pas_supprimer_via_api(self):
-        client = Client()
-        client.force_login(self.utilisateur)
-        response = client.delete(f'/api/pointages/{self.pointage.pk}/')
+        response = self._client().delete(f'/api/pointages/{self.pointage.pk}/')
         assert response.status_code == 403
         assert Pointage.objects.filter(pk=self.pointage.pk).exists()
 
@@ -121,21 +110,19 @@ class TestAPIPointagePermissions(PointagePermissionsTestCase):
         self.pointage.refresh_from_db()
         assert self.pointage.heure_depart == dtime(12, 0)
 
-    def test_admin_peut_supprimer_via_api(self):
+    def test_admin_ne_peut_pas_supprimer_via_api(self):
         client = Client()
         client.force_login(self.admin)
         response = client.delete(f'/api/pointages/{self.pointage.pk}/')
-        assert response.status_code == 204
-        assert not Pointage.objects.filter(pk=self.pointage.pk).exists()
+        assert response.status_code == 403
+        assert Pointage.objects.filter(pk=self.pointage.pk).exists()
 
     def test_anonyme_ne_peut_meme_pas_consulter(self):
-        client = Client()
-        response = client.get('/api/pointages/')
+        response = Client().get('/api/pointages/')
         assert response.status_code == 403
 
     def test_anonyme_ne_peut_pas_creer(self):
-        client = Client()
-        response = client.post('/api/pointages/', {
+        response = Client().post('/api/pointages/', {
             'employe': self.employe.id, 'site': self.site.id,
             'date_pointage': date.today().isoformat(), 'periode': 'apres_midi',
         })
@@ -155,9 +142,7 @@ class TestStatistiquesAction(PointagePermissionsTestCase):
         assert 'gardes_en_cours' in data
 
     def test_statistiques_refuse_anonyme(self):
-        client = Client()
-        response = client.get('/api/pointages/statistiques/')
-        assert response.status_code == 403
+        assert Client().get('/api/pointages/statistiques/').status_code == 403
 
 
 class TestAnomaliePermissionsAPI(PointagePermissionsTestCase):
@@ -205,9 +190,7 @@ class TestAnomaliePermissionsAPI(PointagePermissionsTestCase):
         assert self.anomalie.statut == AnomaliePointage.STATUT_TRAITEE
 
     def test_anonyme_ne_peut_pas_traiter_une_anomalie(self):
-        client = Client()
-        response = client.post(f'/api/anomalies/{self.anomalie.pk}/traiter/')
-        assert response.status_code == 403
+        assert Client().post(f'/api/anomalies/{self.anomalie.pk}/traiter/').status_code == 403
 
 
 class TestProchainScanSortieMatinPrioritaire(PointagePermissionsTestCase):
@@ -230,8 +213,7 @@ class TestProchainScanSortieMatinPrioritaire(PointagePermissionsTestCase):
         client.force_login(self.utilisateur)
         with patch('pointage.views.timezone.now', return_value=fake_now):
             response = client.get(f'/api/prochain-scan/{self.employe.id}/')
-        data = response.json()
-        assert data['prochain_scan'] == 'entree_apres_midi'
+        assert response.json()['prochain_scan'] == 'entree_apres_midi'
 
     def test_apres_midi_incomplet_suggere_sortie_apres_midi(self):
         self.pointage.heure_depart = dtime(12, 0)
@@ -245,8 +227,7 @@ class TestProchainScanSortieMatinPrioritaire(PointagePermissionsTestCase):
         client.force_login(self.utilisateur)
         with patch('pointage.views.timezone.now', return_value=fake_now):
             response = client.get(f'/api/prochain-scan/{self.employe.id}/')
-        data = response.json()
-        assert data['prochain_scan'] == 'sortie_apres_midi'
+        assert response.json()['prochain_scan'] == 'sortie_apres_midi'
 
     def test_journee_complete(self):
         self.pointage.heure_depart = dtime(12, 0)
