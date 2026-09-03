@@ -137,6 +137,7 @@ def _safe_request_action(self, request, pk, approve):
             level=messages.SUCCESS,
         )
     except Exception:
+        transaction.set_rollback(True)
         self.message_user(
             request,
             "Le traitement a échoué. Aucune modification n'a été enregistrée.",
