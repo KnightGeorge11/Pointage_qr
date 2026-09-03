@@ -9,6 +9,16 @@ from .anomalies import compter_anomalies_ouvertes
 from .models import DemandeModification
 
 
+def _is_rh_request(request):
+    """Retourne True uniquement pour une requête authentifiée provenant du RH."""
+    user = getattr(request, 'user', None)
+    return bool(
+        getattr(user, 'is_authenticated', False)
+        and (getattr(user, 'is_superuser', False) or getattr(user, 'role', None) == 'admin')
+        and request.path.startswith('/admin/')
+        and not request.path.startswith('/admin/login/')
+    )
+
 
 def dashboard_context(request):
     """Fournit les données statistiques pour le dashboard Jazzmin.
@@ -19,7 +29,7 @@ def dashboard_context(request):
     pages publiques, ou l'API. On l'évite ailleurs pour ne pas payer ce
     coût sur chaque page rendue (context processor global).
     """
-    if request.path in ('/login/', '/admin/login/') or request.path.startswith('/admin/login/'):
+    if not _is_rh_request(request):
         return {}
 
     today = timezone.localtime(timezone.now()).date()
@@ -119,7 +129,6 @@ def dashboard_context(request):
         )
         total_pointages = len(lignes_actives)
         if total_pointages > 0:
-
             taux_ponctualite = round((pointages_sans_retard / total_pointages) * 100, 1)
         else:
             taux_ponctualite = 0.0
@@ -259,16 +268,12 @@ def dashboard_context(request):
     }
  
 
-
-
 def admin_badge_counts(request):
-    """
-    Fournit les compteurs pour les badges de la sidebar Jazzmin.
-    """
-    # Demandes en attente
+    """Fournit les compteurs pour les badges de la sidebar Jazzmin."""
+    if not _is_rh_request(request):
+        return {}
+
     demandes_attente = DemandeModification.objects.filter(statut='en_attente').count()
-    
-    # Anomalies ouvertes (non traitées)
     anomalies_ouvertes = AnomaliePointage.objects.filter(
         statut=AnomaliePointage.STATUT_OUVERTE
     ).count()
