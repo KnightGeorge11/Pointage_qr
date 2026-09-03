@@ -1,29 +1,32 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from .admin_security import secure_sensitive_apis
 from .views_mobile import (
-    MobileSitesAPIView, 
-    MobileCheckFirstScanAPIView, 
+    MobileSitesAPIView,
+    MobileCheckFirstScanAPIView,
     MobileRecordScanAPIView,
     MobileCurrentPeriodAPIView,
     MobilePointagesAPIView,
     MobileTodayPointagesAPIView,
-    MobileTestAPIView,  # ✅ Assurez-vous qu'il est importé
+    MobileTestAPIView,
     MobileLoginAPIView,
     MobileLogoutAPIView,
 )
 
-# Créer un routeur pour les API
+# Sécuriser les ViewSets et endpoints web généraux avant que le routeur ne
+# transforme les classes/fonctions en URL patterns. Les routes mobiles
+# restent protégées par leurs propres classes d'authentification.
+secure_sensitive_apis()
+
 router = DefaultRouter()
 router.register(r'employes', views.EmployeViewSet, basename='employe')
 router.register(r'sites', views.SiteViewSet, basename='site')
 router.register(r'pointages', views.PointageViewSet, basename='pointage')
-# La ligne pour 'gardes' a été supprimée
 
 urlpatterns = [
-    # Inclure les routes du routeur
     path('', include(router.urls)),
-    
+
     # Endpoints API supplémentaires (pour l'application web)
     path('scanner/', views.ScanAPIView.as_view(), name='api_scanner'),
     path('scan/', views.scan_api_view, name='api_scan'),
@@ -32,8 +35,8 @@ urlpatterns = [
     path('prochain-scan/<int:employe_id>/', views.get_prochain_scan, name='prochain_scan'),
     path('dashboard-stats/', views.get_dashboard_stats, name='dashboard_stats'),
     path('charts-data/', views.get_charts_data, name='charts_data'),
-    
-    # ✅ API Mobile (pour l'application React Native) - TOUTES SONT ICI
+
+    # API Mobile
     path('mobile/test/', MobileTestAPIView.as_view(), name='mobile_test'),
     path('mobile/auth/login/', MobileLoginAPIView.as_view(), name='mobile_login'),
     path('mobile/auth/logout/', MobileLogoutAPIView.as_view(), name='mobile_logout'),
