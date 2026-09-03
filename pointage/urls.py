@@ -19,8 +19,11 @@ from .views import (
 )
 from .admin_security import (
     alertes_rh_view,
+    alerte_detail_view,
+    export_resume_excel,
     admin_badge_counts_api,
     notifications_api,
+    RHAnomaliePointageViewSet,
 )
 from rest_framework.routers import DefaultRouter
 
@@ -29,7 +32,7 @@ router = DefaultRouter()
 # pointage.urls_api (monté en premier sur /api/, cf. pointage_qr/urls.py) —
 # les enregistrer aussi ici serait mort (jamais atteint par la résolution
 # d'URL Django). Seul 'anomalies' est réellement unique à ce fichier.
-router.register(r'anomalies', views.AnomaliePointageViewSet, basename='anomalie')
+router.register(r'anomalies', RHAnomaliePointageViewSet, basename='anomalie')
 
 urlpatterns = [
     # Navigation canonique : /dashboard/ est l'unique URL officielle.
@@ -54,7 +57,7 @@ urlpatterns = [
     path('pointages/',                          PointageListView.as_view(),   name='pointages'),
     path('pointages/<int:pk>/',                 PointageDetailView.as_view(), name='pointage_detail'),
     path('pointages/<int:pk>/supprimer/',       PointageDeleteView.as_view(), name='pointage_supprimer'),
-    path('pointages/export/resume/', views.export_resume_excel, name='export_resume_excel'),
+    path('pointages/export/resume/', export_resume_excel, name='export_resume_excel'),
 
     # Postes
     path('postes/',                     PosteListView.as_view(),    name='postes'),
@@ -67,7 +70,7 @@ urlpatterns = [
 
     # Anomalies — accès RH uniquement via admin_security.py
     path('anomalies/', alertes_rh_view, name='alertes_rh'),
-    path('anomalies/<int:pk>/', views.alerte_detail_view, name='alerte_detail'),
+    path('anomalies/<int:pk>/', alerte_detail_view, name='alerte_detail'),
 
     # API
     path('api/',                                      include(router.urls)),
