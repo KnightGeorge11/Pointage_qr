@@ -27,20 +27,7 @@ def enregistrer_anomalie(
     date_pointage=None,
     contexte: Optional[dict] = None,
 ) -> AnomaliePointage:
-    """Enregistre une anomalie détectée lors d'un scan.
-
-    Les anomalies correspondant à un état persistant sont dédupliquées.
-    Les refus ponctuels restent des événements distincts.
-
-    Toute la séquence de déduplication est exécutée dans une transaction :
-    c'est indispensable car les anomalies persistantes verrouillent la ligne
-    de l'employé avec select_for_update(). Sans transaction explicite, un
-    appel depuis un chemin exécuté en autocommit pouvait provoquer un
-    TransactionManagementError en production.
-
-    L'enregistrement d'une anomalie ne doit jamais empêcher process_scan()
-    de répondre à l'utilisateur : les erreurs sont journalisées et ravalées.
-    """
+    """Enregistre une anomalie détectée lors d'un scan."""
     contexte = contexte or {}
     try:
         with transaction.atomic():
@@ -71,7 +58,7 @@ def enregistrer_anomalie(
                     existante.save(update_fields=['contexte'])
                     logger.info(
                         f"[enregistrer_anomalie] {type_anomalie} déjà ouverte (id={existante.id}) — "
-                        f"tentative supplémentaire tracée, pas de doublon créé"
+                        "tentative supplémentaire tracée, pas de doublon créé"
                     )
                     return existante
 
@@ -109,13 +96,7 @@ def marquer_traitee(
     pointage_concerne: Optional[Pointage] = None,
     type_action: str = 'correction',
 ) -> AnomalieTraitement:
-    """Marque une anomalie comme traitée et conserve la trace du traitement.
-
-    Le pointage concerné est verrouillé dans la même transaction que
-    l'anomalie. Cela évite qu'un second traitement RH ou une autre écriture
-    concurrente ne modifie le même pointage entre sa correction et la clôture
-    logique de l'anomalie.
-    """
+    """Traite une anomalie une seule fois et conserve sa trace."""
     if not administrateur.is_staff:
         raise PermissionError("Seul un administrateur ou RH peut traiter une anomalie.")
 
@@ -131,23 +112,20 @@ def marquer_traitee(
         anomalie_db = AnomaliePointage.objects.select_for_update().get(pk=anomalie.pk)
         if anomalie_db.statut == AnomaliePointage.STATUT_CLOTUREE:
             raise ValueError("Impossible de retraiter une anomalie déjà clôturée.")
+        if anomalie_db.statut != AnomaliePointage.STATUT_OUVERTE:
+            raise ValueError("Cette anomalie a déjà été traitée et ne peut plus être remplacée.")
 
-        # Toujours verrouiller la ligne de pointage réellement utilisée par
-        # le traitement, et non l'instance potentiellement devenue obsolète
-        # entre l'affichage du formulaire RH et sa soumission.
         pointage_db = None
         if pointage_concerne and pointage_concerne.pk:
             pointage_db = Pointage.objects.select_for_update().get(pk=pointage_concerne.pk)
 
-        traitement, _ = AnomalieTraitement.objects.update_or_create(
+        traitement = AnomalieTraitement.objects.create(
             anomalie=anomalie_db,
-            defaults={
-                'administrateur': administrateur,
-                'commentaire': commentaire,
-                'corrections': corrections or [],
-                'pointage_concerne': pointage_db,
-                'type_action': type_action,
-            }
+            administrateur=administrateur,
+            commentaire=commentaire,
+            corrections=corrections or [],
+            pointage_concerne=pointage_db,
+            type_action=type_action,
         )
         anomalie_db.statut = AnomaliePointage.STATUT_TRAITEE
         anomalie_db.save(update_fields=['statut'])
