@@ -7,8 +7,9 @@ class PointageConfig(AppConfig):
 
     def ready(self):
         import pointage.signals  # noqa: F401 — enregistre les @receiver définis dans signals.py
-        # Charge l'admin avant les modules qui le patchent : Django peut appeler
-        # ready() avant autodiscover, donc l'ordre est important ici.
-        import pointage.admin_hardening  # noqa: F401 — verrouille l'administration RH et les traces immuables
-        import pointage.overtime_admin  # noqa: F401 — ajoute les actions RH d'autorisation des heures supplémentaires
-        import pointage.api_integrity  # noqa: F401 — interdit les mutations directes des traces via l'API REST
+        # Charge les garde-fous au démarrage : ils complètent les permissions
+        # et empêchent les raccourcis métier hors des flux officiels.
+        import pointage.admin_hardening  # noqa: F401
+        import pointage.overtime_admin  # noqa: F401
+        import pointage.api_integrity  # noqa: F401
+        import pointage.model_integrity  # noqa: F401
