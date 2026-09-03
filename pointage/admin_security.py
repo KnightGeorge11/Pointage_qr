@@ -5,6 +5,8 @@ import json
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
 from rest_framework.permissions import BasePermission
+from rest_framework.response import Response
+from rest_framework import status as drf_status
 
 from . import views
 
@@ -60,9 +62,6 @@ def notifications_api(request, *args, **kwargs):
     if _is_rh(request.user):
         return views.notifications_api(request, *args, **kwargs)
 
-    # Le endpoint historique ajoute les anomalies ouvertes pour tout compte
-    # authentifié. On conserve uniquement les notifications personnelles du
-    # demandeur afin de ne pas divulguer les données RH des autres employés.
     response = views.notifications_api(request, *args, **kwargs)
     if response.status_code != 200:
         return response
@@ -79,7 +78,49 @@ def notifications_api(request, *args, **kwargs):
     return JsonResponse({"notifications": notifications, "count": len(notifications)})
 
 
+def _rh_function_wrapper(function):
+    """Protège un endpoint de données RH sans dupliquer sa logique métier."""
+    def wrapped(request, *args, **kwargs):
+        if not _is_rh(request.user):
+            return Response(
+                {"detail": "Accès réservé au personnel RH."},
+                status=drf_status.HTTP_403_FORBIDDEN,
+            )
+        return function(request, *args, **kwargs)
+    wrapped._rh_secured = True
+    return wrapped
+
+
+def secure_sensitive_apis():
+    """Réduit l'exposition des données RH et des secrets d'identification QR.
+
+    Les endpoints mobiles dédiés restent séparés : cette protection concerne
+    les API web générales qui permettenttait auparavant à tout compte
+    authentifié d'énumérer des employés/pointages ou de récupérer un token QR.
+    """
+    sensitive_viewsets = ("EmployeViewSet", "SiteViewSet", "PointageViewSet")
+    for name in sensitive_viewsets:
+        viewset = getattr(views, name, None)
+        if viewset is not None:
+            viewset.permission_classes = [IsRHPermission]
+
+    sensitive_functions = (
+        "employe_qr_data",
+        "get_statut_journee",
+        "get_prochain_scan",
+        "get_dashboard_stats",
+        "get_charts_data",
+    )
+    for name in sensitive_functions:
+        function = getattr(views, name, None)
+        if function is not None and not getattr(function, "_rh_secured", False):
+            setattr(views, name, _rh_function_wrapper(function))
+
+
 class RHAnomaliePointageViewSet(views.AnomaliePointageViewSet):
     """Version API RH : aucune lecture d'anomalies par les comptes ordinaires."""
 
     permission_classes = [IsRHPermission]
+
+
+secure_sensitive_apis()
