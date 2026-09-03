@@ -2,6 +2,7 @@
 
 from django.contrib import admin
 from django.contrib import messages
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -45,8 +46,10 @@ def _rh_delete_permission(self, request, obj=None):
 
 
 def _immutable_readonly_fields(self, request, obj=None):
-    """Toutes les colonnes métier deviennent non modifiables dans le CRUD."""
-    return tuple(field.name for field in self.model._meta.concrete_fields)
+    """Conserve les champs readonly existants et verrouille tous les champs DB."""
+    existing = getattr(self, "readonly_fields", ()) or ()
+    concrete = tuple(field.name for field in self.model._meta.concrete_fields)
+    return tuple(dict.fromkeys((*existing, *concrete)))
 
 
 def _no_add(self, request):
@@ -92,6 +95,7 @@ def _custom_user_readonly_fields(self, request, obj=None):
     return ("is_staff",)
 
 
+@transaction.atomic
 def _safe_request_action(self, request, pk, approve):
     """GET affiche une confirmation ; seul POST + CSRF change l'état."""
     demande = get_object_or_404(DemandeModification, pk=pk)
@@ -201,7 +205,7 @@ def install():
         cls.get_readonly_fields = _immutable_readonly_fields
 
     # Les demandes restent dans l'historique et leurs actions mutantes sont
-    # protégées par une confirmation POST + CSRF.
+    # désormais POST + CSRF via une page de confirmation.
     demande_admin = registry.get(DemandeModification)
     if demande_admin:
         cls = demande_admin.__class__
