@@ -27,7 +27,12 @@ jobs:
     env:
       SECRET_KEY: ci-test-secret-key
       DEBUG: "False"
-      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      # CI appelle Django en HTTP sur localhost : ne pas forcer une
+      # redirection HTTPS, sinon toutes les vues/API renvoient 301 avant
+      # d'atteindre leur logique. En production, la valeur est explicitement
+      # activée dans l'environnement de déploiement.
+      SECURE_SSL_REDIRECT: "False"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,testserver
       DB_NAME: pointage_test
       DB_USER: postgres
       DB_PASSWORD: postgres
