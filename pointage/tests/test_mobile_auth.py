@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
@@ -26,6 +27,10 @@ User = get_user_model()
 
 class LoginEndpointTestCase(TestCase):
     def setUp(self):
+        # Le throttle de production reste à 5/minute. Chaque test doit
+        # disposer d'un bucket de cache indépendant pour ne pas hériter des
+        # tentatives d'un autre test exécuté avec la même adresse IP.
+        cache.clear()
         self.user = User.objects.create_user(
             username='jean_operateur', password='motdepasse123', role='user',
         )
