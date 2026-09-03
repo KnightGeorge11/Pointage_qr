@@ -36,10 +36,6 @@ class HorairesMetierRegressionTests(TestCase):
 
     def test_defaults_du_modele_site_sont_0800_1200_1300_1700(self):
         site = Site.objects.create(nom="Site defaults", adresse="Test")
-        # Un TimeField fraîchement instancié peut conserver sa valeur de
-        # défaut sous forme de chaîne. Après persistance, Django recharge la
-        # valeur sous forme de datetime.time, qui est le contrat public du
-        # modèle utilisé par le domaine.
         site.refresh_from_db()
         self.assertEqual(site.heure_ouverture_matin, time(8, 0))
         self.assertEqual(site.heure_fermeture_matin, time(12, 0))
@@ -64,7 +60,7 @@ class HorairesMetierRegressionTests(TestCase):
         decision = DayStateMachine().decide(self._context(time(12, 15)))
 
         self.assertFalse(decision.allowed)
-        self.assertEqual(decision.anomaly_code, AnomalyCode.OUTSIDE_HOURS)
+        self.assertEqual(decision.anomaly_code, AnomalyCode.DURING_BREAK)
 
     def test_heure_1300_est_le_debut_apres_midi(self):
         decision = DayStateMachine().decide(self._context(
