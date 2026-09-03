@@ -79,8 +79,13 @@ class DayStateMachine:
 
         # Les sorties après-midi tardives restent possibles afin de permettre
         # l'enregistrement des heures supplémentaires.
+        # La pause doit toutefois être traitée par les états concernés afin
+        # de retourner DURING_BREAK plutôt que OUTSIDE_HOURS.
         if current_state not in (DayState.AFTERNOON_STARTED, DayState.DAY_FINISHED):
-            if not context.schedule.is_within_global_hours(context.current_time):
+            if (
+                not context.schedule.is_during_break(context.current_time)
+                and not context.schedule.is_within_global_hours(context.current_time)
+            ):
                 return ScanDecision(
                     allowed=False,
                     message=(
