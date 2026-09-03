@@ -35,6 +35,10 @@ def autoriser_heures_supplementaires(modeladmin, request, queryset):
 
     count = 0
     for pointage in queryset.select_for_update().select_related('site', 'employe'):
+        # Le trigger PostgreSQL remet à zéro le champ tant que l'autorisation
+        # est False. Il faut donc recalculer depuis les heures d'arrivée/départ
+        # avant de décider si le pointage contient réellement des H.Supp.
+        pointage.calculer_heures_supplementaires()
         if not pointage.heures_supplementaires or pointage.heures_supplementaires.total_seconds() <= 0:
             continue
         if pointage.heures_supplementaires_autorisees:
@@ -170,8 +174,6 @@ def install():
     setattr(cls, 'has_delete_permission', _has_delete_permission)
 
     actions = list(getattr(pointage_admin, 'actions', []) or [])
-    # Suppression physique interdite : le journal de pointage doit rester
-    # traçable. Retirer aussi l'action historique qui contournait ce garde-fou.
     actions = [a for a in actions if a != 'supprimer_selection']
     for action_name in ('autoriser_heures_supplementaires', 'refuser_heures_supplementaires'):
         if action_name not in actions:
