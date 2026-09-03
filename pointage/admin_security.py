@@ -92,12 +92,7 @@ def _rh_function_wrapper(function):
 
 
 def secure_sensitive_apis():
-    """Réduit l'exposition des données RH et des secrets d'identification QR.
-
-    Les endpoints mobiles dédiés restent séparés : cette protection concerne
-    les API web générales qui permettenttait auparavant à tout compte
-    authentifié d'énumérer des employés/pointages ou de récupérer un token QR.
-    """
+    """Réduit l'exposition des données RH et des secrets d'identification QR."""
     sensitive_viewsets = ("EmployeViewSet", "SiteViewSet", "PointageViewSet")
     for name in sensitive_viewsets:
         viewset = getattr(views, name, None)
@@ -115,6 +110,25 @@ def secure_sensitive_apis():
         function = getattr(views, name, None)
         if function is not None and not getattr(function, "_rh_secured", False):
             setattr(views, name, _rh_function_wrapper(function))
+
+
+@login_required
+def scanner_view(request, *args, **kwargs):
+    """Le scanner Web doit recevoir le QR réel, jamais un matricule seul.
+
+    Le matricule seul permettait auparavant à la vue d'aller chercher elle-même
+    le secret QR de l'employé puis de fabriquer un scan valide. C'était une
+    possibilité d'usurpation directe de pointage. Le chemin QR reste inchangé.
+    """
+    if request.method == "POST":
+        raw_qr = (request.POST.get("qr_data") or "").strip()
+        matricule = (request.POST.get("matricule") or "").strip()
+        if not raw_qr and matricule:
+            messages = __import__("django.contrib.messages", fromlist=["messages"]).messages
+            messages.error(request, "❌ Le pointage Web doit être effectué par lecture du QR code. Le matricule seul est refusé.")
+            from django.shortcuts import redirect
+            return redirect("scanner")
+    return views.scanner_view(request, *args, **kwargs)
 
 
 class RHAnomaliePointageViewSet(views.AnomaliePointageViewSet):
