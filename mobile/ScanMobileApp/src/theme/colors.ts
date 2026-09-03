@@ -30,6 +30,11 @@ export const colors = {
   amberDim:   '#FFFBEB',
   amberText:  '#D97706',
 
+  // Nuit — même famille neutre, sans violet arbitraire.
+  night:      '#334155',
+  nightDim:   '#F1F5F9',
+  nightText:  '#334155',
+
   // Erreur
   red:        '#EF4444',
   redDim:     '#FEF2F2',
