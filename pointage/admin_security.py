@@ -6,13 +6,14 @@ from datetime import timedelta
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.decorators import action
 
 from . import views
-from .models import Employe, Pointage
+from .models import Employe, Pointage, AnomaliePointage
 
 
 def _is_rh(user):
@@ -57,11 +58,55 @@ def admin_badge_counts_api(request, *args, **kwargs):
     return views.admin_badge_counts_api(request, *args, **kwargs)
 
 
-def notifications_api(request, *args, **kwargs):
-    if _is_rh(request.user):
-        return views.notifications_api(request, *args, **kwargs)
+def _attach_exact_anomaly_admin_urls(data):
+    """Remplace les anciennes URLs génériques par la fiche admin exacte.
 
+    L'API historique ne renvoie pas encore l'identifiant de l'anomalie dans
+    son payload. On fait donc la correspondance sur le message généré et la
+    date de création, puis on produit l'URL native du ModelAdmin. Cela évite
+    tout changement de comportement pour les autres notifications.
+    """
+    anomaly_items = [
+        item for item in data.get("notifications", [])
+        if item.get("type") == "anomalie"
+    ]
+    if not anomaly_items:
+        return data
+
+    anomalies = list(
+        AnomaliePointage.objects.filter(
+            statut=AnomaliePointage.STATUT_OUVERTE
+        ).select_related("employe").order_by("-created_at", "-pk")
+    )
+
+    # Les notifications d'anomalies sont générées dans le même ordre temporel
+    # que les anomalies ouvertes. On privilégie ensuite le message exact pour
+    # rendre la correspondance déterministe même en cas de volume important.
+    by_message = {}
+    for anomaly in anomalies:
+        qui = anomaly.employe.get_nom_complet() if anomaly.employe else (anomaly.matricule_scanne or '?')
+        message = f"Anomalie ({anomaly.get_type_display()}) — {qui}"
+        by_message.setdefault(message, []).append(anomaly)
+
+    used_ids = set()
+    for item in anomaly_items:
+        candidates = by_message.get(item.get("message"), [])
+        candidate = next((a for a in candidates if a.pk not in used_ids), None)
+        if candidate is None:
+            continue
+        used_ids.add(candidate.pk)
+        item["anomalie_id"] = candidate.pk
+        item["url"] = reverse(
+            "admin:pointage_anomaliepointage_change",
+            args=[candidate.pk],
+        )
+
+    return data
+
+
+def notifications_api(request, *args, **kwargs):
     response = views.notifications_api(request, *args, **kwargs)
+
     if response.status_code != 200:
         return response
 
@@ -69,6 +114,10 @@ def notifications_api(request, *args, **kwargs):
         data = json.loads(response.content.decode("utf-8"))
     except (TypeError, ValueError):
         return JsonResponse({"notifications": [], "count": 0})
+
+    if _is_rh(request.user):
+        data = _attach_exact_anomaly_admin_urls(data)
+        return JsonResponse(data)
 
     notifications = [
         item for item in data.get("notifications", [])
