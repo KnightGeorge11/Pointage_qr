@@ -14,22 +14,16 @@ from .models import AnomaliePointage, AnomalieTraitement
 
 @login_required
 def admin_anomaly_workflow(request, pk):
-    """Panneau de traitement RH accessible depuis Jazzmin.
-
-    Le panneau reste dans l'espace /admin/ et appelle directement la machine
-    d'état métier. Une anomalie ouverte peut être justifiée ou rejetée, puis
-    une anomalie traitée peut être clôturée. Une anomalie clôturée est verrouillée.
-    """
+    """Panneau de traitement RH accessible depuis Jazzmin."""
     if not _is_rh(request.user):
         return HttpResponseForbidden("Accès réservé au personnel RH.")
 
-    with transaction.atomic():
-        anomalie = get_object_or_404(
-            AnomaliePointage.objects.select_for_update().select_related("employe", "site"),
-            pk=pk,
-        )
-
-        if request.method == "POST":
+    if request.method == "POST":
+        with transaction.atomic():
+            anomalie = get_object_or_404(
+                AnomaliePointage.objects.select_for_update().select_related("employe", "site"),
+                pk=pk,
+            )
             action = (request.POST.get("action") or "").strip().lower()
             commentaire = (request.POST.get("commentaire") or "").strip()
 
@@ -71,4 +65,16 @@ def admin_anomaly_workflow(request, pk):
             except (ValueError, PermissionError) as exc:
                 messages.error(request, str(exc))
 
-    return redirect(reverse("admin_anomaly_workflow", args=[pk]))
+        return redirect(reverse("admin_anomaly_workflow", args=[pk]))
+
+    anomalie = get_object_or_404(
+        AnomaliePointage.objects.select_related("employe", "site"),
+        pk=pk,
+    )
+    return render(request, "admin/pointage/anomalie/admin_anomaly_workflow.html", {
+        "anomalie": anomalie,
+        "opts": AnomaliePointage._meta,
+        "site_header": "Pointage QR — Administration",
+        "site_title": "Pointage QR",
+        "has_permission": True,
+    })
