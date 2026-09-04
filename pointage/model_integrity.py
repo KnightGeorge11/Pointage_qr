@@ -4,8 +4,6 @@ Ces protections complètent les contraintes DB sans déplacer la logique métier
 centrale hors des services existants.
 """
 
-from datetime import timedelta
-
 from django.utils import timezone
 
 from .models import Employe, Pointage
@@ -55,12 +53,12 @@ def _employee_day_status(self, date=None):
 
 
 def _install_pointage_save_guard():
-    """Protège la validation RH des heures supplémentaires.
+    """Révoque une autorisation RH si ses données de calcul sont modifiées.
 
-    Une autorisation RH porte sur le montant calculé au moment de la
-    validation. Si une donnée de calcul change, l'autorisation est révoquée.
-    Le montant persistant est ensuite forcé à zéro lorsqu'il n'est pas autorisé,
-    afin d'avoir le même comportement avec ou sans le trigger PostgreSQL.
+    Le montant payable reste protégé par le trigger PostgreSQL de la migration
+    0020. On ne réécrit donc pas le champ après ``save()`` : cela évite de
+    masquer le montant calculé dans l'instance Python et conserve la séparation
+    entre montant calculé et montant autorisé/persisté.
     """
     if getattr(Pointage, '_overtime_input_guard_installed', False):
         return
@@ -92,14 +90,6 @@ def _install_pointage_save_guard():
                     )
 
         original_save(self, *args, **kwargs)
-
-        # Pointage.save() recalcule toujours le montant. On neutralise donc
-        # immédiatement le résultat lorsqu'il n'existe pas de validation RH.
-        # QuerySet.update() évite de repasser dans le save patché.
-        if not self.heures_supplementaires_autorisees and self.pk:
-            if self.heures_supplementaires and self.heures_supplementaires != timedelta(0):
-                Pointage.objects.filter(pk=self.pk).update(heures_supplementaires=timedelta(0))
-                self.heures_supplementaires = timedelta(0)
 
     Pointage.save = guarded_save
     Pointage._overtime_input_guard_installed = True
