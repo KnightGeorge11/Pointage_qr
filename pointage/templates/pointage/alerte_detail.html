@@ -1,265 +1,181 @@
 {% extends 'pointage/base.html' %}
 
-{% block title %}Anomalie #{{ anomalie.pk }} - Pointage QR{% endblock %}
+{% block title %}Traitement de l'anomalie #{{ anomalie.pk }} - Pointage QR{% endblock %}
 
 {% block content %}
+{% with categorie=anomalie.contexte.categorie bloquante=anomalie.contexte.bloquante rh_requis=anomalie.contexte.traitement_rh_requis %}
 <div class="row">
-    <div class="col-md-12 mb-4">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <h1 class="display-5 mb-0">
-                <i class="fas fa-triangle-exclamation"></i> Anomalie #{{ anomalie.pk }}
-            </h1>
-            <a href="{% url 'alertes_rh' %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Retour à la liste
-            </a>
+    <div class="col-12 mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <div class="text-muted small fw-bold">TRAITEMENT DES ANOMALIES</div>
+                <h1 class="h2 mb-1"><i class="fas fa-triangle-exclamation"></i> Que s'est-il passé ?</h1>
+                <p class="text-muted mb-0">Analysez la situation, prenez une décision, puis clôturez le dossier.</p>
+            </div>
+            <a href="{% url 'alertes_rh' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Retour aux anomalies</a>
         </div>
     </div>
 </div>
 
 {% if messages %}
-    {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-    {% endfor %}
+    {% for message in messages %}<div class="alert alert-{{ message.tags }}">{{ message }}</div>{% endfor %}
 {% endif %}
 
-{% with categorie=anomalie.contexte.categorie bloquante=anomalie.contexte.bloquante rh_requis=anomalie.contexte.traitement_rh_requis %}
 <div class="row">
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-info-circle"></i> Classification et détails</h5>
-            </div>
+    <div class="col-lg-7">
+        <div class="card mb-4 shadow-sm">
             <div class="card-body">
-                {% if categorie == 'securite' %}
-                <div class="alert alert-danger">
-                    <strong><i class="fas fa-shield-halved"></i> Anomalie de sécurité</strong><br>
-                    Le scan est refusé. Cette anomalie doit être vérifiée avant toute nouvelle tentative de pointage.
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    {% if categorie == 'securite' %}<span class="badge bg-danger">Sécurité</span>{% elif categorie == 'bloquante' %}<span class="badge bg-warning text-dark">Pointage bloqué</span>{% elif categorie == 'rh' %}<span class="badge bg-info text-dark">Traitement RH</span>{% else %}<span class="badge bg-secondary">Non classée</span>{% endif %}
+                    {% if bloquante == True %}<span class="badge bg-dark">Scan refusé</span>{% endif %}
+                    {% if rh_requis == True %}<span class="badge bg-primary">RH requis</span>{% endif %}
+                    <span class="badge {% if anomalie.statut == 'ouverte' %}bg-danger{% elif anomalie.statut == 'traitee' %}bg-warning text-dark{% else %}bg-success{% endif %}">{{ anomalie.get_statut_display }}</span>
                 </div>
-                {% elif categorie == 'bloquante' %}
-                <div class="alert alert-warning">
-                    <strong><i class="fas fa-ban"></i> Anomalie bloquante</strong><br>
-                    Le scan associé est refusé. Le pointage ne doit pas être considéré comme enregistré automatiquement.
-                </div>
-                {% elif categorie == 'rh' %}
-                <div class="alert alert-info">
-                    <strong><i class="fas fa-user-check"></i> Anomalie RH</strong><br>
-                    Le pointage peut être conservé, mais une vérification RH est requise avant clôture du dossier.
-                </div>
-                {% endif %}
 
+                <div class="alert {% if categorie == 'securite' or bloquante == True %}alert-danger{% elif categorie == 'rh' %}alert-info{% else %}alert-warning{% endif %}">
+                    <strong>{{ anomalie.get_type_display }}</strong><br>
+                    {{ anomalie.message }}
+                </div>
+
+                <h2 class="h5 mt-4">Informations du dossier</h2>
                 <dl class="row mb-0">
-                    <dt class="col-sm-5">Catégorie :</dt>
-                    <dd class="col-sm-7">
-                        {% if categorie == 'securite' %}
-                            <span class="badge bg-danger">Sécurité</span>
-                        {% elif categorie == 'bloquante' %}
-                            <span class="badge bg-warning text-dark">Bloquante</span>
-                        {% elif categorie == 'rh' %}
-                            <span class="badge bg-info text-dark">RH</span>
-                        {% else %}
-                            <span class="badge bg-secondary">Non classée</span>
-                        {% endif %}
-                    </dd>
-
-                    <dt class="col-sm-5">Scan bloqué :</dt>
-                    <dd class="col-sm-7">
-                        {% if bloquante == True %}
-                            <span class="badge bg-danger">Oui</span>
-                        {% else %}
-                            <span class="badge bg-success">Non</span>
-                        {% endif %}
-                    </dd>
-
-                    <dt class="col-sm-5">Traitement RH :</dt>
-                    <dd class="col-sm-7">
-                        {% if rh_requis == True %}
-                            <span class="badge bg-info text-dark">Requis</span>
-                        {% else %}
-                            <span class="badge bg-secondary">Non requis</span>
-                        {% endif %}
-                    </dd>
-
-                    <dt class="col-sm-5">Employé :</dt>
-                    <dd class="col-sm-7">
-                        {% if anomalie.employe %}
-                            {{ anomalie.employe.prenom }} {{ anomalie.employe.nom }}
-                        {% else %}
-                            <span class="text-muted">Non identifié</span>
-                        {% endif %}
-                    </dd>
-
-                    <dt class="col-sm-5">Matricule :</dt>
-                    <dd class="col-sm-7">{{ anomalie.employe.matricule|default:anomalie.matricule_scanne|default:"—" }}</dd>
-
-                    <dt class="col-sm-5">Site :</dt>
-                    <dd class="col-sm-7">{{ anomalie.site.nom|default:"—" }}</dd>
-
-                    <dt class="col-sm-5">Date :</dt>
-                    <dd class="col-sm-7">{{ anomalie.date_pointage|date:"d/m/Y"|default:"—" }}</dd>
-
-                    <dt class="col-sm-5">Créée le :</dt>
-                    <dd class="col-sm-7">{{ anomalie.created_at|date:"d/m/Y H:i" }}</dd>
-
-                    <dt class="col-sm-5">Type :</dt>
-                    <dd class="col-sm-7">{{ anomalie.get_type_display }}</dd>
-
-                    <dt class="col-sm-5">Gravité :</dt>
-                    <dd class="col-sm-7">
-                        <span class="badge
-                            {% if anomalie.gravite == 'critique' %}bg-danger
-                            {% elif anomalie.gravite == 'warning' %}bg-warning text-dark
-                            {% else %}bg-info text-dark{% endif %}">
-                            {{ anomalie.get_gravite_display }}
-                        </span>
-                    </dd>
-
-                    <dt class="col-sm-5">Statut :</dt>
-                    <dd class="col-sm-7">
-                        <span class="badge
-                            {% if anomalie.statut == 'ouverte' %}bg-danger
-                            {% elif anomalie.statut == 'traitee' %}bg-warning text-dark
-                            {% else %}bg-success{% endif %}">
-                            {{ anomalie.get_statut_display }}
-                        </span>
-                    </dd>
-
-                    <dt class="col-sm-5">Message :</dt>
-                    <dd class="col-sm-7">{{ anomalie.message }}</dd>
-
-                    {% if anomalie.contexte %}
-                    <dt class="col-sm-5">Contexte technique :</dt>
-                    <dd class="col-sm-7"><pre class="mb-0" style="white-space:pre-wrap;font-size:12px;">{{ anomalie.contexte }}</pre></dd>
-                    {% endif %}
+                    <dt class="col-sm-5">Employé</dt><dd class="col-sm-7">{% if anomalie.employe %}{{ anomalie.employe.prenom }} {{ anomalie.employe.nom }}{% else %}Non identifié{% endif %}</dd>
+                    <dt class="col-sm-5">Matricule</dt><dd class="col-sm-7">{{ anomalie.employe.matricule|default:anomalie.matricule_scanne|default:"—" }}</dd>
+                    <dt class="col-sm-5">Site</dt><dd class="col-sm-7">{{ anomalie.site.nom|default:"—" }}</dd>
+                    <dt class="col-sm-5">Date du pointage</dt><dd class="col-sm-7">{{ anomalie.date_pointage|date:"d/m/Y"|default:"—" }}</dd>
+                    <dt class="col-sm-5">Détectée le</dt><dd class="col-sm-7">{{ anomalie.created_at|date:"d/m/Y H:i" }}</dd>
+                    <dt class="col-sm-5">Gravité</dt><dd class="col-sm-7">{{ anomalie.get_gravite_display }}</dd>
                 </dl>
             </div>
         </div>
 
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-clock-rotate-left"></i> Historique du traitement</h5>
-            </div>
+        {% if pointage_existant %}
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-white"><h2 class="h5 mb-0"><i class="fas fa-clock"></i> Pointage actuellement enregistré</h2></div>
             <div class="card-body">
-                {% if anomalie.traitement %}
-                    <dl class="row mb-0">
-                        <dt class="col-sm-5">Action :</dt>
-                        <dd class="col-sm-7">{{ anomalie.traitement.get_type_action_display }}</dd>
-                        <dt class="col-sm-5">Par :</dt>
-                        <dd class="col-sm-7">{{ anomalie.traitement.administrateur|default:"—" }}</dd>
-                        <dt class="col-sm-5">Le :</dt>
-                        <dd class="col-sm-7">{{ anomalie.traitement.date_traitement|date:"d/m/Y H:i" }}</dd>
-                        <dt class="col-sm-5">Commentaire :</dt>
-                        <dd class="col-sm-7">{{ anomalie.traitement.commentaire|default:"—" }}</dd>
-                        {% if anomalie.traitement.corrections %}
-                        <dt class="col-sm-5">Corrections :</dt>
-                        <dd class="col-sm-7">
-                            <ul class="mb-0 ps-3">
-                            {% for c in anomalie.traitement.corrections %}
-                                <li>{{ c.champ }} : {{ c.ancienne_valeur|default:"—" }} → {{ c.nouvelle_valeur }}</li>
-                            {% endfor %}
-                            </ul>
-                        </dd>
-                        {% endif %}
-                    </dl>
-                    {% if anomalie.statut == 'cloturee' %}
-                    <hr>
-                    <p class="mb-0 text-muted">
-                        <i class="fas fa-lock"></i> Clôturée par {{ anomalie.cloturee_par|default:"—" }}
-                        le {{ anomalie.date_cloture|date:"d/m/Y H:i" }}
-                    </p>
-                    {% endif %}
-                {% else %}
-                    <p class="text-muted mb-0">Aucun traitement pour le moment.</p>
-                {% endif %}
+                <div class="row g-3">
+                    <div class="col-md-4"><div class="text-muted small">Période</div><strong>{{ pointage_existant.get_periode_display }}</strong></div>
+                    <div class="col-md-4"><div class="text-muted small">Arrivée</div><strong>{{ pointage_existant.heure_arrivee|default:"—" }}</strong></div>
+                    <div class="col-md-4"><div class="text-muted small">Départ</div><strong>{{ pointage_existant.heure_depart|default:"—" }}</strong></div>
+                    <div class="col-md-4"><div class="text-muted small">Site</div><strong>{{ pointage_existant.site|default:"—" }}</strong></div>
+                    <div class="col-md-4"><div class="text-muted small">Statut</div><strong>{{ pointage_existant.get_statut_display|default:pointage_existant.statut }}</strong></div>
+                    <div class="col-md-4"><div class="text-muted small">Heures travaillées</div><strong>{{ pointage_existant.get_duree_formatee|default:"—" }}</strong></div>
+                </div>
             </div>
         </div>
+        {% else %}
+        <div class="alert alert-secondary mb-4"><i class="fas fa-info-circle"></i> Aucun pointage correspondant n'est actuellement retrouvé pour ce dossier.</div>
+        {% endif %}
+
+        {% if anomalie.traitement %}
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-white"><h2 class="h5 mb-0"><i class="fas fa-clock-rotate-left"></i> Décision enregistrée</h2></div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Action</dt><dd class="col-sm-8">{{ anomalie.traitement.get_type_action_display }}</dd>
+                    <dt class="col-sm-4">Par</dt><dd class="col-sm-8">{{ anomalie.traitement.administrateur|default:"—" }}</dd>
+                    <dt class="col-sm-4">Le</dt><dd class="col-sm-8">{{ anomalie.traitement.date_traitement|date:"d/m/Y H:i" }}</dd>
+                    <dt class="col-sm-4">Commentaire</dt><dd class="col-sm-8">{{ anomalie.traitement.commentaire|default:"—" }}</dd>
+                </dl>
+                {% if anomalie.traitement.corrections %}
+                <hr><strong>Modifications appliquées</strong>
+                <ul class="mb-0 mt-2">{% for c in anomalie.traitement.corrections %}<li>{{ c.champ }} : {{ c.ancienne_valeur|default:"—" }} → {{ c.nouvelle_valeur|default:"—" }}</li>{% endfor %}</ul>
+                {% endif %}
+                {% if anomalie.statut == 'cloturee' %}<hr><div class="text-muted"><i class="fas fa-lock"></i> Clôturée par {{ anomalie.cloturee_par|default:"—" }} le {{ anomalie.date_cloture|date:"d/m/Y H:i" }}.</div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 
-    <div class="col-md-6">
+    <div class="col-lg-5">
         {% if anomalie.statut == 'cloturee' %}
-            <div class="alert alert-secondary">
-                <i class="fas fa-lock"></i>
-                <strong>Dossier clôturé.</strong> Aucune nouvelle modification n'est autorisée.
-            </div>
+        <div class="alert alert-success shadow-sm"><i class="fas fa-lock"></i> <strong>Dossier clôturé.</strong><br>Aucune nouvelle modification n'est autorisée.</div>
         {% elif anomalie.statut == 'traitee' %}
-            <div class="alert alert-warning">
-                <i class="fas fa-circle-check"></i>
-                <strong>Dossier traité.</strong> Les actions de correction, justification et rejet sont maintenant verrouillées.
-                Vous pouvez uniquement clôturer le dossier.
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-white"><h2 class="h5 mb-0">Clôturer le dossier</h2></div>
+            <div class="card-body">
+                <div class="alert alert-success"><strong>Décision déjà prise.</strong><br>Les actions de correction, justification et rejet sont verrouillées.</div>
+                <form method="post">
+                    {% csrf_token %}<input type="hidden" name="type_action" value="cloturer">
+                    <button type="submit" class="btn btn-dark w-100"><i class="fas fa-lock"></i> Clôturer définitivement</button>
+                </form>
             </div>
-
-            <div class="card mb-4">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-lock"></i> Clôturer</h5></div>
-                <div class="card-body">
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="type_action" value="cloturer">
-                        <p class="text-muted">La clôture est définitive et n'autorise plus aucune nouvelle action.</p>
-                        <button type="submit" class="btn btn-dark">
-                            <i class="fas fa-lock"></i> Clôturer définitivement
-                        </button>
-                    </form>
-                </div>
-            </div>
+        </div>
         {% else %}
-            <div class="alert {% if categorie == 'rh' %}alert-info{% else %}alert-warning{% endif %}">
-                <i class="fas fa-circle-info"></i>
-                <strong>Dossier ouvert.</strong>
-                Choisissez une seule action de traitement, ajoutez un commentaire obligatoire, puis le dossier passera à l'état « traité ».
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-white">
+                <h2 class="h5 mb-1">Que dois-je décider ?</h2>
+                <div class="text-muted small">Une seule décision est nécessaire. Elle sera journalisée.</div>
             </div>
+            <div class="card-body">
+                {% if categorie == 'securite' or bloquante == True %}
+                <div class="alert alert-danger"><strong>Priorité : vérification.</strong><br>Le scan a été refusé. Ne créez pas automatiquement un pointage valide sans avoir vérifié la situation.</div>
+                {% elif categorie == 'rh' or rh_requis == True %}
+                <div class="alert alert-info"><strong>Priorité : décision RH.</strong><br>Vérifiez les horaires et les éléments justificatifs avant de modifier le pointage.</div>
+                {% else %}
+                <div class="alert alert-warning"><strong>Priorité : analyser le contexte.</strong><br>Choisissez l'action qui correspond réellement à la situation.</div>
+                {% endif %}
 
-            <div class="card mb-4">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-pen"></i> Corriger le pointage</h5></div>
-                <div class="card-body">
-                    <p class="text-muted small">Utiliser cette action uniquement si le pointage doit réellement être créé ou modifié.</p>
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="type_action" value="correction">
-                        <div class="row g-2">
-                            <div class="col-6">{{ pointage_form.employe.label_tag }}{{ pointage_form.employe }}</div>
-                            <div class="col-6">{{ pointage_form.site.label_tag }}{{ pointage_form.site }}</div>
-                            <div class="col-6">{{ pointage_form.date_pointage.label_tag }}{{ pointage_form.date_pointage }}</div>
-                            <div class="col-6">{{ pointage_form.periode.label_tag }}{{ pointage_form.periode }}</div>
-                            <div class="col-6">{{ pointage_form.type_journee.label_tag }}{{ pointage_form.type_journee }}</div>
-                            <div class="col-6">{{ pointage_form.statut.label_tag }}{{ pointage_form.statut }}</div>
-                            <div class="col-6">{{ pointage_form.heure_arrivee.label_tag }}{{ pointage_form.heure_arrivee }}</div>
-                            <div class="col-6">{{ pointage_form.heure_depart.label_tag }}{{ pointage_form.heure_depart }}</div>
-                            <div class="col-12">{{ pointage_form.notes.label_tag }}{{ pointage_form.notes }}</div>
-                            <div class="col-12">
-                                <label class="form-label">Commentaire (obligatoire)</label>
-                                <textarea name="commentaire" class="form-control" rows="2" required></textarea>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary mt-3"><i class="fas fa-check"></i> Corriger et traiter</button>
-                    </form>
+                <div class="d-grid gap-2 mb-3">
+                    <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#correction">✎ Corriger le pointage</button>
+                    <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#justification">✓ Justifier l'anomalie</button>
+                    <button class="btn btn-outline-danger" type="button" data-bs-toggle="collapse" data-bs-target="#rejet">✕ Rejeter l'anomalie</button>
+                </div>
+
+                <div id="correction" class="collapse">
+                    <div class="border rounded p-3 mb-3">
+                        <h3 class="h6">Corriger</h3>
+                        <p class="text-muted small">Utilisez cette action si la donnée enregistrée doit être créée ou modifiée.</p>
+                        <form method="post">
+                            {% csrf_token %}<input type="hidden" name="type_action" value="correction">
+                            <div class="mb-2">{{ pointage_form.employe.label_tag }}{{ pointage_form.employe }}</div>
+                            <div class="mb-2">{{ pointage_form.site.label_tag }}{{ pointage_form.site }}</div>
+                            <div class="mb-2">{{ pointage_form.date_pointage.label_tag }}{{ pointage_form.date_pointage }}</div>
+                            <div class="mb-2">{{ pointage_form.periode.label_tag }}{{ pointage_form.periode }}</div>
+                            <div class="mb-2">{{ pointage_form.type_journee.label_tag }}{{ pointage_form.type_journee }}</div>
+                            <div class="mb-2">{{ pointage_form.statut.label_tag }}{{ pointage_form.statut }}</div>
+                            <div class="mb-2">{{ pointage_form.heure_arrivee.label_tag }}{{ pointage_form.heure_arrivee }}</div>
+                            <div class="mb-2">{{ pointage_form.heure_depart.label_tag }}{{ pointage_form.heure_depart }}</div>
+                            <div class="mb-2">{{ pointage_form.notes.label_tag }}{{ pointage_form.notes }}</div>
+                            <label class="form-label">Commentaire obligatoire</label>
+                            <textarea name="commentaire" class="form-control" rows="3" minlength="5" required></textarea>
+                            <button type="submit" class="btn btn-primary mt-3 w-100">Enregistrer la correction</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="justification" class="collapse">
+                    <div class="border rounded p-3 mb-3">
+                        <h3 class="h6">Justifier</h3>
+                        <p class="text-muted small">Le pointage reste inchangé. Vous documentez pourquoi l'anomalie est acceptable.</p>
+                        <form method="post">
+                            {% csrf_token %}<input type="hidden" name="type_action" value="justification">
+                            <textarea name="commentaire" class="form-control" rows="4" minlength="5" placeholder="Pourquoi cette anomalie est-elle justifiée ?" required></textarea>
+                            <button type="submit" class="btn btn-outline-primary mt-3 w-100">Enregistrer la justification</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="rejet" class="collapse">
+                    <div class="border border-danger rounded p-3">
+                        <h3 class="h6 text-danger">Rejeter</h3>
+                        <p class="text-muted small">Utilisez cette action lorsque le pointage ou la situation associée ne doit pas être retenu.</p>
+                        <form method="post">
+                            {% csrf_token %}<input type="hidden" name="type_action" value="rejet">
+                            <textarea name="commentaire" class="form-control" rows="4" minlength="5" placeholder="Motif du rejet obligatoire" required></textarea>
+                            <button type="submit" class="btn btn-outline-danger mt-3 w-100">Rejeter et traiter</button>
+                        </form>
+                    </div>
                 </div>
             </div>
-
-            <div class="card mb-4">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-comment-check"></i> Justifier</h5></div>
-                <div class="card-body">
-                    <p class="text-muted small">À utiliser lorsque l'anomalie est acceptable et ne nécessite pas de modification du pointage.</p>
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="type_action" value="justification">
-                        <textarea name="commentaire" class="form-control" rows="2" placeholder="Justification obligatoire" required></textarea>
-                        <button type="submit" class="btn btn-outline-primary mt-3"><i class="fas fa-check"></i> Justifier et traiter</button>
-                    </form>
-                </div>
-            </div>
-
-            <div class="card mb-4">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-ban"></i> Rejeter</h5></div>
-                <div class="card-body">
-                    <p class="text-muted small">À utiliser lorsque l'anomalie ou la demande associée doit être refusée.</p>
-                    <form method="post">
-                        {% csrf_token %}
-                        <textarea name="commentaire" class="form-control" rows="2" placeholder="Motif du rejet obligatoire" required></textarea>
-                        <button type="submit" class="btn btn-outline-danger mt-3"><i class="fas fa-times"></i> Rejeter et traiter</button>
-                    </form>
-                </div>
-            </div>
+        </div>
         {% endif %}
     </div>
 </div>
+
+<details class="mb-4">
+    <summary class="text-muted">Informations techniques (pour diagnostic)</summary>
+    <pre class="bg-light border rounded p-3 mt-2" style="white-space:pre-wrap;font-size:12px;">{{ anomalie.contexte }}</pre>
+</details>
 {% endwith %}
 {% endblock %}
