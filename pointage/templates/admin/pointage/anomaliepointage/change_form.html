@@ -3,7 +3,7 @@
 {% block extrastyle %}
 {{ block.super }}
 <style>
-.anomaly-workflow{margin:0 0 24px}.anomaly-workflow__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}.anomaly-step{padding:14px;border:1px solid rgba(128,128,128,.25);border-radius:10px;background:rgba(128,128,128,.06)}.anomaly-step strong{display:block;margin-bottom:4px}.anomaly-step span{font-size:12px;opacity:.72}.anomaly-decision{padding:16px;border-radius:10px;margin-top:14px;border:1px solid rgba(79,142,247,.28);background:rgba(79,142,247,.07)}.anomaly-decision h3{margin:0 0 6px;font-size:15px}.anomaly-help{margin:0;opacity:.78;font-size:13px}.anomaly-lock{padding:14px;border-radius:10px;border:1px solid rgba(40,167,69,.3);background:rgba(40,167,69,.08);margin-top:14px}.anomaly-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.anomaly-actions a{display:inline-block!important;text-decoration:none!important;padding:9px 14px;border-radius:6px;font-weight:600}.anomaly-primary{background:#4f8ef7!important;color:#fff!important}.anomaly-secondary{background:transparent!important;border:1px solid rgba(79,142,247,.5);color:#4f8ef7!important}.anomaly-success{background:#28a745!important;color:#fff!important}.anomaly-disabled{opacity:.55;pointer-events:none}@media(max-width:900px){.anomaly-workflow__grid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.anomaly-workflow__grid{grid-template-columns:1fr}}
+.anomaly-workflow{margin:0 0 24px}.anomaly-workflow__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}.anomaly-step{padding:14px;border:1px solid rgba(128,128,128,.25);border-radius:10px;background:rgba(128,128,128,.06)}.anomaly-step strong{display:block;margin-bottom:4px}.anomaly-step span{font-size:12px;opacity:.72}.anomaly-decision{padding:16px;border-radius:10px;margin-top:14px;border:1px solid rgba(79,142,247,.28);background:rgba(79,142,247,.07)}.anomaly-decision h3{margin:0 0 6px;font-size:15px}.anomaly-help{margin:0;opacity:.78;font-size:13px}.anomaly-lock{padding:14px;border-radius:10px;border:1px solid rgba(40,167,69,.3);background:rgba(40,167,69,.08);margin-top:14px}.anomaly-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.anomaly-action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}.anomaly-action-card{padding:15px;border:1px solid rgba(128,128,128,.25);border-radius:10px;background:rgba(128,128,128,.04)}.anomaly-action-card h3{margin:0 0 7px;font-size:14px}.anomaly-action-card p{margin:0 0 10px;opacity:.78;font-size:12px}.anomaly-action-card textarea{width:100%;min-height:85px;box-sizing:border-box;margin-bottom:9px;border-radius:6px}.anomaly-btn{display:inline-block!important;text-decoration:none!important;padding:9px 14px;border:0;border-radius:6px;font-weight:600;cursor:pointer}.anomaly-primary{background:#4f8ef7!important;color:#fff!important}.anomaly-secondary{background:transparent!important;border:1px solid rgba(79,142,247,.5);color:#4f8ef7!important}.anomaly-success{background:#28a745!important;color:#fff!important}.anomaly-danger{background:#dc3545!important;color:#fff!important}.anomaly-disabled{opacity:.55;pointer-events:none}@media(max-width:900px){.anomaly-workflow__grid,.anomaly-action-grid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.anomaly-workflow__grid,.anomaly-action-grid{grid-template-columns:1fr}}
 </style>
 {% endblock %}
 
@@ -21,10 +21,10 @@
 {% if original.statut == 'cloturee' %}
 <div class="anomaly-lock"><strong>✅ Dossier clôturé</strong><br><span class="anomaly-help">Cette anomalie est terminée. Aucune nouvelle action de traitement n’est disponible.</span></div>
 {% elif original.statut == 'traitee' %}
-<div class="anomaly-decision"><h3>🟡 Anomalie déjà traitée</h3><p class="anomaly-help">La décision est enregistrée. La prochaine étape est la clôture du dossier.</p></div>
+<div class="anomaly-decision"><h3>🟡 Anomalie déjà traitée</h3><p class="anomaly-help">La décision est enregistrée. La prochaine étape est la clôture définitive du dossier.</p></div>
 <div class="anomaly-actions">
-  <a class="anomaly-primary" href="{% url 'admin_anomaly_workflow' original.pk %}">🔒 Ouvrir le traitement et clôturer</a>
-  <a class="anomaly-success" href="{% url 'admin:pointage_anomaliepointage_changelist' %}?statut={{ original.statut }}">↩ Retour à la liste</a>
+  <form method="post" action="{% url 'admin_anomaly_workflow' original.pk %}">{% csrf_token %}<input type="hidden" name="action" value="cloture"><button class="anomaly-btn anomaly-success" type="submit">🔒 Clôturer l’anomalie</button></form>
+  <a class="anomaly-secondary anomaly-btn" href="{% url 'admin:pointage_anomaliepointage_changelist' %}">↩ Retour à la liste</a>
 </div>
 {% else %}
 {% if original.categorie == 'securite' %}
@@ -37,11 +37,22 @@
 <div class="anomaly-decision"><h3>ℹ️ Analyse nécessaire</h3><p class="anomaly-help">Consultez les informations du dossier avant de choisir une action.</p></div>
 {% endif %}
 
-<div class="anomaly-actions">
-  {% if original.pk %}
-  <a class="anomaly-primary" href="{% url 'admin_anomaly_workflow' original.pk %}">⚙️ Traiter : corriger / justifier / rejeter</a>
-  <a class="anomaly-secondary" href="{% url 'admin:anomalie_corriger_pointage' original.pk %}">📝 Correction directe</a>
-  {% endif %}
+<div class="anomaly-action-grid">
+  <div class="anomaly-action-card">
+    <h3>📝 Corriger le pointage</h3>
+    <p>Modifier le pointage concerné. La correction sera enregistrée dans l’historique RH.</p>
+    <form method="post" action="{% url 'admin_anomaly_workflow' original.pk %}">{% csrf_token %}<input type="hidden" name="action" value="corriger"><button class="anomaly-btn anomaly-primary" type="submit">Corriger le pointage</button></form>
+  </div>
+  <div class="anomaly-action-card">
+    <h3>✅ Justifier</h3>
+    <p>Déclarer l’anomalie justifiée et la passer à l’état TRAITÉE.</p>
+    <form method="post" action="{% url 'admin_anomaly_workflow' original.pk %}">{% csrf_token %}<textarea name="commentaire" required placeholder="Commentaire obligatoire…"></textarea><input type="hidden" name="action" value="justification"><button class="anomaly-btn anomaly-success" type="submit">Justifier et traiter</button></form>
+  </div>
+  <div class="anomaly-action-card">
+    <h3>❌ Rejeter</h3>
+    <p>Rejeter l’anomalie avec un motif RH obligatoire.</p>
+    <form method="post" action="{% url 'admin_anomaly_workflow' original.pk %}">{% csrf_token %}<textarea name="commentaire" required placeholder="Motif du rejet obligatoire…"></textarea><input type="hidden" name="action" value="rejet"><button class="anomaly-btn anomaly-danger" type="submit">Rejeter et traiter</button></form>
+  </div>
 </div>
 {% endif %}
 </div>
