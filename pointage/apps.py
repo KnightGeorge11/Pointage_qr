@@ -13,6 +13,7 @@ class PointageConfig(AppConfig):
         import pointage.overtime_admin  # noqa: F401
         import pointage.api_integrity  # noqa: F401
         import pointage.model_integrity  # noqa: F401
+        import pointage.anomaly_integrity  # noqa: F401
         import pointage.mobile_integrity  # noqa: F401
         import pointage.web_integrity  # noqa: F401
         import pointage.web_scan_integrity  # noqa: F401
