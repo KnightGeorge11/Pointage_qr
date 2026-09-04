@@ -5,8 +5,8 @@
 {% block content %}
 <div class="row">
     <div class="col-md-12 mb-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <h1 class="display-5">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h1 class="display-5 mb-0">
                 <i class="fas fa-triangle-exclamation"></i> Anomalie #{{ anomalie.pk }}
             </h1>
             <a href="{% url 'alertes_rh' %}" class="btn btn-secondary">
@@ -22,14 +22,63 @@
     {% endfor %}
 {% endif %}
 
+{% with categorie=anomalie.contexte.categorie bloquante=anomalie.contexte.bloquante rh_requis=anomalie.contexte.traitement_rh_requis %}
 <div class="row">
     <div class="col-md-6">
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-info-circle"></i> Détails de l'anomalie</h5>
+                <h5 class="card-title mb-0"><i class="fas fa-info-circle"></i> Classification et détails</h5>
             </div>
             <div class="card-body">
-                <dl class="row">
+                {% if categorie == 'securite' %}
+                <div class="alert alert-danger">
+                    <strong><i class="fas fa-shield-halved"></i> Anomalie de sécurité</strong><br>
+                    Le scan est refusé. Cette anomalie doit être vérifiée avant toute nouvelle tentative de pointage.
+                </div>
+                {% elif categorie == 'bloquante' %}
+                <div class="alert alert-warning">
+                    <strong><i class="fas fa-ban"></i> Anomalie bloquante</strong><br>
+                    Le scan associé est refusé. Le pointage ne doit pas être considéré comme enregistré automatiquement.
+                </div>
+                {% elif categorie == 'rh' %}
+                <div class="alert alert-info">
+                    <strong><i class="fas fa-user-check"></i> Anomalie RH</strong><br>
+                    Le pointage peut être conservé, mais une vérification RH est requise avant clôture du dossier.
+                </div>
+                {% endif %}
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Catégorie :</dt>
+                    <dd class="col-sm-7">
+                        {% if categorie == 'securite' %}
+                            <span class="badge bg-danger">Sécurité</span>
+                        {% elif categorie == 'bloquante' %}
+                            <span class="badge bg-warning text-dark">Bloquante</span>
+                        {% elif categorie == 'rh' %}
+                            <span class="badge bg-info text-dark">RH</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Non classée</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-5">Scan bloqué :</dt>
+                    <dd class="col-sm-7">
+                        {% if bloquante == True %}
+                            <span class="badge bg-danger">Oui</span>
+                        {% else %}
+                            <span class="badge bg-success">Non</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-5">Traitement RH :</dt>
+                    <dd class="col-sm-7">
+                        {% if rh_requis == True %}
+                            <span class="badge bg-info text-dark">Requis</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Non requis</span>
+                        {% endif %}
+                    </dd>
+
                     <dt class="col-sm-5">Employé :</dt>
                     <dd class="col-sm-7">
                         {% if anomalie.employe %}
@@ -48,10 +97,10 @@
                     <dt class="col-sm-5">Date :</dt>
                     <dd class="col-sm-7">{{ anomalie.date_pointage|date:"d/m/Y"|default:"—" }}</dd>
 
-                    <dt class="col-sm-5">Heure de création :</dt>
+                    <dt class="col-sm-5">Créée le :</dt>
                     <dd class="col-sm-7">{{ anomalie.created_at|date:"d/m/Y H:i" }}</dd>
 
-                    <dt class="col-sm-5">Type d'anomalie :</dt>
+                    <dt class="col-sm-5">Type :</dt>
                     <dd class="col-sm-7">{{ anomalie.get_type_display }}</dd>
 
                     <dt class="col-sm-5">Gravité :</dt>
@@ -78,7 +127,7 @@
                     <dd class="col-sm-7">{{ anomalie.message }}</dd>
 
                     {% if anomalie.contexte %}
-                    <dt class="col-sm-5">Contexte :</dt>
+                    <dt class="col-sm-5">Contexte technique :</dt>
                     <dd class="col-sm-7"><pre class="mb-0" style="white-space:pre-wrap;font-size:12px;">{{ anomalie.contexte }}</pre></dd>
                     {% endif %}
                 </dl>
@@ -87,11 +136,11 @@
 
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-clock-rotate-left"></i> Historique des traitements</h5>
+                <h5 class="card-title mb-0"><i class="fas fa-clock-rotate-left"></i> Historique du traitement</h5>
             </div>
             <div class="card-body">
                 {% if anomalie.traitement %}
-                    <dl class="row">
+                    <dl class="row mb-0">
                         <dt class="col-sm-5">Action :</dt>
                         <dd class="col-sm-7">{{ anomalie.traitement.get_type_action_display }}</dd>
                         <dt class="col-sm-5">Par :</dt>
@@ -127,76 +176,90 @@
 
     <div class="col-md-6">
         {% if anomalie.statut == 'cloturee' %}
-        <div class="alert alert-secondary">
-            <i class="fas fa-lock"></i> Cette anomalie est clôturée, aucune action n'est plus possible.
-        </div>
+            <div class="alert alert-secondary">
+                <i class="fas fa-lock"></i>
+                <strong>Dossier clôturé.</strong> Aucune nouvelle modification n'est autorisée.
+            </div>
+        {% elif anomalie.statut == 'traitee' %}
+            <div class="alert alert-warning">
+                <i class="fas fa-circle-check"></i>
+                <strong>Dossier traité.</strong> Les actions de correction, justification et rejet sont maintenant verrouillées.
+                Vous pouvez uniquement clôturer le dossier.
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-lock"></i> Clôturer</h5></div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="type_action" value="cloturer">
+                        <p class="text-muted">La clôture est définitive et n'autorise plus aucune nouvelle action.</p>
+                        <button type="submit" class="btn btn-dark">
+                            <i class="fas fa-lock"></i> Clôturer définitivement
+                        </button>
+                    </form>
+                </div>
+            </div>
         {% else %}
+            <div class="alert {% if categorie == 'rh' %}alert-info{% else %}alert-warning{% endif %}">
+                <i class="fas fa-circle-info"></i>
+                <strong>Dossier ouvert.</strong>
+                Choisissez une seule action de traitement, ajoutez un commentaire obligatoire, puis le dossier passera à l'état « traité ».
+            </div>
 
-        <div class="card mb-4">
-            <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-pen"></i> Corriger le pointage</h5></div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="type_action" value="correction">
-                    <div class="row g-2">
-                        <div class="col-6">{{ pointage_form.employe.label_tag }}{{ pointage_form.employe }}</div>
-                        <div class="col-6">{{ pointage_form.site.label_tag }}{{ pointage_form.site }}</div>
-                        <div class="col-6">{{ pointage_form.date_pointage.label_tag }}{{ pointage_form.date_pointage }}</div>
-                        <div class="col-6">{{ pointage_form.periode.label_tag }}{{ pointage_form.periode }}</div>
-                        <div class="col-6">{{ pointage_form.type_journee.label_tag }}{{ pointage_form.type_journee }}</div>
-                        <div class="col-6">{{ pointage_form.statut.label_tag }}{{ pointage_form.statut }}</div>
-                        <div class="col-6">{{ pointage_form.heure_arrivee.label_tag }}{{ pointage_form.heure_arrivee }}</div>
-                        <div class="col-6">{{ pointage_form.heure_depart.label_tag }}{{ pointage_form.heure_depart }}</div>
-                        <div class="col-12">{{ pointage_form.notes.label_tag }}{{ pointage_form.notes }}</div>
-                        <div class="col-12">
-                            <label class="form-label">Commentaire (obligatoire)</label>
-                            <textarea name="commentaire" class="form-control" rows="2" required></textarea>
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-pen"></i> Corriger le pointage</h5></div>
+                <div class="card-body">
+                    <p class="text-muted small">Utiliser cette action uniquement si le pointage doit réellement être créé ou modifié.</p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="type_action" value="correction">
+                        <div class="row g-2">
+                            <div class="col-6">{{ pointage_form.employe.label_tag }}{{ pointage_form.employe }}</div>
+                            <div class="col-6">{{ pointage_form.site.label_tag }}{{ pointage_form.site }}</div>
+                            <div class="col-6">{{ pointage_form.date_pointage.label_tag }}{{ pointage_form.date_pointage }}</div>
+                            <div class="col-6">{{ pointage_form.periode.label_tag }}{{ pointage_form.periode }}</div>
+                            <div class="col-6">{{ pointage_form.type_journee.label_tag }}{{ pointage_form.type_journee }}</div>
+                            <div class="col-6">{{ pointage_form.statut.label_tag }}{{ pointage_form.statut }}</div>
+                            <div class="col-6">{{ pointage_form.heure_arrivee.label_tag }}{{ pointage_form.heure_arrivee }}</div>
+                            <div class="col-6">{{ pointage_form.heure_depart.label_tag }}{{ pointage_form.heure_depart }}</div>
+                            <div class="col-12">{{ pointage_form.notes.label_tag }}{{ pointage_form.notes }}</div>
+                            <div class="col-12">
+                                <label class="form-label">Commentaire (obligatoire)</label>
+                                <textarea name="commentaire" class="form-control" rows="2" required></textarea>
+                            </div>
                         </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary mt-3"><i class="fas fa-check"></i> Corriger</button>
-                </form>
+                        <button type="submit" class="btn btn-primary mt-3"><i class="fas fa-check"></i> Corriger et traiter</button>
+                    </form>
+                </div>
             </div>
-        </div>
 
-        <div class="card mb-4">
-            <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-comment-check"></i> Justifier</h5></div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="type_action" value="justification">
-                    <textarea name="commentaire" class="form-control" rows="2" placeholder="Justification (obligatoire)" required></textarea>
-                    <button type="submit" class="btn btn-outline-primary mt-3"><i class="fas fa-check"></i> Justifier</button>
-                </form>
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-comment-check"></i> Justifier</h5></div>
+                <div class="card-body">
+                    <p class="text-muted small">À utiliser lorsque l'anomalie est acceptable et ne nécessite pas de modification du pointage.</p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="type_action" value="justification">
+                        <textarea name="commentaire" class="form-control" rows="2" placeholder="Justification obligatoire" required></textarea>
+                        <button type="submit" class="btn btn-outline-primary mt-3"><i class="fas fa-check"></i> Justifier et traiter</button>
+                    </form>
+                </div>
             </div>
-        </div>
 
-        <div class="card mb-4">
-            <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-ban"></i> Rejeter</h5></div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="type_action" value="rejet">
-                    <textarea name="commentaire" class="form-control" rows="2" placeholder="Motif du rejet (obligatoire)" required></textarea>
-                    <button type="submit" class="btn btn-outline-danger mt-3"><i class="fas fa-times"></i> Rejeter</button>
-                </form>
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-ban"></i> Rejeter</h5></div>
+                <div class="card-body">
+                    <p class="text-muted small">À utiliser lorsque l'anomalie ou la demande associée doit être refusée.</p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <textarea name="commentaire" class="form-control" rows="2" placeholder="Motif du rejet obligatoire" required></textarea>
+                        <button type="submit" class="btn btn-outline-danger mt-3"><i class="fas fa-times"></i> Rejeter et traiter</button>
+                    </form>
+                </div>
             </div>
-        </div>
-
-        {% if anomalie.statut == 'traitee' %}
-        <div class="card mb-4">
-            <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-lock"></i> Clôturer</h5></div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="type_action" value="cloturer">
-                    <p class="text-muted">Clôture définitivement cette anomalie déjà traitée.</p>
-                    <button type="submit" class="btn btn-dark"><i class="fas fa-lock"></i> Clôturer</button>
-                </form>
-            </div>
-        </div>
-        {% endif %}
-
         {% endif %}
     </div>
 </div>
+{% endwith %}
 {% endblock %}
