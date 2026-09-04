@@ -19,15 +19,15 @@ def admin_anomaly_workflow(request, pk):
         return HttpResponseForbidden("Accès réservé au personnel RH.")
 
     if request.method == "POST":
-        with transaction.atomic():
-            anomalie = get_object_or_404(
-                AnomaliePointage.objects.select_for_update().select_related("employe", "site"),
-                pk=pk,
-            )
-            action = (request.POST.get("action") or "").strip().lower()
-            commentaire = (request.POST.get("commentaire") or "").strip()
+        try:
+            with transaction.atomic():
+                anomalie = get_object_or_404(
+                    AnomaliePointage.objects.select_for_update().select_related("employe", "site"),
+                    pk=pk,
+                )
+                action = (request.POST.get("action") or "").strip().lower()
+                commentaire = (request.POST.get("commentaire") or "").strip()
 
-            try:
                 if anomalie.statut == AnomaliePointage.STATUT_CLOTUREE:
                     raise ValueError("Cette anomalie est déjà clôturée et ne peut plus être modifiée.")
 
@@ -62,8 +62,8 @@ def admin_anomaly_workflow(request, pk):
                 else:
                     raise ValueError("Action d'anomalie inconnue.")
 
-            except (ValueError, PermissionError) as exc:
-                messages.error(request, str(exc))
+        except (ValueError, PermissionError) as exc:
+            messages.error(request, str(exc))
 
         return redirect(reverse("admin_anomaly_workflow", args=[pk]))
 
