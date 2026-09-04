@@ -1,7 +1,7 @@
 {% extends "admin/base_site.html" %}
 {% load i18n %}
 
-{% block title %}Traitement de l'anomalie #{{ anomalie.pk }} | {{ site_title|default:"Pointage QR" }}{% endblock %}
+{% block title %}Traitement de l’anomalie #{{ anomalie.pk }} | {{ site_title|default:"Pointage QR" }}{% endblock %}
 
 {% block extrastyle %}
 {{ block.super }}
@@ -21,7 +21,7 @@
   <div class="workflow-card">
     <div class="workflow-head">
       <div>
-        <h1 class="workflow-title">Traitement de l'anomalie #{{ anomalie.pk }}</h1>
+        <h1 class="workflow-title">Traitement de l’anomalie #{{ anomalie.pk }}</h1>
         <p class="workflow-sub">Workflow RH · OUVERTE → TRAITÉE → CLÔTURÉE</p>
       </div>
       {% if anomalie.statut == 'ouverte' %}<span class="status open">🔴 OUVERTE</span>
@@ -40,13 +40,13 @@
       <div class="box" style="margin-top:14px"><div class="label">Message</div><div class="value">{{ anomalie.message }}</div></div>
 
       {% if anomalie.statut == 'cloturee' %}
-        <div class="workflow-actions"><div class="locked">🔒 Anomalie clôturée : aucune modification supplémentaire n'est autorisée.</div></div>
+        <div class="workflow-actions"><div class="locked">🔒 Anomalie clôturée : aucune modification supplémentaire n’est autorisée.</div></div>
       {% elif anomalie.statut == 'traitee' %}
         <div class="workflow-actions">
           <div class="action-card">
             <h3>🔒 Clôturer</h3>
             <p>La clôture est définitive. Une anomalie doit déjà être traitée.</p>
-            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="cloture"><button class="btn btn-green" type="submit">Clôturer l'anomalie</button></form>
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="cloture"><button class="btn btn-green" type="submit">Clôturer l’anomalie</button></form>
           </div>
         </div>
       {% else %}
@@ -54,17 +54,17 @@
           <div class="action-grid">
             <div class="action-card">
               <h3>📝 Corriger le pointage</h3>
-              <p>Modifier ou créer le pointage concerné. La correction sera enregistrée dans l'historique de traitement.</p>
+              <p>Modifier ou créer le pointage concerné. La correction sera enregistrée dans l’historique de traitement.</p>
               <form method="post">{% csrf_token %}<input type="hidden" name="action" value="corriger"><button class="btn btn-blue" type="submit">Corriger le pointage</button></form>
             </div>
             <div class="action-card">
               <h3>✅ Justifier</h3>
-              <p>Conserver l'anomalie dans l'historique et la déclarer justifiée.</p>
+              <p>Conserver l’anomalie dans l’historique et la déclarer justifiée.</p>
               <form method="post">{% csrf_token %}<textarea name="commentaire" required placeholder="Commentaire obligatoire…"></textarea><input type="hidden" name="action" value="justification"><button class="btn btn-green" type="submit">Justifier et traiter</button></form>
             </div>
             <div class="action-card">
               <h3>❌ Rejeter</h3>
-              <p>Rejeter l'anomalie avec une trace RH obligatoire.</p>
+              <p>Rejeter l’anomalie avec une trace RH obligatoire.</p>
               <form method="post">{% csrf_token %}<textarea name="commentaire" required placeholder="Motif du rejet obligatoire…"></textarea><input type="hidden" name="action" value="rejet"><button class="btn btn-red" type="submit">Rejeter et traiter</button></form>
             </div>
           </div>
