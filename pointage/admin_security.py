@@ -2,10 +2,11 @@
 
 import json
 from datetime import timedelta
-from functools import wraps
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
+from django.shortcuts import redirect
 from django.utils import timezone
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
@@ -78,13 +79,7 @@ def notifications_api(request, *args, **kwargs):
 
 
 def _secure_api_function(function):
-    """Applique la permission RH au vrai wrapper DRF, sans remplacer celui-ci.
-
-    Les fonctions décorées par @api_view sont déjà des APIViews. Remplacer
-    directement la fonction par un wrapper Django ferait perdre le cycle de
-    négociation DRF et provoquerait ``accepted_renderer not set on Response``.
-    On modifie donc la classe générée par @api_view.
-    """
+    """Applique la permission RH au vrai wrapper DRF, sans remplacer celui-ci."""
     view_class = getattr(function, "cls", None)
     if view_class is not None:
         view_class.permission_classes = [IsRHPermission]
@@ -120,25 +115,29 @@ def statistiques(self, request):
     })
 
 
+def _deny_pointage_create_api(self, request, *args, **kwargs):
+    """Le pointage ne peut jamais être créé directement par l'API REST.
+
+    Toute création doit passer par ``process_scan()``, qui applique la machine
+    d'état, les contrôles QR, les horaires, l'idempotence et les anomalies.
+    """
+    return Response(
+        {"detail": "Création directe interdite. Utilisez le flux de scan QR."},
+        status=405,
+    )
+
+
 def secure_sensitive_apis():
-    """Installe les permissions sans casser les wrappers DRF existants."""
-    sensitive_viewsets = ("EmployeViewSet", "SiteViewSet", "PointageViewSet")
-    for name in sensitive_viewsets:
-        viewset = getattr(views, name, None)
-        if viewset is not None:
-            original = getattr(viewset, "_rh_original_get_permissions", None)
-            if original is None:
-                original = viewset.get_permissions
-                viewset._rh_original_get_permissions = original
+    """Sécurise les endpoints sensibles sans écraser les permissions de lecture.
 
-                def rh_get_permissions(self, _original=original):
-                    return [IsRHPermission()]
-
-                viewset.get_permissions = rh_get_permissions
-
+    Les ViewSets Employe/Site/Pointage possèdent déjà leur propre politique :
+    lecture authentifiée et écriture administrative. On ne la remplace donc
+    pas globalement, sinon un utilisateur normal perdrait l'accès en lecture.
+    """
     pointage_viewset = getattr(views, "PointageViewSet", None)
     if pointage_viewset is not None:
         pointage_viewset.statistiques = statistiques
+        pointage_viewset.create = _deny_pointage_create_api
 
     sensitive_functions = (
         "employe_qr_data",
@@ -155,12 +154,21 @@ def secure_sensitive_apis():
 
 @login_required
 def scanner_view(request, *args, **kwargs):
-    """Pointage Web sécurisé, compatible QR et saisie matricule."""
-    # La vue métier ``views.scanner_view`` accepte déjà les deux modes :
-    # - QR réel : EMPLOYE:matricule:token
-    # - matricule : le serveur retrouve lui-même le token du salarié actif.
-    # Ce wrapper ne doit pas supprimer le second mode, car il est nécessaire
-    # au scanner USB et à la saisie manuelle sur le poste RH.
+    """Pointage Web sécurisé : le pointage manuel par matricule est interdit.
+
+    Le serveur doit recevoir le QR complet (matricule + token). Une saisie
+    seule du matricule ne constitue pas une preuve d'identité suffisante.
+    """
+    if request.method == "POST":
+        raw_qr = (request.POST.get("qr_data") or "").strip()
+        matricule = (request.POST.get("matricule") or "").strip()
+        if not raw_qr and matricule:
+            messages.error(
+                request,
+                "❌ Le pointage exige le QR code complet. Le matricule seul est refusé.",
+            )
+            return redirect("scanner")
+
     return views.scanner_view(request, *args, **kwargs)
 
 
