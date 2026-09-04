@@ -21,8 +21,11 @@ def admin_anomaly_workflow(request, pk):
     if request.method == "POST":
         try:
             with transaction.atomic():
+                # Verrouiller uniquement la ligne d'anomalie. Les relations
+                # employé/site sont nullable et PostgreSQL interdit FOR UPDATE
+                # sur leur côté nullable lorsqu'elles sont jointes en LEFT JOIN.
                 anomalie = get_object_or_404(
-                    AnomaliePointage.objects.select_for_update().select_related("employe", "site"),
+                    AnomaliePointage.objects.select_for_update(),
                     pk=pk,
                 )
                 action = (request.POST.get("action") or "").strip().lower()
