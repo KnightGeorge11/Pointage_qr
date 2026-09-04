@@ -2,6 +2,7 @@
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.db import transaction
@@ -20,7 +21,7 @@ def admin_anomaly_workflow(request, pk):
     une anomalie traitée peut être clôturée. Une anomalie clôturée est verrouillée.
     """
     if not _is_rh(request.user):
-        return render(request, "admin/403.html", status=403)
+        return HttpResponseForbidden("Accès réservé au personnel RH.")
 
     with transaction.atomic():
         anomalie = get_object_or_404(
