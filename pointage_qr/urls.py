@@ -12,16 +12,19 @@ urlpatterns = [
     path('logout/',  logout_view, name='logout'),
     path('password-reset/', include('django.contrib.auth.urls')),
 
-    # ── Admin Django ───────────────────────────────────────────────────────
+    # ── App principale ────────────────────────────────────────────────────
+    # Placée avant /admin/ pour que l'actionnaire d'anomalie Jazzmin
+    # /admin/pointage/anomaliepointage/<id>/workflow/ soit résolu par
+    # pointage.urls. Les autres URLs /admin/ continuent vers Django admin.
+    path('', include('pointage.urls')),
+
+    # ── Admin Django ──────────────────────────────────────────────────────
     path('admin/', admin.site.urls),
 
     # ── API mobile ────────────────────────────────────────────────────────
     path('api/', include('pointage.urls_api')),
-
-    # ── App principale (dashboard, scanner, historique…) ──────────────────
-    path('', include('pointage.urls')),
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL,  document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
