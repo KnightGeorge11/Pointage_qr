@@ -1,0 +1,43 @@
+{% extends "admin/change_form.html" %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  .anomaly-workflow { margin: 0 0 24px; }
+  .anomaly-workflow__grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:14px; }
+  .anomaly-step { padding:14px; border:1px solid rgba(128,128,128,.25); border-radius:10px; background:rgba(128,128,128,.06); }
+  .anomaly-step strong { display:block; margin-bottom:4px; }
+  .anomaly-step span { font-size:12px; opacity:.72; }
+  .anomaly-decision { padding:16px; border-radius:10px; margin-top:14px; border:1px solid rgba(79,142,247,.28); background:rgba(79,142,247,.07); }
+  .anomaly-decision h3 { margin:0 0 6px; font-size:15px; }
+  .anomaly-help { margin:0; opacity:.78; font-size:13px; }
+  @media (max-width:900px) { .anomaly-workflow__grid { grid-template-columns:1fr 1fr; } }
+  @media (max-width:600px) { .anomaly-workflow__grid { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block field_sets %}
+<div class="anomaly-workflow">
+  <div class="module">
+    <h2>🧭 Traitement de l’anomalie</h2>
+    <div class="anomaly-workflow__grid">
+      <div class="anomaly-step"><strong>1 · Comprendre</strong><span>Identifiez ce qui s’est passé et vérifiez le pointage concerné.</span></div>
+      <div class="anomaly-step"><strong>2 · Décider</strong><span>Choisissez une décision adaptée : corriger, justifier ou rejeter.</span></div>
+      <div class="anomaly-step"><strong>3 · Traiter</strong><span>Documentez obligatoirement la décision prise par le RH.</span></div>
+      <div class="anomaly-step"><strong>4 · Clôturer</strong><span>La clôture intervient uniquement après le traitement.</span></div>
+    </div>
+    <div class="anomaly-decision">
+      <h3>Règle importante</h3>
+      <p class="anomaly-help"><strong>OUVERTE → TRAITÉE → CLÔTURÉE.</strong> Une anomalie ouverte doit d’abord recevoir une décision RH. Une anomalie traitée peut ensuite être clôturée. Une anomalie clôturée ne doit plus être modifiée.</p>
+    </div>
+  </div>
+</div>
+{{ block.super }}
+{% endblock %}
+
+{% block submit_buttons_bottom %}
+{{ block.super }}
+<div class="submit-row" style="margin-top:10px;opacity:.82;">
+  <p style="margin:0;font-size:12px;">💡 Les actions de cette fiche sont soumises au cycle de traitement de l’anomalie. Ne clôturez pas un dossier avant d’avoir documenté la décision RH.</p>
+</div>
+{% endblock %}
