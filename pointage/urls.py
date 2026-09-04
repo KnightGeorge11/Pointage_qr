@@ -34,6 +34,11 @@ router = DefaultRouter()
 router.register(r'anomalies', RHAnomaliePointageViewSet, basename='anomalie')
 
 urlpatterns = [
+    # Le workflow d'anomalie est explicitement servi avant l'admin Django.
+    # Son chemin est strictement /admin/pointage/anomaliepointage/<id>/workflow/;
+    # les autres URLs /admin/ continuent donc de tomber sur admin.site.urls.
+    path('admin/pointage/anomaliepointage/<int:pk>/workflow/', admin_anomaly_workflow, name='admin_anomaly_workflow'),
+
     path('', RedirectView.as_view(pattern_name='dashboard', permanent=False), name='root'),
     path('dashboard/', dashboard, name='dashboard'),
     path('index/', index, name='index'),
@@ -68,9 +73,6 @@ urlpatterns = [
     # Anomalies Web
     path('anomalies/', alertes_rh_view, name='alertes_rh'),
     path('anomalies/<int:pk>/', alerte_detail_view, name='alerte_detail'),
-
-    # Workflow anomalie dans l'espace /admin/ (fallback après admin.site.urls)
-    path('admin/pointage/anomaliepointage/<int:pk>/workflow/', admin_anomaly_workflow, name='admin_anomaly_workflow'),
 
     # API
     path('api/', include(router.urls)),
