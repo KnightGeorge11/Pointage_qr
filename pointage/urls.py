@@ -23,10 +23,11 @@ from .admin_security import (
     alerte_detail_view,
     export_resume_excel,
     admin_badge_counts_api,
-    notifications_api,
+    notifications_api as admin_notifications_api,
     scanner_view,
     RHAnomaliePointageViewSet,
 )
+from .admin_anomaly_workflow import admin_anomaly_workflow
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
@@ -64,9 +65,12 @@ urlpatterns = [
     # Scanner
     path('scanner/', scanner_view, name='scanner'),
 
-    # Anomalies
+    # Anomalies Web
     path('anomalies/', alertes_rh_view, name='alertes_rh'),
     path('anomalies/<int:pk>/', alerte_detail_view, name='alerte_detail'),
+
+    # Workflow anomalie dans l'espace /admin/ (fallback après admin.site.urls)
+    path('admin/pointage/anomaliepointage/<int:pk>/workflow/', admin_anomaly_workflow, name='admin_anomaly_workflow'),
 
     # API
     path('api/', include(router.urls)),
@@ -76,5 +80,8 @@ urlpatterns = [
     path('api/dashboard-stats/', get_dashboard_stats, name='dashboard_stats'),
     path('api/charts-data/', get_charts_data, name='charts_data'),
     path('api/admin-badge-counts/', admin_badge_counts_api, name='admin_badge_counts_api'),
-    path('api/notifications/', notifications_api, name='notifications_api'),
+    # L'application Web conserve son endpoint de notifications indépendant.
+    path('api/notifications/', views.notifications_api, name='notifications_api'),
+    # Jazzmin utilise explicitement cet endpoint séparé pour rester dans /admin/.
+    path('api/admin-notifications/', admin_notifications_api, name='admin_notifications_api'),
 ]
