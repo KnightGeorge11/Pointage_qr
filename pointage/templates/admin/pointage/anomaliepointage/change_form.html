@@ -23,6 +23,7 @@
 {% elif original.statut == 'traitee' %}
 <div class="anomaly-decision"><h3>🟡 Anomalie déjà traitée</h3><p class="anomaly-help">La décision est enregistrée. La prochaine étape est la clôture du dossier.</p></div>
 <div class="anomaly-actions">
+  <a class="anomaly-primary" href="{% url 'admin_anomaly_workflow' original.pk %}">🔒 Ouvrir le traitement et clôturer</a>
   <a class="anomaly-success" href="{% url 'admin:pointage_anomaliepointage_changelist' %}?statut={{ original.statut }}">↩ Retour à la liste</a>
 </div>
 {% else %}
@@ -38,7 +39,8 @@
 
 <div class="anomaly-actions">
   {% if original.pk %}
-  <a class="anomaly-primary" href="{% url 'admin:anomalie_corriger_pointage' original.pk %}">📝 Corriger le pointage</a>
+  <a class="anomaly-primary" href="{% url 'admin_anomaly_workflow' original.pk %}">⚙️ Traiter : corriger / justifier / rejeter</a>
+  <a class="anomaly-secondary" href="{% url 'admin:anomalie_corriger_pointage' original.pk %}">📝 Correction directe</a>
   {% endif %}
 </div>
 {% endif %}
