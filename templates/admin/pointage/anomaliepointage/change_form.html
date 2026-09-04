@@ -1,0 +1,58 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block field_sets %}
+  {% if original %}
+  <div style="margin:0 0 22px;padding:18px 20px;border-radius:10px;border:1px solid rgba(79,142,247,.25);background:linear-gradient(135deg,rgba(79,142,247,.10),rgba(255,255,255,.03));">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#8b93a7;margin-bottom:8px;">Traitement de l'anomalie #{{ original.pk }}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;">
+      <strong style="font-size:18px;color:#e8eaf0;">{{ original.get_type_display }}</strong>
+      {% if original.statut == 'ouverte' %}
+        <span style="background:rgba(248,113,113,.14);color:#f87171;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:700;">🔴 OUVERTE — DÉCISION REQUISE</span>
+      {% elif original.statut == 'traitee' %}
+        <span style="background:rgba(251,191,36,.14);color:#fbbf24;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:700;">🟡 TRAITÉE — À CLÔTURER</span>
+      {% elif original.statut == 'cloturee' %}
+        <span style="background:rgba(74,222,128,.14);color:#4ade80;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:700;">✅ CLÔTURÉE — DOSSIER TERMINÉ</span>
+      {% endif %}
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px;">
+      <div style="padding:10px 12px;background:rgba(0,0,0,.12);border-radius:7px;"><div style="font-size:10px;color:#8b93a7;text-transform:uppercase;">Employé</div><div style="color:#e8eaf0;font-weight:600;">{{ original.employe|default:original.matricule_scanne|default:"—" }}</div></div>
+      <div style="padding:10px 12px;background:rgba(0,0,0,.12);border-radius:7px;"><div style="font-size:10px;color:#8b93a7;text-transform:uppercase;">Site</div><div style="color:#e8eaf0;font-weight:600;">{{ original.site|default:"—" }}</div></div>
+      <div style="padding:10px 12px;background:rgba(0,0,0,.12);border-radius:7px;"><div style="font-size:10px;color:#8b93a7;text-transform:uppercase;">Date</div><div style="color:#e8eaf0;font-weight:600;">{{ original.created_at|date:"d/m/Y H:i" }}</div></div>
+    </div>
+
+    {% with categorie=original.contexte.categorie %}
+      {% if categorie == 'securite' %}
+        <div style="padding:12px 14px;border-radius:7px;background:rgba(248,113,113,.10);border:1px solid rgba(248,113,113,.25);color:#fca5a5;"><strong>🔴 Sécurité</strong><br><span style="font-size:12px;">Le scan est refusé. Vérifiez l'identité, le QR ou les conditions de sécurité avant toute intervention.</span></div>
+      {% elif categorie == 'bloquante' %}
+        <div style="padding:12px 14px;border-radius:7px;background:rgba(251,191,36,.10);border:1px solid rgba(251,191,36,.25);color:#fcd34d;"><strong>⛔ Pointage bloqué</strong><br><span style="font-size:12px;">Le système a empêché l'enregistrement. Il faut comprendre la cause avant de modifier le dossier.</span></div>
+      {% elif categorie == 'rh' %}
+        <div style="padding:12px 14px;border-radius:7px;background:rgba(79,142,247,.10);border:1px solid rgba(79,142,247,.25);color:#93c5fd;"><strong>🟠 Décision RH</strong><br><span style="font-size:12px;">Le pointage peut être conservé. Vérifiez la situation puis choisissez : corriger, justifier ou rejeter.</span></div>
+      {% endif %}
+    {% endwith %}
+
+    <div style="margin-top:16px;padding:12px 14px;background:rgba(255,255,255,.035);border-radius:7px;">
+      <div style="font-size:10px;color:#8b93a7;text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;">Workflow</div>
+      <div style="font-size:13px;color:#e8eaf0;">🔴 Ouverte <span style="color:#8b93a7;">→</span> 🟡 Traitée <span style="color:#8b93a7;">→</span> ✅ Clôturée</div>
+      <div style="font-size:11px;color:#8b93a7;margin-top:5px;">Traiter signifie prendre une décision. Clôturer signifie terminer définitivement le dossier.</div>
+    </div>
+  </div>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}
+
+{% block submit_buttons_bottom %}
+  {% if original and original.statut == 'ouverte' %}
+    <div style="margin:0 0 12px;padding:12px 14px;border-radius:7px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.18);color:#fbbf24;font-size:12px;">
+      ⚠️ <strong>Ne modifiez pas les champs techniques ci-dessous.</strong> Pour agir sur cette anomalie, utilisez le bouton de traitement prévu par l'administration.
+    </div>
+  {% elif original and original.statut == 'traitee' %}
+    <div style="margin:0 0 12px;padding:12px 14px;border-radius:7px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.18);color:#86efac;font-size:12px;">
+      ✅ La décision RH a été enregistrée. Le dossier doit maintenant être clôturé.
+    </div>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}
+
+{% block submit_buttons_top %}{{ block.super }}{% endblock %}
