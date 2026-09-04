@@ -59,8 +59,8 @@ def _install_pointage_save_guard():
 
     Une autorisation RH porte sur le montant calculé au moment de la
     validation. Si une donnée de calcul change, l'autorisation est révoquée.
-    Et surtout, un environnement sans le trigger PostgreSQL doit avoir le même
-    comportement : aucune H.Supp non autorisée ne doit rester persistée.
+    Le montant persistant est ensuite forcé à zéro lorsqu'il n'est pas autorisé,
+    afin d'avoir le même comportement avec ou sans le trigger PostgreSQL.
     """
     if getattr(Pointage, '_overtime_input_guard_installed', False):
         return
@@ -91,12 +91,15 @@ def _install_pointage_save_guard():
                         "les données du pointage ont été modifiées."
                     )
 
-        # Parité de sécurité avec le trigger PostgreSQL : le montant stocké
-        # n'est payable/comptable que si une validation RH existe.
-        if not self.heures_supplementaires_autorisees:
-            self.heures_supplementaires = timedelta(0)
+        original_save(self, *args, **kwargs)
 
-        return original_save(self, *args, **kwargs)
+        # Pointage.save() recalcule toujours le montant. On neutralise donc
+        # immédiatement le résultat lorsqu'il n'existe pas de validation RH.
+        # QuerySet.update() évite de repasser dans le save patché.
+        if not self.heures_supplementaires_autorisees and self.pk:
+            if self.heures_supplementaires and self.heures_supplementaires != timedelta(0):
+                Pointage.objects.filter(pk=self.pk).update(heures_supplementaires=timedelta(0))
+                self.heures_supplementaires = timedelta(0)
 
     Pointage.save = guarded_save
     Pointage._overtime_input_guard_installed = True
