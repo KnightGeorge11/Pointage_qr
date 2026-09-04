@@ -59,13 +59,7 @@ def admin_badge_counts_api(request, *args, **kwargs):
 
 
 def _attach_exact_anomaly_admin_urls(data):
-    """Remplace les anciennes URLs génériques par la fiche admin exacte.
-
-    L'API historique ne renvoie pas encore l'identifiant de l'anomalie dans
-    son payload. On fait donc la correspondance sur le message généré et la
-    date de création, puis on produit l'URL native du ModelAdmin. Cela évite
-    tout changement de comportement pour les autres notifications.
-    """
+    """Associe chaque notification d'anomalie à son panneau de workflow admin."""
     anomaly_items = [
         item for item in data.get("notifications", [])
         if item.get("type") == "anomalie"
@@ -79,9 +73,6 @@ def _attach_exact_anomaly_admin_urls(data):
         ).select_related("employe").order_by("-created_at", "-pk")
     )
 
-    # Les notifications d'anomalies sont générées dans le même ordre temporel
-    # que les anomalies ouvertes. On privilégie ensuite le message exact pour
-    # rendre la correspondance déterministe même en cas de volume important.
     by_message = {}
     for anomaly in anomalies:
         qui = anomaly.employe.get_nom_complet() if anomaly.employe else (anomaly.matricule_scanne or '?')
@@ -96,10 +87,7 @@ def _attach_exact_anomaly_admin_urls(data):
             continue
         used_ids.add(candidate.pk)
         item["anomalie_id"] = candidate.pk
-        item["url"] = reverse(
-            "admin:pointage_anomaliepointage_change",
-            args=[candidate.pk],
-        )
+        item["url"] = f"/admin/pointage/anomaliepointage/{candidate.pk}/workflow/"
 
     return data
 
@@ -164,11 +152,7 @@ def statistiques(self, request):
 
 
 def _deny_pointage_create_api(self, request, *args, **kwargs):
-    """Le pointage ne peut jamais être créé directement par l'API REST.
-
-    Toute création doit passer par ``process_scan()``, qui applique la machine
-    d'état, les contrôles QR, les horaires, l'idempotence et les anomalies.
-    """
+    """Le pointage ne peut jamais être créé directement par l'API REST."""
     return Response(
         {"detail": "Création directe interdite. Utilisez le flux de scan QR."},
         status=405,
@@ -176,12 +160,7 @@ def _deny_pointage_create_api(self, request, *args, **kwargs):
 
 
 def secure_sensitive_apis():
-    """Sécurise les endpoints sensibles sans écraser les permissions de lecture.
-
-    Les ViewSets Employe/Site/Pointage possèdent déjà leur propre politique :
-    lecture authentifiée et écriture administrative. On ne la remplace donc
-    pas globalement, sinon un utilisateur normal perdrait l'accès en lecture.
-    """
+    """Sécurise les endpoints sensibles sans écraser les permissions de lecture."""
     pointage_viewset = getattr(views, "PointageViewSet", None)
     if pointage_viewset is not None:
         pointage_viewset.statistiques = statistiques
@@ -202,15 +181,7 @@ def secure_sensitive_apis():
 
 @login_required
 def scanner_view(request, *args, **kwargs):
-    """Pointage Web : le matricule seul est une identification valide.
-
-    Le QR reste accepté lorsqu'il est fourni, mais n'est pas obligatoire sur
-    le Web. Dans les deux cas, ``views.scanner_view`` transmet la demande à
-    ``process_scan()``, qui applique les contrôles métier communs : employé
-    actif, site, horaires, machine d'état, doublons, garde et anomalies.
-    """
-    # Aucun blocage ici : le flux Web autorise volontairement le matricule seul.
-    # La validation métier reste centralisée dans views.scanner_view/process_scan.
+    """Pointage Web : le matricule seul est une identification valide."""
     return views.scanner_view(request, *args, **kwargs)
 
 
