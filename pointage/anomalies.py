@@ -26,9 +26,19 @@ def enregistrer_anomalie(
     site: Optional[Site] = None,
     date_pointage=None,
     contexte: Optional[dict] = None,
+    pointage: Optional[Pointage] = None,
 ) -> AnomaliePointage:
-    """Enregistre une anomalie détectée lors d'un scan."""
-    contexte = contexte or {}
+    """Enregistre une anomalie détectée lors d'un scan.
+
+    ``pointage`` est facultatif. Le modèle AnomaliePointage ne possède pas de
+    relation directe vers Pointage ; lorsque le pointage est fourni, son ID est
+    conservé dans le contexte afin de garder la traçabilité de l'anomalie sans
+    modifier le schéma de base de données.
+    """
+    contexte = dict(contexte or {})
+    if pointage is not None and getattr(pointage, 'pk', None) is not None:
+        contexte.setdefault('pointage_id', pointage.pk)
+
     try:
         with transaction.atomic():
             if type_anomalie in DEDUP_TYPES:
