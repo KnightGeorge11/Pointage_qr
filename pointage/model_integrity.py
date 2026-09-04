@@ -4,6 +4,8 @@ Ces protections complètent les contraintes DB sans déplacer la logique métier
 centrale hors des services existants.
 """
 
+from datetime import timedelta
+
 from django.utils import timezone
 
 from .models import Employe, Pointage
@@ -53,13 +55,12 @@ def _employee_day_status(self, date=None):
 
 
 def _install_pointage_save_guard():
-    """Révoque une autorisation H.Supp si ses données de calcul changent.
+    """Protège la validation RH des heures supplémentaires.
 
     Une autorisation RH porte sur le montant calculé au moment de la
-    validation. Si une arrivée, un départ, une date, une période ou le site
-    change ensuite, conserver l'autorisation permettrait d'augmenter ou de
-    modifier les heures supplémentaires payables sans nouvelle validation.
-    La modification reste possible, mais elle repart non autorisée.
+    validation. Si une donnée de calcul change, l'autorisation est révoquée.
+    Et surtout, un environnement sans le trigger PostgreSQL doit avoir le même
+    comportement : aucune H.Supp non autorisée ne doit rester persistée.
     """
     if getattr(Pointage, '_overtime_input_guard_installed', False):
         return
@@ -89,6 +90,11 @@ def _install_pointage_save_guard():
                         "Autorisation H.Supp révoquée automatiquement : "
                         "les données du pointage ont été modifiées."
                     )
+
+        # Parité de sécurité avec le trigger PostgreSQL : le montant stocké
+        # n'est payable/comptable que si une validation RH existe.
+        if not self.heures_supplementaires_autorisees:
+            self.heures_supplementaires = timedelta(0)
 
         return original_save(self, *args, **kwargs)
 
