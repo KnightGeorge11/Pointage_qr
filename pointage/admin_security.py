@@ -4,14 +4,11 @@ import json
 from datetime import timedelta
 from functools import wraps
 
-from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
-from django.shortcuts import redirect
 from django.utils import timezone
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
-from rest_framework import status as drf_status
 from rest_framework.decorators import action
 
 from . import views
@@ -91,7 +88,6 @@ def _secure_api_function(function):
     view_class = getattr(function, "cls", None)
     if view_class is not None:
         view_class.permission_classes = [IsRHPermission]
-        return function
     return function
 
 
@@ -130,9 +126,6 @@ def secure_sensitive_apis():
     for name in sensitive_viewsets:
         viewset = getattr(views, name, None)
         if viewset is not None:
-            # Ces ViewSets possèdent un get_permissions() métier qui doit être
-            # remplacé, pas seulement permission_classes, sinon il continue à
-            # retourner IsAuthenticated pour les lectures.
             original = getattr(viewset, "_rh_original_get_permissions", None)
             if original is None:
                 original = viewset.get_permissions
@@ -162,17 +155,12 @@ def secure_sensitive_apis():
 
 @login_required
 def scanner_view(request, *args, **kwargs):
-    """Le scanner Web doit recevoir le QR réel, jamais un matricule seul."""
-    if request.method == "POST":
-        raw_qr = (request.POST.get("qr_data") or "").strip()
-        matricule = (request.POST.get("matricule") or "").strip()
-        if not raw_qr and matricule:
-            messages.error(
-                request,
-                "❌ Le pointage Web doit être effectué par lecture du QR code. "
-                "Le matricule seul est refusé.",
-            )
-            return redirect("scanner")
+    """Pointage Web sécurisé, compatible QR et saisie matricule."""
+    # La vue métier ``views.scanner_view`` accepte déjà les deux modes :
+    # - QR réel : EMPLOYE:matricule:token
+    # - matricule : le serveur retrouve lui-même le token du salarié actif.
+    # Ce wrapper ne doit pas supprimer le second mode, car il est nécessaire
+    # au scanner USB et à la saisie manuelle sur le poste RH.
     return views.scanner_view(request, *args, **kwargs)
 
 
