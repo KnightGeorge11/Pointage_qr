@@ -116,3 +116,25 @@ html[data-bs-theme="light"] .brand-link,
 html[data-bs-theme="light"] .brand-link .brand-text {
     color: #FFFFFF !important;
 }
+
+/* ==========================================================
+   JAZZMIN TOP MENU — clickable links
+   ========================================================== */
+html[data-bs-theme="light"] .main-header,
+html[data-bs-theme="light"] .main-header .navbar,
+html[data-bs-theme="light"] .main-header .navbar-nav,
+html[data-bs-theme="light"] .main-header .navbar-nav .nav-item,
+html[data-bs-theme="light"] .main-header .navbar-nav .nav-link {
+    pointer-events: auto !important;
+}
+
+html[data-bs-theme="light"] .main-header .navbar-nav .nav-link {
+    cursor: pointer !important;
+    position: relative !important;
+    z-index: 20 !important;
+}
+
+html[data-bs-theme="light"] .main-header .navbar-nav .nav-link[href] {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
