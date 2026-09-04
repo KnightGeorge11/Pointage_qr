@@ -60,6 +60,17 @@
                    d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
         }
 
+        function getNotificationUrl(n) {
+            // Une anomalie depuis la cloche RH doit rester dans Jazzmin/Admin.
+            // L'API historique renvoie /anomalies/ (interface web publique RH),
+            // mais la notification est affichée dans l'administration Jazzmin.
+            // On redirige donc vers la liste native des anomalies de l'admin.
+            if (n.type === 'anomalie') {
+                return '/admin/pointage/anomaliepointage/?statut=ouverte';
+            }
+            return n.url || '';
+        }
+
         function addNotificationItem($body, n) {
             var colorMap = {
                 critique: '#EF4444',
@@ -76,7 +87,8 @@
             // Construire le DOM avec .text() et .attr() : les messages, noms
             // et URLs provenant de l'API ne doivent jamais être interprétés
             // comme du HTML (protection XSS côté administration).
-            var $item = n.url ? $('<a></a>').attr('href', n.url) : $('<div></div>');
+            var notificationUrl = getNotificationUrl(n);
+            var $item = notificationUrl ? $('<a></a>').attr('href', notificationUrl) : $('<div></div>');
             $item.css({
                 display: 'flex',
                 gap: '10px',
