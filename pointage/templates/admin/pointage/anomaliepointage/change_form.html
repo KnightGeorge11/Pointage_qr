@@ -3,7 +3,7 @@
 {% block extrastyle %}
 {{ block.super }}
 <style>
-.anomaly-workflow{margin:0 0 24px}.anomaly-workflow__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}.anomaly-step{padding:14px;border:1px solid rgba(128,128,128,.25);border-radius:10px;background:rgba(128,128,128,.06)}.anomaly-step strong{display:block;margin-bottom:4px}.anomaly-step span{font-size:12px;opacity:.72}.anomaly-decision{padding:16px;border-radius:10px;margin-top:14px;border:1px solid rgba(79,142,247,.28);background:rgba(79,142,247,.07)}.anomaly-decision h3{margin:0 0 6px;font-size:15px}.anomaly-help{margin:0;opacity:.78;font-size:13px}.anomaly-lock{padding:14px;border-radius:10px;border:1px solid rgba(40,167,69,.3);background:rgba(40,167,69,.08);margin-top:14px}@media(max-width:900px){.anomaly-workflow__grid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.anomaly-workflow__grid{grid-template-columns:1fr}}
+.anomaly-workflow{margin:0 0 24px}.anomaly-workflow__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}.anomaly-step{padding:14px;border:1px solid rgba(128,128,128,.25);border-radius:10px;background:rgba(128,128,128,.06)}.anomaly-step strong{display:block;margin-bottom:4px}.anomaly-step span{font-size:12px;opacity:.72}.anomaly-decision{padding:16px;border-radius:10px;margin-top:14px;border:1px solid rgba(79,142,247,.28);background:rgba(79,142,247,.07)}.anomaly-decision h3{margin:0 0 6px;font-size:15px}.anomaly-help{margin:0;opacity:.78;font-size:13px}.anomaly-lock{padding:14px;border-radius:10px;border:1px solid rgba(40,167,69,.3);background:rgba(40,167,69,.08);margin-top:14px}.anomaly-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.anomaly-actions a{display:inline-block!important;text-decoration:none!important;padding:9px 14px;border-radius:6px;font-weight:600}.anomaly-primary{background:#4f8ef7!important;color:#fff!important}.anomaly-secondary{background:transparent!important;border:1px solid rgba(79,142,247,.5);color:#4f8ef7!important}.anomaly-success{background:#28a745!important;color:#fff!important}.anomaly-disabled{opacity:.55;pointer-events:none}@media(max-width:900px){.anomaly-workflow__grid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.anomaly-workflow__grid{grid-template-columns:1fr}}
 </style>
 {% endblock %}
 
@@ -13,15 +13,20 @@
 <h2>🧭 Traitement de l’anomalie</h2>
 <div class="anomaly-workflow__grid">
 <div class="anomaly-step"><strong>1 · Comprendre</strong><span>Vérifiez l’employé, le site, la date et le pointage concerné.</span></div>
-<div class="anomaly-step"><strong>2 · Décider</strong><span>Choisissez uniquement une action adaptée à la situation.</span></div>
-<div class="anomaly-step"><strong>3 · Traiter</strong><span>Documentez obligatoirement la décision RH.</span></div>
-<div class="anomaly-step"><strong>4 · Clôturer</strong><span>La clôture intervient uniquement après le traitement.</span></div>
+<div class="anomaly-step"><strong>2 · Décider</strong><span>Choisissez une action adaptée à la situation.</span></div>
+<div class="anomaly-step"><strong>3 · Traiter</strong><span>Documentez la décision RH.</span></div>
+<div class="anomaly-step"><strong>4 · Clôturer</strong><span>Clôturez uniquement après traitement.</span></div>
 </div>
+
 {% if original.statut == 'cloturee' %}
-<div class="anomaly-lock"><strong>✅ Dossier clôturé</strong><br><span class="anomaly-help">Cette anomalie est terminée. Aucune nouvelle action de traitement ne doit être effectuée.</span></div>
+<div class="anomaly-lock"><strong>✅ Dossier clôturé</strong><br><span class="anomaly-help">Cette anomalie est terminée. Aucune nouvelle action de traitement n’est disponible.</span></div>
 {% elif original.statut == 'traitee' %}
-<div class="anomaly-decision"><h3>🟡 Décision déjà enregistrée</h3><p class="anomaly-help">L’anomalie a été traitée. Vérifiez le résultat puis utilisez uniquement l’action de clôture.</p></div>
-{% elif original.categorie == 'securite' %}
+<div class="anomaly-decision"><h3>🟡 Anomalie déjà traitée</h3><p class="anomaly-help">La décision est enregistrée. La prochaine étape est la clôture du dossier.</p></div>
+<div class="anomaly-actions">
+  <a class="anomaly-success" href="{% url 'admin:pointage_anomaliepointage_changelist' %}?statut={{ original.statut }}">↩ Retour à la liste</a>
+</div>
+{% else %}
+{% if original.categorie == 'securite' %}
 <div class="anomaly-decision"><h3>🔴 Anomalie de sécurité</h3><p class="anomaly-help">Vérifiez l’identité et l’événement avant toute validation. Un scan refusé ne doit pas être transformé automatiquement en pointage valide.</p></div>
 {% elif original.categorie == 'bloquante' or original.bloquante %}
 <div class="anomaly-decision"><h3>⛔ Pointage bloqué</h3><p class="anomaly-help">Le système a refusé le pointage. Vérifiez la situation avant toute correction ou décision RH.</p></div>
@@ -30,6 +35,13 @@
 {% else %}
 <div class="anomaly-decision"><h3>ℹ️ Analyse nécessaire</h3><p class="anomaly-help">Consultez les informations du dossier avant de choisir une action.</p></div>
 {% endif %}
+
+<div class="anomaly-actions">
+  {% if original.pk %}
+  <a class="anomaly-primary" href="{% url 'admin:anomalie_corriger_pointage' original.pk %}">📝 Corriger le pointage</a>
+  {% endif %}
+</div>
+{% endif %}
 </div>
 </div>
 {{ block.super }}
@@ -37,5 +49,5 @@
 
 {% block submit_buttons_bottom %}
 {{ block.super }}
-<div class="submit-row" style="margin-top:10px;opacity:.82"><p style="margin:0;font-size:12px">💡 Workflow RH : <strong>OUVERTE → TRAITÉE → CLÔTURÉE</strong>. Le traitement doit être documenté avant la clôture.</p></div>
+<div class="submit-row" style="margin-top:10px;opacity:.82"><p style="margin:0;font-size:12px">💡 Workflow RH : <strong>OUVERTE → TRAITÉE → CLÔTURÉE</strong>. Les modifications manuelles doivent être documentées.</p></div>
 {% endblock %}
