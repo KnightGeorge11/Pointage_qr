@@ -3,7 +3,6 @@
 import json
 from datetime import timedelta
 
-from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
@@ -154,21 +153,15 @@ def secure_sensitive_apis():
 
 @login_required
 def scanner_view(request, *args, **kwargs):
-    """Pointage Web sécurisé : le pointage manuel par matricule est interdit.
+    """Pointage Web : le matricule seul est une identification valide.
 
-    Le serveur doit recevoir le QR complet (matricule + token). Une saisie
-    seule du matricule ne constitue pas une preuve d'identité suffisante.
+    Le QR reste accepté lorsqu'il est fourni, mais n'est pas obligatoire sur
+    le Web. Dans les deux cas, ``views.scanner_view`` transmet la demande à
+    ``process_scan()``, qui applique les contrôles métier communs : employé
+    actif, site, horaires, machine d'état, doublons, garde et anomalies.
     """
-    if request.method == "POST":
-        raw_qr = (request.POST.get("qr_data") or "").strip()
-        matricule = (request.POST.get("matricule") or "").strip()
-        if not raw_qr and matricule:
-            messages.error(
-                request,
-                "❌ Le pointage exige le QR code complet. Le matricule seul est refusé.",
-            )
-            return redirect("scanner")
-
+    # Aucun blocage ici : le flux Web autorise volontairement le matricule seul.
+    # La validation métier reste centralisée dans views.scanner_view/process_scan.
     return views.scanner_view(request, *args, **kwargs)
 
 
