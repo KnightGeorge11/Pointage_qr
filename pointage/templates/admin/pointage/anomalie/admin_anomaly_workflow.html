@@ -12,7 +12,8 @@
 .workflow-body{padding:24px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.box{padding:14px;border:1px solid rgba(0,0,0,.08);border-radius:8px;background:#fafafa}.label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6b7280}.value{margin-top:5px;font-weight:600}
 .status{display:inline-block;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:700}.open{background:#fee2e2;color:#b91c1c}.treated{background:#fef3c7;color:#92400e}.closed{background:#dcfce7;color:#166534}
 .workflow-actions{margin-top:24px;padding-top:22px;border-top:1px solid rgba(0,0,0,.08)}.action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.action-card{border:1px solid rgba(0,0,0,.1);border-radius:8px;padding:15px}.action-card h3{margin:0 0 7px;font-size:14px}.action-card p{margin:0 0 12px;color:#6b7280;font-size:12px}.action-card textarea{width:100%;min-height:90px;box-sizing:border-box;margin-bottom:9px}.btn{display:inline-block;border:0;border-radius:6px;padding:9px 13px;color:#fff;text-decoration:none;cursor:pointer;font-weight:600;font-size:12px}.btn-blue{background:#2563eb}.btn-green{background:#16a34a}.btn-red{background:#dc2626}.btn-gray{background:#6b7280}.locked{padding:15px;border-radius:8px;background:#f0fdf4;color:#166534;font-weight:600}
-@media(max-width:800px){.grid,.action-grid{grid-template-columns:1fr}}
+.decision{margin-top:14px;padding:16px;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe}.decision strong{display:block;margin-bottom:6px}.decision-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.decision-item{padding:10px;background:#fff;border-radius:6px}.decision-label{font-size:11px;color:#6b7280;text-transform:uppercase}.decision-value{font-weight:600;margin-top:3px}
+@media(max-width:800px){.grid,.action-grid,.decision-grid{grid-template-columns:1fr}}
 </style>
 {% endblock %}
 
@@ -39,6 +40,24 @@
 
       <div class="box" style="margin-top:14px"><div class="label">Message</div><div class="value">{{ anomalie.message }}</div></div>
 
+      {% if anomalie.type == 'depart_anticipe' %}
+        <div class="decision">
+          <strong>⏰ Décision RH sur la sortie anticipée</strong>
+          <div class="decision-grid">
+            <div class="decision-item"><div class="decision-label">Sortie réelle</div><div class="decision-value">{{ anomalie.contexte.heure_depart|default:"—" }}</div></div>
+            <div class="decision-item"><div class="decision-label">Sortie prévue</div><div class="decision-value">{{ anomalie.contexte.heure_fermeture|default:"—" }}</div></div>
+            <div class="decision-item"><div class="decision-label">Avance</div><div class="decision-value">{{ anomalie.contexte.avance_minutes|default:anomalie.contexte.minutes_avance|default:"—" }} min</div></div>
+          </div>
+          <div style="margin-top:10px"><div class="decision-label">Motif de l’employé</div><div class="decision-value">{{ anomalie.contexte.motif_employe|default:"Aucun motif renseigné" }}</div></div>
+          {% if anomalie.contexte.autorisation_rh %}
+            <div style="margin-top:10px"><div class="decision-label">Décision actuelle</div><div class="decision-value">{{ anomalie.contexte.autorisation_rh }}</div></div>
+          {% endif %}
+          {% if anomalie.contexte.motif_refus_rh %}
+            <div style="margin-top:10px"><div class="decision-label">Motif du refus RH</div><div class="decision-value">{{ anomalie.contexte.motif_refus_rh }}</div></div>
+          {% endif %}
+        </div>
+      {% endif %}
+
       {% if anomalie.statut == 'cloturee' %}
         <div class="workflow-actions"><div class="locked">🔒 Anomalie clôturée : aucune modification supplémentaire n’est autorisée.</div></div>
       {% elif anomalie.statut == 'traitee' %}
@@ -58,14 +77,35 @@
               <form method="post">{% csrf_token %}<input type="hidden" name="action" value="corriger"><button class="btn btn-blue" type="submit">Corriger le pointage</button></form>
             </div>
             <div class="action-card">
-              <h3>✅ Justifier</h3>
-              <p>Conserver l’anomalie dans l’historique et la déclarer justifiée.</p>
-              <form method="post">{% csrf_token %}<textarea name="commentaire" required placeholder="Commentaire obligatoire…"></textarea><input type="hidden" name="action" value="justification"><button class="btn btn-green" type="submit">Justifier et traiter</button></form>
+              {% if anomalie.type == 'depart_anticipe' %}
+                <h3>✅ Autoriser la sortie</h3>
+                <p>Accepter la sortie anticipée déclarée par l’employé.</p>
+              {% else %}
+                <h3>✅ Justifier</h3>
+                <p>Conserver l’anomalie dans l’historique et la déclarer justifiée.</p>
+              {% endif %}
+              <form method="post">{% csrf_token %}<textarea name="commentaire" required placeholder="Commentaire obligatoire…"></textarea><input type="hidden" name="action" value="justification"><button class="btn btn-green" type="submit">{% if anomalie.type == 'depart_anticipe' %}Autoriser et traiter{% else %}Justifier et traiter{% endif %}</button></form>
             </div>
             <div class="action-card">
-              <h3>❌ Rejeter</h3>
-              <p>Rejeter l’anomalie avec une trace RH obligatoire.</p>
-              <form method="post">{% csrf_token %}<textarea name="commentaire" required placeholder="Motif du rejet obligatoire…"></textarea><input type="hidden" name="action" value="rejet"><button class="btn btn-red" type="submit">Rejeter et traiter</button></form>
+              {% if anomalie.type == 'depart_anticipe' %}
+                <h3>❌ Refuser la sortie</h3>
+                <p>Refuser l’autorisation. Le pointage réel reste conservé.</p>
+                <textarea form="rejet-form" name="commentaire" required placeholder="Motif du refus obligatoire…"></textarea>
+                <form id="rejet-form" method="post">{% csrf_token %}<input type="hidden" name="action" value="rejet"><input type="hidden" name="commentaire" id="rejet-commentaire-hidden"><button class="btn btn-red" type="submit">Refuser et traiter</button></form>
+                <script>
+                  (function(){
+                    const form=document.getElementById('rejet-form');
+                    const area=document.querySelector('textarea[form="rejet-form"]');
+                    form.addEventListener('submit',function(){
+                      document.getElementById('rejet-commentaire-hidden').value=area.value;
+                    });
+                  })();
+                </script>
+              {% else %}
+                <h3>❌ Rejeter</h3>
+                <p>Rejeter l’anomalie avec une trace RH obligatoire.</p>
+                <form method="post">{% csrf_token %}<textarea name="commentaire" required placeholder="Motif du rejet obligatoire…"></textarea><input type="hidden" name="action" value="rejet"><button class="btn btn-red" type="submit">Rejeter et traiter</button></form>
+              {% endif %}
             </div>
           </div>
         </div>
