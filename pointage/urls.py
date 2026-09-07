@@ -22,6 +22,7 @@ from .admin_security import (
 )
 from .web_notification_routing import notifications_api as web_notifications_api
 from .admin_anomaly_workflow import admin_anomaly_workflow
+from .scanner_anticipation import scanner_web_view, confirmer_sortie_anticipee
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
@@ -48,7 +49,8 @@ urlpatterns = [
     path('postes/nouveau/', poste_create_view, name='poste_create'),
     path('postes/<int:pk>/modifier/', poste_update_view, name='poste_update'),
     path('postes/<int:pk>/supprimer/', poste_delete_view, name='poste_delete'),
-    path('scanner/', scanner_view, name='scanner'),
+    path('scanner/', scanner_web_view, name='scanner'),
+    path('scanner/sortie-anticipee/confirmer/', confirmer_sortie_anticipee, name='scanner_confirmer_sortie_anticipee'),
     path('anomalies/', alertes_rh_view, name='alertes_rh'),
     path('anomalies/<int:pk>/', alerte_detail_view, name='alerte_detail'),
     path('api/', include(router.urls)),
