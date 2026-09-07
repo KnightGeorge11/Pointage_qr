@@ -1,0 +1,73 @@
+{% extends 'pointage/base.html' %}
+
+{% block title %}Sortie anticipée{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 720px;">
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4 p-md-5">
+            <div class="text-center mb-4">
+                <div class="display-5 mb-2">⏰</div>
+                <h1 class="h3 mb-2">Sortie anticipée détectée</h1>
+                <p class="text-muted mb-0">
+                    Le pointage sera enregistré avec l'heure réelle de votre sortie.
+                    Votre demande sera ensuite vérifiée par les RH.
+                </p>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="bg-light rounded p-3 h-100">
+                        <small class="text-muted d-block">Employé</small>
+                        <strong>{{ employe.get_nom_complet }}</strong>
+                        <div class="small text-muted">{{ employe.matricule }}</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="bg-light rounded p-3 h-100">
+                        <small class="text-muted d-block">Sortie réelle</small>
+                        <strong>{{ anticipation.heure_depart }}</strong>
+                        <div class="small text-muted">prévue : {{ anticipation.heure_fermeture }}</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="bg-light rounded p-3 h-100">
+                        <small class="text-muted d-block">Avance</small>
+                        <strong>{{ anticipation.minutes_avance }} min</strong>
+                        <div class="small text-muted">{{ site.nom }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <form method="post" action="{% url 'scanner_confirmer_sortie_anticipee' %}">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label for="motif" class="form-label fw-semibold">Motif de votre sortie</label>
+                    <textarea
+                        class="form-control"
+                        id="motif"
+                        name="motif"
+                        rows="4"
+                        minlength="3"
+                        maxlength="1000"
+                        required
+                        autofocus
+                        placeholder="Expliquez brièvement la raison de votre sortie anticipée…"
+                    ></textarea>
+                    <div class="form-text">
+                        Ce motif sera transmis aux RH. Il ne constitue pas une autorisation :
+                        la décision finale appartient aux RH.
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 justify-content-end">
+                    <a href="{% url 'scanner' %}" class="btn btn-outline-secondary">Annuler</a>
+                    <button type="submit" class="btn btn-primary px-4">
+                        Confirmer la sortie
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
