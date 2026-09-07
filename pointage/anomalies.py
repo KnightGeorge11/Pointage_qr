@@ -204,8 +204,24 @@ def marquer_traitee(
             pointage_concerne=pointage_db,
             type_action=type_action,
         )
+
+        contexte = dict(anomalie_db.contexte or {})
+        if anomalie_db.type == AnomaliePointage.TYPE_DEPART_ANTICIPE:
+            if type_action == AnomalieTraitement.ACTION_JUSTIFICATION:
+                contexte['autorisation_rh'] = 'autorisee'
+                contexte['date_decision_rh'] = timezone.now().isoformat()
+                contexte['decideur_rh_id'] = administrateur.pk
+            elif type_action == AnomalieTraitement.ACTION_REJET:
+                contexte['autorisation_rh'] = 'refusee'
+                contexte['date_decision_rh'] = timezone.now().isoformat()
+                contexte['decideur_rh_id'] = administrateur.pk
+                contexte['motif_refus_rh'] = commentaire
+            else:
+                contexte.setdefault('autorisation_rh', 'en_attente')
+            anomalie_db.contexte = contexte
+
         anomalie_db.statut = AnomaliePointage.STATUT_TRAITEE
-        anomalie_db.save(update_fields=['statut'])
+        anomalie_db.save(update_fields=['statut', 'contexte'])
 
     logger.info(
         '[marquer_traitee] anomalie=%s traitee (%s) par %s (%s correction(s))',
