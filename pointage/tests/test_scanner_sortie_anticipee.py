@@ -31,6 +31,7 @@ class ScannerSortieAnticipeeWebTestCase(TestCase):
         )
         self.client.force_login(self.user)
         self.today = timezone.localtime(timezone.now()).date()
+        self.qr_data = f"EMPLOYE:{self.employe.matricule}:{self.employe.qr_code_token}"
 
         entree = _aware(self.today, 8, 0)
         with patch('pointage.services.timezone.now', return_value=entree):
@@ -41,14 +42,17 @@ class ScannerSortieAnticipeeWebTestCase(TestCase):
             )
         assert result['status'] == 'success'
 
-    def test_sortie_anticipee_affiche_ecran_avant_enregistrement(self):
-        fake_now = _aware(self.today, 11, 0)
-        with patch('pointage.scanner_anticipation.timezone.now', return_value=fake_now):
-            response = self.client.post(reverse('scanner'), {
-                'matricule': self.employe.matricule,
+    def _scan_sortie(self, when):
+        with patch('pointage.scanner_anticipation.timezone.now', return_value=when):
+            return self.client.post(reverse('scanner'), {
+                'qr_data': self.qr_data,
                 'site_id': self.site.id,
                 'periode_type': 'auto',
             })
+
+    def test_sortie_anticipee_affiche_ecran_avant_enregistrement(self):
+        fake_now = _aware(self.today, 11, 0)
+        response = self._scan_sortie(fake_now)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Sortie anticipée détectée')
@@ -58,14 +62,9 @@ class ScannerSortieAnticipeeWebTestCase(TestCase):
             Pointage.objects.filter(employe=self.employe, periode='matin', heure_depart__isnull=False).exists()
         )
 
-    def test_confirmation_enregistre_heure_reelle_et_motif_en_attente(self):
+    def test_confirmation_enregistre_heure_capturee_et_motif_en_attente(self):
         fake_scan = _aware(self.today, 11, 0)
-        with patch('pointage.scanner_anticipation.timezone.now', return_value=fake_scan):
-            first = self.client.post(reverse('scanner'), {
-                'matricule': self.employe.matricule,
-                'site_id': self.site.id,
-                'periode_type': 'auto',
-            })
+        first = self._scan_sortie(fake_scan)
         self.assertEqual(first.status_code, 200)
 
         fake_confirm = _aware(self.today, 11, 1)
@@ -77,7 +76,8 @@ class ScannerSortieAnticipeeWebTestCase(TestCase):
 
         self.assertRedirects(response, reverse('scanner'))
         pointage = Pointage.objects.get(employe=self.employe, periode='matin')
-        self.assertEqual(pointage.heure_depart, dtime(11, 1))
+        # La confirmation à 11h01 ne doit pas déplacer l'heure du scan capturé à 11h00.
+        self.assertEqual(pointage.heure_depart, dtime(11, 0))
 
         anomalie = AnomaliePointage.objects.get(
             employe=self.employe,
@@ -89,12 +89,7 @@ class ScannerSortieAnticipeeWebTestCase(TestCase):
 
     def test_motif_vide_n_enregistre_pas_le_pointage(self):
         fake_now = _aware(self.today, 11, 0)
-        with patch('pointage.scanner_anticipation.timezone.now', return_value=fake_now):
-            self.client.post(reverse('scanner'), {
-                'matricule': self.employe.matricule,
-                'site_id': self.site.id,
-                'periode_type': 'auto',
-            })
+        self._scan_sortie(fake_now)
 
         response = self.client.post(reverse('scanner_confirmer_sortie_anticipee'), {'motif': ' '})
         self.assertRedirects(response, reverse('scanner'))
