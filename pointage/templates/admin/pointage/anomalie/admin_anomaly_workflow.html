@@ -79,28 +79,23 @@
             <div class="action-card">
               {% if anomalie.type == 'depart_anticipe' %}
                 <h3>✅ Autoriser la sortie</h3>
-                <p>Accepter la sortie anticipée déclarée par l’employé.</p>
+                <p>Accepter la sortie anticipée déclarée par l’employé. Le pointage réel reste inchangé.</p>
               {% else %}
                 <h3>✅ Justifier</h3>
                 <p>Conserver l’anomalie dans l’historique et la déclarer justifiée.</p>
               {% endif %}
-              <form method="post">{% csrf_token %}<textarea name="commentaire" required placeholder="Commentaire obligatoire…"></textarea><input type="hidden" name="action" value="justification"><button class="btn btn-green" type="submit">{% if anomalie.type == 'depart_anticipe' %}Autoriser et traiter{% else %}Justifier et traiter{% endif %}</button></form>
+              <form method="post">{% csrf_token %}<textarea name="commentaire" required placeholder="{% if anomalie.type == 'depart_anticipe' %}Commentaire ou décision RH…{% else %}Commentaire obligatoire…{% endif %}"></textarea><input type="hidden" name="action" value="justification"><button class="btn btn-green" type="submit">{% if anomalie.type == 'depart_anticipe' %}Autoriser et traiter{% else %}Justifier et traiter{% endif %}</button></form>
             </div>
             <div class="action-card">
               {% if anomalie.type == 'depart_anticipe' %}
                 <h3>❌ Refuser la sortie</h3>
-                <p>Refuser l’autorisation. Le pointage réel reste conservé.</p>
-                <textarea form="rejet-form" name="commentaire" required placeholder="Motif du refus obligatoire…"></textarea>
-                <form id="rejet-form" method="post">{% csrf_token %}<input type="hidden" name="action" value="rejet"><input type="hidden" name="commentaire" id="rejet-commentaire-hidden"><button class="btn btn-red" type="submit">Refuser et traiter</button></form>
-                <script>
-                  (function(){
-                    const form=document.getElementById('rejet-form');
-                    const area=document.querySelector('textarea[form="rejet-form"]');
-                    form.addEventListener('submit',function(){
-                      document.getElementById('rejet-commentaire-hidden').value=area.value;
-                    });
-                  })();
-                </script>
+                <p>Refuser l’autorisation. Le pointage réel reste conservé. Le motif du refus est obligatoire.</p>
+                <form id="rejet-form" method="post">
+                  {% csrf_token %}
+                  <textarea name="commentaire" required minlength="3" maxlength="2000" placeholder="Motif du refus RH obligatoire…"></textarea>
+                  <input type="hidden" name="action" value="rejet">
+                  <button class="btn btn-red" type="submit">Refuser et traiter</button>
+                </form>
               {% else %}
                 <h3>❌ Rejeter</h3>
                 <p>Rejeter l’anomalie avec une trace RH obligatoire.</p>
