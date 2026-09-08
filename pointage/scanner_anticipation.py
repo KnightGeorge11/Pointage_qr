@@ -6,11 +6,12 @@ n'est pas encore écrit : l'employé doit d'abord fournir son motif et confirmer
 Après confirmation, process_scan() reste l'unique moteur d'écriture du pointage.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
+import uuid
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from . import views
@@ -125,8 +126,11 @@ def scanner_web_view(request):
                 "site_id": site.id,
                 "mode": "auto",
                 "created_at": now.isoformat(),
+                "captured_at": now.isoformat(),
+                "client_event_id": str(uuid.uuid4()),
                 **anticipation,
             }
+            request.session.modified = True
             return render(request, "pointage/sortie_anticipee_confirmation.html", {
                 "employe": employe,
                 "site": site,
@@ -155,7 +159,10 @@ def confirmer_sortie_anticipee(request):
     try:
         employe = Employe.objects.get(matricule=pending["matricule"], actif=True)
         site = Site.objects.get(pk=pending["site_id"])
-    except (Employe.DoesNotExist, Site.DoesNotExist):
+        captured_at = datetime.fromisoformat(pending["captured_at"])
+        client_event_id = pending["client_event_id"]
+        uuid.UUID(client_event_id)
+    except (Employe.DoesNotExist, Site.DoesNotExist, KeyError, TypeError, ValueError):
         request.session.pop(PENDING_SESSION_KEY, None)
         messages.error(request, "❌ Les informations du scan ne sont plus valides.")
         return redirect("scanner")
@@ -165,6 +172,8 @@ def confirmer_sortie_anticipee(request):
         qr_token=pending["qr_token"],
         site_id=site.id,
         mode=pending.get("mode", "auto"),
+        client_event_id=client_event_id,
+        captured_at=captured_at,
     )
 
     request.session.pop(PENDING_SESSION_KEY, None)
@@ -181,7 +190,7 @@ def confirmer_sortie_anticipee(request):
     if pointage_id:
         anomalies = AnomaliePointage.objects.filter(
             employe=employe,
-            date_pointage=timezone.localtime(timezone.now()).date(),
+            date_pointage=captured_at.date(),
             type=AnomaliePointage.TYPE_DEPART_ANTICIPE,
             statut=AnomaliePointage.STATUT_OUVERTE,
         ).order_by("-created_at")
