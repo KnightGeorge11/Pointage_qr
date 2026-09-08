@@ -47,13 +47,11 @@ def parse_qr_data(qr_string: str) -> dict | None:
     matricule = matricule.strip()
     token = token.strip()
     
-    # Valider le format du matricule (alphanumérique, pas trop long)
     if not matricule or len(matricule) > 50:
         return None
     if not re.match(r'^[a-zA-Z0-9\-_]+$', matricule):
         return None
     
-    # Valider que le token est un UUID valide
     try:
         uuid.UUID(token)
     except (ValueError, AttributeError, TypeError):
@@ -126,16 +124,10 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
     Tous les paramètres sont validés côté serveur.
     Le serveur décide lui-même du résultat, jamais le client.
     """
-    # ──────────────────────────────────────────────────────────────────────
-    # 1. VALIDATION DE L'HORODATAGE OFFLINE (si applicable)
-    # ──────────────────────────────────────────────────────────────────────
     now, timestamp_error = _normaliser_captured_at(captured_at, client_event_id)
     if timestamp_error:
         return timestamp_error
 
-    # ──────────────────────────────────────────────────────────────────────
-    # 2. VALIDATION DE L'UUID D'ÉVÉNEMENT (idempotence offline)
-    # ──────────────────────────────────────────────────────────────────────
     if client_event_id:
         try:
             client_event_id = uuid.UUID(str(client_event_id))
@@ -146,9 +138,6 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
                 'message': "L'identifiant d'événement offline est invalide.",
             }
 
-    # ──────────────────────────────────────────────────────────────────────
-    # 3. VALIDATION DU MODE (jamais une valeur libre du client)
-    # ──────────────────────────────────────────────────────────────────────
     if mode not in ('auto', 'garde'):
         return {
             'status': 'error',
@@ -156,9 +145,6 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
             'message': "Mode de pointage invalide. Valeurs acceptées : 'auto' ou 'garde'.",
         }
 
-    # ──────────────────────────────────────────────────────────────────────
-    # 4. RECHERCHE SÉCURISÉE DE L'EMPLOYÉ (matricule + token, pas matricule seul)
-    # ──────────────────────────────────────────────────────────────────────
     try:
         employe = Employe.objects.get(matricule=matricule, qr_code_token=qr_token)
     except Employe.DoesNotExist:
@@ -174,9 +160,6 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
             'message': 'QR code invalide ou employé inactif.'
         }
 
-    # ──────────────────────────────────────────────────────────────────────
-    # 5. VALIDATION DU SITE (ID doit exister)
-    # ──────────────────────────────────────────────────────────────────────
     try:
         site = Site.objects.get(id=site_id)
     except Site.DoesNotExist:
@@ -192,21 +175,14 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
             'message': f"Site {site_id} introuvable."
         }
 
-    # ──────────────────────────────────────────────────────────────────────
-    # 6. TRANSACTION ATOMIQUE : toutes les vérifications + création
-    # ──────────────────────────────────────────────────────────────────────
     with transaction.atomic():
         employe = Employe.objects.select_for_update().get(pk=employe.pk)
 
-        # ─────────────────────────────────────────────────────────────────
-        # 6a. IDEMPOTENCE : client_event_id doit correspondre au même scan
-        # ─────────────────────────────────────────────────────────────────
         if client_event_id:
             existing_scan = Scan.objects.select_related('employe', 'site', 'pointage').filter(
                 client_event_id=client_event_id
             ).first()
             if existing_scan:
-                # Sécurité: vérifier que l'événement n'a pas été réutilisé avec d'autres données
                 if existing_scan.employe_id != employe.pk or existing_scan.site_id != site.pk:
                     logger.warning(
                         "[process_scan] Réutilisation d'un client_event_id pour un autre "
@@ -234,9 +210,6 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
                     'idempotent': True,
                 }
 
-        # ─────────────────────────────────────────────────────────────────
-        # 6b. VÉRIFICATION : employé actif
-        # ─────────────────────────────────────────────────────────────────
         if not employe.actif:
             enregistrer_anomalie(
                 AnomaliePointage.TYPE_EMPLOYE_INACTIF,
@@ -251,9 +224,6 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
                 'message': 'QR code invalide ou employé inactif.'
             }
 
-        # ─────────────────────────────────────────────────────────────────
-        # 6c. VÉRIFICATION : heure dans plage globale
-        # ─────────────────────────────────────────────────────────────────
         if mode != 'garde' and not (PLAGE_MIN <= now.time() <= PLAGE_MAX):
             message = (
                 f"Scan en dehors des heures autorisées "
@@ -269,9 +239,15 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
                 'message': message
             }
 
-        # ─────────────────────────────────────────────────────────────────
-        # 6d. VÉRIFICATION : anti-doublon (120 sec)
-        # ─────────────────────────────────────────────────────────────────
+        # Une garde utilise volontairement le scan suivant pour fermer la garde.
+        # L'anti-doublon générique ne doit donc pas intercepter le flux garde.
+        if mode == 'garde':
+            return _process_garde(
+                employe, site, now,
+                force_new=force_new_garde,
+                client_event_id=client_event_id,
+            )
+
         dernier_scan = Scan.objects.filter(
             employe=employe,
             timestamp__gte=now - timedelta(seconds=SEUIL_DOUBLON_SECONDES)
@@ -292,11 +268,6 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
                 'message': message
             }
 
-        # ─────────────────────────────────────────────────────────────────
-        # 7. ROUTAGE : garde ou normal
-        # ─────────────────────────────────────────────────────────────────
-        if mode == 'garde':
-            return _process_garde(employe, site, now, force_new=force_new_garde, client_event_id=client_event_id)
         return _process_normal(employe, site, now, client_event_id=client_event_id)
 
 
