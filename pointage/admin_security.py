@@ -6,7 +6,6 @@ from datetime import timedelta
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
-from django.urls import reverse
 from django.utils import timezone
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
@@ -26,6 +25,13 @@ def _is_rh(user):
 
 class IsRHPermission(BasePermission):
     """Permission DRF stricte : superuser ou rôle métier admin."""
+
+    def has_permission(self, request, view):
+        return _is_rh(request.user)
+
+
+class IsRHViewSetPermission(BasePermission):
+    """Même règle RH pour les ViewSets sensibles (lecture et écriture)."""
 
     def has_permission(self, request, view):
         return _is_rh(request.user)
@@ -160,8 +166,16 @@ def _deny_pointage_create_api(self, request, *args, **kwargs):
 
 
 def secure_sensitive_apis():
-    """Sécurise les endpoints sensibles sans écraser les permissions de lecture."""
+    """Sécurise les endpoints RH sensibles avant leur enregistrement par le routeur DRF."""
     pointage_viewset = getattr(views, "PointageViewSet", None)
+    employe_viewset = getattr(views, "EmployeViewSet", None)
+
+    # Les listes d'employés et de pointages contiennent des données RH et ne
+    # doivent pas être accessibles à un compte utilisateur standard.
+    for viewset in (pointage_viewset, employe_viewset):
+        if viewset is not None:
+            viewset.permission_classes = [IsRHViewSetPermission]
+
     if pointage_viewset is not None:
         pointage_viewset.statistiques = statistiques
         pointage_viewset.create = _deny_pointage_create_api
@@ -181,7 +195,7 @@ def secure_sensitive_apis():
 
 @login_required
 def scanner_view(request, *args, **kwargs):
-    """Pointage Web : le matricule seul est une identification valide."""
+    """Pointage Web : l'identité doit être fournie par le QR du scanner."""
     return views.scanner_view(request, *args, **kwargs)
 
 
