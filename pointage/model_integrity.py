@@ -55,10 +55,10 @@ def _employee_day_status(self, date=None):
 def _install_pointage_save_guard():
     """Révoque une autorisation RH si ses données de calcul sont modifiées.
 
-    Le montant payable reste protégé par le trigger PostgreSQL de la migration
-    0020. On ne réécrit donc pas le champ après ``save()`` : cela évite de
-    masquer le montant calculé dans l'instance Python et conserve la séparation
-    entre montant calculé et montant autorisé/persisté.
+    Le trigger PostgreSQL reste la source de vérité du montant payable. Après
+    ``save()``, on resynchronise aussi l'instance Python avec la valeur réellement
+    persistée afin d'éviter qu'un montant calculé en mémoire diffère du montant
+    stocké en base.
     """
     if getattr(Pointage, '_overtime_input_guard_installed', False):
         return
@@ -90,6 +90,15 @@ def _install_pointage_save_guard():
                     )
 
         original_save(self, *args, **kwargs)
+
+        # Le trigger DB peut normaliser/figer le montant. L'instance Python doit
+        # refléter exactement cette valeur, notamment après une modification
+        # sans changement des données du pointage ou après une révocation.
+        if self.pk:
+            persisted_overtime = Pointage.objects.filter(pk=self.pk).values_list(
+                'heures_supplementaires', flat=True
+            ).first()
+            self.heures_supplementaires = persisted_overtime
 
     Pointage.save = guarded_save
     Pointage._overtime_input_guard_installed = True
