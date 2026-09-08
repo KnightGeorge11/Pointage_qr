@@ -9,8 +9,6 @@ from .models import AnomaliePointage, AnomalieTraitement, Employe, Site, Pointag
 logger = logging.getLogger(__name__)
 
 
-# Classification metier centralisee : une anomalie n'implique pas toujours
-# le meme comportement du scan.
 CATEGORIE_SECURITE = 'securite'
 CATEGORIE_BLOQUANTE = 'bloquante'
 CATEGORIE_RH = 'rh'
@@ -37,8 +35,6 @@ ANOMALIES_RH = frozenset({
     AnomaliePointage.TYPE_DEPART_ANTICIPE,
 })
 
-# Ces anomalies sont regroupees tant qu'une anomalie ouverte du meme type,
-# employe et jour existe deja.
 DEDUP_TYPES = frozenset({
     AnomaliePointage.TYPE_MISSING_MORNING_EXIT,
     AnomaliePointage.TYPE_GARDE_MULTIPLE_NON_SUPPORTEE,
@@ -56,13 +52,10 @@ def categorie_anomalie(type_anomalie: str) -> str:
         return CATEGORIE_RH
     if type_anomalie in ANOMALIES_BLOQUANTES:
         return CATEGORIE_BLOQUANTE
-    # Fail-safe : un nouveau type inconnu ne doit jamais etre traite comme
-    # une simple anomalie RH non bloquante.
     return CATEGORIE_BLOQUANTE
 
 
 def anomalie_est_bloquante(type_anomalie: str) -> bool:
-    """Indique si le scan associe doit etre refuse."""
     return categorie_anomalie(type_anomalie) in {
         CATEGORIE_SECURITE,
         CATEGORIE_BLOQUANTE,
@@ -70,13 +63,22 @@ def anomalie_est_bloquante(type_anomalie: str) -> bool:
 
 
 def anomalie_necessite_traitement_rh(type_anomalie: str) -> bool:
-    """Indique si l'anomalie doit apparaitre comme dossier RH a verifier."""
     return categorie_anomalie(type_anomalie) == CATEGORIE_RH
 
 
 def _contexte_canonique(type_anomalie: str, contexte: Optional[dict]) -> dict:
-    """Ajoute la classification sans ecraser les donnees existantes."""
+    """Ajoute les metadonnees de classification et conserve les anciens noms utiles."""
     resultat = dict(contexte or {})
+
+    # Compatibilite descendante : l'ancien contexte exposait
+    # ``minutes_avance`` tandis que le service recent utilise ``avance_minutes``.
+    # Les deux cles representent exactement la meme valeur et sont conservees
+    # pour eviter de casser les anciens consommateurs, tests et exports.
+    if 'avance_minutes' in resultat and 'minutes_avance' not in resultat:
+        resultat['minutes_avance'] = resultat['avance_minutes']
+    elif 'minutes_avance' in resultat and 'avance_minutes' not in resultat:
+        resultat['avance_minutes'] = resultat['minutes_avance']
+
     categorie = categorie_anomalie(type_anomalie)
     resultat.setdefault('categorie', categorie)
     resultat.setdefault('bloquante', anomalie_est_bloquante(type_anomalie))
@@ -94,15 +96,7 @@ def enregistrer_anomalie(
     contexte: Optional[dict] = None,
     pointage: Optional[Pointage] = None,
 ) -> AnomaliePointage:
-    """Enregistre une anomalie de maniere atomique et coherent.
-
-    ``pointage`` est facultatif. Le modele AnomaliePointage ne possede pas de
-    relation directe vers Pointage ; son ID est donc conserve dans ``contexte``.
-
-    Les erreurs de persistence ne sont pas avalees : si la base refuse
-    l'enregistrement, l'appelant recoit l'exception au lieu d'un faux objet
-    AnomaliePointage non sauvegarde.
-    """
+    """Enregistre une anomalie de maniere atomique et coherent."""
     contexte = _contexte_canonique(type_anomalie, contexte)
 
     if pointage is not None and getattr(pointage, 'pk', None) is not None:
@@ -173,7 +167,6 @@ def marquer_traitee(
     pointage_concerne: Optional[Pointage] = None,
     type_action: str = 'correction',
 ) -> AnomalieTraitement:
-    """Passe une anomalie ouverte a l'etat traitee, une seule fois."""
     if not administrateur.is_staff:
         raise PermissionError('Seul un administrateur ou RH peut traiter une anomalie.')
 
@@ -234,7 +227,6 @@ def marquer_traitee(
 
 
 def marquer_cloturee(anomalie: AnomaliePointage, administrateur: CustomUser) -> AnomaliePointage:
-    """Cloture une anomalie deja traitee, de maniere atomique."""
     if not administrateur.is_staff:
         raise PermissionError('Seul un administrateur ou RH peut cloturer une anomalie.')
 
@@ -256,5 +248,4 @@ def marquer_cloturee(anomalie: AnomaliePointage, administrateur: CustomUser) -> 
 
 
 def compter_anomalies_ouvertes() -> int:
-    """Nombre d'anomalies ouvertes, utilise par les badges du dashboard."""
     return AnomaliePointage.objects.filter(statut=AnomaliePointage.STATUT_OUVERTE).count()
