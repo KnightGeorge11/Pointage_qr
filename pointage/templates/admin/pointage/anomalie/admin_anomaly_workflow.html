@@ -1,7 +1,7 @@
 {% extends "admin/base_site.html" %}
 {% load i18n %}
 
-{% block title %}Traitement de l’anomalie #{{ anomalie.pk }} | {{ site_title|default:"Pointage QR" }}{% endblock %}
+{% block title %}Traitement de l'anomalie #{{ anomalie.pk }} | {{ site_title|default:"Pointage QR" }}{% endblock %}
 
 {% block extrastyle %}
 {{ block.super }}
@@ -22,7 +22,7 @@
   <div class="workflow-card">
     <div class="workflow-head">
       <div>
-        <h1 class="workflow-title">Traitement de l’anomalie #{{ anomalie.pk }}</h1>
+        <h1 class="workflow-title">Traitement de l'anomalie #{{ anomalie.pk }}</h1>
         <p class="workflow-sub">Workflow RH · OUVERTE → TRAITÉE → CLÔTURÉE</p>
       </div>
       {% if anomalie.statut == 'ouverte' %}<span class="status open">🔴 OUVERTE</span>
@@ -59,7 +59,7 @@
       {% endif %}
 
       {% if anomalie.statut == 'cloturee' %}
-        <div class="workflow-actions"><div class="locked">🔒 Anomalie clôturée : aucune modification supplémentaire n’est autorisée.</div></div>
+        <div class="workflow-actions"><div class="locked">🔒 Dossier clôturé : aucune modification supplémentaire n’est autorisée.</div></div>
       {% elif anomalie.statut == 'traitee' %}
         <div class="workflow-actions">
           <div class="action-card">
