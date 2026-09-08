@@ -25,20 +25,13 @@ PENDING_SESSION_KEY = "scanner_sortie_anticipee_pending"
 
 
 def _resolve_scan_identity(raw_qr: str, matricule: str):
-    if raw_qr:
-        parsed = parse_qr_data(raw_qr)
-        if not parsed:
-            raise ValueError("❌ Format QR invalide.")
-        return parsed["matricule"], parsed["token"]
+    if not raw_qr:
+        raise ValueError("❌ Le pointage Web doit être effectué avec un QR code valide.")
 
-    if matricule:
-        try:
-            employe = Employe.objects.get(matricule=matricule, actif=True)
-        except Employe.DoesNotExist:
-            raise ValueError(f"❌ Employé {matricule} non trouvé.")
-        return employe.matricule, str(employe.qr_code_token)
-
-    raise ValueError("❌ QR code ou matricule requis.")
+    parsed = parse_qr_data(raw_qr)
+    if not parsed:
+        raise ValueError("❌ Format QR invalide.")
+    return parsed["matricule"], parsed["token"]
 
 
 def _resolve_site(site_id):
