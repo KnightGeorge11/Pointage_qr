@@ -16,7 +16,7 @@ from . import views
 
 @login_required
 def notifications_api(request):
-    """Retourne des notifications dont les liens restent exclusivement Web."""
+    """Retourne des notifications Web sans exposer les anomalies RH aux comptes normaux."""
     response = views.notifications_api(request)
     if response.status_code != 200:
         return response
@@ -26,14 +26,24 @@ def notifications_api(request):
     except (TypeError, ValueError):
         return JsonResponse({"notifications": [], "count": 0})
 
-    for item in data.get("notifications", []):
+    notifications = data.get("notifications", [])
+
+    # Les anomalies de pointage sont des dossiers RH. Un compte standard ne
+    # doit ni voir leur contenu ni recevoir un lien vers leur workflow.
+    if not request.user.is_staff:
+        notifications = [
+            item for item in notifications
+            if item.get("type") != "anomalie"
+        ]
+
+    for item in notifications:
         if item.get("type") == "anomalie":
             anomaly_id = item.get("anomalie_id")
             if anomaly_id:
                 item["url"] = reverse("alerte_detail", args=[anomaly_id])
             else:
-                # Compatibilité avec les anciennes notifications sans ID.
                 item["url"] = reverse("alertes_rh")
 
-    data["count"] = len(data.get("notifications", []))
+    data["notifications"] = notifications
+    data["count"] = len(notifications)
     return JsonResponse(data)
