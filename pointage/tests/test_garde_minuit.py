@@ -13,7 +13,7 @@ from datetime import time as dtime, timedelta, date
 from django.test import TestCase
 from django.utils import timezone
 
-from pointage.models import Employe, Site, Pointage
+from pointage.models import Employe, Site, Pointage, AnomaliePointage
 from pointage.services import process_scan
 
 
@@ -157,8 +157,17 @@ class GardeTraversantMinuitTestCase(TestCase):
                 site_id=self.site.id, mode='garde',
             )
 
+        # Interceptée par le garde-fou de mode (scan_mode_integrity.py) : la
+        # garde 1 est déjà clôturée et aucune garde n'est planifiée pour ce
+        # jour, donc le rappel est refusé comme non autorisé avant même
+        # d'atteindre la détection de conflit interne à services.py. Le
+        # refus reste tracé comme anomalie (même famille GARDE_MULTIPLE_NON_SUPPORTEE).
         assert result['status'] == 'warning'
-        assert result['code'] == 'GARDE_MULTIPLE_NON_SUPPORTEE'
+        assert result['code'] == 'GARDE_NON_AUTORISEE'
+        assert AnomaliePointage.objects.filter(
+            employe=self.employe, type=AnomaliePointage.TYPE_GARDE_MULTIPLE_NON_SUPPORTEE,
+            date_pointage=jour,
+        ).exists()
         # Aucun doublon créé, la première garde reste intacte
         assert Pointage.objects.filter(employe=self.employe, periode='nuit', date_pointage=jour).count() == 1
         premiere_garde.refresh_from_db()

@@ -1,7 +1,6 @@
 # pointage/urls.py
 from django.urls import path, include
 from django.views.generic import RedirectView
-from . import views
 from .dashboard_hardening import dashboard, index
 from .views import (
     employe_create_view, employe_update_view, employe_delete_view,
@@ -17,7 +16,6 @@ from .admin_security import (
     export_resume_excel,
     admin_badge_counts_api,
     notifications_api as admin_notifications_api,
-    scanner_view,
     RHAnomaliePointageViewSet,
 )
 from .web_notification_routing import notifications_api as web_notifications_api

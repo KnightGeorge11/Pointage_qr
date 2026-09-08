@@ -75,11 +75,18 @@ class TestEnregistrerAnomalie(TestCase):
         assert anomalie.matricule_scanne == "E999"
 
     def test_contexte_json_conserve(self):
+        # Depuis la classification automatique (categorie/bloquante/
+        # traitement_rh_requis, voir _contexte_canonique), le contexte fourni
+        # est conservé tel quel MAIS enrichi de ces métadonnées — il n'est
+        # plus retourné à l'identique.
         anomalie = enregistrer_anomalie(
             AnomaliePointage.TYPE_DAY_COMPLETE, message="x",
             contexte={'scans_count': 4},
         )
-        assert anomalie.contexte == {'scans_count': 4}
+        assert anomalie.contexte['scans_count'] == 4
+        assert anomalie.contexte['categorie'] == 'bloquante'
+        assert anomalie.contexte['bloquante'] is True
+        assert anomalie.contexte['traitement_rh_requis'] is False
 
 
 class TestCycleDeVie(TestCase):

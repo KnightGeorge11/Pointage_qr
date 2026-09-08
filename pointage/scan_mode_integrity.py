@@ -17,8 +17,9 @@ from datetime import datetime
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Employe, Pointage
+from .models import AnomaliePointage, Employe, Pointage
 from . import services
+from .anomalies import enregistrer_anomalie
 
 
 _INSTALL_FLAG = "_guard_mode_integrity_installed"
@@ -96,13 +97,25 @@ def _install():
         with transaction.atomic():
             employe = Employe.objects.select_for_update().get(pk=employe.pk)
             if not _guard_mode_authorized(employe, dates):
+                message = (
+                    "Mode garde refusé : aucune garde planifiée ou garde en cours "
+                    "n'est associée à cet employé pour la date du scan."
+                )
+                # Ce refus intervient avant le service central : il doit tout
+                # de même être tracé comme les autres refus liés à la garde
+                # (même famille que GARDE_MULTIPLE_NON_SUPPORTEE), sinon le
+                # RH n'a aucune visibilité sur ces tentatives.
+                enregistrer_anomalie(
+                    AnomaliePointage.TYPE_GARDE_MULTIPLE_NON_SUPPORTEE,
+                    message=message,
+                    employe=employe,
+                    date_pointage=max(dates),
+                    contexte={"code_precis": "GARDE_NON_AUTORISEE"},
+                )
                 return {
                     "status": "warning",
                     "code": "GARDE_NON_AUTORISEE",
-                    "message": (
-                        "Mode garde refusé : aucune garde planifiée ou garde en cours "
-                        "n'est associée à cet employé pour la date du scan."
-                    ),
+                    "message": message,
                 }
 
             return original_process_scan(*args, **kwargs)

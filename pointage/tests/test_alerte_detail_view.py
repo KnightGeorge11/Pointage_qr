@@ -64,7 +64,12 @@ class TestPermissionsPageDetail(AlerteDetailTestCase):
         client.force_login(self.admin)
         response = client.get(self._url(self.anomalie))
         assert response.status_code == 200
-        assert "Anomalie #" in response.content.decode()
+        # Le titre technique "Anomalie #N" a été remplacé par une page plus
+        # lisible pour le RH ("Que s'est-il passé ?") ; on vérifie que la
+        # bonne page de traitement s'affiche bien, pas un libellé précis.
+        content = response.content.decode()
+        assert "TRAITEMENT DES ANOMALIES" in content
+        assert "Que s'est-il passé" in content
 
     def test_alertes_rh_view_liste_non_accessible_a_un_utilisateur_normal(self):
         client = Client()

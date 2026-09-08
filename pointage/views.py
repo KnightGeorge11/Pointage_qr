@@ -871,7 +871,7 @@ def alerte_detail_view(request, pk):
                 messages.success(request, f"🔒 Anomalie #{anomalie.pk} clôturée.")
             except (ValueError, PermissionError) as e:
                 messages.error(request, f"❌ {e}")
-            except Exception as e:
+            except Exception:
                 transaction.set_rollback(True)
                 messages.error(request, "❌ Le traitement de la correction a échoué. Aucune modification n'a été enregistrée.")
             return redirect('alerte_detail', pk=pk)
@@ -1293,10 +1293,11 @@ class EmployeViewSet(viewsets.ModelViewSet):
     queryset           = Employe.objects.filter(actif=True)
     serializer_class   = EmployeSerializer
 
+    # Ces données (liste nominative des employés) sont réservées au RH.
+    # Décision explicite (session du 08/09/2026) : un compte role="user"
+    # n'a pas accès à /api/employes/, en lecture comme en écriture.
     def get_permissions(self):
-        if self.action in ('create', 'update', 'partial_update', 'destroy'):
-            return [IsAdminUser()]
-        return [IsAuthenticated()]
+        return [IsAdminUser()]
 
 
 class SiteViewSet(viewsets.ModelViewSet):
@@ -1312,10 +1313,13 @@ class SiteViewSet(viewsets.ModelViewSet):
 class PointageViewSet(viewsets.ModelViewSet):
     queryset           = Pointage.objects.all()
 
+    # Décision explicite (session du 08/09/2026) : /api/pointages/ est
+    # réservé au RH (role="admin"), y compris en lecture. L'application
+    # mobile ne dépend pas de cet endpoint générique — elle utilise ses
+    # propres routes dédiées (/api/mobile/pointages/, etc., voir
+    # views_mobile.py), qui restent inchangées.
     def get_permissions(self):
-        if self.action in ('create', 'update', 'partial_update', 'destroy'):
-            return [IsAdminUser()]
-        return [IsAuthenticated()]
+        return [IsAdminUser()]
 
     def get_serializer_class(self):
         return PointageDetailSerializer if self.action == 'retrieve' else PointageSerializer

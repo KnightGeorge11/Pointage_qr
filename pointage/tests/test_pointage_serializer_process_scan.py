@@ -107,7 +107,11 @@ class PointageSerializerProcessScanTestCase(TestCase):
         response = self._post_mobile_scan(
             mode="garde", force_new=True, when=_aware(date(2026, 8, 10), 20, 0)
         )
-        assert response.status_code == 400, response.content
+        # Convention actuelle de services.py : une anomalie signale sans
+        # jamais bloquer techniquement le scan (statut "warning", HTTP 200) ;
+        # le refus métier reste explicite via le code retourné, à charge de
+        # l'app mobile/l'admin de l'afficher clairement à l'utilisateur.
+        assert response.status_code == 200, response.content
         assert response.json()["code"] == "GARDE_PRECEDENTE_NON_CLOTUREE"
 
     def test_double_scan_mobile_est_refuse(self):
@@ -115,19 +119,25 @@ class PointageSerializerProcessScanTestCase(TestCase):
         first = self._post_mobile_scan(when=when)
         second = self._post_mobile_scan(when=when)
         assert first.status_code == 201
-        assert second.status_code == 400
+        # Même convention que ci-dessus : warning/200, pas d'erreur HTTP.
+        assert second.status_code == 200
         assert second.json()["code"] == "DOUBLON"
         assert Pointage.objects.filter(employe=self.employe).count() == 1
         assert Scan.objects.filter(employe=self.employe).count() == 1
 
     def test_meme_decision_process_scan_et_mobile(self):
         when = _aware(date(2026, 8, 10), 8, 0)
-        direct = process_scan(
-            matricule=self.employe.matricule,
-            qr_token=str(self.employe.qr_code_token),
-            site_id=self.site.id,
-            captured_at=when,
-            client_event_id=uuid4(),
-        )
+        # Comme pour _post_mobile_scan, il faut figer timezone.now() : sinon
+        # captured_at (fixe, dans le passé) finit par être vu comme un scan
+        # offline "trop ancien" (>24h) par rapport au temps réel qui avance
+        # d'une exécution de test à l'autre.
+        with patch("pointage.services.timezone.now", return_value=when):
+            direct = process_scan(
+                matricule=self.employe.matricule,
+                qr_token=str(self.employe.qr_code_token),
+                site_id=self.site.id,
+                captured_at=when,
+                client_event_id=uuid4(),
+            )
         assert direct["status"] == "success"
         assert direct["code"] == "entree_matin"

@@ -44,7 +44,7 @@ class AdminAnomalyWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        self.assertIn("Traitement de l’anomalie", content)
+        self.assertIn("Traitement de l'anomalie", content)
         self.assertIn("Justifier", content)
         self.assertIn("Rejeter", content)
         self.assertIn("Corriger le pointage", content)

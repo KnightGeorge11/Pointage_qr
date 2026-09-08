@@ -55,13 +55,16 @@ class TestSuppressionWebPointage(PointagePermissionsTestCase):
 
 
 class TestAPIPointagePermissions(PointagePermissionsTestCase):
-    def test_utilisateur_peut_consulter_la_liste_via_api(self):
+    # Décision explicite (session du 08/09/2026, tranche le conflit avec
+    # test_api_security.py) : /api/pointages/ est réservé au RH, y compris
+    # en lecture. Un compte role="user" n'a pas accès à la liste/au détail.
+    def test_utilisateur_ne_peut_pas_consulter_la_liste_via_api(self):
         response = self._client().get('/api/pointages/')
-        assert response.status_code == 200
+        assert response.status_code == 403
 
-    def test_utilisateur_peut_consulter_le_detail_via_api(self):
+    def test_utilisateur_ne_peut_pas_consulter_le_detail_via_api(self):
         response = self._client().get(f'/api/pointages/{self.pointage.pk}/')
-        assert response.status_code == 200
+        assert response.status_code == 403
 
     def _client(self):
         client = Client()
