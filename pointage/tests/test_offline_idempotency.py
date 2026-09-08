@@ -1,5 +1,6 @@
 from datetime import time as dtime
 from uuid import uuid4
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
@@ -51,9 +52,7 @@ class OfflineIdempotencyTestCase(TestCase):
         self.assertEqual(first["code"], "entree_matin")
         self.assertTrue(second["idempotent"])
         self.assertEqual(second["code"], "entree_matin")
-        self.assertEqual(
-            Scan.objects.filter(client_event_id=event_id).count(), 1
-        )
+        self.assertEqual(Scan.objects.filter(client_event_id=event_id).count(), 1)
         self.assertEqual(
             Pointage.objects.filter(
                 employe=self.employe, date_pointage=self.date, periode="matin"
@@ -90,13 +89,17 @@ class OfflineIdempotencyTestCase(TestCase):
         event_id = uuid4()
         captured_at = self._captured_at(14, 41)
 
-        result = process_scan(
-            matricule=self.employe.matricule,
-            qr_token=str(self.employe.qr_code_token),
-            site_id=self.site.id,
-            client_event_id=event_id,
-            captured_at=captured_at,
-        )
+        # Le test contrôle l'horloge serveur afin que 14h41 soit bien dans la
+        # fenêtre de tolérance du timestamp offline, indépendamment de l'heure
+        # réelle d'exécution de la CI.
+        with patch('pointage.services.timezone.now', return_value=captured_at):
+            result = process_scan(
+                matricule=self.employe.matricule,
+                qr_token=str(self.employe.qr_code_token),
+                site_id=self.site.id,
+                client_event_id=event_id,
+                captured_at=captured_at,
+            )
 
         self.assertEqual(result["status"], "success")
         self.assertEqual(result["code"], "entree_apres_midi")
