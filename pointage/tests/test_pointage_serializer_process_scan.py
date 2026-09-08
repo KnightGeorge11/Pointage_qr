@@ -5,6 +5,7 @@
 
 from datetime import time as dtime, date
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.test import TestCase, Client
 from django.utils import timezone
@@ -126,7 +127,7 @@ class PointageSerializerProcessScanTestCase(TestCase):
             qr_token=str(self.employe.qr_code_token),
             site_id=self.site.id,
             captured_at=when,
-            client_event_id=None,
+            client_event_id=uuid4(),
         )
         assert direct["status"] == "success"
         assert direct["code"] == "entree_matin"
