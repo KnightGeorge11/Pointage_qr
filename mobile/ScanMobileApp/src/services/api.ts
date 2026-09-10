@@ -370,12 +370,22 @@ export const apiService = {
     if (!Array.isArray(queue) || queue.length === 0) return { synced: 0, remaining: 0 };
 
     const remaining: any[] = [];
+    const attemptedIds = new Set<string>();
     let synced = 0;
     for (const item of queue) {
+      attemptedIds.add(item.client_event_id);
       try {
         const response = await api.post('/api/mobile/scan/record/', item);
         if (response.data?.status === 'success') {
           synced++;
+        } else if (response.data?.status === 'warning') {
+          // Le serveur a pris une décision métier définitive côté "warning"
+          // (HTTP 200, ex. DOUBLON, HORS_PLAGE, GARDE_PRECEDENTE_NON_CLOTUREE...) :
+          // aucun Scan n'est persisté pour ce client_event_id, donc rejouer
+          // exactement le même payload reproduirait indéfiniment le même
+          // refus. Même traitement que le rejet 'error' ci-dessous : on ne
+          // le remet pas dans la file, sinon il y reste bloqué pour
+          // toujours (constat du 10/09/2026 — voir aussi getPendingScanCount()).
         } else {
           remaining.push(item);
         }
@@ -396,8 +406,15 @@ export const apiService = {
     await withPendingQueueLock(async () => {
       const latestRaw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SCANS);
       const latest = latestRaw ? JSON.parse(latestRaw) : [];
-      const processedIds = new Set(queue.map((item: any) => item.client_event_id));
-      const concurrent = Array.isArray(latest) ? latest.filter((item: any) => !processedIds.has(item.client_event_id)) : [];
+      // BUG corrigé le 10/09/2026 : utilisait `queue` (tout le batch initial)
+      // au lieu de `attemptedIds` (les éléments réellement tentés). En cas de
+      // coupure réseau/erreur 5xx en cours de boucle (`break`), les scans
+      // situés après le point de rupture n'étaient JAMAIS tentés mais
+      // étaient quand même exclus de la fusion — ils disparaissaient donc
+      // silencieusement du stockage local sans jamais avoir été envoyés au
+      // serveur. Confirmé par simulation : 2 scans sur 3 perdus dans ce
+      // scénario avant correction.
+      const concurrent = Array.isArray(latest) ? latest.filter((item: any) => !attemptedIds.has(item.client_event_id)) : [];
       await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SCANS, JSON.stringify([...remaining, ...concurrent]));
     });
     return { synced, remaining: remaining.length };
