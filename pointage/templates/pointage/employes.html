@@ -11,67 +11,8 @@
    ===================================================== */
 
 /* ── En-tête ── */
-.page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-bottom: 24px;
-}
-
-.page-header-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
-.page-header-left h1 {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: -0.02em;
-    margin: 0;
-}
-
-.page-header-left h1 i {
-    color: var(--blue-500);
-    margin-right: 8px;
-}
-
-.page-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
 
 /* ── Stats mini ── */
-.stats-mini {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 12px 0;
-}
-
-.stats-mini-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-secondary);
-}
-
-.stats-mini-item .count {
-    font-weight: 700;
-    color: var(--text-primary);
-    background: var(--bg-surface);
-    padding: 0 10px;
-    border-radius: var(--radius-full);
-    font-size: 12px;
-    line-height: 22px;
-}
 
 .stats-mini-item .count.active {
     background: var(--green-50);
@@ -84,23 +25,6 @@
 }
 
 /* ── Tableau ── */
-.table-container {
-    background: var(--bg-white);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow var(--transition-base);
-}
-
-.table-container:hover {
-    box-shadow: var(--shadow-md);
-}
-
-.table-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
 
 .employe-table {
     width: 100%;
@@ -256,97 +180,10 @@
 }
 
 /* ── Actions ── */
-.actions-group {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    justify-content: center;
-}
-
-.actions-group .btn {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    transition: all var(--transition-fast);
-}
-
-.actions-group .btn-edit {
-    background: transparent;
-    border: 1px solid var(--border-light);
-    color: var(--text-muted);
-}
-
-.actions-group .btn-edit:hover {
-    background: var(--amber-50);
-    border-color: var(--amber-500);
-    color: var(--amber-600);
-    transform: translateY(-1px);
-}
-
-.actions-group .btn-delete {
-    background: transparent;
-    border: 1px solid var(--border-light);
-    color: var(--text-muted);
-}
-
-.actions-group .btn-delete:hover {
-    background: var(--red-50);
-    border-color: var(--red-500);
-    color: var(--red-600);
-    transform: translateY(-1px);
-}
 
 /* ── Empty state ── */
-.empty-state {
-    text-align: center;
-    padding: 60px 20px;
-}
-
-.empty-state i {
-    font-size: 48px;
-    color: var(--border-light);
-    margin-bottom: 16px;
-    display: block;
-}
-
-.empty-state h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 8px;
-}
-
-.empty-state p {
-    font-size: 14px;
-    color: var(--text-muted);
-    margin-bottom: 20px;
-}
 
 /* ── Pagination ── */
-.pagination-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    padding: 16px 20px;
-    border-top: 1px solid var(--border-light);
-    background: var(--bg-surface);
-}
-
-.pagination-info {
-    font-size: 12px;
-    color: var(--text-muted);
-}
-
-.pagination-info strong {
-    color: var(--text-primary);
-}
 
 /* ── Responsive ── */
 @media (max-width: 992px) {
