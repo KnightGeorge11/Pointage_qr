@@ -192,12 +192,6 @@ def secure_sensitive_apis():
             _secure_api_function(function)
 
 
-@login_required
-def scanner_view(request, *args, **kwargs):
-    """Pointage Web : l'identité doit être fournie par le QR du scanner."""
-    return views.scanner_view(request, *args, **kwargs)
-
-
 class RHAnomaliePointageViewSet(views.AnomaliePointageViewSet):
     permission_classes = [IsRHPermission]
 
