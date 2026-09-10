@@ -50,6 +50,22 @@ class LoginScreen(tk.Frame):
                  bg=COLORS["card"], fg=COLORS["muted"], font=("Segoe UI", 8),
                  justify="center").pack(pady=(20, 0))
 
+        # Lien discret vers paramètres (URL serveur). Correction du
+        # 10/09/2026 : jusqu'ici, ce lien n'existait que sur HomeScreen,
+        # donc uniquement APRES connexion. Si l'URL par défaut (ou
+        # celle déjà enregistrée) n'était pas joignable, l'opérateur
+        # restait bloqué sur cet écran sans aucun moyen de la corriger
+        # dans l'interface — même bug que celui déjà corrigé côté mobile
+        # en août dernier (Config inaccessible avant connexion).
+        settings_link = tk.Label(card, text="⚙ Paramètres serveur", bg=COLORS["card"], fg=COLORS["muted"],
+                                  font=("Segoe UI", 9, "underline"), cursor="hand2")
+        settings_link.pack(pady=(16, 0))
+        settings_link.bind("<Button-1>", lambda e: self._open_settings())
+
+    def _open_settings(self):
+        from screens.settings_dialog import SettingsDialog
+        SettingsDialog(self.app)
+
     def on_enter(self, **params):
         self.password_var.set("")
         self.error_label.pack_forget()
