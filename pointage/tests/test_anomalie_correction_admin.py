@@ -172,7 +172,7 @@ class TestCorrectionReelleDuPointage(TestCase):
     def test_pointage_deja_correct_ne_produit_aucune_correction_vide(self):
         """Si l'admin ne change rien (juste un commentaire), la liste des
         corrections doit rester vide plutôt que remplie de faux positifs."""
-        pointage = Pointage.objects.create(
+        Pointage.objects.create(
             employe=self.employe, site=self.site, date_pointage=date.today(),
             periode='matin', type_journee='normal',
             heure_arrivee=dtime(8, 0), heure_depart=dtime(12, 0),

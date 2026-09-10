@@ -51,7 +51,7 @@ class TestAlertesRHView(TestCase):
         assert "Journée déjà terminée" in content
 
     def test_filtre_par_statut(self):
-        ouverte = enregistrer_anomalie(AnomaliePointage.TYPE_DURING_BREAK, message="Ouverte")
+        enregistrer_anomalie(AnomaliePointage.TYPE_DURING_BREAK, message="Ouverte")
         traitee = enregistrer_anomalie(AnomaliePointage.TYPE_DAY_COMPLETE, message="Traitee")
         marquer_traitee(traitee, self.admin, commentaire="ok")
 

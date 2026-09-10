@@ -409,7 +409,7 @@ class TestDayStateMachineEdgeCases:
             schedule=standard_site_schedule,
             site_id=1, employee_id=1
         )
-        dec1 = machine.decide(ctx1)
+        machine.decide(ctx1)
         # À 12:00, on peut faire une sortie matin
         
         # Exactement à 13:30 : pas en pause

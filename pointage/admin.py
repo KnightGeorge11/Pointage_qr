@@ -383,9 +383,6 @@ class EmployeAdmin(admin.ModelAdmin):
         self.message_user(request, f"⛔ {updated} employé(s) désactivé(s).", messages.SUCCESS)
     desactiver_employes.short_description = "⛔ Désactiver"
 
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('poste')
-
 
 # ============================================================
 # POINTAGE - AVEC FILTRES EXACTEMENT COMME L'UI
@@ -504,13 +501,6 @@ class PointageAdmin(admin.ModelAdmin):
             queryset.delete()
             self.message_user(request, f"🗑️ {count} pointage(s) supprimé(s).")
     supprimer_selection.short_description = "🗑️ Supprimer"
-    
-    # ============================================================
-    # GET QUERYSET
-    # ============================================================
-    
-    def get_queryset(self, request):
-        return Pointage.objects.select_related('employe', 'site')
     
     # ============================================================
     # CHANGELIST VIEW
@@ -1323,9 +1313,6 @@ class ScanAdmin(admin.ModelAdmin):
         )
     type_scan_display.short_description = 'Type de scan'
 
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('employe', 'site')
-
 
 # ============================================================
 # ANOMALIES DE POINTAGE
@@ -1580,6 +1567,39 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
         return render(request, 'admin/pointage/anomalie/corriger_pointage.html', {
             'anomalie': anomalie, 'form': form, 'opts': self.model._meta,
         })
+
+
+# ============================================================
+# AUDIT DE POINTAGE — lecture seule pour le RH
+# ============================================================
+# Le journal PointageAudit est alimenté (voir overtime_admin.py) mais
+# n'était jusqu'ici accessible nulle part dans l'admin : les entrées
+# existaient en base sans qu'aucun RH ne puisse les consulter.
+
+@admin.register(PointageAudit)
+class PointageAuditAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'pointage', 'administrateur', 'action', 'motif')
+    list_filter = ('action', 'created_at')
+    search_fields = (
+        'pointage__employe__nom', 'pointage__employe__prenom',
+        'pointage__employe__matricule', 'motif',
+    )
+    readonly_fields = ('pointage', 'administrateur', 'action', 'avant', 'apres', 'motif', 'created_at')
+    date_hierarchy = 'created_at'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('pointage', 'administrateur')
+
+    # Journal immuable : consultation uniquement, aucune création/modification/
+    # suppression manuelle depuis l'admin.
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 # ============================================================

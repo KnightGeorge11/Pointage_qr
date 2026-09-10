@@ -1,12 +1,9 @@
-from datetime import time as dtime, date, datetime
-from unittest.mock import patch
+from datetime import time as dtime, date
 
 from django.test import TestCase, Client
 from django.urls import reverse
-from django.utils import timezone
 
-from pointage.models import CustomUser, Employe, Site, Pointage, AnomaliePointage
-from pointage.anomalies import enregistrer_anomalie
+from pointage.models import CustomUser, Employe, Site, Pointage
 
 
 class PointagePermissionsTestCase(TestCase):

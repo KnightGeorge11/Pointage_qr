@@ -5,7 +5,6 @@ from datetime import timedelta
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
-from django.shortcuts import redirect
 from django.utils import timezone
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response

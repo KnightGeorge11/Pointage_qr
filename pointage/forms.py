@@ -87,7 +87,6 @@ class PointageForm(forms.ModelForm):
         type_journee = cleaned_data.get('type_journee')
         heure_arrivee = cleaned_data.get('heure_arrivee')
         heure_depart = cleaned_data.get('heure_depart')
-        date_pointage = cleaned_data.get('date_pointage')
 
         # Vérification cohérence période / type_journee
         if periode == 'nuit' and type_journee != 'garde':
@@ -131,7 +130,7 @@ class ScanForm(forms.Form):
     def clean_matricule(self):
         matricule = self.cleaned_data.get('matricule')
         try:
-            employe = Employe.objects.get(matricule=matricule, actif=True)
+            Employe.objects.get(matricule=matricule, actif=True)
         except Employe.DoesNotExist:
             raise forms.ValidationError("Employé non trouvé ou inactif")
         return matricule
