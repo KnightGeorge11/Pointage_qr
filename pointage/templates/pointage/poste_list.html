@@ -578,25 +578,10 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 
-    // ─── Confirmation de suppression ──
-    document.querySelectorAll('.btn-delete').forEach(function(btn) {
-        btn.addEventListener('click', function(e) {
-            const row = this.closest('tr');
-            const posteName = row?.querySelector('.poste-name')?.textContent?.trim() || 'ce poste';
-            const employeeCount = row?.querySelector('.employee-count')?.textContent?.trim() || '0';
-
-            let message = 'Êtes-vous sûr de vouloir supprimer le poste "' + posteName + '" ?\n\n';
-            if (parseInt(employeeCount) > 0) {
-                message += '⚠️ Attention : ' + employeeCount + ' employé(s) sont actuellement assignés à ce poste.\n';
-                message += 'Ils devront être réassignés avant la suppression.\n\n';
-            }
-            message += 'Cette action est irréversible.';
-
-            if (!confirm(message)) {
-                e.preventDefault();
-            }
-        });
-    });
+    // Remarque : la confirmation de suppression est gérée par la page
+    // dédiée poste_confirm_delete.html (cohérent avec employes.html et
+    // sites.html) — pas de popup confirm() natif supplémentaire ici,
+    // qui faisait doublon et n'existait que sur cette page.
 
 });
 document.addEventListener('DOMContentLoaded', function() {
