@@ -4,7 +4,7 @@ from django.utils import timezone
 from datetime import timedelta
 from django.contrib.admin.models import LogEntry
 from django.db.models import Count, Q
-from .models import Employe, Pointage, AnomaliePointage, Poste
+from .models import Employe, Pointage, AnomaliePointage, Poste, PointageAudit
 from .anomalies import compter_anomalies_ouvertes
 from .models import DemandeModification
 
@@ -33,23 +33,23 @@ def dashboard_context(request):
         return {}
 
     today = timezone.localtime(timezone.now()).date()
-    
+
     # ============================================================
     # STATISTIQUES PRINCIPALES
     # ============================================================
-    
+
     total_employes = Employe.objects.filter(actif=True).count()
-    
+
     today_pointages = Pointage.objects.filter(date_pointage=today)
     presents_aujourdhui = today_pointages.values('employe').distinct().count()
-    
+
     retards_aujourdhui = today_pointages.filter(
-        periode__in=['matin', 'apres_midi'], 
+        periode__in=['matin', 'apres_midi'],
         retard__gt=timedelta(0)
     ).count()
-    
+
     absents_aujourdhui = total_employes - presents_aujourdhui
-    
+
     gardes_en_cours = Pointage.objects.filter(
         periode='nuit',
         type_journee='garde',
@@ -58,7 +58,7 @@ def dashboard_context(request):
         date_pointage__gte=today - timedelta(days=1),
         date_pointage__lte=today,
     ).count()
-    
+
     anomalies_ouvertes = compter_anomalies_ouvertes()
 
     # Pointages jamais clôturés, d'un jour PRÉCÉDENT uniquement (jamais
@@ -70,30 +70,25 @@ def dashboard_context(request):
         heure_depart__isnull=True,
         date_pointage__lt=today,
     ).count()
-    
+
     # ============================================================
-    # DONNÉES HEBDOMADAIRES + ÉVOLUTION (4 semaines) — UNE SEULE
-    # requête couvrant toute la période, agrégée en Python, au lieu
-    # de 7×2 + 4×3 = 26 requêtes individuelles (Phase 5 — optimisation
-    # context processor). Résultats strictement identiques.
+    # DONNÉES HEBDOMADAIRES + ÉVOLUTION (4 semaines)
     # ============================================================
 
     jours_labels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 
-    # Calcul du lundi de la semaine en cours
-    today_weekday = today.weekday()  # 0=Lundi, 6=Dimanche
+    today_weekday = today.weekday()
     start_of_week = today - timedelta(days=today_weekday)
 
     periode_actif = ('matin', 'apres_midi')
     full_start = start_of_week - timedelta(weeks=3)
-    full_end   = start_of_week + timedelta(days=6)
+    full_end = start_of_week + timedelta(days=6)
 
     lignes = list(
         Pointage.objects.filter(date_pointage__gte=full_start, date_pointage__lte=full_end)
         .values('date_pointage', 'employe_id', 'periode', 'retard')
     )
 
-    # --- Semaine en cours (graphique 7 jours) ---
     weekly_presents, weekly_absents, weekly_retards = [], [], []
     for i in range(7):
         jour = start_of_week + timedelta(days=i)
@@ -107,7 +102,6 @@ def dashboard_context(request):
         weekly_absents.append(total_employes - presents)
         weekly_retards.append(retards)
 
-    # --- Évolution sur 4 semaines ---
     evolution_labels, evolution_presence, evolution_ponctualite = [], [], []
     for i in range(3, -1, -1):
         week_start = start_of_week - timedelta(weeks=i)
@@ -132,39 +126,37 @@ def dashboard_context(request):
             taux_ponctualite = round((pointages_sans_retard / total_pointages) * 100, 1)
         else:
             taux_ponctualite = 0.0
-        
+
         evolution_presence.append(taux_presence)
         evolution_ponctualite.append(taux_ponctualite)
-    
+
     # ============================================================
-    # DONNÉES DES POSTES (camembert)
+    # DONNÉES DES POSTES
     # ============================================================
-    
+
     postes_data = []
     postes_qs = Poste.objects.annotate(
         employes_count=Count('employes', filter=Q(employes__actif=True))
     ).filter(employes_count__gt=0)
-    
+
     for poste in postes_qs:
         postes_data.append({
             'nom': poste.nom,
             'count': poste.employes_count,
             'couleur': poste.couleur or '#2563EB'
         })
-    
+
     # ============================================================
-    # HISTORIQUE DÉTAILLÉ DES ACTIVITÉS
+    # HISTORIQUE DÉTAILLÉ DES ACTIVITÉS + AUDIT POINTAGE
     # ============================================================
-    
-    # Récupérer les logs d'administration
+
     logs_recents = LogEntry.objects.select_related(
         'user', 'content_type'
     ).order_by('-action_time')[:20]
-    
-    # Enrichir les logs avec des informations supplémentaires
+
     logs_detailed = []
     for log in logs_recents:
-        log_data = {
+        logs_detailed.append({
             'id': log.id,
             'user': log.user,
             'action_time': log.action_time,
@@ -177,17 +169,57 @@ def dashboard_context(request):
             'is_addition': log.action_flag == 1,
             'is_change': log.action_flag == 2,
             'is_deletion': log.action_flag == 3,
-        }
-        logs_detailed.append(log_data)
-    
+        })
+
+    # Le journal PointageAudit est distinct des LogEntry Django.
+    # On le fusionne ici afin que les corrections/suppressions de pointage
+    # soient réellement visibles dans le bloc « Historique des activités »
+    # du dashboard, sans dépendre d'un JavaScript ou du cache staticfiles.
+    audits_recents = PointageAudit.objects.select_related(
+        'pointage__employe', 'administrateur'
+    ).order_by('-created_at')[:20]
+
+    audit_entries = []
+    for audit in audits_recents:
+        employe = audit.pointage.employe.get_nom_complet() if audit.pointage and audit.pointage.employe else 'Employé inconnu'
+        administrateur = audit.administrateur
+        action_label = {
+            'creation': 'Audit — Création',
+            'modification': 'Audit — Modification',
+            'suppression': 'Audit — Suppression',
+        }.get(audit.action, f'Audit — {audit.action}')
+        motif = audit.motif or '—'
+        audit_entries.append({
+            'id': f'audit-{audit.pk}',
+            'user': administrateur,
+            'action_time': audit.created_at,
+            'action_flag': 2,
+            'action_display': action_label,
+            'content_type': None,
+            'object_repr': f'{employe} · Pointage #{audit.pointage_id}' if audit.pointage_id else employe,
+            'object_id': audit.pointage_id,
+            'change_message': f'Motif : {motif}',
+            'is_addition': audit.action == 'creation',
+            'is_change': audit.action == 'modification',
+            'is_deletion': audit.action == 'suppression',
+        })
+
+    # Fusion puis tri chronologique : l'audit apparaît exactement dans le
+    # même flux visuel que les activités Django.
+    logs_detailed = sorted(
+        logs_detailed + audit_entries,
+        key=lambda item: item['action_time'] or timezone.now(),
+        reverse=True,
+    )[:30]
+
     # ============================================================
     # DERNIERS POINTAGES
     # ============================================================
-    
+
     pointages_recents = Pointage.objects.select_related(
         'employe', 'site'
     ).order_by('-date_creation')[:10]
-    
+
     pointages_data = []
     for p in pointages_recents:
         pointages_data.append({
@@ -203,15 +235,15 @@ def dashboard_context(request):
             'statut_display': p.get_statut_display(),
             'retard': p.get_retard_minutes() if p.retard else 0,
         })
-    
+
     # ============================================================
     # ANOMALIES RÉCENTES
     # ============================================================
-    
+
     anomalies_recentes = AnomaliePointage.objects.select_related(
         'employe', 'site'
     ).order_by('-created_at')[:10]
-    
+
     anomalies_data = []
     for a in anomalies_recentes:
         anomalies_data.append({
@@ -227,46 +259,31 @@ def dashboard_context(request):
             'gravite': a.gravite,
             'gravite_display': a.get_gravite_display(),
         })
-    
+
     return {
-        # Statistiques
         'total_employes': total_employes,
         'presents_aujourdhui': presents_aujourdhui,
         'absents_aujourdhui': absents_aujourdhui,
         'retards_aujourdhui': retards_aujourdhui,
         'gardes_en_cours': gardes_en_cours,
         'anomalies_ouvertes': anomalies_ouvertes,
-        
-        # Graphique hebdomadaire
         'weekly_labels': jours_labels,
         'weekly_presents': weekly_presents,
         'weekly_absents': weekly_absents,
         'weekly_retards': weekly_retards,
-        
-        # Graphique d'évolution
         'evolution_labels': evolution_labels,
         'evolution_presence': evolution_presence,
         'evolution_ponctualite': evolution_ponctualite,
-        
-        # Camembert des postes
         'postes_data': postes_data,
-        
-        # Logs détaillés
         'logs_detailed': logs_detailed,
         'logs_recents': logs_recents,
-        
-        # Pointages récents
         'pointages_data': pointages_data,
         'pointages_recents': pointages_recents,
-        
-        # Anomalies récentes
         'anomalies_data': anomalies_data,
         'anomalies_recentes': anomalies_recentes,
-
-        # Pointages incomplets (jours précédents)
         'pointages_incomplets': pointages_incomplets,
     }
- 
+
 
 def admin_badge_counts(request):
     """Fournit les compteurs pour les badges de la sidebar Jazzmin."""
@@ -277,7 +294,7 @@ def admin_badge_counts(request):
     anomalies_ouvertes = AnomaliePointage.objects.filter(
         statut=AnomaliePointage.STATUT_OUVERTE
     ).count()
-    
+
     return {
         'demandes_attente': demandes_attente,
         'anomalies_ouvertes': anomalies_ouvertes,
