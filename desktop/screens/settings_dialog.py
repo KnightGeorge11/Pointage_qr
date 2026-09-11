@@ -18,26 +18,39 @@ from utils import COLORS, run_async
 
 
 class SettingsDialog(tk.Toplevel):
-    def __init__(self, app):
+    def __init__(self, app, mandatory: bool = False):
         super().__init__(app)
         self.app = app
-        self.title("Paramètres serveur")
+        self.mandatory = mandatory
+        self.title("Paramètres serveur" if not mandatory else "Configuration requise")
         self.geometry("360x360")
         self.resizable(False, False)
         self.configure(bg=COLORS["bg"])
         self.transient(app)
         self.grab_set()
 
-        current_user = api_client.get_current_user()
-        if current_user:
-            tk.Label(self, text="Connecté en tant que", bg=COLORS["bg"], fg=COLORS["muted"],
-                     font=("Segoe UI", 9)).pack(anchor="w", padx=20, pady=(20, 0))
-            nom_affiche = (
-                f"{current_user.get('first_name', '')} {current_user.get('last_name', '')}".strip()
-                or current_user.get('username', '')
-            )
-            tk.Label(self, text=nom_affiche, bg=COLORS["bg"], fg=COLORS["dark"],
-                     font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=20, pady=(0, 16))
+        if mandatory:
+            # Premier lancement : aucune URL n'est encore configurée
+            # (voir storage.DEFAULTS). On empêche la fermeture de cette
+            # fenêtre tant qu'une URL valide n'a pas été enregistrée —
+            # pas de connexion "à l'aveugle" vers un hôte par défaut qui
+            # peut ne pas exister sur le réseau de l'utilisateur.
+            self.protocol("WM_DELETE_WINDOW", self._block_close)
+            tk.Label(self, text="Bienvenue — indiquez l'adresse du serveur Pointage QR\n"
+                                 "avant de continuer.",
+                     bg=COLORS["bg"], fg=COLORS["dark"], font=("Segoe UI", 10),
+                     justify="left", wraplength=320).pack(anchor="w", padx=20, pady=(20, 0))
+        else:
+            current_user = api_client.get_current_user()
+            if current_user:
+                tk.Label(self, text="Connecté en tant que", bg=COLORS["bg"], fg=COLORS["muted"],
+                         font=("Segoe UI", 9)).pack(anchor="w", padx=20, pady=(20, 0))
+                nom_affiche = (
+                    f"{current_user.get('first_name', '')} {current_user.get('last_name', '')}".strip()
+                    or current_user.get('username', '')
+                )
+                tk.Label(self, text=nom_affiche, bg=COLORS["bg"], fg=COLORS["dark"],
+                         font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=20, pady=(0, 16))
 
         tk.Label(self, text="URL de l'API", bg=COLORS["bg"], fg=COLORS["dark"],
                  font=("Segoe UI", 11, "bold")).pack(anchor="w", padx=20, pady=(0, 6))
@@ -46,7 +59,7 @@ class SettingsDialog(tk.Toplevel):
         entry = tk.Entry(self, textvariable=self.url_var, font=("Segoe UI", 11))
         entry.pack(fill="x", padx=20)
 
-        tk.Label(self, text="Exemple : http://pointageqr.local:8000", bg=COLORS["bg"], fg=COLORS["muted"],
+        tk.Label(self, text="Exemple : http://192.168.3.101:8000", bg=COLORS["bg"], fg=COLORS["muted"],
                  font=("Segoe UI", 8)).pack(anchor="w", padx=20, pady=(4, 16))
 
         self.result_label = tk.Label(self, text="", bg=COLORS["bg"], font=("Segoe UI", 9))
@@ -63,9 +76,20 @@ class SettingsDialog(tk.Toplevel):
                               fg="white", relief="flat", padx=10, pady=6)
         save_btn.pack(side="right")
 
-        logout_btn = tk.Button(self, text="Se déconnecter", command=self._logout,
-                                bg=COLORS["error_text"], fg="white", relief="flat", padx=10, pady=10)
-        logout_btn.pack(fill="x", padx=20, pady=(30, 20))
+        if not mandatory:
+            # Se déconnecter n'a de sens que si quelqu'un peut être
+            # connecté — impossible au tout premier lancement (mode
+            # obligatoire), avant même qu'un serveur soit configuré.
+            logout_btn = tk.Button(self, text="Se déconnecter", command=self._logout,
+                                    bg=COLORS["error_text"], fg="white", relief="flat", padx=10, pady=10)
+            logout_btn.pack(fill="x", padx=20, pady=(30, 20))
+
+    def _block_close(self):
+        messagebox.showwarning(
+            "Configuration requise",
+            "Veuillez saisir et enregistrer l'adresse du serveur avant de continuer.",
+            parent=self,
+        )
 
     def _test(self):
         url = self.url_var.get().strip()

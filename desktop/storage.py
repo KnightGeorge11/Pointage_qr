@@ -22,7 +22,13 @@ KEYRING_SERVICE = "PointageQR-Desktop"
 TOKEN_KEY = "api_token"
 
 DEFAULTS = {
-    "api_base_url": "http://pointageqr.local:8000",
+    # Décision du 10/09/2026 : plus de valeur par défaut implicite
+    # (auparavant "http://pointageqr.local:8000", un nom mDNS pas fiable
+    # sur les postes Windows sans Bonjour). L'URL doit maintenant être
+    # saisie explicitement au premier lancement (voir app.py, qui force
+    # SettingsDialog tant qu'elle est vide) — pas de config "magique"
+    # qui peut tomber en panne silencieusement.
+    "api_base_url": "",
     "current_user": None,
     "selected_site": None,
     "user_matricule": None,

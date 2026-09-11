@@ -33,20 +33,26 @@ class OfflineIdempotencyTestCase(TestCase):
         event_id = uuid4()
         captured_at = self._captured_at(8, 0)
 
-        first = process_scan(
-            matricule=self.employe.matricule,
-            qr_token=str(self.employe.qr_code_token),
-            site_id=self.site.id,
-            client_event_id=event_id,
-            captured_at=captured_at,
-        )
-        second = process_scan(
-            matricule=self.employe.matricule,
-            qr_token=str(self.employe.qr_code_token),
-            site_id=self.site.id,
-            client_event_id=event_id,
-            captured_at=captured_at,
-        )
+        # Même précaution que test_captured_at_determine_lheure_metier :
+        # sans figer l'horloge, ce test devient dépendant de l'heure réelle
+        # d'exécution (8h00 "aujourd'hui" peut apparaître comme une date
+        # future si le test tourne avant 8h locale, déclenchant à tort
+        # DATE_SCAN_FUTURE au lieu du scénario testé). Constat du 10/09/2026.
+        with patch('pointage.services.timezone.now', return_value=captured_at):
+            first = process_scan(
+                matricule=self.employe.matricule,
+                qr_token=str(self.employe.qr_code_token),
+                site_id=self.site.id,
+                client_event_id=event_id,
+                captured_at=captured_at,
+            )
+            second = process_scan(
+                matricule=self.employe.matricule,
+                qr_token=str(self.employe.qr_code_token),
+                site_id=self.site.id,
+                client_event_id=event_id,
+                captured_at=captured_at,
+            )
 
         self.assertEqual(first["status"], "success")
         self.assertEqual(first["code"], "entree_matin")
@@ -65,20 +71,23 @@ class OfflineIdempotencyTestCase(TestCase):
         second_id = uuid4()
         captured_at = self._captured_at(8, 0)
 
-        first = process_scan(
-            matricule=self.employe.matricule,
-            qr_token=str(self.employe.qr_code_token),
-            site_id=self.site.id,
-            client_event_id=first_id,
-            captured_at=captured_at,
-        )
-        second = process_scan(
-            matricule=self.employe.matricule,
-            qr_token=str(self.employe.qr_code_token),
-            site_id=self.site.id,
-            client_event_id=second_id,
-            captured_at=captured_at,
-        )
+        # Même précaution que ci-dessus (horloge figée pour rester
+        # indépendant de l'heure réelle d'exécution).
+        with patch('pointage.services.timezone.now', return_value=captured_at):
+            first = process_scan(
+                matricule=self.employe.matricule,
+                qr_token=str(self.employe.qr_code_token),
+                site_id=self.site.id,
+                client_event_id=first_id,
+                captured_at=captured_at,
+            )
+            second = process_scan(
+                matricule=self.employe.matricule,
+                qr_token=str(self.employe.qr_code_token),
+                site_id=self.site.id,
+                client_event_id=second_id,
+                captured_at=captured_at,
+            )
 
         self.assertEqual(first["status"], "success")
         self.assertEqual(second["status"], "warning")

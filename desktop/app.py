@@ -62,6 +62,16 @@ class PointageApp(tk.Tk):
             frame.grid(row=0, column=0, sticky="nsew")
 
         self.history_stack = []
+
+        # Premier lancement (ou settings.json supprimé/vidé) : aucune URL
+        # n'est configurée. On bloque ici, avant même d'afficher l'écran de
+        # connexion, plutôt que de tenter un hôte par défaut qui peut ne pas
+        # exister sur le réseau de l'utilisateur (voir storage.DEFAULTS).
+        if not api_client.get_base_url():
+            from screens.settings_dialog import SettingsDialog
+            dialog = SettingsDialog(self, mandatory=True)
+            self.wait_window(dialog)
+
         # Pas de reconnexion visible si un jeton valide existe déjà en
         # stockage local — on démarre directement sur l'accueil.
         if api_client.is_authenticated():
