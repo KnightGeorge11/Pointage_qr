@@ -95,7 +95,7 @@ const ConfigScreen = () => {
         style={styles.input}
         value={baseUrl}
         onChangeText={setBaseUrlState}
-        placeholder="http://pointageqr.local:8000"
+        placeholder="http://192.168.3.101:8000"
         autoCapitalize="none"
         autoCorrect={false}
       />
