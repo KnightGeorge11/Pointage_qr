@@ -15,6 +15,7 @@ from .admin_security import (
     alerte_detail_view,
     export_resume_excel,
     admin_badge_counts_api,
+    admin_audit_api,
     notifications_api as admin_notifications_api,
     RHAnomaliePointageViewSet,
 )
@@ -58,6 +59,7 @@ urlpatterns = [
     path('api/dashboard-stats/', get_dashboard_stats, name='dashboard_stats'),
     path('api/charts-data/', get_charts_data, name='charts_data'),
     path('api/admin-badge-counts/', admin_badge_counts_api, name='admin_badge_counts_api'),
+    path('api/admin-audit/', admin_audit_api, name='admin_audit_api'),
     path('api/notifications/', web_notifications_api, name='notifications_api'),
     path('api/admin-notifications/', admin_notifications_api, name='admin_notifications_api'),
 ]
