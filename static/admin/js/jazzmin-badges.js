@@ -21,6 +21,20 @@
         // Journal d'audit directement sur le dashboard Jazzmin.
         // Le endpoint est protégé côté serveur : seuls les comptes RH/admin
         // peuvent recevoir ces données.
+        //
+        // Correction du 11/09/2026 : le widget ne s'affichait plus nulle part.
+        // Les anciens sélecteurs (#content-main, .content-wrapper .content)
+        // ciblaient une structure AdminLTE 3 ; cette installation utilise
+        // AdminLTE 4 (<main class="app-main">), donc $anchor.length valait
+        // toujours 0 et l'insertion était silencieusement ignorée — le
+        // fetch réussissait, la carte était construite, mais jamais posée
+        // dans le DOM. On cible maintenant #dashboard-audit-anchor, un
+        // ancrage dédié ajouté directement dans templates/admin/index.html
+        // (le vrai template du dashboard), pour ne plus dépendre de classes
+        // AdminLTE susceptibles de changer entre versions. Ce widget reste
+        // strictement dans le contenu du dashboard — jamais dans la barre
+        // de navigation (qui est gérée séparément, plus bas dans ce fichier,
+        // par le système de notifications #jazzminNotifWrap).
         if (window.location.pathname === '/admin/' || window.location.pathname === '/admin') {
             function loadDashboardAudit() {
                 $.getJSON('/api/admin-audit/', function(data) {
@@ -85,23 +99,20 @@
                     }
                     $card.append($body);
 
-                    // Le dashboard personnalisé est rendu dans #content-main par Jazzmin.
-                    // On l'insère en tête pour qu'il soit immédiatement visible.
-                    var $anchor = $('#content-main').first();
-                    if ($anchor.length === 0) $anchor = $('.content-wrapper .content').first();
+                    var $anchor = $('#dashboard-audit-anchor');
                     if ($anchor.length > 0) {
-                        $anchor.prepend($card);
+                        $anchor.empty().append($card);
                     }
                 }).fail(function() {
                     // Ne pas masquer le problème : afficher un état visible sur le dashboard.
-                    $('#jazzminAuditDashboard').remove();
-                    var $error = $('<div id="jazzminAuditDashboard"></div>').css({
-                        margin: '20px 0 0', padding: '16px 20px', background: '#FFF7ED',
-                        border: '1px solid #FED7AA', borderRadius: '14px', color: '#9A3412', fontSize: '13px'
-                    }).text('Audit : impossible de charger le journal.');
-                    var $anchor = $('#content-main').first();
-                    if ($anchor.length === 0) $anchor = $('.content-wrapper .content').first();
-                    if ($anchor.length > 0) $anchor.prepend($error);
+                    var $anchor = $('#dashboard-audit-anchor');
+                    if ($anchor.length > 0) {
+                        var $error = $('<div id="jazzminAuditDashboard"></div>').css({
+                            margin: '20px 0 0', padding: '16px 20px', background: '#FFF7ED',
+                            border: '1px solid #FED7AA', borderRadius: '14px', color: '#9A3412', fontSize: '13px'
+                        }).text('Audit : impossible de charger le journal.');
+                        $anchor.empty().append($error);
+                    }
                 });
             }
 

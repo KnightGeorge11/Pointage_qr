@@ -278,6 +278,15 @@
         </div>
     </div>
 
+    <!-- Ancrage stable pour le widget d'audit (voir static/admin/js/jazzmin-badges.js).
+         Corrigé le 11/09/2026 : les anciens sélecteurs génériques (#content-main,
+         .content-wrapper .content) ciblaient une structure AdminLTE 3 qui n'existe
+         plus dans cette version de Jazzmin (AdminLTE 4 : <main class="app-main">),
+         donc le widget ne s'affichait jamais nulle part, silencieusement. Un ancrage
+         dédié directement dans CE template (le vrai template du dashboard /admin/,
+         distinct de pointage/dashboard.html) garantit qu'il apparaît ici, dans le
+         contenu du dashboard, et jamais dans la barre de navigation. -->
+    <div id="dashboard-audit-anchor"></div>
 
     <!-- ===== CARTES DE STATISTIQUES ===== -->
     <div class="row" style="margin-top: 20px;">
