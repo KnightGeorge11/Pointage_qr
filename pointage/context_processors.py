@@ -21,65 +21,35 @@ def _is_rh_request(request):
 
 
 def dashboard_context(request):
-    """Fournit les données statistiques pour le dashboard Jazzmin.
-
-    Optimisation : ce contexte fait une vingtaine de requêtes (stats du
-    jour + 7 jours glissants + postes + logs). Il n'a de sens que sur
-    les pages admin qui l'affichent réellement — pas sur le login, les
-    pages publiques, ou l'API. On l'évite ailleurs pour ne pas payer ce
-    coût sur chaque page rendue (context processor global).
-    """
+    """Fournit les données statistiques pour le dashboard Jazzmin."""
     if not _is_rh_request(request):
         return {}
 
     today = timezone.localtime(timezone.now()).date()
 
-    # ============================================================
-    # STATISTIQUES PRINCIPALES
-    # ============================================================
-
     total_employes = Employe.objects.filter(actif=True).count()
-
     today_pointages = Pointage.objects.filter(date_pointage=today)
     presents_aujourdhui = today_pointages.values('employe').distinct().count()
-
     retards_aujourdhui = today_pointages.filter(
-        periode__in=['matin', 'apres_midi'],
-        retard__gt=timedelta(0)
+        periode__in=['matin', 'apres_midi'], retard__gt=timedelta(0)
     ).count()
-
     absents_aujourdhui = total_employes - presents_aujourdhui
 
     gardes_en_cours = Pointage.objects.filter(
-        periode='nuit',
-        type_journee='garde',
-        heure_arrivee__isnull=False,
+        periode='nuit', type_journee='garde', heure_arrivee__isnull=False,
         heure_depart__isnull=True,
-        date_pointage__gte=today - timedelta(days=1),
-        date_pointage__lte=today,
+        date_pointage__gte=today - timedelta(days=1), date_pointage__lte=today,
     ).count()
 
     anomalies_ouvertes = compter_anomalies_ouvertes()
-
-    # Pointages jamais clôturés, d'un jour PRÉCÉDENT uniquement (jamais
-    # aujourd'hui, où une entrée sans sortie est encore normale — la
-    # journée n'est simplement pas finie). Même filtre que
-    # PointageIncompletFilter dans admin.py, gardé identique ici.
     pointages_incomplets = Pointage.objects.filter(
-        heure_arrivee__isnull=False,
-        heure_depart__isnull=True,
+        heure_arrivee__isnull=False, heure_depart__isnull=True,
         date_pointage__lt=today,
     ).count()
 
-    # ============================================================
-    # DONNÉES HEBDOMADAIRES + ÉVOLUTION (4 semaines)
-    # ============================================================
-
     jours_labels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-
     today_weekday = today.weekday()
     start_of_week = today - timedelta(days=today_weekday)
-
     periode_actif = ('matin', 'apres_midi')
     full_start = start_of_week - timedelta(weeks=3)
     full_end = start_of_week + timedelta(days=6)
@@ -106,39 +76,23 @@ def dashboard_context(request):
     for i in range(3, -1, -1):
         week_start = start_of_week - timedelta(weeks=i)
         week_end = week_start + timedelta(days=6)
-
         evolution_labels.append(f"Sem. {week_start.strftime('%d/%m')}")
-
         lignes_semaine = [l for l in lignes if week_start <= l['date_pointage'] <= week_end]
-
         employes_semaine = len({l['employe_id'] for l in lignes_semaine})
-        if total_employes > 0:
-            taux_presence = round((employes_semaine / total_employes) * 100, 1)
-        else:
-            taux_presence = 0.0
-
+        taux_presence = round((employes_semaine / total_employes) * 100, 1) if total_employes > 0 else 0.0
         lignes_actives = [l for l in lignes_semaine if l['periode'] in periode_actif]
         pointages_sans_retard = sum(
             1 for l in lignes_actives if not l['retard'] or l['retard'] == timedelta(0)
         )
         total_pointages = len(lignes_actives)
-        if total_pointages > 0:
-            taux_ponctualite = round((pointages_sans_retard / total_pointages) * 100, 1)
-        else:
-            taux_ponctualite = 0.0
-
+        taux_ponctualite = round((pointages_sans_retard / total_pointages) * 100, 1) if total_pointages > 0 else 0.0
         evolution_presence.append(taux_presence)
         evolution_ponctualite.append(taux_ponctualite)
-
-    # ============================================================
-    # DONNÉES DES POSTES
-    # ============================================================
 
     postes_data = []
     postes_qs = Poste.objects.annotate(
         employes_count=Count('employes', filter=Q(employes__actif=True))
     ).filter(employes_count__gt=0)
-
     for poste in postes_qs:
         postes_data.append({
             'nom': poste.nom,
@@ -146,14 +100,8 @@ def dashboard_context(request):
             'couleur': poste.couleur or '#2563EB'
         })
 
-    # ============================================================
-    # HISTORIQUE DÉTAILLÉ DES ACTIVITÉS + AUDIT POINTAGE
-    # ============================================================
-
-    logs_recents = LogEntry.objects.select_related(
-        'user', 'content_type'
-    ).order_by('-action_time')[:20]
-
+    # Historique Django standard.
+    logs_recents = LogEntry.objects.select_related('user', 'content_type').order_by('-action_time')[:20]
     logs_detailed = []
     for log in logs_recents:
         logs_detailed.append({
@@ -171,55 +119,46 @@ def dashboard_context(request):
             'is_deletion': log.action_flag == 3,
         })
 
-    # Le journal PointageAudit est distinct des LogEntry Django.
-    # On le fusionne ici afin que les corrections/suppressions de pointage
-    # soient réellement visibles dans le bloc « Historique des activités »
-    # du dashboard, sans dépendre d'un JavaScript ou du cache staticfiles.
+    # Journal immuable des créations/corrections/suppressions de pointages.
+    # Il est fusionné au flux déjà affiché par templates/admin/index.html :
+    # aucune dépendance au JavaScript ni à collectstatic.
     audits_recents = PointageAudit.objects.select_related(
         'pointage__employe', 'administrateur'
     ).order_by('-created_at')[:20]
-
-    audit_entries = []
     for audit in audits_recents:
-        employe = audit.pointage.employe.get_nom_complet() if audit.pointage and audit.pointage.employe else 'Employé inconnu'
-        administrateur = audit.administrateur
-        action_label = {
-            'creation': 'Audit — Création',
-            'modification': 'Audit — Modification',
-            'suppression': 'Audit — Suppression',
-        }.get(audit.action, f'Audit — {audit.action}')
-        motif = audit.motif or '—'
-        audit_entries.append({
+        employe = (
+            audit.pointage.employe.get_nom_complet()
+            if audit.pointage and audit.pointage.employe
+            else 'Employé inconnu'
+        )
+        if audit.action == PointageAudit.ACTION_CREATE:
+            action_label = 'Audit — Création'
+        elif audit.action == PointageAudit.ACTION_UPDATE:
+            action_label = 'Audit — Modification'
+        elif audit.action == PointageAudit.ACTION_DELETE:
+            action_label = 'Audit — Suppression'
+        else:
+            action_label = f'Audit — {audit.get_action_display()}'
+
+        logs_detailed.append({
             'id': f'audit-{audit.pk}',
-            'user': administrateur,
+            'user': audit.administrateur,
             'action_time': audit.created_at,
             'action_flag': 2,
             'action_display': action_label,
             'content_type': None,
             'object_repr': f'{employe} · Pointage #{audit.pointage_id}' if audit.pointage_id else employe,
             'object_id': audit.pointage_id,
-            'change_message': f'Motif : {motif}',
-            'is_addition': audit.action == 'creation',
-            'is_change': audit.action == 'modification',
-            'is_deletion': audit.action == 'suppression',
+            'change_message': f'Motif : {audit.motif or "—"}',
+            'is_addition': audit.action == PointageAudit.ACTION_CREATE,
+            'is_change': audit.action == PointageAudit.ACTION_UPDATE,
+            'is_deletion': audit.action == PointageAudit.ACTION_DELETE,
         })
 
-    # Fusion puis tri chronologique : l'audit apparaît exactement dans le
-    # même flux visuel que les activités Django.
-    logs_detailed = sorted(
-        logs_detailed + audit_entries,
-        key=lambda item: item['action_time'] or timezone.now(),
-        reverse=True,
-    )[:30]
+    logs_detailed.sort(key=lambda item: item['action_time'] or timezone.now(), reverse=True)
+    logs_detailed = logs_detailed[:30]
 
-    # ============================================================
-    # DERNIERS POINTAGES
-    # ============================================================
-
-    pointages_recents = Pointage.objects.select_related(
-        'employe', 'site'
-    ).order_by('-date_creation')[:10]
-
+    pointages_recents = Pointage.objects.select_related('employe', 'site').order_by('-date_creation')[:10]
     pointages_data = []
     for p in pointages_recents:
         pointages_data.append({
@@ -236,14 +175,7 @@ def dashboard_context(request):
             'retard': p.get_retard_minutes() if p.retard else 0,
         })
 
-    # ============================================================
-    # ANOMALIES RÉCENTES
-    # ============================================================
-
-    anomalies_recentes = AnomaliePointage.objects.select_related(
-        'employe', 'site'
-    ).order_by('-created_at')[:10]
-
+    anomalies_recentes = AnomaliePointage.objects.select_related('employe', 'site').order_by('-created_at')[:10]
     anomalies_data = []
     for a in anomalies_recentes:
         anomalies_data.append({
