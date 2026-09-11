@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 
 from . import views
-from .models import Employe, Pointage, AnomaliePointage
+from .models import Employe, Pointage, AnomaliePointage, PointageAudit
 
 
 def _is_rh(user):
@@ -61,6 +61,32 @@ def admin_badge_counts_api(request, *args, **kwargs):
     if not _is_rh(request.user):
         return JsonResponse({"error": "Forbidden"}, status=403)
     return views.admin_badge_counts_api(request, *args, **kwargs)
+
+
+def admin_audit_api(request):
+    """Retourne les dernières entrées du journal d'audit pour le dashboard RH."""
+    if not _is_rh(request.user):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+
+    audits = PointageAudit.objects.select_related(
+        "pointage__employe", "administrateur"
+    ).order_by("-created_at", "-pk")[:10]
+
+    items = []
+    for audit in audits:
+        pointage = audit.pointage
+        items.append({
+            "id": audit.pk,
+            "date": audit.created_at.isoformat(),
+            "action": audit.get_action_display(),
+            "administrateur": str(audit.administrateur) if audit.administrateur else "Système",
+            "pointage": str(pointage) if pointage else "Pointage supprimé",
+            "employe": pointage.employe.get_nom_complet() if pointage and pointage.employe_id else "—",
+            "motif": audit.motif or "—",
+            "url": f"/admin/pointage/pointageaudit/{audit.pk}/change/",
+        })
+
+    return JsonResponse({"audits": items, "count": len(items)})
 
 
 def _attach_exact_anomaly_admin_urls(data):

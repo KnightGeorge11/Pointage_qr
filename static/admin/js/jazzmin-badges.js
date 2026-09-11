@@ -19,6 +19,82 @@
             }
         });
 
+        // Journal d'audit directement sur le dashboard Jazzmin.
+        // Le endpoint est protégé côté serveur : seuls les comptes RH/admin
+        // peuvent recevoir ces données.
+        if (window.location.pathname === '/admin/' || window.location.pathname === '/admin') {
+            function loadDashboardAudit() {
+                $.getJSON('/api/admin-audit/', function(data) {
+                    var audits = Array.isArray(data.audits) ? data.audits : [];
+                    $('#jazzminAuditDashboard').remove();
+
+                    var $card = $('<div id="jazzminAuditDashboard"></div>').css({
+                        marginTop: '20px',
+                        background: '#fff',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: '14px',
+                        boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
+                        overflow: 'hidden'
+                    });
+
+                    var $header = $('<div></div>').css({
+                        padding: '16px 20px',
+                        borderBottom: '1px solid #E2E8F0',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '12px'
+                    });
+                    $('<h3></h3>').css({margin: 0, fontSize: '14px', fontWeight: 600, color: '#0F172A'})
+                        .html('<i class="fas fa-shield-halved" style="color:#2563EB;margin-right:8px;"></i>Audit récent')
+                        .appendTo($header);
+                    $('<a></a>').attr('href', '/admin/pointage/pointageaudit/')
+                        .css({fontSize: '12px', fontWeight: 600, color: '#2563EB', textDecoration: 'none'})
+                        .html('Voir tout <i class="fas fa-arrow-right" style="font-size:10px;"></i>')
+                        .appendTo($header);
+                    $card.append($header);
+
+                    var $body = $('<div></div>').css({padding: 0, maxHeight: '360px', overflowY: 'auto'});
+                    if (audits.length === 0) {
+                        $('<div></div>').css({padding: '24px', textAlign: 'center', color: '#94A3B8', fontSize: '13px'})
+                            .html('<i class="fas fa-shield-halved" style="font-size:22px;display:block;margin-bottom:8px;"></i>Aucune entrée d’audit récente')
+                            .appendTo($body);
+                    } else {
+                        audits.forEach(function(audit) {
+                            var $item = $('<a></a>').attr('href', audit.url || '#').css({
+                                display: 'block',
+                                padding: '12px 20px',
+                                borderBottom: '1px solid #E2E8F0',
+                                textDecoration: 'none',
+                                color: 'inherit'
+                            });
+                            var $top = $('<div></div>').css({display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center'});
+                            $('<strong></strong>').css({fontSize: '12px', color: '#0F172A'}).text(audit.action || 'Action').appendTo($top);
+                            $('<span></span>').css({fontSize: '10px', color: '#94A3B8', whiteSpace: 'nowrap'}).text(formatDate(audit.date)).appendTo($top);
+                            $item.append($top);
+                            $('<div></div>').css({fontSize: '12px', color: '#64748B', marginTop: '4px'})
+                                .text((audit.employe || audit.pointage || 'Pointage') + ' · ' + (audit.administrateur || 'Système'))
+                                .appendTo($item);
+                            if (audit.motif && audit.motif !== '—') {
+                                $('<div></div>').css({fontSize: '11px', color: '#94A3B8', marginTop: '3px'})
+                                    .text('Motif : ' + audit.motif)
+                                    .appendTo($item);
+                            }
+                            $body.append($item);
+                        });
+                    }
+                    $card.append($body);
+
+                    var $anchor = $('.content-wrapper').first();
+                    if ($anchor.length === 0) $anchor = $('#content-main').first();
+                    if ($anchor.length > 0) $anchor.append($card);
+                });
+            }
+
+            loadDashboardAudit();
+            setInterval(loadDashboardAudit, 60000);
+        }
+
         var $navbar = $('.navbar-nav.ms-auto');
         if ($navbar.length === 0) return;
 
