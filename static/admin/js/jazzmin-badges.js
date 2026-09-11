@@ -15,7 +15,6 @@
                 var badge = $('<span class="badge badge-danger right"></span>')
                     .css({background: '#EF4444', borderRadius: '9999px', padding: '2px 8px', fontSize: '10px', marginLeft: '5px'})
                     .text(data.anomalies_ouvertes);
-                $('a[href*="anomaliepointage"]').find('p').append(badge);
             }
         });
 
@@ -29,12 +28,13 @@
                     $('#jazzminAuditDashboard').remove();
 
                     var $card = $('<div id="jazzminAuditDashboard"></div>').css({
-                        marginTop: '20px',
+                        margin: '20px 0 0',
                         background: '#fff',
                         border: '1px solid #E2E8F0',
                         borderRadius: '14px',
                         boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        width: '100%'
                     });
 
                     var $header = $('<div></div>').css({
@@ -85,9 +85,23 @@
                     }
                     $card.append($body);
 
-                    var $anchor = $('.content-wrapper').first();
-                    if ($anchor.length === 0) $anchor = $('#content-main').first();
-                    if ($anchor.length > 0) $anchor.append($card);
+                    // Le dashboard personnalisé est rendu dans #content-main par Jazzmin.
+                    // On l'insère en tête pour qu'il soit immédiatement visible.
+                    var $anchor = $('#content-main').first();
+                    if ($anchor.length === 0) $anchor = $('.content-wrapper .content').first();
+                    if ($anchor.length > 0) {
+                        $anchor.prepend($card);
+                    }
+                }).fail(function() {
+                    // Ne pas masquer le problème : afficher un état visible sur le dashboard.
+                    $('#jazzminAuditDashboard').remove();
+                    var $error = $('<div id="jazzminAuditDashboard"></div>').css({
+                        margin: '20px 0 0', padding: '16px 20px', background: '#FFF7ED',
+                        border: '1px solid #FED7AA', borderRadius: '14px', color: '#9A3412', fontSize: '13px'
+                    }).text('Audit : impossible de charger le journal.');
+                    var $anchor = $('#content-main').first();
+                    if ($anchor.length === 0) $anchor = $('.content-wrapper .content').first();
+                    if ($anchor.length > 0) $anchor.prepend($error);
                 });
             }
 
