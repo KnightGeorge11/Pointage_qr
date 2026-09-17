@@ -1007,8 +1007,23 @@ class DemandeModificationAdmin(admin.ModelAdmin):
         return custom + urls
 
     def approuver_view(self, request, pk):
+        # Corrigé le 15/09/2026 : ce lien était accessible en GET direct
+        # depuis la liste (bouton "✅ Accepter"), sans confirmation — un
+        # clic accidentel en parcourant la liste appliquait immédiatement
+        # une modification réelle (création/modification/suppression),
+        # sans recours. De plus, une action qui modifie des données ne
+        # devrait jamais s'exécuter sur un simple GET (pas de protection
+        # CSRF sur un lien). Le GET affiche maintenant une page de
+        # confirmation ; seul le POST (avec jeton CSRF) applique réellement
+        # la demande — même principe que le bouton "Accepter" déjà présent
+        # sur la fiche détail (boutons_fiche/response_change), qui lui
+        # passait déjà correctement par un formulaire POST.
         demande = get_object_or_404(DemandeModification, pk=pk)
-        if demande.statut == 'en_attente':
+        if demande.statut != 'en_attente':
+            self.message_user(request, f"Demande #{pk} déjà traitée.", level='warning')
+            return HttpResponseRedirect("../../")
+
+        if request.method == 'POST':
             try:
                 self._appliquer_demande(demande)
                 demande.statut = 'approuvee'
@@ -1018,17 +1033,42 @@ class DemandeModificationAdmin(admin.ModelAdmin):
                 self.message_user(request, f"✅ Demande #{pk} approuvée et appliquée.")
             except Exception as e:
                 self.message_user(request, f"❌ Erreur : {e}", level='error')
-        return HttpResponseRedirect("../../")
+            return HttpResponseRedirect("../../")
+
+        return render(request, 'admin/pointage/demandemodification/confirm_action.html', {
+            'demande': demande, 'action': 'approuver',
+            'titre': "Approuver cette demande ?",
+            'texte': "La modification sera appliquée immédiatement et ne pourra pas être annulée automatiquement.",
+            'label_bouton': "✅ Confirmer l'approbation",
+            'couleur': '#16a34a',
+            'donnees_html': self.donnees_formatees(demande),
+            'opts': self.model._meta,
+        })
 
     def refuser_view(self, request, pk):
+        # Même correction que approuver_view ci-dessus.
         demande = get_object_or_404(DemandeModification, pk=pk)
-        if demande.statut == 'en_attente':
+        if demande.statut != 'en_attente':
+            self.message_user(request, f"Demande #{pk} déjà traitée.", level='warning')
+            return HttpResponseRedirect("../../")
+
+        if request.method == 'POST':
             demande.statut = 'refusee'
             demande.traitee_par = request.user
             demande.date_traitement = timezone.now()
             demande.save()
             self.message_user(request, f"❌ Demande #{pk} refusée.")
-        return HttpResponseRedirect("../../")
+            return HttpResponseRedirect("../../")
+
+        return render(request, 'admin/pointage/demandemodification/confirm_action.html', {
+            'demande': demande, 'action': 'refuser',
+            'titre': "Refuser cette demande ?",
+            'texte': "L'employé devra soumettre une nouvelle demande s'il souhaite la reformuler.",
+            'label_bouton': "❌ Confirmer le refus",
+            'couleur': '#dc2626',
+            'donnees_html': self.donnees_formatees(demande),
+            'opts': self.model._meta,
+        })
 
     def response_change(self, request, obj):
         if '_accepter' in request.POST and obj.statut == 'en_attente':

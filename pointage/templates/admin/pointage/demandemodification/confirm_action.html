@@ -1,0 +1,53 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ titre }} | {{ site_title|default:"Pointage QR" }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+.confirm-card{max-width:720px;margin:20px auto;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.confirm-head{padding:20px 24px;border-bottom:1px solid rgba(0,0,0,.08)}
+.confirm-head h1{margin:0;font-size:19px}
+.confirm-head p{margin:6px 0 0;color:#6b7280;font-size:13px}
+.confirm-body{padding:22px 24px}
+.confirm-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.confirm-meta .box{padding:12px 14px;border:1px solid rgba(0,0,0,.08);border-radius:8px;background:#fafafa}
+.confirm-meta .label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b7280}
+.confirm-meta .value{margin-top:4px;font-weight:600}
+.confirm-actions{margin-top:22px;padding-top:18px;border-top:1px solid rgba(0,0,0,.08);display:flex;gap:10px;flex-wrap:wrap}
+.btn{display:inline-block;border:0;border-radius:6px;padding:10px 18px;color:#fff;text-decoration:none;cursor:pointer;font-weight:600;font-size:13px}
+.btn-gray{background:#6b7280}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="confirm-card">
+    <div class="confirm-head">
+        <h1>{{ titre }}</h1>
+        <p>{{ texte }}</p>
+    </div>
+    <div class="confirm-body">
+        <div class="confirm-meta">
+            <div class="box">
+                <div class="label">Demandeur</div>
+                <div class="value">{{ demande.demandeur }}</div>
+            </div>
+            <div class="box">
+                <div class="label">Type</div>
+                <div class="value">{{ demande.get_type_action_display }} — {{ demande.get_cible_display }}</div>
+            </div>
+        </div>
+
+        {{ donnees_html }}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="confirm-actions">
+                <button type="submit" class="btn" style="background:{{ couleur }};">{{ label_bouton }}</button>
+                <a href="../../" class="btn btn-gray">Annuler</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
