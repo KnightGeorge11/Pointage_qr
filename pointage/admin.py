@@ -9,6 +9,7 @@ from django.urls import path, reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Q
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.core.exceptions import PermissionDenied
@@ -256,7 +257,7 @@ class CustomUserAdmin(UserAdmin):
     def delete_queryset(self, request, queryset):
         """Empêche la suppression en masse du compte courant ou d'un superuser."""
         protected = queryset.filter(
-            models.Q(pk=request.user.pk) | models.Q(is_superuser=True)
+            Q(pk=request.user.pk) | Q(is_superuser=True)
         )
         if protected.exists():
             raise PermissionDenied(
