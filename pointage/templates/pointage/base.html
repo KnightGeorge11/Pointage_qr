@@ -63,6 +63,9 @@
         <li><a href="{% url 'dashboard' %}" class="sb-link {% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}"><i class="fas fa-chart-pie"></i><span>Tableau de bord</span></a></li>
         <li><a href="{% url 'scanner' %}" class="sb-link {% if request.resolver_match.url_name == 'scanner' %}is-active{% endif %}"><i class="fas fa-qrcode"></i><span>Scanner / Pointage</span></a></li>
         <li><a href="{% url 'pointages' %}" class="sb-link {% if request.resolver_match.url_name == 'pointages' %}is-active{% endif %}"><i class="fas fa-clock-rotate-left"></i><span>Journal des pointages</span></a></li>
+        {% if request.user.is_superuser or request.user.role == 'admin' %}
+        <li><a href="{% url 'alertes_rh' %}" class="sb-link {% if request.resolver_match.url_name == 'alertes_rh' or request.resolver_match.url_name == 'alerte_detail' %}is-active{% endif %}"><i class="fas fa-triangle-exclamation"></i><span>Anomalies</span></a></li>
+        {% endif %}
         <li><div class="sb-section-label">Gestion</div></li>
         <li><a href="{% url 'employes' %}" class="sb-link {% if request.resolver_match.url_name == 'employes' %}is-active{% endif %}"><i class="fas fa-users"></i><span>Employés</span></a></li>
         <li><a href="{% url 'postes' %}" class="sb-link {% if request.resolver_match.url_name == 'postes' %}is-active{% endif %}"><i class="fas fa-briefcase"></i><span>Postes</span></a></li>
