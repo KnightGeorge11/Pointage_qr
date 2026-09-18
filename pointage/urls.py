@@ -4,7 +4,6 @@ from django.views.generic import RedirectView
 from .dashboard_hardening import dashboard, index
 from .views import (
     employe_create_view, employe_update_view, employe_delete_view,
-    mon_compte_view,
     site_create_view, site_update_view, site_delete_view,
     poste_create_view, poste_update_view, poste_delete_view,
     EmployeListView, SiteListView, PointageListView, PointageDetailView, PointageDeleteView,
@@ -35,7 +34,6 @@ urlpatterns = [
     path('index/', index, name='index'),
     path('employes/', EmployeListView.as_view(), name='employes'),
     path('employes/nouveau/', employe_create_view, name='employe_create'),
-    path('mon-compte/', mon_compte_view, name='mon_compte'),
     path('employes/<int:pk>/update/', employe_update_view, name='employe_update'),
     path('employes/<int:pk>/delete/', employe_delete_view, name='employe_delete'),
     path('sites/', SiteListView.as_view(), name='sites'),
