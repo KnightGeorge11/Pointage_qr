@@ -513,10 +513,9 @@ class DemandeModification(models.Model):
         ('delete', 'Suppression'),
     )
     CIBLE_CHOICES = (
-        ('employe',    'Employé'),
-        ('site',       'Site'),
-        ('poste',      'Poste'),
-        ('utilisateur', 'Mon compte'),
+        ('employe', 'Employé'),
+        ('site',    'Site'),
+        ('poste',   'Poste'),
     )
     STATUT_CHOICES = (
         ('en_attente', 'En attente'),
