@@ -11,6 +11,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -237,6 +238,13 @@ class CustomUserAdmin(UserAdmin):
         super().save_model(request, obj, form, change)
 
     def has_delete_permission(self, request, obj=None):
+        """Autorise la suppression des comptes ordinaires uniquement.
+
+        Le compte actuellement connecté et les superutilisateurs restent
+        protégés. Avec obj=None, Django vérifie seulement l'accès à l'action
+        de suppression en masse ; la protection individuelle est donc aussi
+        appliquée dans delete_queryset().
+        """
         if not request.user.is_authenticated or not request.user.is_staff:
             return False
         if obj is None:
@@ -244,6 +252,18 @@ class CustomUserAdmin(UserAdmin):
         if obj.pk == request.user.pk or obj.is_superuser:
             return False
         return True
+
+    def delete_queryset(self, request, queryset):
+        """Empêche la suppression en masse du compte courant ou d'un superuser."""
+        protected = queryset.filter(
+            models.Q(pk=request.user.pk) | models.Q(is_superuser=True)
+        )
+        if protected.exists():
+            raise PermissionDenied(
+                "Le compte actuellement connecté et les superutilisateurs "
+                "ne peuvent pas être supprimés depuis l'administration."
+            )
+        queryset.delete()
 
 
 # ============================================================
