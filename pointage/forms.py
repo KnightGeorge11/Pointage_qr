@@ -1,5 +1,5 @@
 from django import forms
-from .models import Employe, Site, Pointage, CustomUser
+from .models import Employe, Site, Pointage
 
 class EmployeForm(forms.ModelForm):
     class Meta:
@@ -150,68 +150,3 @@ class PosteForm(forms.ModelForm):
             'description': 'Description',
             'couleur':     'Couleur',
         }
-
-
-class MonCompteForm(forms.Form):
-    """Auto-service : le titulaire du compte demande un changement de
-    nom d'utilisateur et/ou de mot de passe. N'applique jamais rien
-    directement — passe systématiquement par une DemandeModification
-    (cible='utilisateur'), voir mon_compte_view et
-    DemandeModificationAdmin._appliquer_demande. Au moins un des deux
-    champs (nouveau nom d'utilisateur / nouveau mot de passe) doit être
-    renseigné pour ne pas générer une demande vide.
-    """
-    current_password = forms.CharField(
-        label='Mot de passe actuel', widget=forms.PasswordInput(attrs={'class': 'form-control'}),
-        help_text="Requis pour confirmer que c'est bien vous.",
-    )
-    new_username = forms.CharField(
-        label="Nouveau nom d'utilisateur", required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
-    )
-    new_password1 = forms.CharField(
-        label='Nouveau mot de passe', required=False,
-        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
-    )
-    new_password2 = forms.CharField(
-        label='Confirmer le nouveau mot de passe', required=False,
-        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
-    )
-
-    def __init__(self, *args, user=None, **kwargs):
-        self.user = user
-        super().__init__(*args, **kwargs)
-
-    def clean_current_password(self):
-        current_password = self.cleaned_data['current_password']
-        if self.user is not None and not self.user.check_password(current_password):
-            raise forms.ValidationError('Mot de passe actuel incorrect.')
-        return current_password
-
-    def clean(self):
-        cleaned = super().clean()
-        new_username = cleaned.get('new_username', '').strip()
-        pw1 = cleaned.get('new_password1', '')
-        pw2 = cleaned.get('new_password2', '')
-
-        if not new_username and not pw1 and not pw2:
-            raise forms.ValidationError(
-                "Renseignez un nouveau nom d'utilisateur et/ou un nouveau mot de passe."
-            )
-
-        if new_username and self.user is not None:
-            if CustomUser.objects.exclude(pk=self.user.pk).filter(username=new_username).exists():
-                self.add_error('new_username', 'Ce nom d\'utilisateur est déjà pris.')
-
-        if pw1 or pw2:
-            if pw1 != pw2:
-                self.add_error('new_password2', 'Les deux mots de passe ne correspondent pas.')
-            elif self.user is not None:
-                from django.contrib.auth.password_validation import validate_password
-                try:
-                    validate_password(pw1, user=self.user)
-                except forms.ValidationError as exc:
-                    self.add_error('new_password1', exc)
-
-        cleaned['new_username'] = new_username
-        return cleaned
