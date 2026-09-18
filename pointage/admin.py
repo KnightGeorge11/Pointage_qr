@@ -10,6 +10,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.db import transaction
 from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -187,17 +188,16 @@ class PointageIncompletFilter(SimpleListFilter):
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
-    """
-    Administration complète des comptes applicatifs.
+    """Administration complète et sûre des comptes applicatifs.
 
-    - Création : username + mot de passe + identité + rôle.
-    - Modification : le formulaire natif UserAdmin reste utilisé, notamment
-      pour le changement de mot de passe.
-    - Suppression : autorisée pour les comptes ordinaires, mais pas pour le
-      superuser ni pour le compte actuellement connecté.
-    - Un rôle « admin » garde l'accès à Jazzmin (is_staff=True).
-      Un rôle « user » n'a pas accès à l'administration.
+    Les formulaires Django dédiés sont utilisés explicitement afin que les
+    mots de passe soient toujours traités par set_password()/hashage Django.
+    Un compte role='user' peut se connecter à l'application sans avoir accès
+    à Jazzmin ; seul role='admin' (ou superuser) donne accès à l'administration.
     """
+    form = UserChangeForm
+    add_form = UserCreationForm
+
     list_display = (
         'username', 'email', 'first_name', 'last_name',
         'role', 'is_active', 'is_staff',
@@ -213,33 +213,37 @@ class CustomUserAdmin(UserAdmin):
         ('Rôle & accès', {'fields': ('role', 'is_active')}),
     )
 
+    def get_form(self, request, obj=None, **kwargs):
+        # UserAdmin choisit normalement add_form pour une création. On le
+        # force explicitement pour éviter qu'un garde-fou admin ultérieur ou
+        # une surcharge ne fasse passer la création par un ModelForm brut.
+        if obj is None:
+            kwargs['form'] = self.add_form
+        else:
+            kwargs['form'] = self.form
+        return super().get_form(request, obj, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        # Ne jamais accepter un mot de passe brut provenant d'un ModelForm.
+        # UserCreationForm/UserChangeForm gèrent eux-mêmes set_password().
+        obj.is_staff = obj.role == 'admin'
+        if not change:
+            obj.is_superuser = False
+        elif obj.pk == request.user.pk:
+            # Le compte actuellement connecté reste administrateur.
+            obj.role = 'admin'
+            obj.is_staff = True
+            obj.is_superuser = request.user.is_superuser
+        super().save_model(request, obj, form, change)
+
     def has_delete_permission(self, request, obj=None):
         if not request.user.is_authenticated or not request.user.is_staff:
             return False
         if obj is None:
             return True
-        # Protection contre la suppression du compte utilisé pour la session
-        # et des superusers (gestion réservée aux opérations de maintenance).
         if obj.pk == request.user.pk or obj.is_superuser:
             return False
         return True
-
-    def save_model(self, request, obj, form, change):
-        # Le statut staff est dérivé du rôle : un compte « admin » peut
-        # entrer dans Jazzmin, un compte « user » reste un compte applicatif.
-        obj.is_staff = obj.role == 'admin'
-
-        # L'administration applicative ne permet jamais de fabriquer ou de
-        # supprimer un superuser depuis Jazzmin.
-        if not change:
-            obj.is_superuser = False
-        elif obj.pk == request.user.pk:
-            # Ne jamais se verrouiller soi-même hors de l'administration.
-            obj.role = 'admin'
-            obj.is_staff = True
-            obj.is_superuser = request.user.is_superuser
-
-        super().save_model(request, obj, form, change)
 
 
 # ============================================================
