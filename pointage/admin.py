@@ -187,24 +187,58 @@ class PointageIncompletFilter(SimpleListFilter):
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_staff')
+    """
+    Administration complète des comptes applicatifs.
+
+    - Création : username + mot de passe + identité + rôle.
+    - Modification : le formulaire natif UserAdmin reste utilisé, notamment
+      pour le changement de mot de passe.
+    - Suppression : autorisée pour les comptes ordinaires, mais pas pour le
+      superuser ni pour le compte actuellement connecté.
+    - Un rôle « admin » garde l'accès à Jazzmin (is_staff=True).
+      Un rôle « user » n'a pas accès à l'administration.
+    """
+    list_display = (
+        'username', 'email', 'first_name', 'last_name',
+        'role', 'is_active', 'is_staff',
+    )
     list_filter = ('role', 'is_active', 'is_staff')
     search_fields = ('username', 'email', 'first_name', 'last_name')
     ordering = ('username',)
 
     fieldsets = UserAdmin.fieldsets + (
-        ('Rôle & Permissions', {'fields': ('role',)}),
+        ('Rôle & accès', {'fields': ('role',)}),
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
-        ('Rôle & Permissions', {'fields': ('role',)}),
+        ('Rôle & accès', {'fields': ('role', 'is_active')}),
     )
 
+    def has_delete_permission(self, request, obj=None):
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return False
+        if obj is None:
+            return True
+        # Protection contre la suppression du compte utilisé pour la session
+        # et des superusers (gestion réservée aux opérations de maintenance).
+        if obj.pk == request.user.pk or obj.is_superuser:
+            return False
+        return True
+
     def save_model(self, request, obj, form, change):
-        if obj.role == 'admin':
-            obj.is_staff = True
-        else:
-            obj.is_staff = False
+        # Le statut staff est dérivé du rôle : un compte « admin » peut
+        # entrer dans Jazzmin, un compte « user » reste un compte applicatif.
+        obj.is_staff = obj.role == 'admin'
+
+        # L'administration applicative ne permet jamais de fabriquer ou de
+        # supprimer un superuser depuis Jazzmin.
+        if not change:
             obj.is_superuser = False
+        elif obj.pk == request.user.pk:
+            # Ne jamais se verrouiller soi-même hors de l'administration.
+            obj.role = 'admin'
+            obj.is_staff = True
+            obj.is_superuser = request.user.is_superuser
+
         super().save_model(request, obj, form, change)
 
 
