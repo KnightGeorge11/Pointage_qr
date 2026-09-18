@@ -15,7 +15,6 @@ from django.db.models import Q, Count
 from django.http import JsonResponse
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.hashers import make_password
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from rest_framework import viewsets, status as drf_status
@@ -29,7 +28,7 @@ from .serializers import (
     PointageSerializer, PointageDetailSerializer,
     AnomaliePointageSerializer, AnomaliePointageDetailSerializer,
 )
-from .forms import EmployeForm, SiteForm, PointageForm, PosteForm, MonCompteForm
+from .forms import EmployeForm, SiteForm, PointageForm, PosteForm
 from .services import process_scan, parse_qr_data
 from .anomalies import marquer_traitee, marquer_cloturee, compter_anomalies_ouvertes
 
@@ -303,52 +302,6 @@ class EmployeListView(LoginRequiredMixin, ListView):
             statut='en_attente', cible='employe'
         ).count()
         return context
-
-
-@login_required
-def mon_compte_view(request):
-    """Auto-service : tout utilisateur connecté peut demander à changer
-    son nom d'utilisateur et/ou son mot de passe. Rien n'est appliqué
-    directement, même pour un compte RH/admin qui demanderait ceci pour
-    lui-même — la demande part systématiquement en attente d'approbation
-    (voir DemandeModificationAdmin._appliquer_demande, cible='utilisateur'),
-    exactement comme les demandes de création/modification d'employé.
-    Le mot de passe est haché ICI, avant tout stockage — jamais en clair
-    dans la DemandeModification, même en attente.
-    """
-    if request.method == 'POST':
-        form = MonCompteForm(request.POST, user=request.user)
-        if form.is_valid():
-            donnees = {}
-            if form.cleaned_data['new_username']:
-                donnees['username'] = form.cleaned_data['new_username']
-            if form.cleaned_data['new_password1']:
-                donnees['password'] = make_password(form.cleaned_data['new_password1'])
-
-            DemandeModification.objects.create(
-                demandeur=request.user,
-                type_action='update',
-                cible='utilisateur',
-                cible_id=request.user.pk,
-                donnees=donnees,
-            )
-            messages.success(
-                request,
-                "✅ Votre demande de modification de compte a été envoyée à l'administrateur pour approbation."
-            )
-            return redirect('mon_compte')
-    else:
-        form = MonCompteForm(user=request.user)
-
-    demandes_en_cours = DemandeModification.objects.filter(
-        demandeur=request.user, cible='utilisateur', statut='en_attente'
-    ).order_by('-date_creation')
-
-    return render(request, 'pointage/mon_compte.html', {
-        'form': form,
-        'demandes_en_cours': demandes_en_cours,
-    })
-
 
 @login_required
 def employe_create_view(request):
