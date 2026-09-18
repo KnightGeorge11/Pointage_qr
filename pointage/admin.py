@@ -1106,7 +1106,7 @@ class DemandeModificationAdmin(admin.ModelAdmin):
             obj.date_traitement = original.date_traitement
         super().save_model(request, obj, form, change)
 
-    _CIBLE_MODELE = {'employe': Employe, 'site': Site, 'poste': Poste, 'utilisateur': CustomUser}
+    _CIBLE_MODELE = {'employe': Employe, 'site': Site, 'poste': Poste}
 
     def _label_champ(self, modele, champ):
         """Libellé humain d'un champ, tiré du modèle réel (verbose_name) —
@@ -1119,13 +1119,6 @@ class DemandeModificationAdmin(admin.ModelAdmin):
     def _valeur_affichable(self, champ, valeur):
         """Résout les valeurs de clé étrangère (ex: poste=3) vers un
         libellé lisible (ex: 'Infirmier') plutôt qu'un ID brut."""
-        if champ == 'password':
-            # Jamais afficher un hash de mot de passe, même à un RH —
-            # ni la valeur actuelle, ni la nouvelle. Seul le fait qu'un
-            # changement est demandé est visible (via le surlignage
-            # "avant/après" de donnees_formatees, basé sur l'inégalité
-            # des deux hashs, pas sur leur contenu affiché).
-            return mark_safe('<span style="font-style:italic;">••••••••</span>') if valeur else mark_safe('<span style="color:rgba(255,255,255,.35);font-style:italic;">inchangé</span>')
         if valeur is None or valeur == '':
             return mark_safe('<span style="color:rgba(255,255,255,.35);font-style:italic;">vide</span>')
         if champ == 'poste':
@@ -1318,20 +1311,6 @@ class DemandeModificationAdmin(admin.ModelAdmin):
                 )
             elif demande.type_action == 'delete':
                 Poste.objects.filter(pk=demande.cible_id).delete()
-
-        elif demande.cible == 'utilisateur':
-            # Auto-service uniquement : type_action est toujours 'update'
-            # (on ne crée/supprime jamais un compte via cette voie — voir
-            # mon_compte_view, qui est la seule à générer ce type de
-            # demande). 'password' contient déjà un hash Django, jamais
-            # du texte en clair (haché dès la soumission, voir la vue).
-            updates = {}
-            if 'username' in d:
-                updates['username'] = d['username']
-            if 'password' in d:
-                updates['password'] = d['password']
-            if updates:
-                CustomUser.objects.filter(pk=demande.cible_id).update(**updates)
 
 
 # ============================================================
