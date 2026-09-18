@@ -28,7 +28,9 @@ class CriticalAttendanceAuditTests(TestCase):
             nom="Test", prenom="Audit", matricule="AUD001", poste=self.poste
         )
 
-    def test_scanner_web_refuse_un_matricule_sans_qr(self):
+    def test_scanner_web_accepte_un_matricule_sans_qr(self):
+        # Même clarification que test_web_scan_integrity.py : c'est le
+        # comportement voulu, propre au scanner Web uniquement.
         client = Client()
         client.force_login(self.user)
         response = client.post(
@@ -36,7 +38,7 @@ class CriticalAttendanceAuditTests(TestCase):
             {"matricule": self.employe.matricule, "site_id": self.site.id},
         )
         self.assertEqual(response.status_code, 302)
-        self.assertFalse(Pointage.objects.filter(employe=self.employe).exists())
+        self.assertTrue(Pointage.objects.filter(employe=self.employe).exists())
 
     def test_garde_planifiee_ne_compte_pas_comme_presence(self):
         today = date.today()

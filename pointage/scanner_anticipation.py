@@ -25,13 +25,33 @@ PENDING_SESSION_KEY = "scanner_sortie_anticipee_pending"
 
 
 def _resolve_scan_identity(raw_qr: str, matricule: str):
-    if not raw_qr:
-        raise ValueError("❌ Le pointage Web doit être effectué avec un QR code valide.")
+    # Corrigé le 15/09/2026 : cette fonction acceptait déjà un paramètre
+    # `matricule` mais ne l'utilisait jamais — elle levait une erreur dès
+    # que raw_qr était vide, sans jamais retomber sur la saisie manuelle.
+    # Le scanner Web est censé être le seul scanner (contrairement au
+    # mobile/desktop, qui exigent une vraie caméra) à accepter la saisie
+    # manuelle du matricule en secours — l'UI (scanner.html) propose
+    # d'ailleurs toujours ce champ ("Scanner QR USB ou saisie manuelle du
+    # matricule"), mais la soumission échouait silencieusement à chaque
+    # fois avec "doit être effectué avec un QR code valide", sans qu'aucun
+    # pointage ne soit jamais créé. Logique restaurée à l'identique de
+    # l'ancienne implémentation encore présente dans views.scanner_view
+    # (utilisée, elle, pour les requêtes GET et pour le cas normal en fin
+    # de scanner_web_view — seul ce chemin-ci l'avait perdue).
+    if raw_qr:
+        parsed = parse_qr_data(raw_qr)
+        if not parsed:
+            raise ValueError("❌ Format QR invalide.")
+        return parsed["matricule"], parsed["token"]
 
-    parsed = parse_qr_data(raw_qr)
-    if not parsed:
-        raise ValueError("❌ Format QR invalide.")
-    return parsed["matricule"], parsed["token"]
+    if matricule:
+        try:
+            employe = Employe.objects.get(matricule=matricule, actif=True)
+        except Employe.DoesNotExist:
+            raise ValueError(f"❌ Employé {matricule} non trouvé.")
+        return employe.matricule, str(employe.qr_code_token)
+
+    raise ValueError("❌ QR code ou matricule requis.")
 
 
 def _resolve_site(site_id):

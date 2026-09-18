@@ -34,7 +34,13 @@ class WebScanIntegrityTests(TestCase):
         self.client = Client()
         self.client.force_login(self.user)
 
-    def test_matricule_seul_est_refuse_par_le_scanner_web(self):
+    def test_matricule_seul_est_accepte_par_le_scanner_web(self):
+        # Décision confirmée par Tedy (15/09/2026) : le scanner Web est
+        # volontairement le SEUL point d'entrée/sortie de tout le projet
+        # (contrairement au mobile et au desktop, qui exigent un vrai scan
+        # caméra) à accepter un pointage via la seule saisie du matricule,
+        # sans QR code. Anciennement testé à l'inverse (voir historique) ;
+        # la règle métier a été explicitement clarifiée dans ce sens.
         response = self.client.post(
             reverse("scanner"),
             {
@@ -44,7 +50,7 @@ class WebScanIntegrityTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertFalse(
+        self.assertTrue(
             Pointage.objects.filter(employe=self.employe).exists()
         )
 
