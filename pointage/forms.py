@@ -1,5 +1,21 @@
 from django import forms
-from .models import Employe, Site, Pointage
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from .models import Employe, Site, Pointage, CustomUser
+
+
+class CustomUserCreationForm(UserCreationForm):
+    """Création d'un compte CustomUser avec hashage Django du mot de passe."""
+    class Meta:
+        model = CustomUser
+        fields = ('username', 'email', 'first_name', 'last_name', 'role', 'is_active')
+
+
+class CustomUserChangeForm(UserChangeForm):
+    """Modification d'un CustomUser compatible avec le modèle réel du projet."""
+    class Meta:
+        model = CustomUser
+        fields = ('username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'password')
+
 
 class EmployeForm(forms.ModelForm):
     class Meta:
