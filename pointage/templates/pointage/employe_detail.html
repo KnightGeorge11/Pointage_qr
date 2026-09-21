@@ -1,0 +1,154 @@
+{% extends 'pointage/base.html' %}
+{% load static %}
+{% load pointage_filters %}
+
+{% block title %}Fiche employé — {{ employe.get_nom_complet }}{% endblock %}
+
+{% block content %}
+<style>
+.employee-detail-page{max-width:1280px;margin:0 auto;padding:8px 0 40px}
+.employee-hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:20px}
+.employee-identity{display:flex;gap:16px;align-items:center}
+.employee-avatar{width:58px;height:58px;border-radius:16px;background:var(--blue-50);color:var(--blue-700);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700}
+.employee-name{margin:0;color:var(--text-primary);font-size:25px;line-height:1.15}
+.employee-meta{margin-top:5px;color:var(--text-muted);font-size:13px}
+.employee-actions{display:flex;gap:8px;flex-wrap:wrap}
+.employee-card{background:var(--bg-primary);border:1px solid var(--border-light);border-radius:var(--radius-md);box-shadow:var(--shadow-sm);padding:18px}
+.employee-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.employee-stat-label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);font-weight:700}
+.employee-stat-value{margin-top:7px;font-size:21px;font-weight:700;color:var(--text-primary)}
+.employee-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.85fr);gap:16px}
+.employee-section-title{font-size:13px;font-weight:700;color:var(--text-primary);margin:0 0 14px}
+.employee-table{width:100%;border-collapse:collapse;font-size:12px}
+.employee-table th{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);text-align:left;padding:9px;border-bottom:1px solid var(--border-light)}
+.employee-table td{padding:10px 9px;border-bottom:1px solid var(--border-light);color:var(--text-secondary)}
+.employee-table tr:last-child td{border-bottom:0}
+.employee-pill{display:inline-flex;padding:3px 8px;border-radius:999px;font-size:9px;font-weight:700;background:var(--blue-50);color:var(--blue-700)}
+.employee-pill-danger{background:#fee2e2;color:#b91c1c}.employee-pill-warning{background:#fef3c7;color:#b45309}.employee-pill-success{background:#dcfce7;color:#15803d}
+.employee-info{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.employee-info-item{padding:11px 12px;background:var(--bg-secondary);border-radius:var(--radius-sm)}
+.employee-info-label{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:4px}
+.employee-info-value{font-size:12px;font-weight:600;color:var(--text-primary)}
+.employee-empty{padding:22px;text-align:center;color:var(--text-muted);font-size:12px}
+@media(max-width:900px){.employee-grid{grid-template-columns:repeat(2,1fr)}.employee-layout{grid-template-columns:1fr}.employee-hero{flex-direction:column}}
+@media(max-width:560px){.employee-grid{grid-template-columns:1fr}.employee-info{grid-template-columns:1fr}.employee-table{font-size:11px}.employee-table th:nth-child(3),.employee-table td:nth-child(3){display:none}}
+</style>
+
+<div class="employee-detail-page">
+    <div class="employee-hero">
+        <div class="employee-identity">
+            <div class="employee-avatar">{{ employe.prenom|first|upper }}{{ employe.nom|first|upper }}</div>
+            <div>
+                <h1 class="employee-name">{{ employe.get_nom_complet }}</h1>
+                <div class="employee-meta">
+                    Matricule {{ employe.matricule }}
+                    {% if employe.poste %} · {{ employe.poste.nom }}{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="employee-actions">
+            <a href="{% url 'employes' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Retour</a>
+            <a href="{% url 'employe_update' employe.pk %}" class="btn btn-primary"><i class="fas fa-pen"></i> Modifier</a>
+        </div>
+    </div>
+
+    <div class="employee-grid">
+        <div class="employee-card"><div class="employee-stat-label">Pointages</div><div class="employee-stat-value">{{ stats.pointages }}</div></div>
+        <div class="employee-card"><div class="employee-stat-label">Heures travaillées</div><div class="employee-stat-value">{{ stats.heures_travaillees|timedelta_format }}</div></div>
+        <div class="employee-card"><div class="employee-stat-label">Heures supplémentaires</div><div class="employee-stat-value">{{ stats.heures_supplementaires|timedelta_format }}</div></div>
+        <div class="employee-card"><div class="employee-stat-label">Anomalies ouvertes</div><div class="employee-stat-value">{{ stats.anomalies_ouvertes }}</div></div>
+    </div>
+
+    <div class="employee-layout">
+        <div>
+            <div class="employee-card" style="margin-bottom:16px">
+                <h2 class="employee-section-title">Informations de l'employé</h2>
+                <div class="employee-info">
+                    <div class="employee-info-item"><span class="employee-info-label">Nom complet</span><span class="employee-info-value">{{ employe.get_nom_complet }}</span></div>
+                    <div class="employee-info-item"><span class="employee-info-label">Statut</span><span class="employee-info-value">{% if employe.actif %}<span class="employee-pill employee-pill-success">Actif</span>{% else %}<span class="employee-pill employee-pill-danger">Inactif</span>{% endif %}</span></div>
+                    <div class="employee-info-item"><span class="employee-info-label">E-mail</span><span class="employee-info-value">{{ employe.email|default:"Non renseigné" }}</span></div>
+                    <div class="employee-info-item"><span class="employee-info-label">Téléphone</span><span class="employee-info-value">{{ employe.telephone|default:"Non renseigné" }}</span></div>
+                    <div class="employee-info-item"><span class="employee-info-label">Poste</span><span class="employee-info-value">{{ employe.poste.nom|default:"Non défini" }}</span></div>
+                    <div class="employee-info-item"><span class="employee-info-label">Créé le</span><span class="employee-info-value">{{ employe.date_creation|date:"d/m/Y H:i" }}</span></div>
+                </div>
+            </div>
+
+            <div class="employee-card">
+                <h2 class="employee-section-title">Derniers pointages</h2>
+                {% if pointages %}
+                <div style="overflow-x:auto">
+                <table class="employee-table">
+                    <thead><tr><th>Date</th><th>Période</th><th>Site</th><th>Arrivée</th><th>Départ</th><th>Heures</th><th>H. sup.</th></tr></thead>
+                    <tbody>
+                    {% for p in pointages %}
+                    <tr>
+                        <td>{{ p.date_pointage|date:"d/m/Y" }}</td>
+                        <td>{{ p.get_periode_display }}</td>
+                        <td>{{ p.site.nom }}</td>
+                        <td>{{ p.heure_arrivee|time:"H:i"|default:"—" }}</td>
+                        <td>{{ p.heure_depart|time:"H:i"|default:"—" }}</td>
+                        <td>{{ p.heures_travaillees|timedelta_format }}</td>
+                        <td>{{ p.heures_supplementaires|timedelta_format }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                {% else %}<div class="employee-empty">Aucun pointage enregistré.</div>{% endif %}
+            </div>
+        </div>
+
+        <div>
+            <div class="employee-card" style="margin-bottom:16px">
+                <h2 class="employee-section-title">Anomalies récentes</h2>
+                {% if anomalies %}
+                <table class="employee-table">
+                    <thead><tr><th>Date</th><th>Type</th><th>Statut</th></tr></thead>
+                    <tbody>
+                    {% for a in anomalies %}
+                    <tr>
+                        <td>{{ a.created_at|date:"d/m/Y H:i" }}</td>
+                        <td>{{ a.get_type_display }}</td>
+                        <td>
+                            {% if a.statut == 'ouverte' %}<span class="employee-pill employee-pill-danger">Ouverte</span>
+                            {% elif a.statut == 'traitee' %}<span class="employee-pill employee-pill-warning">Traitée</span>
+                            {% else %}<span class="employee-pill employee-pill-success">Clôturée</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}<div class="employee-empty">Aucune anomalie enregistrée.</div>{% endif %}
+            </div>
+
+            <div class="employee-card" style="margin-bottom:16px">
+                <h2 class="employee-section-title">Demandes de modification</h2>
+                {% if demandes %}
+                <table class="employee-table">
+                    <thead><tr><th>Date</th><th>Action</th><th>Statut</th></tr></thead>
+                    <tbody>
+                    {% for d in demandes %}
+                    <tr><td>{{ d.date_creation|date:"d/m/Y H:i" }}</td><td>{{ d.get_type_action_display }}</td><td>{{ d.get_statut_display }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}<div class="employee-empty">Aucune demande enregistrée.</div>{% endif %}
+            </div>
+
+            <div class="employee-card">
+                <h2 class="employee-section-title">Journal des modifications de pointage</h2>
+                {% if audits %}
+                <table class="employee-table">
+                    <thead><tr><th>Date</th><th>Action</th><th>Utilisateur</th></tr></thead>
+                    <tbody>
+                    {% for audit in audits %}
+                    <tr><td>{{ audit.created_at|date:"d/m/Y H:i" }}</td><td>{{ audit.get_action_display }}</td><td>{{ audit.administrateur|default:"Système" }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}<div class="employee-empty">Aucune modification auditée.</div>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
