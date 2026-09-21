@@ -66,9 +66,9 @@ class Site(models.Model):
 class JourFerie(models.Model):
     """Jour férié déclaré par le RH.
 
-    Cette table constitue le calendrier de référence. Elle ne modifie pas
-    encore la décision de scan : le traitement des jours fériés dépend de la
-    règle métier retenue pour le travail un jour férié.
+    Cette table constitue le calendrier de référence. Un jour férié actif
+    n'interdit pas le pointage : le travail réellement effectué sur ce jour
+    est automatiquement calculé comme heures supplémentaires.
     """
     date = models.DateField(unique=True, verbose_name="Date")
     nom = models.CharField(max_length=150, verbose_name="Libellé")
@@ -345,11 +345,33 @@ class Pointage(models.Model):
 
     def calculer_heures_supplementaires(self):
         """
-        Calcule et FIGE les heures supplémentaires de ce pointage dans le
-        champ `heures_supplementaires`, au moment du save() — jamais
-        recalculées en direct à chaque affichage.
+        Calcule et FIGE les heures supplémentaires de ce pointage.
+
+        Règles métier :
+        - journée normale : seules les heures travaillées après la fermeture
+          officielle de l'après-midi sont des heures supplémentaires ;
+        - jour férié actif : toute la durée effectivement travaillée sur la
+          date concernée est une heure supplémentaire, quelle que soit la
+          période ;
+        - garde de nuit : seules les portions qui tombent réellement sur un
+          jour férié sont des heures supplémentaires. La date de départ de
+          la garde ne suffit donc pas à classer toute la garde.
+        - une garde non clôturée ne génère pas encore d'heures supplémentaires
+          figées.
         """
-        if self.periode != 'apres_midi' or not self.heure_depart or not self.site:
+        if not self.heure_depart or not self.site:
+            self.heures_supplementaires = timedelta(0)
+            return
+
+        if self.periode == 'nuit':
+            self.heures_supplementaires = self._calculer_heures_supplementaires_garde()
+            return
+
+        if JourFerie.est_ferie(self.date_pointage):
+            self.heures_supplementaires = self.heures_travaillees or timedelta(0)
+            return
+
+        if self.periode != 'apres_midi':
             self.heures_supplementaires = timedelta(0)
             return
 
@@ -358,9 +380,39 @@ class Pointage(models.Model):
             self.heures_supplementaires = timedelta(0)
             return
 
-        depart_dt    = datetime.combine(self.date_pointage, self.heure_depart)
+        depart_dt = datetime.combine(self.date_pointage, self.heure_depart)
         fermeture_dt = datetime.combine(self.date_pointage, heure_fermeture)
         self.heures_supplementaires = max(depart_dt - fermeture_dt, timedelta(0))
+
+    def _calculer_heures_supplementaires_garde(self) -> timedelta:
+        """Calcule l'intersection d'une garde avec les jours fériés actifs."""
+        if not self.heure_arrivee or not self.heure_depart:
+            return timedelta(0)
+
+        date_fin = self.date_depart
+        if date_fin is None:
+            date_fin = self.date_pointage
+            if self.heure_depart < self.heure_arrivee:
+                date_fin += timedelta(days=1)
+
+        debut = datetime.combine(self.date_pointage, self.heure_arrivee)
+        fin = datetime.combine(date_fin, self.heure_depart)
+        if fin <= debut:
+            return timedelta(0)
+
+        total = timedelta(0)
+        jour = self.date_pointage
+        while jour <= date_fin:
+            if JourFerie.est_ferie(jour):
+                debut_jour = datetime.combine(jour, time.min)
+                fin_jour = debut_jour + timedelta(days=1)
+                intersection_debut = max(debut, debut_jour)
+                intersection_fin = min(fin, fin_jour)
+                if intersection_fin > intersection_debut:
+                    total += intersection_fin - intersection_debut
+            jour += timedelta(days=1)
+
+        return total
 
     def get_heures_supplementaires(self) -> timedelta:
         if self.heures_supplementaires is not None:
