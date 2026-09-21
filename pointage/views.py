@@ -12,6 +12,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta, time
 from django.db import transaction
 from django.db.models import Q, Count
+from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.contrib.auth.decorators import login_required
@@ -409,8 +410,24 @@ def employe_delete_view(request, pk):
         # ADMIN : Suppression directe
         if request.method == 'POST':
             nom = employe.get_nom_complet()
-            employe.delete()
-            messages.success(request, f"✅ Employé {nom} supprimé avec succès.")
+            try:
+                employe.delete()
+                messages.success(request, f"✅ Employé {nom} supprimé avec succès.")
+            except ProtectedError:
+                # Corrigé le 21/09/2026 : Pointage/Scan utilisent
+                # on_delete=PROTECT sur employe — supprimer un employé
+                # ayant déjà pointé au moins une fois levait une erreur
+                # 500 brute au lieu d'un message clair. La désactivation
+                # (déjà utilisée ailleurs, ex. EmployeAdmin.desactiver_employes)
+                # est l'alternative appropriée : l'historique de pointage
+                # reste intact et consultable, l'employé disparaît des
+                # listes actives.
+                messages.error(
+                    request,
+                    f"❌ Impossible de supprimer {nom} : il a un historique de pointage. "
+                    "Désactivez-le plutôt (case « actif » dans sa fiche) pour le retirer "
+                    "des listes actives tout en conservant son historique."
+                )
             return redirect('employes')
         # GET : Afficher la confirmation
         return render(request, 'pointage/employe_confirm_delete.html', {
@@ -506,8 +523,18 @@ def site_delete_view(request, pk):
         # ADMIN : Suppression directe
         if request.method == 'POST':
             nom = site.nom
-            site.delete()
-            messages.success(request, f"✅ Site {nom} supprimé avec succès.")
+            try:
+                site.delete()
+                messages.success(request, f"✅ Site {nom} supprimé avec succès.")
+            except ProtectedError:
+                # Même correction que employe_delete_view : Pointage/Scan
+                # protègent aussi la FK site, sans équivalent "désactiver"
+                # pour un site (pas de champ actif sur ce modèle).
+                messages.error(
+                    request,
+                    f"❌ Impossible de supprimer {nom} : des pointages existent pour ce site. "
+                    "Un site avec de l'historique ne peut pas être supprimé."
+                )
             return redirect('sites')
         # GET : Afficher la confirmation
         return render(request, 'pointage/site_confirm_delete.html', {
