@@ -141,3 +141,16 @@ class TestDashboardBadge(TestCase):
         assert response.status_code == 200
         assert 'anomalies-badge' in content
         assert '1 anomalie ouverte' in content
+
+    def test_dashboard_centre_alertes_priorise_les_critiques(self):
+        enregistrer_anomalie(AnomaliePointage.TYPE_DURING_BREAK, message="warning")
+        enregistrer_anomalie(AnomaliePointage.TYPE_INVALID_QR, message="critique")
+
+        response = self.client.get(reverse('dashboard'))
+        content = response.content.decode()
+
+        assert response.status_code == 200
+        assert "Centre d'alertes" in content
+        assert '1 critique' in content
+        assert '1 avertissement' in content
+        assert 'QR invalide' in content
