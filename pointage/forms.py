@@ -20,11 +20,13 @@ class CustomUserChangeForm(UserChangeForm):
 class EmployeForm(forms.ModelForm):
     class Meta:
         model = Employe
-        fields = ['poste', 'nom', 'prenom', 'matricule', 'actif']
+        fields = ['poste', 'nom', 'prenom', 'matricule', 'email', 'telephone', 'actif']
         widgets = {
             'nom': forms.TextInput(attrs={'class': 'form-control'}),
             'prenom': forms.TextInput(attrs={'class': 'form-control'}),
             'matricule': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'telephone': forms.TextInput(attrs={'class': 'form-control'}),
             'poste': forms.Select(attrs={'class': 'form-control'}),
             'actif': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
@@ -33,6 +35,8 @@ class EmployeForm(forms.ModelForm):
             'nom': 'Nom',
             'prenom': 'Prénom',
             'matricule': 'Matricule',
+            'email': 'E-mail',
+            'telephone': 'Téléphone',
             'actif': 'Actif',
         }
 
@@ -40,7 +44,8 @@ class SiteForm(forms.ModelForm):
     class Meta:
         model = Site
         fields = ['nom', 'adresse', 'heure_ouverture_matin', 'heure_fermeture_matin',
-                 'heure_ouverture_apres_midi', 'heure_fermeture_apres_midi']
+                 'heure_ouverture_apres_midi', 'heure_fermeture_apres_midi',
+                 'tolerance_minutes', 'seuil_depart_anticipe_minutes']
         widgets = {
             'nom': forms.TextInput(attrs={'class': 'form-control'}),
             'adresse': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
@@ -48,6 +53,8 @@ class SiteForm(forms.ModelForm):
             'heure_fermeture_matin': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'heure_ouverture_apres_midi': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'heure_fermeture_apres_midi': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'tolerance_minutes': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'seuil_depart_anticipe_minutes': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
         }
         labels = {
             'nom': 'Nom du site',
