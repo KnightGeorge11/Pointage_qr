@@ -332,8 +332,8 @@
 }
 
 .type-badge.garde {
-    background: #EEEDFE;
-    color: #5B21B6;
+    background: var(--blue-50);
+    color: var(--blue-700);
 }
 
 .type-badge.default {
@@ -686,6 +686,13 @@
         padding: 18px;
     }
 }
+
+
+/* ── Finition SaaS ── */
+.filter-group-input:hover{border-color:var(--text-light)}
+.filter-actions .btn{min-height:38px}
+.alerte-table tbody tr.is-open td:first-child{box-shadow:inset 3px 0 0 var(--red-500)}
+@media(max-width:600px){.filter-bar{padding:16px}.filter-bar-header{margin-bottom:12px}}
 </style>
 {% endblock %}
 
