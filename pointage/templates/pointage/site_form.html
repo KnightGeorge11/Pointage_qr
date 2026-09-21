@@ -69,6 +69,25 @@
                         </div>
                     </div>
                     
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.tolerance_minutes.id_for_label }}" class="form-label">Tolérance (minutes)</label>
+                            {{ form.tolerance_minutes }}
+                            {% if form.tolerance_minutes.errors %}
+                                <div class="text-danger">{{ form.tolerance_minutes.errors }}</div>
+                            {% endif %}
+                            <div class="form-text">Laisser vide pour utiliser la tolérance système de 30 minutes.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.seuil_depart_anticipe_minutes.id_for_label }}" class="form-label">Seuil départ anticipé (minutes)</label>
+                            {{ form.seuil_depart_anticipe_minutes }}
+                            {% if form.seuil_depart_anticipe_minutes.errors %}
+                                <div class="text-danger">{{ form.seuil_depart_anticipe_minutes.errors }}</div>
+                            {% endif %}
+                            <div class="form-text">Laisser vide pour utiliser le seuil système de 15 minutes.</div>
+                        </div>
+                    </div>
+                    
                     <!-- ========== BLOC SÉCURITÉ ADMIN - AJOUTEZ ICI ========== -->
                     {% if require_admin_code %}
                     <div class="crud-form-security mt-4 mb-4">
