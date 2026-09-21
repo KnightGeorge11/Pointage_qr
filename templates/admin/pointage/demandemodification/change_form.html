@@ -1,35 +1,82 @@
 {% extends "admin/change_form.html" %}
 
+{% block extrahead %}
+    {{ block.super }}
+    <style>
+        .pqr-request-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 16px;
+        }
+        .pqr-request-actions button,
+        .pqr-request-actions a {
+            width: 100%;
+            min-height: 40px;
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 9px 20px;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+            text-decoration: none !important;
+            cursor: pointer;
+            transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+        }
+        .pqr-request-actions button:hover,
+        .pqr-request-actions a:hover {
+            transform: translateY(-1px);
+        }
+        .pqr-request-actions .accept {
+            background: #F0FDF4;
+            color: #15803D;
+            border: 1px solid #BBF7D0;
+        }
+        .pqr-request-actions .accept:hover {
+            background: #DCFCE7;
+            border-color: #86EFAC;
+        }
+        .pqr-request-actions .reject {
+            background: #FEF2F2;
+            color: #B91C1C;
+            border: 1px solid #FECACA;
+        }
+        .pqr-request-actions .reject:hover {
+            background: #FEE2E2;
+            border-color: #FCA5A5;
+        }
+        .pqr-request-actions .back {
+            background: #F8FAFC;
+            color: #334155 !important;
+            border: 1px solid #E2E8F0;
+        }
+        .pqr-request-actions .back:hover {
+            background: #F1F5F9;
+            border-color: #CBD5E1;
+        }
+    </style>
+{% endblock %}
+
 {% block submit_buttons_bottom %}
-<div class="submit-row" style="display:flex;flex-direction:column;gap:8px;padding:16px;">
+<div class="submit-row pqr-request-actions">
 
     {% if original.statut == 'en_attente' %}
 
-        <button type="submit" name="_accepter" value="1"
-            style="background:rgba(74,222,128,.15);color:#4ade80;
-            border:1px solid rgba(74,222,128,.35);padding:10px 20px;
-            border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;
-            width:100%;text-align:center;">
+        <button type="submit" name="_accepter" value="1" class="accept">
             ✅ Accepter
         </button>
 
-        <button type="submit" name="_refuser" value="1"
-            style="background:rgba(248,113,113,.15);color:#f87171;
-            border:1px solid rgba(248,113,113,.35);padding:10px 20px;
-            border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;
-            width:100%;text-align:center;">
+        <button type="submit" name="_refuser" value="1" class="reject">
             ❌ Refuser
         </button>
 
     {% endif %}
 
     {# Toujours visible #}
-    <a href="../../"
-        style="background:rgba(255,255,255,.06);color:#e8eaf0 !important;
-        border:1px solid rgba(255,255,255,.15);padding:10px 20px;
-        border-radius:6px;font-size:13px;font-weight:600;
-        text-decoration:none;width:100%;text-align:center;
-        display:block;box-sizing:border-box;">
+    <a href="../../" class="back">
         ← Retour
     </a>
 
