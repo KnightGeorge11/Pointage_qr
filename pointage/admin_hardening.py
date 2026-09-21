@@ -12,7 +12,7 @@ from openpyxl import load_workbook
 from rest_framework.response import Response
 from rest_framework import status as drf_status
 
-from .models import CustomUser, Pointage, Scan, DemandeModification, AnomaliePointage, AnomalieTraitement, PointageAudit
+from .models import CustomUser, Pointage, Scan, DemandeModification, AnomaliePointage, AnomalieTraitement, PointageAudit, JourFerie
 
 
 def _is_rh(user):
@@ -188,7 +188,7 @@ def install():
         from . import admin as _pointage_admin  # noqa: F401
         registry = admin.site._registry
 
-    protected_models = (Pointage, Scan, DemandeModification, AnomaliePointage, AnomalieTraitement, PointageAudit)
+    protected_models = (Pointage, Scan, DemandeModification, AnomaliePointage, AnomalieTraitement, PointageAudit, JourFerie)
     for model in protected_models:
         model_admin = registry.get(model)
         if model_admin:
