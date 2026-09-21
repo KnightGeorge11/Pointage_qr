@@ -88,13 +88,18 @@ def _sanitize_overtime_export(response):
                 continue
             total_payable = 0
             for col, jour in day_columns.items():
-                payable = Pointage.objects.filter(
-                    employe=employe, date_pointage=jour, periode="apres_midi",
+                payables = Pointage.objects.filter(
+                    employe=employe,
+                    date_pointage=jour,
                     heures_supplementaires_autorisees=True,
-                ).first()
-                if payable and payable.heures_supplementaires:
-                    total_payable += payable.heures_supplementaires.total_seconds()
-                else:
+                ).exclude(heures_supplementaires__isnull=True)
+                payable_seconds = sum(
+                    pointage.heures_supplementaires.total_seconds()
+                    for pointage in payables
+                    if pointage.heures_supplementaires
+                )
+                total_payable += payable_seconds
+                if payable_seconds <= 0:
                     cell = worksheet.cell(row=row + 6, column=col)
                     if isinstance(cell.value, str) and cell.value.startswith("H.sup"):
                         cell.value = "—"
