@@ -6,11 +6,14 @@
     <i class="fas fa-building"></i> {% if form.instance.pk %}Modifier{% else %}Créer{% endif %} un site
 {% endblock %}
 
+{% block extra_css %}
+<style>
+.crud-form-shell{max-width:1120px;margin:0 auto}.crud-form-card{background:var(--bg-white);border:1px solid var(--border-light);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden}.crud-form-head{padding:18px 22px;background:var(--bg-surface);border-bottom:1px solid var(--border-light)}.crud-form-head h1{margin:0;color:var(--text-primary);font-size:20px;font-weight:700}.crud-form-body{padding:24px}.crud-form-body .form-label{color:var(--text-secondary);font-size:12px;font-weight:600}.crud-form-body .form-control,.crud-form-body select,.crud-form-body textarea{border-color:var(--border-light);border-radius:var(--radius-sm);min-height:40px}.crud-form-body .form-control:focus,.crud-form-body select:focus,.crud-form-body textarea:focus{border-color:var(--blue-500);box-shadow:0 0 0 3px rgba(37,99,235,.1)}.crud-form-body .text-danger{font-size:12px;margin-top:5px}.crud-form-security{border:1px solid rgba(245,158,11,.3);background:var(--amber-50);border-radius:var(--radius-md);padding:16px}.crud-form-security .alert{margin-bottom:12px}.crud-form-actions{display:flex;justify-content:space-between;gap:10px;margin-top:24px;padding-top:18px;border-top:1px solid var(--border-light)}.crud-form-actions .btn{min-height:40px;border-radius:var(--radius-sm);font-weight:600}.crud-form-side{background:var(--bg-surface);border:1px solid var(--border-light);border-radius:var(--radius-md);padding:18px}.crud-form-side h5{color:var(--text-primary);font-size:14px;font-weight:700}.crud-form-side li{color:var(--text-secondary);font-size:13px;margin-bottom:7px}.crud-form-side img{border:1px solid var(--border-light);border-radius:var(--radius-md);padding:8px;background:#fff}.crud-form-side .btn{border-radius:var(--radius-sm);font-weight:600}@media(max-width:768px){.crud-form-body{padding:18px}.crud-form-actions{flex-direction:column}.crud-form-actions .btn{width:100%}}
+</style>
+{% endblock %}
 {% block content %}
-<div class="row">
-    <div class="col-md-12 mb-4">
-        <div class="dashboard-card">
-            <div class="card-body">
+<div class="crud-form-shell"><div class="row">
+    <div class="col-md-12 mb-4"><div class="crud-form-card"><div class="crud-form-body">
                 <form method="post">
                     {% csrf_token %}
                     
@@ -68,7 +71,7 @@
                     
                     <!-- ========== BLOC SÉCURITÉ ADMIN - AJOUTEZ ICI ========== -->
                     {% if require_admin_code %}
-                    <div class="card mt-4 mb-4 border-warning">
+                    <div class="crud-form-security mt-4 mb-4">
                         <div class="card-header bg-warning text-white">
                             <i class="fas fa-shield-alt"></i> Vérification Administrateur Requise
                         </div>
@@ -97,7 +100,7 @@
                     {% endif %}
                     <!-- ========== FIN DU BLOC SÉCURITÉ ========== -->
                     
-                    <div class="d-flex justify-content-between">
+                    <div class="crud-form-actions">
                         <a href="{% url 'sites' %}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left"></i> Retour
                         </a>
@@ -109,7 +112,7 @@
             </div>
         </div>
     </div>
-</div>
+</div></div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
