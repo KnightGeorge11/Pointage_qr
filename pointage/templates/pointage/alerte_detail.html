@@ -2,7 +2,28 @@
 
 {% block title %}Traitement de l'anomalie #{{ anomalie.pk }} - Pointage QR{% endblock %}
 
+
+{% block extra_css %}
+<style>
+    .anomaly-shell .card{border:1px solid var(--border-light);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)!important;overflow:hidden}
+    .anomaly-shell .card-header{border-bottom:1px solid var(--border-light);padding:14px 18px}
+    .anomaly-shell .card-body{padding:18px}
+    .anomaly-shell .alert{border-radius:var(--radius-md);border-width:1px}
+    .anomaly-shell .badge{font-weight:600;border-radius:var(--radius-full);padding:.45em .75em}
+    .anomaly-shell .btn{border-radius:var(--radius-sm);font-weight:600}
+    .anomaly-shell dl dt{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);padding-bottom:7px}
+    .anomaly-shell dl dd{font-size:13px;color:var(--text-primary);padding-bottom:7px}
+    .anomaly-shell .border.rounded,.anomaly-shell .border-danger{border-color:var(--border-light)!important;border-radius:var(--radius-md)!important}
+    .anomaly-shell .border-danger{border-color:rgba(239,68,68,.35)!important}
+    .anomaly-shell .form-control,.anomaly-shell select{border-color:var(--border-light);border-radius:var(--radius-sm)}
+    .anomaly-shell .form-control:focus,.anomaly-shell select:focus{border-color:var(--blue-500);box-shadow:0 0 0 3px rgba(37,99,235,.10)}
+    .anomaly-shell details summary{cursor:pointer;padding:10px 0}
+    @media(max-width:768px){.anomaly-shell .card-body{padding:14px}.anomaly-shell h1.h2{font-size:22px}}
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="anomaly-shell">
 {% with categorie=anomalie.contexte.categorie bloquante=anomalie.contexte.bloquante rh_requis=anomalie.contexte.traitement_rh_requis %}
 <div class="row">
     <div class="col-12 mb-4">
@@ -178,4 +199,5 @@
     <pre class="bg-light border rounded p-3 mt-2" style="white-space:pre-wrap;font-size:12px;">{{ anomalie.contexte }}</pre>
 </details>
 {% endwith %}
+</div>
 {% endblock %}
