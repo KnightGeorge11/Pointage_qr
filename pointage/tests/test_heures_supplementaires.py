@@ -75,6 +75,114 @@ class HeuresSupplementairesTestCase(TestCase):
         )
         assert p.get_heures_supplementaires() == timedelta(0)
 
+    def test_jour_ferie_matin_toute_la_duree_est_en_heures_sup(self):
+        from pointage.models import JourFerie
+
+        site = Site.objects.create(
+            nom="Site ferie matin", adresse="D",
+            heure_ouverture_matin=time(8, 0), heure_fermeture_matin=time(12, 0),
+            heure_ouverture_apres_midi=time(13, 0), heure_fermeture_apres_midi=time(17, 0),
+        )
+        jour = date(2026, 12, 25)
+        JourFerie.objects.create(date=jour, nom="Noël")
+
+        p = Pointage.objects.create(
+            employe=self.employe, site=site, date_pointage=jour,
+            periode='matin', type_journee='normal',
+            heure_arrivee=time(8, 0), heure_depart=time(12, 0),
+        )
+        assert p.get_heures_supplementaires() == timedelta(hours=4)
+
+    def test_jour_ferie_apres_midi_toute_la_duree_est_en_heures_sup(self):
+        from pointage.models import JourFerie
+
+        site = Site.objects.create(
+            nom="Site ferie apres-midi", adresse="G",
+            heure_ouverture_matin=time(8, 0), heure_fermeture_matin=time(12, 0),
+            heure_ouverture_apres_midi=time(13, 0), heure_fermeture_apres_midi=time(17, 0),
+        )
+        jour = date(2026, 12, 25)
+        JourFerie.objects.create(date=jour, nom="Noël")
+
+        p = Pointage.objects.create(
+            employe=self.employe, site=site, date_pointage=jour,
+            periode='apres_midi', type_journee='normal',
+            heure_arrivee=time(13, 0), heure_depart=time(18, 0),
+        )
+        assert p.get_heures_supplementaires() == timedelta(hours=5)
+
+    def test_garde_traversant_un_jour_ferie(self):
+        from pointage.models import JourFerie
+
+        site = Site.objects.create(
+            nom="Site garde", adresse="H",
+            heure_ouverture_matin=time(8, 0), heure_fermeture_matin=time(12, 0),
+            heure_ouverture_apres_midi=time(13, 0), heure_fermeture_apres_midi=time(17, 0),
+        )
+        JourFerie.objects.create(date=date(2026, 12, 25), nom="Noël")
+
+        p = Pointage.objects.create(
+            employe=self.employe, site=site, date_pointage=date(2026, 12, 24),
+            date_depart=date(2026, 12, 25),
+            periode='nuit', type_journee='garde',
+            heure_arrivee=time(22, 0), heure_depart=time(6, 0),
+        )
+        assert p.get_heures_supplementaires() == timedelta(hours=6)
+
+    def test_garde_commencant_un_jour_ferie(self):
+        from pointage.models import JourFerie
+
+        site = Site.objects.create(
+            nom="Site garde ferie", adresse="I",
+            heure_ouverture_matin=time(8, 0), heure_fermeture_matin=time(12, 0),
+            heure_ouverture_apres_midi=time(13, 0), heure_fermeture_apres_midi=time(17, 0),
+        )
+        JourFerie.objects.create(date=date(2026, 12, 25), nom="Noël")
+
+        p = Pointage.objects.create(
+            employe=self.employe, site=site, date_pointage=date(2026, 12, 25),
+            date_depart=date(2026, 12, 26),
+            periode='nuit', type_journee='garde',
+            heure_arrivee=time(22, 0), heure_depart=time(6, 0),
+        )
+        assert p.get_heures_supplementaires() == timedelta(hours=2)
+
+    def test_garde_sur_deux_jours_feries(self):
+        from pointage.models import JourFerie
+
+        site = Site.objects.create(
+            nom="Site deux feries", adresse="J",
+            heure_ouverture_matin=time(8, 0), heure_fermeture_matin=time(12, 0),
+            heure_ouverture_apres_midi=time(13, 0), heure_fermeture_apres_midi=time(17, 0),
+        )
+        JourFerie.objects.create(date=date(2026, 12, 25), nom="Noël")
+        JourFerie.objects.create(date=date(2026, 12, 26), nom="Fête")
+
+        p = Pointage.objects.create(
+            employe=self.employe, site=site, date_pointage=date(2026, 12, 25),
+            date_depart=date(2026, 12, 26),
+            periode='nuit', type_journee='garde',
+            heure_arrivee=time(22, 0), heure_depart=time(6, 0),
+        )
+        assert p.get_heures_supplementaires() == timedelta(hours=8)
+
+    def test_garde_sans_sortie_ne_genere_pas_d_heures_sup(self):
+        from pointage.models import JourFerie
+
+        site = Site.objects.create(
+            nom="Site garde ouverte", adresse="K",
+            heure_ouverture_matin=time(8, 0), heure_fermeture_matin=time(12, 0),
+            heure_ouverture_apres_midi=time(13, 0), heure_fermeture_apres_midi=time(17, 0),
+        )
+        JourFerie.objects.create(date=date(2026, 12, 25), nom="Noël")
+
+        p = Pointage.objects.create(
+            employe=self.employe, site=site, date_pointage=date(2026, 12, 25),
+            periode='nuit', type_journee='garde',
+            heure_arrivee=time(22, 0),
+        )
+        assert p.get_heures_supplementaires() == timedelta(0)
+
     def test_pointage_non_cloture_jamais_de_sup(self):
         """heure_depart absente (pas encore sorti) : pas de calcul possible."""
         site = Site.objects.create(
@@ -89,7 +197,7 @@ class HeuresSupplementairesTestCase(TestCase):
         )
         assert p.get_heures_supplementaires() == timedelta(0)
 
-    def test_garde_de_nuit_jamais_concernee(self):
+    def test_garde_de_nuit_normale_n_a_pas_d_heures_sup(self):
         site = Site.objects.create(
             nom="Site", adresse="F",
             heure_ouverture_matin=time(8, 0), heure_fermeture_matin=time(12, 0),
@@ -97,6 +205,7 @@ class HeuresSupplementairesTestCase(TestCase):
         )
         p = Pointage.objects.create(
             employe=self.employe, site=site, date_pointage=date.today(),
+            date_depart=date.today() + timedelta(days=1),
             periode='nuit', type_journee='garde',
             heure_arrivee=time(22, 0), heure_depart=time(6, 0),
         )
