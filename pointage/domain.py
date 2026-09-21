@@ -116,15 +116,11 @@ class TimeWindow:
         return f"TimeWindow({self.open_time.strftime('%H:%M')}-{self.close_time.strftime('%H:%M')})"
 
 
+SYSTEM_SCAN_MIN = time(5, 0)
+SYSTEM_SCAN_MAX = time(23, 0)
+
+
 @dataclass
-SYSTEM_SCAN_MIN = time(5, 0)
-SYSTEM_SCAN_MAX = time(23, 0)
-
-
-SYSTEM_SCAN_MIN = time(5, 0)
-SYSTEM_SCAN_MAX = time(23, 0)
-
-
 class SiteSchedule:
     """Horaires d'un site pour une journée.
     
