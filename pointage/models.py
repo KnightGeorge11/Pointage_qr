@@ -500,6 +500,17 @@ class PointageAudit(models.Model):
     motif = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+        # Une entrée d'audit peut être créée par le code métier, mais jamais
+        # réécrite ensuite. Les permissions admin seules ne suffisent pas :
+        # elles ne protègent pas les appels ORM hors interface d'administration.
+        if self.pk:
+            raise ValueError("PointageAudit est immuable et ne peut pas être modifié.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("PointageAudit est immuable et ne peut pas être supprimé.")
+
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'Audit de pointage'
