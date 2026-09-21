@@ -11,7 +11,7 @@ from django.urls import reverse_lazy, reverse
 from django.utils import timezone
 from datetime import datetime, timedelta, time
 from django.db import transaction
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Sum
 from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
@@ -23,7 +23,7 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
-from .models import Employe, Site, Pointage, Poste, DemandeModification, AnomaliePointage, AnomalieTraitement
+from .models import Employe, Site, Pointage, Poste, DemandeModification, AnomaliePointage, AnomalieTraitement, PointageAudit
 from .serializers import (
     EmployeSerializer, SiteSerializer,
     PointageSerializer, PointageDetailSerializer,
