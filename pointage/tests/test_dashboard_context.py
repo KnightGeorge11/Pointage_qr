@@ -122,6 +122,21 @@ class DashboardContextTestCase(TestCase):
         assert entry['user'] == self.admin
         assert 'Demande #{}' .format(demande.pk) in entry['change_message']
 
+    def test_pointage_audit_est_immuable_apres_creation(self):
+        from pointage.models import PointageAudit
+
+        audit = PointageAudit.objects.create(
+            pointage=Pointage.objects.filter(employe=self.employes[0]).first(),
+            administrateur=self.admin,
+            action=PointageAudit.ACTION_UPDATE,
+            motif="Test immutabilité",
+        )
+        audit.motif = "Tentative de modification"
+        with self.assertRaises(ValueError):
+            audit.save()
+        with self.assertRaises(ValueError):
+            audit.delete()
+
     def test_aucune_requete_sur_page_login(self):
         request = RequestFactory().get('/login/')
         request.user = self.admin
