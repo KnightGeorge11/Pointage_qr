@@ -20,8 +20,6 @@ from .anomalies import enregistrer_anomalie
 logger = logging.getLogger(__name__)
 
 SEUIL_DOUBLON_SECONDES = 120
-PLAGE_MIN = time(5, 0)
-PLAGE_MAX = time(23, 0)
 SEUIL_DEPART_ANTICIPE_MINUTES = 15
 OFFLINE_MAX_AGE = timedelta(hours=24)
 OFFLINE_FUTURE_TOLERANCE = timedelta(minutes=5)
@@ -222,21 +220,6 @@ def process_scan(matricule: str, qr_token: str, site_id: int,
                 'status': 'error',
                 'code': 'QR_INVALIDE',
                 'message': 'QR code invalide ou employé inactif.'
-            }
-
-        if mode != 'garde' and not (PLAGE_MIN <= now.time() <= PLAGE_MAX):
-            message = (
-                f"Scan en dehors des heures autorisées "
-                f"({PLAGE_MIN.strftime('%Hh%M')}–{PLAGE_MAX.strftime('%Hh%M')})."
-            )
-            enregistrer_anomalie(
-                AnomaliePointage.TYPE_HORS_PLAGE_GLOBALE,
-                message=message, employe=employe, site=site, date_pointage=now.date(),
-            )
-            return {
-                'status': 'warning',
-                'code': 'HORS_PLAGE',
-                'message': message
             }
 
         # Une garde utilise volontairement le scan suivant pour fermer la garde.
