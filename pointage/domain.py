@@ -121,6 +121,10 @@ SYSTEM_SCAN_MIN = time(5, 0)
 SYSTEM_SCAN_MAX = time(23, 0)
 
 
+SYSTEM_SCAN_MIN = time(5, 0)
+SYSTEM_SCAN_MAX = time(23, 0)
+
+
 class SiteSchedule:
     """Horaires d'un site pour une journée.
     
@@ -157,19 +161,13 @@ class SiteSchedule:
         return close_morning_dt < now_dt < open_afternoon_dt
     
     def is_within_global_hours(self, current_time: time) -> bool:
-        """Vérifie si l'heure appartient à une période de travail normale.
-
-        La tolérance s'applique autour des limites extérieures : avant
-        l'ouverture du matin et après la fermeture de l'après-midi.
-        L'intervalle de pause reste hors de la plage globale valide.
-        """
+        """Vérifie si l'heure appartient à une période de travail normale."""
         today = date.today()
         now_dt = datetime.combine(today, current_time)
         morning_open = datetime.combine(today, self.morning_window.open_time) - self.tolerance
         morning_close = datetime.combine(today, self.morning_window.close_time)
         afternoon_open = datetime.combine(today, self.afternoon_window.open_time)
         afternoon_close = datetime.combine(today, self.afternoon_window.close_time) + self.tolerance
-
         return (morning_open <= now_dt <= morning_close) or (afternoon_open <= now_dt <= afternoon_close)
 
     @staticmethod
