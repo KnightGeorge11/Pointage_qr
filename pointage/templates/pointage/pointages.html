@@ -294,8 +294,8 @@
 }
 
 .badge-custom.garde {
-    background: #EEEDFE;
-    color: #5B21B6;
+    background: var(--blue-50);
+    color: var(--blue-700);
 }
 
 .badge-custom.present {
@@ -449,8 +449,8 @@
 
 .night-total {
     margin-left: auto;
-    background: #EEEDFE;
-    color: #5B21B6;
+    background: var(--blue-50);
+    color: var(--blue-700);
     font-size: 11px;
     font-weight: 700;
     padding: 4px 14px;
@@ -827,6 +827,10 @@ dialog#modalDetail:not([open]) {
         font-size: 15px;
     }
 }
+
+    .filter-bar .filter-group-input:hover{border-color:var(--text-light)}
+    .filter-actions .btn{min-height:38px}
+    @media (max-width:600px){.filter-bar{padding:16px}.filter-bar-header{margin-bottom:12px}.filter-actions .btn{width:100%}}
 </style>
 {% endblock %}
 
@@ -1229,7 +1233,7 @@ function ouvrirDetail(btn) {
         red:    { bg:'#FEE2E2', color:'#B91C1C' },
         amber:  { bg:'#FEF3C7', color:'#B45309' },
         blue:   { bg:'#DBEAFE', color:'#1D4ED8' },
-        purple: { bg:'#EEEDFE', color:'#5B21B6' },
+        purple: { bg:'var(--blue-50)', color:'var(--blue-700)' },
     };
 
     function chip(cls, label) {
