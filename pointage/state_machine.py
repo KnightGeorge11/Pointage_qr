@@ -22,6 +22,8 @@ from pointage.domain import (
     ScanActionType,
     PeriodType,
     AnomalyCode,
+    SYSTEM_SCAN_MIN,
+    SYSTEM_SCAN_MAX,
 )
 
 logger = logging.getLogger(__name__)
@@ -77,10 +79,26 @@ class DayStateMachine:
             f"(site={context.site_id}, emp={context.employee_id})"
         )
 
-        # Les sorties après-midi tardives restent possibles afin de permettre
-        # l'enregistrement des heures supplémentaires.
-        # La pause doit toutefois être traitée par les états concernés afin
-        # de retourner DURING_BREAK plutôt que OUTSIDE_HOURS.
+        # Barrière système unique : les horaires du site restent la règle
+        # métier, mais aucun scan normal n'est accepté en dehors de la plage
+        # opérationnelle globale 05:00–23:00.
+        if not context.schedule.is_within_system_scan_hours(context.current_time):
+            return ScanDecision(
+                allowed=False,
+                message=(
+                    "Scan en dehors de la plage opérationnelle du système "
+                    f"({SYSTEM_SCAN_MIN.strftime('%H:%M')}–{SYSTEM_SCAN_MAX.strftime('%H:%M')})."
+                ),
+                anomaly_code=AnomalyCode.OUTSIDE_HOURS,
+                details={
+                    'current_time': context.current_time.isoformat(),
+                    'system_scan_min': SYSTEM_SCAN_MIN.isoformat(),
+                    'system_scan_max': SYSTEM_SCAN_MAX.isoformat(),
+                }
+            )
+
+        # Les horaires du site décident ensuite si le scan correspond à une
+        # entrée/sortie valide ou s'il tombe pendant la pause.
         if current_state not in (DayState.AFTERNOON_STARTED, DayState.DAY_FINISHED):
             if (
                 not context.schedule.is_during_break(context.current_time)
