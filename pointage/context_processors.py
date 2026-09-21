@@ -4,9 +4,11 @@ from django.utils import timezone
 from datetime import timedelta
 from django.contrib.admin.models import LogEntry
 from django.db.models import Count, Q
-from .models import Employe, Pointage, AnomaliePointage, Poste, PointageAudit
+from .models import (
+    Employe, Pointage, AnomaliePointage, AnomalieTraitement,
+    Poste, PointageAudit, DemandeModification,
+)
 from .anomalies import compter_anomalies_ouvertes
-from .models import DemandeModification
 
 
 def _is_rh_request(request):
@@ -153,6 +155,56 @@ def dashboard_context(request):
             'is_addition': audit.action == PointageAudit.ACTION_CREATE,
             'is_change': audit.action == PointageAudit.ACTION_UPDATE,
             'is_deletion': audit.action == PointageAudit.ACTION_DELETE,
+        })
+
+    # Les workflows métier hors CRUD Django (traitement d'anomalie et
+    # validation/refus d'une demande) ne créent pas de LogEntry automatiquement.
+    # Leurs propres tables restent la source de vérité ; on les projette ici
+    # dans le même flux d'activité du dashboard afin que les décisions RH ne
+    # disparaissent pas de l'historique visible.
+    traitements_recents = AnomalieTraitement.objects.select_related(
+        'anomalie__employe', 'administrateur'
+    ).order_by('-date_traitement')[:20]
+    for traitement in traitements_recents:
+        anomalie = traitement.anomalie
+        cible = (
+            anomalie.employe.get_nom_complet()
+            if anomalie and anomalie.employe
+            else (anomalie.matricule_scanne if anomalie else 'Anomalie')
+        )
+        logs_detailed.append({
+            'id': f'anomalie-traitement-{traitement.pk}',
+            'user': traitement.administrateur,
+            'action_time': traitement.date_traitement,
+            'action_flag': 2,
+            'action_display': f'Anomalie — {traitement.get_type_action_display()}',
+            'content_type': None,
+            'object_repr': f'{cible} · Anomalie #{anomalie.pk}' if anomalie else 'Anomalie',
+            'object_id': anomalie.pk if anomalie else None,
+            'change_message': f'Commentaire : {traitement.commentaire or "—"}',
+            'is_addition': False,
+            'is_change': True,
+            'is_deletion': False,
+        })
+
+    demandes_traitees = DemandeModification.objects.select_related(
+        'demandeur', 'traitee_par'
+    ).filter(date_traitement__isnull=False).order_by('-date_traitement')[:20]
+    for demande in demandes_traitees:
+        cible = f'{demande.get_cible_display()} #{demande.cible_id}' if demande.cible_id else demande.get_cible_display()
+        logs_detailed.append({
+            'id': f'demande-traitement-{demande.pk}',
+            'user': demande.traitee_par,
+            'action_time': demande.date_traitement,
+            'action_flag': 2,
+            'action_display': f'Demande — {demande.get_statut_display()}',
+            'content_type': None,
+            'object_repr': cible,
+            'object_id': demande.cible_id,
+            'change_message': f'Demande #{demande.pk} · {demande.get_type_action_display()} par {demande.demandeur}',
+            'is_addition': False,
+            'is_change': True,
+            'is_deletion': False,
         })
 
     logs_detailed.sort(key=lambda item: item['action_time'] or timezone.now(), reverse=True)
