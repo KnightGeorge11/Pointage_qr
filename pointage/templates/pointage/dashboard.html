@@ -92,6 +92,80 @@
     color: var(--red-600);
 }
 
+/* ── Centre d'alertes ── */
+.alert-center {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+.alert-center-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.alert-center-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.alert-center-title i { color: var(--red-500); }
+.alert-center-link {
+    color: var(--blue-600);
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 600;
+}
+.alert-center-summary {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 12px 20px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-light);
+}
+.alert-center-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    font-size: 10px;
+    font-weight: 700;
+}
+.alert-center-chip.critical { background: var(--red-50); color: var(--red-600); }
+.alert-center-chip.warning { background: var(--amber-50); color: var(--amber-600); }
+.alert-center-chip.info { background: var(--blue-50); color: var(--blue-600); }
+.alert-center-list { margin: 0; padding: 0; list-style: none; }
+.alert-center-item {
+    display: grid;
+    grid-template-columns: 90px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 11px 20px;
+    border-bottom: 1px solid var(--border-light);
+}
+.alert-center-item:last-child { border-bottom: 0; }
+.alert-center-type { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.alert-center-message { font-size: 12px; color: var(--text-secondary); }
+.alert-center-meta { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+.alert-center-item.critical .alert-center-type { color: var(--red-600); }
+.alert-center-item.warning .alert-center-type { color: var(--amber-600); }
+.alert-center-item.info .alert-center-type { color: var(--blue-600); }
+.alert-center-empty { padding: 20px; color: var(--text-muted); font-size: 12px; text-align: center; }
+@media (max-width: 600px) {
+    .alert-center-item { grid-template-columns: 1fr; gap: 4px; }
+    .alert-center-meta { white-space: normal; }
+}
+
 /* ── Statistiques ── */
 .stats-grid {
     display: grid;
@@ -587,6 +661,38 @@
         </a>
         {% endif %}
     </div>
+</div>
+
+<!-- ===== CENTRE D'ALERTES ===== -->
+<div class="alert-center">
+    <div class="alert-center-header">
+        <div class="alert-center-title">
+            <i class="fas fa-bell"></i>
+            Centre d'alertes
+        </div>
+        <a href="{% url 'alertes_rh' %}" class="alert-center-link">Voir toutes les anomalies <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <div class="alert-center-summary">
+        <span class="alert-center-chip critical"><i class="fas fa-circle-exclamation"></i> {{ alertes_critiques }} critique{{ alertes_critiques|pluralize }}</span>
+        <span class="alert-center-chip warning"><i class="fas fa-triangle-exclamation"></i> {{ alertes_warning }} avertissement{{ alertes_warning|pluralize }}</span>
+        <span class="alert-center-chip info"><i class="fas fa-circle-info"></i> {{ alertes_info }} information{{ alertes_info|pluralize }}</span>
+    </div>
+    {% if alertes_prioritaires %}
+    <ul class="alert-center-list">
+        {% for alerte in alertes_prioritaires %}
+        <li class="alert-center-item {{ alerte.gravite }}">
+            <span class="alert-center-type">{{ alerte.get_gravite_display }}</span>
+            <span class="alert-center-message">
+                <strong>{{ alerte.get_type_display }}</strong>
+                — {% if alerte.employe %}{{ alerte.employe.get_nom_complet }}{% else %}{{ alerte.matricule_scanne|default:"Employé non identifié" }}{% endif %}
+            </span>
+            <span class="alert-center-meta">{{ alerte.created_at|date:"d/m/Y H:i" }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="alert-center-empty"><i class="fas fa-check-circle"></i> Aucune alerte ouverte.</div>
+    {% endif %}
 </div>
 
 <!-- ===== STATISTIQUES ===== -->
