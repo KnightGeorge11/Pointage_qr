@@ -63,6 +63,30 @@ class Site(models.Model):
         verbose_name_plural = "Sites"
 
 
+class JourFerie(models.Model):
+    """Jour férié déclaré par le RH.
+
+    Cette table constitue le calendrier de référence. Elle ne modifie pas
+    encore la décision de scan : le traitement des jours fériés dépend de la
+    règle métier retenue pour le travail un jour férié.
+    """
+    date = models.DateField(unique=True, verbose_name="Date")
+    nom = models.CharField(max_length=150, verbose_name="Libellé")
+    actif = models.BooleanField(default=True, verbose_name="Actif")
+
+    def __str__(self):
+        return f"{self.date:%d/%m/%Y} — {self.nom}"
+
+    @classmethod
+    def est_ferie(cls, date_pointage) -> bool:
+        return cls.objects.filter(date=date_pointage, actif=True).exists()
+
+    class Meta:
+        ordering = ['date']
+        verbose_name = "Jour férié"
+        verbose_name_plural = "Jours fériés"
+
+
 class Employe(models.Model):
     poste           = models.ForeignKey(Poste, on_delete=models.SET_NULL, null=True, blank=True, related_name='employes')
     nom             = models.CharField(max_length=100)
