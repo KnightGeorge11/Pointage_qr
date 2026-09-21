@@ -9,7 +9,10 @@ from django.urls import path, reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Q
 from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -187,25 +190,81 @@ class PointageIncompletFilter(SimpleListFilter):
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_staff')
+    """Administration complète et sûre des comptes applicatifs.
+
+    Les formulaires Django dédiés sont utilisés explicitement afin que les
+    mots de passe soient toujours traités par set_password()/hashage Django.
+    Un compte role='user' peut se connecter à l'application sans avoir accès
+    à Jazzmin ; seul role='admin' (ou superuser) donne accès à l'administration.
+    """
+    form = UserChangeForm
+    add_form = UserCreationForm
+
+    list_display = (
+        'username', 'email', 'first_name', 'last_name',
+        'role', 'is_active', 'is_staff',
+    )
     list_filter = ('role', 'is_active', 'is_staff')
     search_fields = ('username', 'email', 'first_name', 'last_name')
     ordering = ('username',)
 
     fieldsets = UserAdmin.fieldsets + (
-        ('Rôle & Permissions', {'fields': ('role',)}),
+        ('Rôle & accès', {'fields': ('role',)}),
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
-        ('Rôle & Permissions', {'fields': ('role',)}),
+        ('Rôle & accès', {'fields': ('role', 'is_active')}),
     )
 
-    def save_model(self, request, obj, form, change):
-        if obj.role == 'admin':
-            obj.is_staff = True
+    def get_form(self, request, obj=None, **kwargs):
+        # UserAdmin choisit normalement add_form pour une création. On le
+        # force explicitement pour éviter qu'un garde-fou admin ultérieur ou
+        # une surcharge ne fasse passer la création par un ModelForm brut.
+        if obj is None:
+            kwargs['form'] = self.add_form
         else:
-            obj.is_staff = False
+            kwargs['form'] = self.form
+        return super().get_form(request, obj, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        # Ne jamais accepter un mot de passe brut provenant d'un ModelForm.
+        # UserCreationForm/UserChangeForm gèrent eux-mêmes set_password().
+        obj.is_staff = obj.role == 'admin'
+        if not change:
             obj.is_superuser = False
+        elif obj.pk == request.user.pk:
+            # Le compte actuellement connecté reste administrateur.
+            obj.role = 'admin'
+            obj.is_staff = True
+            obj.is_superuser = request.user.is_superuser
         super().save_model(request, obj, form, change)
+
+    def has_delete_permission(self, request, obj=None):
+        """Autorise la suppression des comptes ordinaires uniquement.
+
+        Le compte actuellement connecté et les superutilisateurs restent
+        protégés. Avec obj=None, Django vérifie seulement l'accès à l'action
+        de suppression en masse ; la protection individuelle est donc aussi
+        appliquée dans delete_queryset().
+        """
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return False
+        if obj is None:
+            return True
+        if obj.pk == request.user.pk or obj.is_superuser:
+            return False
+        return True
+
+    def delete_queryset(self, request, queryset):
+        """Empêche la suppression en masse du compte courant ou d'un superuser."""
+        protected = queryset.filter(
+            Q(pk=request.user.pk) | Q(is_superuser=True)
+        )
+        if protected.exists():
+            raise PermissionDenied(
+                "Le compte actuellement connecté et les superutilisateurs "
+                "ne peuvent pas être supprimés depuis l'administration."
+            )
+        queryset.delete()
 
 
 # ============================================================
@@ -1106,7 +1165,7 @@ class DemandeModificationAdmin(admin.ModelAdmin):
             obj.date_traitement = original.date_traitement
         super().save_model(request, obj, form, change)
 
-    _CIBLE_MODELE = {'employe': Employe, 'site': Site, 'poste': Poste, 'utilisateur': CustomUser}
+    _CIBLE_MODELE = {'employe': Employe, 'site': Site, 'poste': Poste}
 
     def _label_champ(self, modele, champ):
         """Libellé humain d'un champ, tiré du modèle réel (verbose_name) —
@@ -1119,13 +1178,6 @@ class DemandeModificationAdmin(admin.ModelAdmin):
     def _valeur_affichable(self, champ, valeur):
         """Résout les valeurs de clé étrangère (ex: poste=3) vers un
         libellé lisible (ex: 'Infirmier') plutôt qu'un ID brut."""
-        if champ == 'password':
-            # Jamais afficher un hash de mot de passe, même à un RH —
-            # ni la valeur actuelle, ni la nouvelle. Seul le fait qu'un
-            # changement est demandé est visible (via le surlignage
-            # "avant/après" de donnees_formatees, basé sur l'inégalité
-            # des deux hashs, pas sur leur contenu affiché).
-            return mark_safe('<span style="font-style:italic;">••••••••</span>') if valeur else mark_safe('<span style="color:rgba(255,255,255,.35);font-style:italic;">inchangé</span>')
         if valeur is None or valeur == '':
             return mark_safe('<span style="color:rgba(255,255,255,.35);font-style:italic;">vide</span>')
         if champ == 'poste':
@@ -1318,20 +1370,6 @@ class DemandeModificationAdmin(admin.ModelAdmin):
                 )
             elif demande.type_action == 'delete':
                 Poste.objects.filter(pk=demande.cible_id).delete()
-
-        elif demande.cible == 'utilisateur':
-            # Auto-service uniquement : type_action est toujours 'update'
-            # (on ne crée/supprime jamais un compte via cette voie — voir
-            # mon_compte_view, qui est la seule à générer ce type de
-            # demande). 'password' contient déjà un hash Django, jamais
-            # du texte en clair (haché dès la soumission, voir la vue).
-            updates = {}
-            if 'username' in d:
-                updates['username'] = d['username']
-            if 'password' in d:
-                updates['password'] = d['password']
-            if updates:
-                CustomUser.objects.filter(pk=demande.cible_id).update(**updates)
 
 
 # ============================================================

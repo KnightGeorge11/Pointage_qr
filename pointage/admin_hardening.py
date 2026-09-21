@@ -234,18 +234,9 @@ def install():
         cls.has_view_permission = _rh_view_permission
         cls.has_add_permission = _rh_add_permission
         cls.has_change_permission = _rh_change_permission
-        cls.has_delete_permission = _no_delete
-        cls.get_fieldsets = _custom_user_fieldsets
-        cls.get_add_fieldsets = _custom_user_add_fieldsets
-        cls.get_readonly_fields = _custom_user_readonly_fields
-        original_save_model = getattr(cls, "save_model", None)
-        def save_model(self, request, obj, form, change):
-            if not _is_rh(request.user): return
-            obj.is_superuser = False
-            obj.is_staff = getattr(obj, "role", None) == "admin"
-            if original_save_model: original_save_model(self, request, obj, form, change)
-        cls.save_model = save_model
-
+        # Le CRUD utilisateur reste disponible dans Jazzmin. La classe
+        # CustomUserAdmin gère elle-même les protections de suppression et
+        # la cohérence rôle -> accès admin.
     from . import views
     if hasattr(views, "PointageDeleteView"):
         views.PointageDeleteView.test_func = _deny_pointage_delete_web
