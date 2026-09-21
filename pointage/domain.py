@@ -117,6 +117,10 @@ class TimeWindow:
 
 
 @dataclass
+SYSTEM_SCAN_MIN = time(5, 0)
+SYSTEM_SCAN_MAX = time(23, 0)
+
+
 class SiteSchedule:
     """Horaires d'un site pour une journée.
     
@@ -157,8 +161,7 @@ class SiteSchedule:
 
         La tolérance s'applique autour des limites extérieures : avant
         l'ouverture du matin et après la fermeture de l'après-midi.
-        L'intervalle 12:00-13:00 reste une pause et n'est pas une plage
-        globale valide.
+        L'intervalle de pause reste hors de la plage globale valide.
         """
         today = date.today()
         now_dt = datetime.combine(today, current_time)
@@ -168,6 +171,11 @@ class SiteSchedule:
         afternoon_close = datetime.combine(today, self.afternoon_window.close_time) + self.tolerance
 
         return (morning_open <= now_dt <= morning_close) or (afternoon_open <= now_dt <= afternoon_close)
+
+    @staticmethod
+    def is_within_system_scan_hours(current_time: time) -> bool:
+        """Vérifie la fenêtre système commune à tous les sites."""
+        return SYSTEM_SCAN_MIN <= current_time <= SYSTEM_SCAN_MAX
 
     def __repr__(self) -> str:
         return (f"SiteSchedule("
