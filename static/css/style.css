@@ -1,17 +1,17 @@
 /* Styles personnalisés pour Pointage QR */
 
 :root {
-    --primary-color: #4361ee;
-    --secondary-color: #3a0ca3;
-    --success-color: #4cc9f0;
-    --warning-color: #f72585;
-    --danger-color: #7209b7;
-    --light-color: #f8f9fa;
-    --dark-color: #212529;
-    --scanner-primary: #667eea;
-    --scanner-secondary: #764ba2;
-    --scanner-success: #4CAF50;
-    --scanner-success-dark: #2E7D32;
+    --primary-color: #2563EB;
+    --secondary-color: #1D4ED8;
+    --success-color: #22C55E;
+    --warning-color: #F59E0B;
+    --danger-color: #DC2626;
+    --light-color: #F8FAFC;
+    --dark-color: #0F172A;
+    --scanner-primary: #2563EB;
+    --scanner-secondary: #1D4ED8;
+    --scanner-success: #22C55E;
+    --scanner-success-dark: #15803D;
 }
 
 body {
@@ -54,17 +54,17 @@ body {
 }
 
 .btn-success {
-    background: linear-gradient(135deg, #4cc9f0, #4361ee);
+    background: linear-gradient(135deg, #22C55E, #2563EB);
     border: none;
 }
 
 .btn-warning {
-    background: linear-gradient(135deg, #f72585, #7209b7);
+    background: linear-gradient(135deg, #F59E0B, #DC2626);
     border: none;
 }
 
 .btn-danger {
-    background: linear-gradient(135deg, #7209b7, #3a0ca3);
+    background: linear-gradient(135deg, #DC2626, #1D4ED8);
     border: none;
 }
 
@@ -82,7 +82,7 @@ body {
 
 .table td {
     vertical-align: middle;
-    border-color: #dee2e6;
+    border-color: #E2E8F0;
 }
 
 .badge {
@@ -93,7 +93,7 @@ body {
 
 .footer {
     margin-top: 3rem;
-    border-top: 1px solid #dee2e6;
+    border-top: 1px solid #E2E8F0;
 }
 
 /* Animation pour les alertes */
@@ -144,7 +144,7 @@ body {
     padding: 12px 15px;
     font-size: 1rem;
     transition: all 0.3s ease;
-    color: #333;
+    color: #0F172A;
 }
 
 .scanner-form .form-control:focus,
@@ -153,7 +153,7 @@ body {
     border-color: var(--scanner-success);
     box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
     outline: none;
-    color: #333;
+    color: #0F172A;
 }
 
 .btn-scan {
@@ -173,7 +173,7 @@ body {
 .btn-scan:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 20px rgba(76, 175, 80, 0.3);
-    background: linear-gradient(135deg, #45a049 0%, #1B5E20 100%);
+    background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
     color: white;
 }
 
@@ -228,15 +228,15 @@ body {
 }
 
 .scanner-alert-warning {
-    background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
 }
 
 .scanner-alert-danger {
-    background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+    background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
 }
 
 .scanner-alert-info {
-    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
 }
 
 /* Style pour le contenu principal de la page scanner */
@@ -244,18 +244,18 @@ body {
     text-align: center;
     margin-bottom: 3rem;
     padding: 2rem;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    background: linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%);
     border-radius: 15px;
 }
 
 .page-title {
-    color: #333;
+    color: #0F172A;
     font-weight: 700;
     margin-bottom: 0.5rem;
 }
 
 .page-subtitle {
-    color: #666;
+    color: #64748B;
     font-size: 1.1rem;
 }
 
@@ -279,7 +279,7 @@ body {
 /* Styles pour les formulaires généraux */
 .form-control, .form-select {
     border-radius: 8px;
-    border: 2px solid #e0e0e0;
+    border: 2px solid #E2E8F0;
     padding: 10px 15px;
     transition: all 0.3s ease;
 }
