@@ -2,12 +2,34 @@
 
 {% block title %}Sortie anticipée{% endblock %}
 
+{% block extra_css %}
+<style>
+    .early-exit-shell{max-width:760px;margin:24px auto}
+    .early-exit-card{background:var(--bg-white);border:1px solid var(--border-light);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden}
+    .early-exit-head{padding:24px;text-align:center;background:var(--bg-surface);border-bottom:1px solid var(--border-light)}
+    .early-exit-icon{width:52px;height:52px;margin:0 auto 12px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:var(--amber-50);color:var(--amber-600);font-size:24px}
+    .early-exit-head h1{margin:0 0 6px;color:var(--text-primary);font-size:22px;font-weight:700}
+    .early-exit-head p{margin:0;color:var(--text-muted);font-size:13px;line-height:1.6}
+    .early-exit-body{padding:24px}
+    .early-exit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+    .early-exit-fact{padding:14px;border:1px solid var(--border-light);border-radius:var(--radius-md);background:var(--bg-surface)}
+    .early-exit-fact small{display:block;margin-bottom:4px;color:var(--text-muted);font-size:11px;font-weight:600}
+    .early-exit-fact strong{display:block;color:var(--text-primary);font-size:14px}
+    .early-exit-fact .sub{margin-top:3px;color:var(--text-muted);font-size:11px}
+    .early-exit-body .form-label{color:var(--text-primary);font-size:13px}
+    .early-exit-body textarea{min-height:120px;border-color:var(--border-light);border-radius:var(--radius-sm)}
+    .early-exit-body textarea:focus{border-color:var(--blue-500);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+    .early-exit-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:22px}
+    .early-exit-actions .btn{min-height:40px;border-radius:var(--radius-sm);font-weight:600}
+    @media(max-width:700px){.early-exit-shell{margin:12px 0}.early-exit-body{padding:18px}.early-exit-grid{grid-template-columns:1fr}.early-exit-actions{flex-direction:column-reverse}.early-exit-actions .btn{width:100%}}
+</style>
+{% endblock %}
 {% block content %}
-<div class="container py-4" style="max-width: 720px;">
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-4 p-md-5">
-            <div class="text-center mb-4">
-                <div class="display-5 mb-2">⏰</div>
+<div class="early-exit-shell">
+    <div class="early-exit-card">
+        <div class="early-exit-body">
+            <div class="early-exit-head">
+                <div class="early-exit-icon"><i class="fas fa-clock"></i></div>
                 <h1 class="h3 mb-2">Sortie anticipée détectée</h1>
                 <p class="text-muted mb-0">
                     Le pointage sera enregistré avec l'heure réelle de votre sortie.
@@ -15,15 +37,14 @@
                 </p>
             </div>
 
-            <div class="row g-3 mb-4">
-                <div class="col-md-4">
-                    <div class="bg-light rounded p-3 h-100">
+            <div class="early-exit-grid">
+                
+                    <div class="early-exit-fact">
                         <small class="text-muted d-block">Employé</small>
                         <strong>{{ employe.get_nom_complet }}</strong>
                         <div class="small text-muted">{{ employe.matricule }}</div>
                     </div>
-                </div>
-                <div class="col-md-4">
+                
                     <div class="bg-light rounded p-3 h-100">
                         <small class="text-muted d-block">Sortie réelle</small>
                         <strong>{{ anticipation.heure_depart }}</strong>
@@ -36,7 +57,6 @@
                         <strong>{{ anticipation.minutes_avance }} min</strong>
                         <div class="small text-muted">{{ site.nom }}</div>
                     </div>
-                </div>
             </div>
 
             <form method="post" action="{% url 'scanner_confirmer_sortie_anticipee' %}">
@@ -60,7 +80,7 @@
                     </div>
                 </div>
 
-                <div class="d-flex gap-2 justify-content-end">
+                <div class="early-exit-actions">
                     <a href="{% url 'scanner' %}" class="btn btn-outline-secondary">Annuler</a>
                     <button type="submit" class="btn btn-primary px-4">
                         Confirmer la sortie
