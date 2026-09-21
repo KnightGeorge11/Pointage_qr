@@ -304,6 +304,66 @@ class EmployeListView(LoginRequiredMixin, ListView):
         ).count()
         return context
 
+
+@login_required
+def employe_detail_view(request, pk):
+    """Fiche RH synthétique d'un employé, en lecture seule."""
+    employe = get_object_or_404(
+        Employe.objects.select_related('poste'),
+        pk=pk,
+    )
+
+    pointages = list(
+        Pointage.objects.filter(employe=employe)
+        .select_related('site')
+        .order_by('-date_pointage', 'periode')[:30]
+    )
+    anomalies = list(
+        AnomaliePointage.objects.filter(employe=employe)
+        .select_related('site')
+        .order_by('-created_at')[:20]
+    )
+    audits = list(
+        PointageAudit.objects.filter(pointage__employe=employe)
+        .select_related('administrateur', 'pointage')
+        .order_by('-created_at')[:20]
+    )
+    demandes = list(
+        DemandeModification.objects.filter(cible='employe', cible_id=employe.pk)
+        .select_related('demandeur', 'traitee_par')
+        .order_by('-date_creation')[:10]
+    )
+
+    total_travaille = timedelta()
+    total_sup = timedelta()
+    total_retard = timedelta()
+    for p in Pointage.objects.filter(employe=employe):
+        if p.heures_travaillees:
+            total_travaille += p.heures_travaillees
+        if p.heures_supplementaires:
+            total_sup += p.heures_supplementaires
+        if p.retard:
+            total_retard += p.retard
+
+    context = {
+        'employe': employe,
+        'pointages': pointages,
+        'anomalies': anomalies,
+        'audits': audits,
+        'demandes': demandes,
+        'stats': {
+            'pointages': Pointage.objects.filter(employe=employe).count(),
+            'anomalies_ouvertes': AnomaliePointage.objects.filter(
+                employe=employe,
+                statut=AnomaliePointage.STATUT_OUVERTE,
+            ).count(),
+            'heures_travaillees': total_travaille,
+            'heures_supplementaires': total_sup,
+            'retard': total_retard,
+        },
+    }
+    return render(request, 'pointage/employe_detail.html', context)
+
 @login_required
 def employe_create_view(request):
     if request.method == 'POST':
