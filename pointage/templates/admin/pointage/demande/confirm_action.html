@@ -1,10 +1,45 @@
 {% extends "admin/base_site.html" %}
 {% load i18n %}
 
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .pqr-confirm-card {
+        max-width: 760px;
+        margin: 24px auto;
+        background: #fff;
+        border: 1px solid #E2E8F0;
+        border-radius: 14px;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07);
+        overflow: hidden;
+    }
+    .pqr-confirm-head {
+        padding: 22px 24px;
+        border-bottom: 1px solid #E2E8F0;
+        background: #F8FAFC;
+    }
+    .pqr-confirm-head h1 { margin: 0; color: #0F172A; font-size: 20px; font-weight: 700; }
+    .pqr-confirm-body { padding: 24px; color: #334155; font-size: 14px; line-height: 1.6; }
+    .pqr-confirm-body dl { display: grid; grid-template-columns: minmax(120px, .35fr) 1fr; margin: 20px 0; border: 1px solid #E2E8F0; border-radius: 10px; overflow: hidden; }
+    .pqr-confirm-body dt, .pqr-confirm-body dd { margin: 0; padding: 11px 14px; border-bottom: 1px solid #E2E8F0; }
+    .pqr-confirm-body dt { background: #F8FAFC; color: #64748B; font-weight: 600; }
+    .pqr-confirm-body dd { color: #0F172A; font-weight: 500; }
+    .pqr-confirm-body dt:last-of-type, .pqr-confirm-body dd:last-of-type { border-bottom: 0; }
+    .pqr-confirm-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 22px; }
+    .pqr-confirm-actions input, .pqr-confirm-actions a { min-height: 40px; box-sizing: border-box; border-radius: 7px; padding: 9px 16px; font-weight: 600; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+    .pqr-confirm-actions input { border: 1px solid #2563EB; background: #2563EB; color: #fff; }
+    .pqr-confirm-actions input:hover { background: #1D4ED8; border-color: #1D4ED8; }
+    .pqr-confirm-actions a { border: 1px solid #CBD5E1; background: #fff; color: #334155; }
+    .pqr-confirm-actions a:hover { background: #F8FAFC; border-color: #94A3B8; }
+    @media (max-width: 600px) { .pqr-confirm-card { margin: 12px 0; } .pqr-confirm-body { padding: 16px; } .pqr-confirm-body dl { grid-template-columns: 1fr; } .pqr-confirm-body dt { border-bottom: 0; } .pqr-confirm-actions { flex-direction: column; } .pqr-confirm-actions input, .pqr-confirm-actions a { width: 100%; } }
+</style>
+{% endblock %}
+
 {% block content %}
 <div id="content-main">
-  <div class="module">
-    <h1>{{ title }}</h1>
+  <div class="pqr-confirm-card">
+    <div class="pqr-confirm-head"><h1>{{ title }}</h1></div>
+    <div class="pqr-confirm-body">
     <p>
       Vous êtes sur le point de <strong>{{ action }}</strong> la demande
       <strong>#{{ demande.pk }}</strong>.
@@ -22,11 +57,12 @@
 
     <form method="post">
       {% csrf_token %}
-      <div class="submit-row">
+      <div class="submit-row pqr-confirm-actions">
         <input type="submit" value="{% if action == 'approuver' %}Confirmer l'approbation{% else %}Confirmer le refus{% endif %}" class="default">
         <a href="{{ cancel_url }}" class="button cancel-link">Annuler</a>
       </div>
     </form>
+    </div>
   </div>
 </div>
 {% endblock %}
