@@ -83,7 +83,43 @@
     .sb-user-role { color: var(--text-light); }
     .sb-toggle:hover { background: var(--blue-600); border-color: var(--blue-600); }
     .topbar { background: rgba(255,255,255,.92); }
-    </style>
+        /* Modern SaaS — finition des pages de gestion */
+    .page-header {
+        background: var(--bg-white);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-lg);
+        padding: 18px 20px;
+        margin-bottom: 18px;
+        box-shadow: var(--shadow-sm);
+    }
+    .page-header-left h1 { font-size: 20px; }
+    .page-header-left h1 i { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; background: var(--blue-50); border-radius: var(--radius-sm); margin-right: 8px; }
+    .stats-mini { background: var(--bg-white); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 14px; box-shadow: var(--shadow-sm); }
+    .stats-mini-item { padding-right: 14px; border-right: 1px solid var(--border-light); }
+    .stats-mini-item:last-child { border-right: none; padding-right: 0; }
+    #searchInput {
+        width: min(100%, 340px) !important;
+        padding: 10px 14px 10px 38px !important;
+        border: 1px solid var(--border-light) !important;
+        border-radius: var(--radius-md) !important;
+        background: var(--bg-white) !important;
+        color: var(--text-primary) !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 13px !important;
+        box-shadow: var(--shadow-sm);
+        transition: all var(--transition-fast);
+    }
+    #searchInput:focus { outline: none; border-color: var(--blue-500) !important; box-shadow: 0 0 0 3px rgba(37,99,235,.10); }
+    .table-container { box-shadow: var(--shadow-sm); }
+    .table-container:hover { box-shadow: var(--shadow-md); }
+    .table-wrapper { scrollbar-width: thin; scrollbar-color: var(--border-light) transparent; }
+    @media (max-width: 768px) {
+        .page-header { padding: 14px; }
+        .page-header-left h1 { font-size: 18px; }
+        .stats-mini { overflow-x: auto; flex-wrap: nowrap; }
+        .stats-mini-item { white-space: nowrap; }
+    }
+</style>
 </head>
 <body>
 <aside class="sidebar" id="sidebar">
