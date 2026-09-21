@@ -18,7 +18,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import json
 from .models import (
-    Employe, Site, Pointage, Scan, Poste,
+    Employe, Site, Pointage, Scan, Poste, JourFerie,
     CustomUser, DemandeModification,
     AnomaliePointage, AnomalieTraitement, PointageAudit,
 )
@@ -290,6 +290,15 @@ class PosteAdmin(admin.ModelAdmin):
 # ============================================================
 # SITE
 # ============================================================
+
+@admin.register(JourFerie)
+class JourFerieAdmin(admin.ModelAdmin):
+    list_display = ('date', 'nom', 'actif')
+    list_filter = ('actif',)
+    search_fields = ('nom',)
+    ordering = ('date',)
+    date_hierarchy = 'date'
+
 
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
