@@ -257,6 +257,13 @@
         display: none;
     }
 }
+
+    .list-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+    .search-field{position:relative;display:block;width:min(100%,340px);margin:0}
+    .search-field>i{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-light);font-size:12px;pointer-events:none}
+    .search-field input{width:100%;padding:10px 14px 10px 36px;border:1px solid var(--border-light);border-radius:var(--radius-md);font-family:'Inter',sans-serif;font-size:13px;background:var(--bg-white);color:var(--text-primary);box-shadow:var(--shadow-sm);transition:all var(--transition-fast)}
+    .search-field input:focus{outline:none;border-color:var(--blue-500);box-shadow:0 0 0 3px rgba(37,99,235,.10)}
+    .search-field input::placeholder{color:var(--text-light)}
 </style>
 {% endblock %}
 
@@ -296,9 +303,8 @@
         <span class="count inactive">{{ employes_inactifs|default:0 }}</span>
     </span>
 </div>
-<div style="margin-bottom: 16px;">
-    <input type="text" id="searchInput" placeholder="Rechercher un employé..." 
-           style="width: 100%; max-width: 300px; padding: 8px 14px; border: 1px solid #E2E8F0; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 13px;">
+<div class="list-toolbar">
+    <label class="search-field" for="searchInput"><i class="fas fa-search" aria-hidden="true"></i><span class="visually-hidden">Rechercher</span><input type="text" id="searchInput" placeholder="Rechercher un employé..."></label>
 </div>
 <!-- ===== TABLEAU ===== -->
 <div class="table-container">
