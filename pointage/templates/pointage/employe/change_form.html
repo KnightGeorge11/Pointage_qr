@@ -5,28 +5,84 @@
     {{ block.super }}
     <style>
         .qr-code-container {
-            text-align: center;
             margin: 20px 0;
-            padding: 20px;
-            background: #f9f9f9;
-            border-radius: 8px;
-            border: 1px solid #ddd;
+            padding: 24px;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+            text-align: center;
+        }
+        .qr-code-container h3 {
+            margin: 0 0 16px;
+            color: #0F172A;
+            font-size: 16px;
+            font-weight: 700;
         }
         .qr-code-image {
-            max-width: 300px;
+            display: block;
+            width: min(300px, 100%);
             height: auto;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            margin: 0 auto;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            box-sizing: border-box;
         }
         .qr-actions {
-            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .qr-actions .button {
+            margin-left: 0 !important;
+            min-height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
         }
         .qr-info {
-            margin-top: 10px;
+            max-width: 760px;
+            margin: 16px auto 0;
+            padding: 12px 14px;
+            background: #fff;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
             font-family: monospace;
-            font-size: 12px;
-            color: #666;
-            word-break: break-all;
+            font-size: 11px;
+            line-height: 1.7;
+            color: #64748B;
+            word-break: break-word;
+            text-align: left;
+        }
+        .qr-code-container p {
+            margin: 0;
+            padding: 12px 14px;
+            border-radius: 8px;
+            background: #FEF2F2;
+            border: 1px solid #FECACA;
+            color: #B91C1C !important;
+            font-size: 13px;
+        }
+        @media (max-width: 600px) {
+            .qr-code-container {
+                padding: 16px;
+            }
+            .qr-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+            .qr-actions .button {
+                width: 100%;
+            }
         }
     </style>
 {% endblock %}
@@ -52,7 +108,7 @@
                         Données encodées: EMPLOYE:{{ original.matricule }}:{{ original.qr_code_token }}
                     </div>
                 {% else %}
-                    <p style="color: #dc3545;">
+                    <p>
                         Le QR Code n'a pas encore été généré. Sauvegardez l'employé pour le générer.
                     </p>
                 {% endif %}
