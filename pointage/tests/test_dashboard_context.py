@@ -9,7 +9,10 @@ from datetime import time as dtime, timedelta
 from django.test import TestCase, RequestFactory
 from django.utils import timezone
 
-from pointage.models import Employe, Site, Pointage, CustomUser
+from pointage.models import (
+    Employe, Site, Pointage, CustomUser,
+    AnomaliePointage, AnomalieTraitement, DemandeModification,
+)
 from pointage.context_processors import dashboard_context
 
 
@@ -80,6 +83,44 @@ class DashboardContextTestCase(TestCase):
         assert ctx['evolution_presence'][-3] == round(1 / 3 * 100, 1)
         # Semaine sans aucun pointage -> 0%
         assert ctx['evolution_presence'][0] == 0.0
+
+    def test_activite_inclut_traitement_anomalie(self):
+        anomalie = AnomaliePointage.objects.create(
+            type=AnomaliePointage.TYPE_OUTSIDE_HOURS,
+            employe=self.employes[0],
+            site=self.site,
+            date_pointage=self.today,
+            message="Hors horaires",
+        )
+        traitement = AnomalieTraitement.objects.create(
+            anomalie=anomalie,
+            administrateur=self.admin,
+            type_action=AnomalieTraitement.ACTION_JUSTIFICATION,
+            commentaire="Justification RH",
+        )
+
+        ctx = self._get_context()
+        entry = next(item for item in ctx['logs_detailed'] if item['id'] == f'anomalie-traitement-{traitement.pk}')
+        assert entry['action_display'] == 'Anomalie — Justification'
+        assert entry['user'] == self.admin
+        assert entry['change_message'] == 'Commentaire : Justification RH'
+
+    def test_activite_inclut_demande_traitee(self):
+        demande = DemandeModification.objects.create(
+            demandeur=self.admin,
+            type_action='update',
+            cible='employe',
+            cible_id=self.employes[0].pk,
+            statut='approuvee',
+            date_traitement=timezone.now(),
+            traitee_par=self.admin,
+        )
+
+        ctx = self._get_context()
+        entry = next(item for item in ctx['logs_detailed'] if item['id'] == f'demande-traitement-{demande.pk}')
+        assert entry['action_display'] == 'Demande — Approuvée'
+        assert entry['user'] == self.admin
+        assert 'Demande #{}' .format(demande.pk) in entry['change_message']
 
     def test_aucune_requete_sur_page_login(self):
         request = RequestFactory().get('/login/')
