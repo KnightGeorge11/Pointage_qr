@@ -54,6 +54,36 @@
     .pagination-info strong{color:var(--text-primary)}
     </style>
     {% block extra_css %}{% endblock %}
+    <style>
+    /* ============================================================
+       MODERN SAAS — coque visuelle principale de l'application web
+       Couche limitée au shell de navigation.
+       ============================================================ */
+    .sidebar {
+        background: var(--bg-white);
+        border-right: 1px solid var(--border-light);
+        box-shadow: var(--shadow-sm);
+    }
+    .sb-logo { border-bottom-color: var(--border-light); }
+    .sb-logo-text { color: var(--text-primary); }
+    .sb-logo-sub { color: var(--text-light); }
+    .sb-nav::-webkit-scrollbar-thumb { background: var(--border-light); }
+    .sb-section-label { color: var(--text-light); }
+    .sb-link { color: var(--text-muted); }
+    .sb-link:hover { color: var(--text-primary); background: var(--bg-hover); }
+    .sb-link.is-active { color: var(--blue-700); background: var(--blue-50); }
+    .sb-link.is-active::before { background: var(--blue-600); }
+    .sb-link.is-active i { color: var(--blue-600); }
+    .sb-logout { border-top-color: var(--border-light); }
+    .sb-logout .sb-link { color: var(--text-muted); }
+    .sb-logout .sb-link:hover { color: var(--text-primary); background: var(--bg-hover); }
+    .sb-footer { border-top-color: var(--border-light); }
+    .sb-avatar { background: var(--bg-hover); color: var(--text-muted); border-color: var(--border-light); }
+    .sb-user-name { color: var(--text-secondary); }
+    .sb-user-role { color: var(--text-light); }
+    .sb-toggle:hover { background: var(--blue-600); border-color: var(--blue-600); }
+    .topbar { background: rgba(255,255,255,.92); }
+    </style>
 </head>
 <body>
 <aside class="sidebar" id="sidebar">
