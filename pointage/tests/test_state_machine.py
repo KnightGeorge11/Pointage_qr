@@ -10,8 +10,26 @@ from pointage.domain import (
     ScanActionType,
     PeriodType,
     AnomalyCode,
+    SYSTEM_SCAN_MIN,
+    SYSTEM_SCAN_MAX,
 )
 from pointage.state_machine import DayStateMachine
+
+
+class TestDayStateMachineSystemScanWindow:
+    """La fenêtre système 05:00–23:00 est centralisée dans le domaine."""
+
+    def test_system_window_boundaries(self, empty_day_context):
+        assert empty_day_context.schedule.is_within_system_scan_hours(SYSTEM_SCAN_MIN) is True
+        assert empty_day_context.schedule.is_within_system_scan_hours(SYSTEM_SCAN_MAX) is True
+        assert empty_day_context.schedule.is_within_system_scan_hours(time(4, 59)) is False
+        assert empty_day_context.schedule.is_within_system_scan_hours(time(23, 1)) is False
+
+    def test_after_system_window_is_rejected_by_state_machine(self, afternoon_started_context):
+        afternoon_started_context.current_time = time(23, 1)
+        decision = DayStateMachine().decide(afternoon_started_context)
+        assert decision.allowed is False
+        assert decision.anomaly_code == AnomalyCode.OUTSIDE_HOURS
 
 
 class TestDayStateMachineFromEmpty:
@@ -237,18 +255,15 @@ class TestDayStateMachineFromAfternoonStarted:
         assert decision.details['late_exit'] is True
         assert "tardive" in decision.message.lower()
     
-    def test_afternoon_exit_midnight(self, afternoon_started_context):
-        """Sortie à minuit (urgence) : acceptée."""
+    def test_afternoon_exit_at_system_boundary(self, afternoon_started_context):
+        """Sortie tardive jusqu'à la limite système : acceptée."""
         context = afternoon_started_context
-        context.current_time = time(23, 59)
+        context.current_time = SYSTEM_SCAN_MAX
         
         machine = DayStateMachine()
         decision = machine.decide(context)
         
-        # Sortie tardive : toujours autorisée (règle métier), quelle que
-        # soit l'heure. Le filtre global d'heures ne s'applique pas à la
-        # sortie après-midi précisément pour ce genre de cas (garde
-        # prolongée, urgence médicale...).
+        # La sortie tardive reste autorisée jusqu'à la limite système.
         assert decision.allowed is True
         assert decision.action == ScanActionType.AFTERNOON_EXIT
         assert decision.warning is not None
