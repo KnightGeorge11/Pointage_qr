@@ -11,7 +11,7 @@ from django.urls import reverse_lazy, reverse
 from django.utils import timezone
 from datetime import datetime, timedelta, time
 from django.db import transaction
-from django.db.models import Q, Count, Sum
+from django.db.models import Q, Count, Sum, Case, When, Value, IntegerField
 from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
@@ -31,7 +31,9 @@ from .serializers import (
 )
 from .forms import EmployeForm, SiteForm, PointageForm, PosteForm
 from .services import process_scan, parse_qr_data
-from .anomalies import marquer_traitee, marquer_cloturee, compter_anomalies_ouvertes
+from .anomalies import (
+    marquer_traitee, marquer_cloturee, compter_anomalies_ouvertes,
+)
 
 
 # ---------------------------
@@ -100,6 +102,32 @@ def dashboard(request):
     demandes_en_attente = DemandeModification.objects.filter(statut='en_attente').count()
     anomalies_ouvertes = compter_anomalies_ouvertes()
 
+    # Centre d'alertes : on réutilise les anomalies existantes et leur gravité
+    # canonique. Aucun nouveau moteur d'anomalies n'est introduit ici.
+    gravite_par_type = AnomaliePointage.GRAVITE_PAR_TYPE
+    types_critiques = [type_anomalie for type_anomalie, gravite in gravite_par_type.items() if gravite == 'critique']
+    types_warning = [type_anomalie for type_anomalie, gravite in gravite_par_type.items() if gravite == 'warning']
+    alertes_critiques = AnomaliePointage.objects.filter(
+        statut=AnomaliePointage.STATUT_OUVERTE, type__in=types_critiques
+    ).count()
+    alertes_warning = AnomaliePointage.objects.filter(
+        statut=AnomaliePointage.STATUT_OUVERTE, type__in=types_warning
+    ).count()
+    alertes_info = max(0, anomalies_ouvertes - alertes_critiques - alertes_warning)
+
+    alertes_prioritaires = list(
+        AnomaliePointage.objects.filter(
+            statut=AnomaliePointage.STATUT_OUVERTE
+        ).select_related('employe', 'site').annotate(
+            _priorite=Case(
+                When(type__in=types_critiques, then=Value(0)),
+                When(type__in=types_warning, then=Value(1)),
+                default=Value(2),
+                output_field=IntegerField(),
+            )
+        ).order_by('_priorite', '-created_at', '-pk')[:5]
+    )
+
     week_ago = today - timedelta(days=6)
     daily_stats = Pointage.objects.filter(
         date_pointage__gte=week_ago, date_pointage__lte=today
@@ -153,6 +181,10 @@ def dashboard(request):
         'pointages_recents':    pointages_recents,
         'demandes_en_attente':   demandes_en_attente,
         'anomalies_ouvertes':    anomalies_ouvertes,
+        'alertes_critiques':    alertes_critiques,
+        'alertes_warning':      alertes_warning,
+        'alertes_info':         alertes_info,
+        'alertes_prioritaires': alertes_prioritaires,
         'aujourdhui':           today,
         'daily_data':    {'presents': presents_aujourdhui, 'absents': total_employes - presents_aujourdhui, 'retards': retards, 'gardes': gardes_en_cours},
         'weekly_data':   {'labels': jours_labels, 'presents': jours_presents, 'absents': jours_absents, 'retards': jours_retards},
