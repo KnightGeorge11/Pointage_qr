@@ -808,7 +808,7 @@ class PointageListView(LoginRequiredMixin, ListView):
 
             jour['heures_total']  = heures_total
             jour['retard_total']  = retard_total
-            jour['heures_sup']    = jour['apres_midi'].get_heures_supplementaires() if jour['apres_midi'] else timedelta()
+            jour['heures_sup']    = sum((p.get_heures_supplementaires() for p in (jour['matin'], jour['apres_midi'], jour['nuit']) if p), timedelta())
             jour['statut_global'] = 'present' if (jour['matin'] or jour['apres_midi'] or jour['nuit']) else 'absent'
             jour['badge_type']    = 'garde' if jour['nuit'] and jour['nuit'].type_journee == 'garde' else 'normal'
             jours_list.append(jour)
