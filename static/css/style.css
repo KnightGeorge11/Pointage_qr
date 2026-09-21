@@ -15,7 +15,7 @@
 }
 
 body {
-    background-color: #f5f7fb;
+    background-color: #F8FAFC;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
@@ -50,7 +50,7 @@ body {
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(67, 97, 238, 0.4);
+    box-shadow: 0 5px 15px rgba(37, 99, 235, 0.4);
 }
 
 .btn-success {
@@ -151,7 +151,7 @@ body {
 .scanner-form .form-select:focus {
     background: white;
     border-color: var(--scanner-success);
-    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
     outline: none;
     color: #0F172A;
 }
@@ -172,7 +172,7 @@ body {
 
 .btn-scan:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(76, 175, 80, 0.3);
+    box-shadow: 0 10px 20px rgba(34, 197, 94, 0.25);
     background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
     color: white;
 }
@@ -286,7 +286,7 @@ body {
 
 .form-control:focus, .form-select:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.25);
+    box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.12);
 }
 
 /* Responsive design général */
