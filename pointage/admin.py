@@ -307,13 +307,6 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    def save_model(self, request, obj, form, change):
-        try:
-            obj.save()
-        except ValueError as exc:
-            self.message_user(request, str(exc), level=messages.ERROR)
-            raise
-
 
 
 @admin.register(JourFerie)
