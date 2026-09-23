@@ -23,11 +23,11 @@ from pointage.models import ConfigurationPointage, Pointage, Site
 logger = logging.getLogger(__name__)
 
 
-# Règle métier par défaut : 30 minutes de tolérance. Une arrivée avant
-# l'ouverture officielle reste une arrivée anticipée et conserve son heure
-# réelle (ex. 07:50 pour une ouverture à 08:00).
+# Valeur historique conservée comme constante de compatibilité pour les tests
+# et les imports externes. En production, la valeur est lue dans
+# ConfigurationPointage depuis Jazzmin.
 DEFAULT_TOLERANCE_MINUTES = 30
-"""Tolérance par défaut en minutes. Peut être surchargée par site."""
+"""Valeur de secours historique ; la configuration RH est prioritaire."""
 
 
 def _as_time(value: time | str) -> time:
@@ -51,10 +51,12 @@ def _as_time(value: time | str) -> time:
 
 def build_site_schedule(site: Site, tolerance_minutes: Optional[int] = None) -> SiteSchedule:
     """Construit un SiteSchedule à partir d'un modèle Site Django."""
+    configuration = ConfigurationPointage.get_solo()
+
     if tolerance_minutes is None:
         tolerance_minutes = site.tolerance_minutes
     if tolerance_minutes is None:
-        tolerance_minutes = DEFAULT_TOLERANCE_MINUTES
+        tolerance_minutes = configuration.tolerance_minutes_defaut
 
     if tolerance_minutes < 0:
         raise ValueError("La tolérance ne peut pas être négative")
@@ -92,7 +94,6 @@ def build_site_schedule(site: Site, tolerance_minutes: Optional[int] = None) -> 
     )
 
     tolerance = timedelta(minutes=tolerance_minutes)
-    configuration = ConfigurationPointage.get_solo()
     system_scan_min = _as_time(configuration.heure_debut_systeme)
     system_scan_max = _as_time(configuration.heure_fin_systeme)
 
