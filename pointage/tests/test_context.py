@@ -7,7 +7,7 @@ from datetime import time, date, timedelta
 import pytest
 from django.test import TestCase
 
-from pointage.models import Employe, Site, Pointage
+from pointage.models import ConfigurationPointage, Employe, Site, Pointage
 from pointage.context import (
     build_site_schedule,
     collect_day_context,
@@ -40,6 +40,24 @@ class TestBuildSiteSchedule(TestCase):
         assert schedule.afternoon_window.open_time == time(13, 30)
         assert schedule.afternoon_window.close_time == time(17, 30)
         assert schedule.tolerance == timedelta(minutes=DEFAULT_TOLERANCE_MINUTES)
+        assert schedule.system_scan_min == time(5, 0)
+        assert schedule.system_scan_max == time(23, 0)
+
+    def test_build_schedule_uses_global_admin_configuration(self):
+        """La fenêtre système vient de la configuration administrable."""
+        ConfigurationPointage.objects.create(
+            heure_debut_systeme=time(6, 30),
+            heure_fin_systeme=time(22, 15),
+        )
+
+        schedule = build_site_schedule(self.site)
+
+        assert schedule.system_scan_min == time(6, 30)
+        assert schedule.system_scan_max == time(22, 15)
+        assert schedule.is_within_system_scan_hours(time(6, 30)) is True
+        assert schedule.is_within_system_scan_hours(time(22, 15)) is True
+        assert schedule.is_within_system_scan_hours(time(6, 29)) is False
+        assert schedule.is_within_system_scan_hours(time(22, 16)) is False
     
     def test_build_schedule_custom_tolerance(self):
         """Construit un schedule avec tolérance personnalisée."""
