@@ -23,7 +23,7 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
-from .models import Employe, Site, Pointage, Poste, DemandeModification, AnomaliePointage, AnomalieTraitement, PointageAudit
+from .models import Employe, Site, Pointage, Poste, DemandeModification, AnomaliePointage, AnomalieTraitement, PointageAudit, ConfigurationPointage
 from .serializers import (
     EmployeSerializer, SiteSerializer,
     PointageSerializer, PointageDetailSerializer,
@@ -43,7 +43,7 @@ from .anomalies import (
 def get_periode_courante():
     now_local = timezone.localtime(timezone.now())
     heure_courante = now_local.time()
-    seuil_apres_midi = time(12, 0)
+    seuil_apres_midi = ConfigurationPointage.get_solo().heure_bascule_apres_midi
     return 'apres_midi' if heure_courante >= seuil_apres_midi else 'matin'
 
 def get_pointage_du_jour(employe, date_courante):
