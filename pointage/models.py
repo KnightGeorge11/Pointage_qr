@@ -134,6 +134,11 @@ class ConfigurationPointage(models.Model):
         verbose_name="Seuil départ anticipé par défaut (minutes)",
         help_text="Utilisé par les sites qui n'ont pas de seuil spécifique.",
     )
+    duree_journee_reference = models.DurationField(
+        default=timedelta(hours=8),
+        verbose_name="Durée de référence d'une journée",
+        help_text="Utilisée pour les synthèses et exports qui comparent le temps travaillé à une journée de référence.",
+    )
 
     def __str__(self):
         return "Configuration du pointage"
@@ -159,6 +164,10 @@ class ConfigurationPointage(models.Model):
         if self.seuil_depart_anticipe_minutes_defaut < 0:
             errors['seuil_depart_anticipe_minutes_defaut'] = (
                 "Le seuil de départ anticipé ne peut pas être négatif."
+            )
+        if self.duree_journee_reference <= timedelta(0):
+            errors['duree_journee_reference'] = (
+                "La durée de référence d'une journée doit être supérieure à zéro."
             )
         if errors:
             raise ValidationError(errors)
