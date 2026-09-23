@@ -65,7 +65,7 @@ class GardeTraversantMinuitTestCase(TestCase):
         assert result['code'] == 'GARDE_HORS_PLAGE'
 
         Pointage.objects.create(
-            employe=self.employe, site=self.site, date_pointage=jour,
+            employe=self.employe, site=self.site, date_pointage=date(2026, 8, 13),
             periode='nuit', type_journee='garde', statut='absent',
         )
         now_fin_plage = _aware(date(2026, 8, 13), 5, 0)
