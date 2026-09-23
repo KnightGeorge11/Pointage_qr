@@ -306,6 +306,7 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
         'heure_fin_garde',
         'tolerance_minutes_defaut',
         'seuil_depart_anticipe_minutes_defaut',
+        'duree_journee_reference',
     )
     fields = (
         'heure_debut_systeme',
@@ -315,6 +316,7 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
         'heure_fin_garde',
         'tolerance_minutes_defaut',
         'seuil_depart_anticipe_minutes_defaut',
+        'duree_journee_reference',
     )
 
     def has_add_permission(self, request):
