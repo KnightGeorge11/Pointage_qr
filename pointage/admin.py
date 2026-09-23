@@ -301,12 +301,16 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
     list_display = (
         'heure_debut_systeme',
         'heure_fin_systeme',
+        'heure_debut_garde',
+        'heure_fin_garde',
         'tolerance_minutes_defaut',
         'seuil_depart_anticipe_minutes_defaut',
     )
     fields = (
         'heure_debut_systeme',
         'heure_fin_systeme',
+        'heure_debut_garde',
+        'heure_fin_garde',
         'tolerance_minutes_defaut',
         'seuil_depart_anticipe_minutes_defaut',
     )
@@ -336,6 +340,10 @@ class SiteAdmin(admin.ModelAdmin):
         ('Site', {'fields': ('nom', 'adresse')}),
         ('Horaires matin', {'fields': ('heure_ouverture_matin', 'heure_fermeture_matin')}),
         ('Horaires après-midi', {'fields': ('heure_ouverture_apres_midi', 'heure_fermeture_apres_midi')}),
+        ('Horaires de garde (facultatif)', {
+            'fields': ('heure_debut_garde', 'heure_fin_garde'),
+            'description': "Laisser les deux champs vides pour utiliser la plage de garde définie dans Configuration du pointage.",
+        }),
         ('Réglages avancés (facultatif)', {
             'fields': ('tolerance_minutes', 'seuil_depart_anticipe_minutes'),
             'description': "Les horaires restent propres à chaque site. Ces deux valeurs servent uniquement de valeurs globales lorsqu'un site ne définit pas son propre réglage.",
