@@ -80,17 +80,36 @@ class ConfigurationPointage(models.Model):
         verbose_name="Fin de la plage système",
         help_text="Aucun scan normal n'est accepté après cette heure.",
     )
+    tolerance_minutes_defaut = models.PositiveSmallIntegerField(
+        default=30,
+        verbose_name="Tolérance par défaut (minutes)",
+        help_text="Utilisée par les sites qui n'ont pas de tolérance spécifique.",
+    )
+    seuil_depart_anticipe_minutes_defaut = models.PositiveSmallIntegerField(
+        default=15,
+        verbose_name="Seuil départ anticipé par défaut (minutes)",
+        help_text="Utilisé par les sites qui n'ont pas de seuil spécifique.",
+    )
 
     def __str__(self):
         return "Configuration du pointage"
 
     def clean(self):
+        errors = {}
         if self.heure_fin_systeme <= self.heure_debut_systeme:
-            raise ValidationError({
-                'heure_fin_systeme': (
-                    "La fin de la plage système doit être après son début."
-                )
-            })
+            errors['heure_fin_systeme'] = (
+                "La fin de la plage système doit être après son début."
+            )
+        if self.tolerance_minutes_defaut < 0:
+            errors['tolerance_minutes_defaut'] = (
+                "La tolérance par défaut ne peut pas être négative."
+            )
+        if self.seuil_depart_anticipe_minutes_defaut < 0:
+            errors['seuil_depart_anticipe_minutes_defaut'] = (
+                "Le seuil de départ anticipé ne peut pas être négatif."
+            )
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         self.pk = 1
