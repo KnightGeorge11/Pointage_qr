@@ -133,6 +133,8 @@ class SiteSchedule:
     morning_window: TimeWindow
     afternoon_window: TimeWindow
     tolerance: timedelta
+    system_scan_min: time = SYSTEM_SCAN_MIN
+    system_scan_max: time = SYSTEM_SCAN_MAX
     
     def is_during_break(self, current_time: time) -> bool:
         """Vérifie si on est en pause entre les deux périodes.
@@ -166,10 +168,9 @@ class SiteSchedule:
         afternoon_close = datetime.combine(today, self.afternoon_window.close_time) + self.tolerance
         return (morning_open <= now_dt <= morning_close) or (afternoon_open <= now_dt <= afternoon_close)
 
-    @staticmethod
-    def is_within_system_scan_hours(current_time: time) -> bool:
-        """Vérifie la fenêtre système commune à tous les sites."""
-        return SYSTEM_SCAN_MIN <= current_time <= SYSTEM_SCAN_MAX
+    def is_within_system_scan_hours(self, current_time: time) -> bool:
+        """Vérifie la fenêtre système globale configurée."""
+        return self.system_scan_min <= current_time <= self.system_scan_max
 
     def __repr__(self) -> str:
         return (f"SiteSchedule("
