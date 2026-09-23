@@ -518,3 +518,47 @@ class TestCollectDayContextNonNormalPointages(TestCase):
         assert context.morning_entry is False
         assert context.afternoon_entry is False
         assert context.get_current_state() == DayState.EMPTY
+
+
+
+class TestConfigurationPointageHoraires(TestCase):
+    """Vérifie que les valeurs globales modifiables dans Jazzmin sont utilisées."""
+
+    def setUp(self):
+        self.site = Site.objects.create(
+            nom="Site config globale",
+            adresse="Test",
+            heure_ouverture_matin=time(8, 0),
+            heure_fermeture_matin=time(12, 0),
+            heure_ouverture_apres_midi=time(13, 0),
+            heure_fermeture_apres_midi=time(17, 0),
+            tolerance_minutes=None,
+            seuil_depart_anticipe_minutes=None,
+        )
+
+    def test_tolerance_globale_configuree_est_utilisee_si_site_vide(self):
+        ConfigurationPointage.objects.create(
+            pk=1,
+            heure_debut_systeme=time(5, 0),
+            heure_fin_systeme=time(23, 0),
+            tolerance_minutes_defaut=45,
+            seuil_depart_anticipe_minutes_defaut=20,
+        )
+        schedule = build_site_schedule(self.site)
+        assert schedule.tolerance == timedelta(minutes=45)
+
+    def test_configuration_globale_personnalisee_alimente_la_plage_systeme(self):
+        ConfigurationPointage.objects.create(
+            pk=1,
+            heure_debut_systeme=time(6, 30),
+            heure_fin_systeme=time(22, 15),
+            tolerance_minutes_defaut=30,
+            seuil_depart_anticipe_minutes_defaut=15,
+        )
+        schedule = build_site_schedule(self.site)
+        assert schedule.system_scan_min == time(6, 30)
+        assert schedule.system_scan_max == time(22, 15)
+        assert schedule.is_within_system_scan_hours(time(6, 30))
+        assert not schedule.is_within_system_scan_hours(time(6, 29))
+        assert schedule.is_within_system_scan_hours(time(22, 15))
+        assert not schedule.is_within_system_scan_hours(time(22, 16))
