@@ -39,6 +39,16 @@ class Site(models.Model):
                    "reste accepté). Laisser vide pour utiliser la valeur "
                    "par défaut du système (30 min).",
     )
+    heure_debut_garde = models.TimeField(
+        null=True, blank=True,
+        verbose_name="Début de garde",
+        help_text="Début de la plage de garde. Laisser vide pour utiliser la configuration globale.",
+    )
+    heure_fin_garde = models.TimeField(
+        null=True, blank=True,
+        verbose_name="Fin de garde",
+        help_text="Fin de la plage de garde. Une fin plus tôt que le début signifie une garde traversant minuit.",
+    )
     seuil_depart_anticipe_minutes = models.PositiveSmallIntegerField(
         null=True, blank=True,
         verbose_name="Seuil départ anticipé (minutes)",
@@ -75,6 +85,16 @@ class ConfigurationPointage(models.Model):
         verbose_name="Début de la plage système",
         help_text="Aucun scan normal n'est accepté avant cette heure.",
     )
+    heure_debut_garde = models.TimeField(
+        default='20:00',
+        verbose_name="Début de garde par défaut",
+        help_text="Utilisée par les sites qui n'ont pas d'horaire de garde spécifique.",
+    )
+    heure_fin_garde = models.TimeField(
+        default='06:00',
+        verbose_name="Fin de garde par défaut",
+        help_text="Une fin plus tôt que le début signifie une garde traversant minuit.",
+    )
     heure_fin_systeme = models.TimeField(
         default='23:00',
         verbose_name="Fin de la plage système",
@@ -99,6 +119,10 @@ class ConfigurationPointage(models.Model):
         if self.heure_fin_systeme <= self.heure_debut_systeme:
             errors['heure_fin_systeme'] = (
                 "La fin de la plage système doit être après son début."
+            )
+        if self.heure_fin_garde == self.heure_debut_garde:
+            errors['heure_fin_garde'] = (
+                "La fin de la plage de garde doit être différente de son début."
             )
         if self.tolerance_minutes_defaut < 0:
             errors['tolerance_minutes_defaut'] = (
