@@ -1,7 +1,9 @@
-from datetime import date, time
+from datetime import date, datetime, time
+from unittest.mock import patch
 
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from pointage.models import CustomUser, Employe, Pointage, Poste, Site
@@ -31,12 +33,16 @@ class CriticalAttendanceAuditTests(TestCase):
     def test_scanner_web_accepte_un_matricule_sans_qr(self):
         # Même clarification que test_web_scan_integrity.py : c'est le
         # comportement voulu, propre au scanner Web uniquement.
+        fake_now = timezone.make_aware(datetime(2026, 7, 1, 9, 0))
+
         client = Client()
         client.force_login(self.user)
-        response = client.post(
-            reverse("scanner"),
-            {"matricule": self.employe.matricule, "site_id": self.site.id},
-        )
+        with patch("pointage.services.timezone.now", return_value=fake_now):
+            response = client.post(
+                reverse("scanner"),
+                {"matricule": self.employe.matricule, "site_id": self.site.id},
+            )
+
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Pointage.objects.filter(employe=self.employe).exists())
 
