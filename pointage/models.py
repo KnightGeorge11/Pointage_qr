@@ -2,6 +2,7 @@ from django.db import models
 import qrcode
 from io import BytesIO
 from django.core.files import File
+from django.core.exceptions import ValidationError
 import uuid
 from datetime import timedelta, datetime, time
 from django.utils import timezone
@@ -83,12 +84,17 @@ class ConfigurationPointage(models.Model):
     def __str__(self):
         return "Configuration du pointage"
 
+    def clean(self):
+        if self.heure_fin_systeme <= self.heure_debut_systeme:
+            raise ValidationError({
+                'heure_fin_systeme': (
+                    "La fin de la plage système doit être après son début."
+                )
+            })
+
     def save(self, *args, **kwargs):
         self.pk = 1
-        if self.heure_fin_systeme <= self.heure_debut_systeme:
-            raise ValueError(
-                "La fin de la plage système doit être après son début."
-            )
+        self.full_clean()
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
