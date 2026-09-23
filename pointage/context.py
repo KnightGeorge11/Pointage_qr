@@ -18,7 +18,7 @@ from pointage.domain import (
     SiteSchedule,
     TimeWindow,
 )
-from pointage.models import Pointage, Site
+from pointage.models import ConfigurationPointage, Pointage, Site
 
 logger = logging.getLogger(__name__)
 
@@ -92,10 +92,21 @@ def build_site_schedule(site: Site, tolerance_minutes: Optional[int] = None) -> 
     )
 
     tolerance = timedelta(minutes=tolerance_minutes)
+    configuration = ConfigurationPointage.get_solo()
+    system_scan_min = _as_time(configuration.heure_debut_systeme)
+    system_scan_max = _as_time(configuration.heure_fin_systeme)
+
+    if system_scan_max <= system_scan_min:
+        raise ValueError(
+            "La fin de la plage système doit être après son début"
+        )
+
     schedule = SiteSchedule(
         morning_window=morning_window,
         afternoon_window=afternoon_window,
         tolerance=tolerance,
+        system_scan_min=system_scan_min,
+        system_scan_max=system_scan_max,
     )
 
     logger.debug(
