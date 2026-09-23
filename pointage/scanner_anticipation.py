@@ -17,7 +17,7 @@ from django.utils import timezone
 from . import views
 from .context import collect_day_context
 from .domain import ScanActionType
-from .models import AnomaliePointage, Employe, Site
+from .models import AnomaliePointage, Employe, Site, ConfigurationPointage
 from .services import parse_qr_data, process_scan
 from .state_machine import DayStateMachine
 
@@ -94,7 +94,7 @@ def _detecter_sortie_anticipee(employe, site, now):
     avance = fermeture_dt - depart_dt
     seuil = site.seuil_depart_anticipe_minutes
     if seuil is None:
-        seuil = 15
+        seuil = ConfigurationPointage.get_solo().seuil_depart_anticipe_minutes_defaut
 
     if avance.total_seconds() < seuil * 60:
         return None
