@@ -298,8 +298,18 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
     Une seule ligne est autorisée et reste toujours accessible en modification
     depuis Jazzmin. La suppression est volontairement impossible.
     """
-    list_display = ('heure_debut_systeme', 'heure_fin_systeme')
-    fields = ('heure_debut_systeme', 'heure_fin_systeme')
+    list_display = (
+        'heure_debut_systeme',
+        'heure_fin_systeme',
+        'tolerance_minutes_defaut',
+        'seuil_depart_anticipe_minutes_defaut',
+    )
+    fields = (
+        'heure_debut_systeme',
+        'heure_fin_systeme',
+        'tolerance_minutes_defaut',
+        'seuil_depart_anticipe_minutes_defaut',
+    )
 
     def has_add_permission(self, request):
         return not ConfigurationPointage.objects.exists()
@@ -328,7 +338,7 @@ class SiteAdmin(admin.ModelAdmin):
         ('Horaires après-midi', {'fields': ('heure_ouverture_apres_midi', 'heure_fermeture_apres_midi')}),
         ('Réglages avancés (facultatif)', {
             'fields': ('tolerance_minutes', 'seuil_depart_anticipe_minutes'),
-            'description': "Laisser vide pour utiliser les valeurs par défaut du système (15 min pour les deux).",
+            'description': "Les horaires restent propres à chaque site. Ces deux valeurs servent uniquement de valeurs globales lorsqu'un site ne définit pas son propre réglage.",
             'classes': ('collapse',),
         }),
     )
