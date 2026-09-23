@@ -63,6 +63,49 @@ class Site(models.Model):
         verbose_name_plural = "Sites"
 
 
+class ConfigurationPointage(models.Model):
+    """Paramètres globaux du moteur de pointage, modifiables par le RH.
+
+    Une seule ligne existe : elle centralise les règles qui ne dépendent
+    pas d'un site particulier, notamment la fenêtre opérationnelle globale.
+    """
+    heure_debut_systeme = models.TimeField(
+        default='05:00',
+        verbose_name="Début de la plage système",
+        help_text="Aucun scan normal n'est accepté avant cette heure.",
+    )
+    heure_fin_systeme = models.TimeField(
+        default='23:00',
+        verbose_name="Fin de la plage système",
+        help_text="Aucun scan normal n'est accepté après cette heure.",
+    )
+
+    def __str__(self):
+        return "Configuration du pointage"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        if self.heure_fin_systeme <= self.heure_debut_systeme:
+            raise ValueError(
+                "La fin de la plage système doit être après son début."
+            )
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError(
+            "La configuration du pointage ne peut pas être supprimée."
+        )
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    class Meta:
+        verbose_name = "Configuration du pointage"
+        verbose_name_plural = "Configuration du pointage"
+
+
 class JourFerie(models.Model):
     """Jour férié déclaré par le RH.
 
