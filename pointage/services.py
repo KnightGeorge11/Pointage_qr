@@ -11,7 +11,7 @@ from datetime import time, timedelta, datetime
 from django.utils import timezone
 from django.db import transaction
 
-from .models import Employe, Site, Pointage, Scan, AnomaliePointage
+from .models import Employe, Site, Pointage, Scan, AnomaliePointage, ConfigurationPointage
 from .domain import ScanDecision, ScanActionType
 from .context import collect_day_context
 from .state_machine import DayStateMachine
@@ -467,7 +467,9 @@ def _detecter_depart_anticipe(pointage: Pointage, employe: Employe, site: Site,
     depart_dt = datetime.combine(now.date(), heure)
     avance = fermeture_dt - depart_dt
 
-    seuil_minutes = site.seuil_depart_anticipe_minutes or SEUIL_DEPART_ANTICIPE_MINUTES
+    seuil_minutes = site.seuil_depart_anticipe_minutes
+    if seuil_minutes is None:
+        seuil_minutes = ConfigurationPointage.get_solo().seuil_depart_anticipe_minutes_defaut
     if avance.total_seconds() < seuil_minutes * 60:
         return
 
