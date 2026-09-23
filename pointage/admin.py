@@ -334,7 +334,11 @@ class JourFerieAdmin(admin.ModelAdmin):
 
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
-    list_display = ('nom', 'adresse', 'heure_ouverture_matin', 'heure_fermeture_matin')
+    list_display = (
+        'nom', 'adresse',
+        'heure_ouverture_matin', 'heure_fermeture_matin',
+        'heure_debut_garde', 'heure_fin_garde',
+    )
     search_fields = ('nom', 'adresse')
     fieldsets = (
         ('Site', {'fields': ('nom', 'adresse')}),
