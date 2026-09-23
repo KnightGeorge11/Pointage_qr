@@ -258,6 +258,38 @@ def _process_garde(employe, site, now, force_new=False, client_event_id=None):
     date_courante = now.date()
     heure = now.time()
 
+    # La plage de garde est un réglage métier RH : elle est définie par site
+    # lorsqu'elle est renseignée, sinon par ConfigurationPointage.
+    heure_debut_garde, heure_fin_garde = site.get_horaires_garde()
+    plage_garde_ok = (
+        heure >= heure_debut_garde or heure <= heure_fin_garde
+        if heure_fin_garde < heure_debut_garde
+        else heure_debut_garde <= heure <= heure_fin_garde
+    )
+    if not plage_garde_ok:
+        message = (
+            f"Scan de garde hors plage autorisée "
+            f"({heure_debut_garde.strftime('%H:%M')}–{heure_fin_garde.strftime('%H:%M')})."
+        )
+        enregistrer_anomalie(
+            AnomaliePointage.TYPE_OUTSIDE_HOURS,
+            message=message,
+            employe=employe,
+            site=site,
+            date_pointage=date_courante,
+            contexte={
+                'periode': 'nuit',
+                'heure_scan': heure.strftime('%H:%M:%S'),
+                'heure_debut_garde': heure_debut_garde.strftime('%H:%M:%S'),
+                'heure_fin_garde': heure_fin_garde.strftime('%H:%M:%S'),
+            },
+        )
+        return {
+            'status': 'warning',
+            'code': 'GARDE_HORS_PLAGE',
+            'message': message,
+        }
+
     garde_en_cours = Pointage.objects.select_for_update().filter(
         employe=employe,
         periode='nuit',
