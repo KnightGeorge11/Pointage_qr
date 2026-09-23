@@ -1652,7 +1652,7 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
 
             form = PointageForm(request.POST, instance=pointage_existant)
             if not form.is_valid():
-                return render(request, 'admin/pointage/anomalie/corriger_pointage.html', {
+                return render(request, 'admin/pointage/anomalie/corriger_pointage_v2.html', {
                     'anomalie': anomalie, 'form': form, 'opts': self.model._meta,
                 })
 
@@ -1716,7 +1716,7 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
             initial = {'employe': anomalie.employe_id, 'site': anomalie.site_id, 'date_pointage': anomalie.date_pointage}
 
         form = PointageForm(initial=initial)
-        return render(request, 'admin/pointage/anomalie/corriger_pointage.html', {
+        return render(request, 'admin/pointage/anomalie/corriger_pointage_v2.html', {
             'anomalie': anomalie, 'form': form, 'opts': self.model._meta,
         })
 
