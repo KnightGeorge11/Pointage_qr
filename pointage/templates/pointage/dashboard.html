@@ -663,6 +663,42 @@
     </div>
 </div>
 
+
+<!-- ===== COCKPIT OPÉRATIONNEL ===== -->
+<div class="cockpit-strip">
+    <div class="cockpit-card primary">
+        <div class="cockpit-icon"><i class="fas fa-clock"></i></div>
+        <div>
+            <div class="cockpit-label">Situation actuelle</div>
+            <div class="cockpit-value" id="liveClock">--:--:--</div>
+            <div class="cockpit-meta">Heure locale du serveur</div>
+        </div>
+    </div>
+    <div class="cockpit-card">
+        <div class="cockpit-icon"><i class="fas fa-user-check"></i></div>
+        <div>
+            <div class="cockpit-label">Présence</div>
+            <div class="cockpit-value">{{ presents_aujourdhui }} / {{ total_employes }}</div>
+            <div class="cockpit-meta">employés présents</div>
+        </div>
+    </div>
+    <div class="cockpit-card">
+        <div class="cockpit-icon"><i class="fas fa-moon"></i></div>
+        <div>
+            <div class="cockpit-label">Gardes</div>
+            <div class="cockpit-value">{{ gardes_en_cours }}</div>
+            <div class="cockpit-meta">en cours maintenant</div>
+        </div>
+    </div>
+    <div class="cockpit-card">
+        <div class="cockpit-icon"><i class="fas fa-bell"></i></div>
+        <div>
+            <div class="cockpit-label">À traiter</div>
+            <div class="cockpit-value">{{ anomalies_ouvertes }}</div>
+            <div class="cockpit-meta">anomalies ouvertes</div>
+        </div>
+    </div>
+</div>
 <!-- ===== CENTRE D'ALERTES ===== -->
 <div class="alert-center">
     <div class="alert-center-header">
@@ -873,7 +909,15 @@
 </div>
 {% endif %}
 
-<!-- ===== ACTIONS ===== -->
+
+<!-- ===== ACCÈS RAPIDES ===== -->
+<div class="quick-actions">
+    <a href="{% url 'scanner' %}" class="quick-action"><i class="fas fa-qrcode"></i><div><strong>Nouveau pointage</strong><span>Scanner un employé</span></div></a>
+    <a href="{% url 'employes' %}" class="quick-action"><i class="fas fa-users"></i><div><strong>Employés</strong><span>Consulter le personnel</span></div></a>
+    <a href="{% url 'pointages' %}" class="quick-action"><i class="fas fa-list-check"></i><div><strong>Pointages</strong><span>Voir les mouvements</span></div></a>
+    <a href="{% url 'alertes_rh' %}" class="quick-action"><i class="fas fa-triangle-exclamation"></i><div><strong>Anomalies</strong><span>Traiter les alertes</span></div></a>
+</div>
+\n<!-- ===== ACTIONS ===== -->
 <div class="dash-actions">
     <button id="refreshBtn" class="btn btn-outline-secondary">
         <i class="fas fa-sync-alt"></i> Actualiser
@@ -888,6 +932,17 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    /* ── Horloge du cockpit ── */
+    const liveClock = document.getElementById('liveClock');
+    function updateLiveClock() {
+        if (!liveClock) return;
+        liveClock.textContent = new Intl.DateTimeFormat('fr-FR', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        }).format(new Date());
+    }
+    updateLiveClock();
+    setInterval(updateLiveClock, 1000);
+
 
     /* =====================================================
        PALETTE — alignée sur le design system
