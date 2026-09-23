@@ -41,13 +41,16 @@ class WebScanIntegrityTests(TestCase):
         # caméra) à accepter un pointage via la seule saisie du matricule,
         # sans QR code. Anciennement testé à l'inverse (voir historique) ;
         # la règle métier a été explicitement clarifiée dans ce sens.
-        response = self.client.post(
-            reverse("scanner"),
-            {
-                "matricule": self.employe.matricule,
-                "site_id": self.site.id,
-            },
-        )
+        fake_now = timezone.make_aware(datetime(2026, 7, 1, 9, 0))
+
+        with patch("pointage.services.timezone.now", return_value=fake_now):
+            response = self.client.post(
+                reverse("scanner"),
+                {
+                    "matricule": self.employe.matricule,
+                    "site_id": self.site.id,
+                },
+            )
 
         self.assertEqual(response.status_code, 302)
         self.assertTrue(
