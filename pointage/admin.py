@@ -1476,7 +1476,7 @@ class AnomalieTraitementInline(admin.StackedInline):
     extra = 0
     max_num = 1
     fields = ('administrateur', 'date_traitement', 'commentaire', 'pointage_concerne', 'corrections')
-    readonly_fields = ('administrateur', 'date_traitement')
+    readonly_fields = ('administrateur', 'date_traitement', 'commentaire', 'pointage_concerne', 'corrections')
 
 
 @admin.register(AnomaliePointage)
