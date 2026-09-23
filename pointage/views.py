@@ -1326,7 +1326,7 @@ def export_resume_excel(request):
                     if apm:
                         h_trav += apm.heures_travaillees or timedelta()
                         h_ret  += apm.retard or timedelta()
-                    h_sup = max(timedelta(), h_trav - timedelta(hours=8))
+                    h_sup = max(timedelta(), h_trav - ConfigurationPointage.get_solo().duree_journee_reference)
 
                     tot_trav   += h_trav
                     tot_retard += h_ret
