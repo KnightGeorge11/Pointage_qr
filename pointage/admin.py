@@ -18,7 +18,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import json
 from .models import (
-    Employe, Site, Pointage, Scan, Poste, JourFerie,
+    Employe, Site, Pointage, Scan, Poste, JourFerie, ConfigurationPointage,
     CustomUser, DemandeModification,
     AnomaliePointage, AnomalieTraitement, PointageAudit,
 )
@@ -290,6 +290,31 @@ class PosteAdmin(admin.ModelAdmin):
 # ============================================================
 # SITE
 # ============================================================
+
+@admin.register(ConfigurationPointage)
+class ConfigurationPointageAdmin(admin.ModelAdmin):
+    """Configuration globale du moteur de pointage.
+
+    Une seule ligne est autorisée et reste toujours accessible en modification
+    depuis Jazzmin. La suppression est volontairement impossible.
+    """
+    list_display = ('heure_debut_systeme', 'heure_fin_systeme')
+    fields = ('heure_debut_systeme', 'heure_fin_systeme')
+
+    def has_add_permission(self, request):
+        return not ConfigurationPointage.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def save_model(self, request, obj, form, change):
+        try:
+            obj.save()
+        except ValueError as exc:
+            self.message_user(request, str(exc), level=messages.ERROR)
+            raise
+
+
 
 @admin.register(JourFerie)
 class JourFerieAdmin(admin.ModelAdmin):
