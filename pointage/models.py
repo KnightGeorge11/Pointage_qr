@@ -61,12 +61,31 @@ class Site(models.Model):
     def __str__(self):
         return f"{self.nom} - {self.adresse[:30]}..."
 
+    def get_horaires_garde(self) -> tuple:
+        """Retourne la plage de garde du site, sinon la configuration globale."""
+        configuration = ConfigurationPointage.get_solo()
+        debut = self.heure_debut_garde or configuration.heure_debut_garde
+        fin = self.heure_fin_garde or configuration.heure_fin_garde
+        return debut, fin
+
     def get_horaires_pour_periode(self, periode: str) -> tuple:
         if periode == 'matin':
             return self.heure_ouverture_matin, self.heure_fermeture_matin
         elif periode == 'apres_midi':
             return self.heure_ouverture_apres_midi, self.heure_fermeture_apres_midi
         return None, None
+
+    def clean(self):
+        super().clean()
+        if (self.heure_debut_garde is None) != (self.heure_fin_garde is None):
+            raise ValidationError({
+                'heure_debut_garde': "Renseignez les deux horaires de garde ou laissez les deux vides pour utiliser la configuration globale.",
+                'heure_fin_garde': "Renseignez les deux horaires de garde ou laissez les deux vides pour utiliser la configuration globale.",
+            })
+        if self.heure_debut_garde is not None and self.heure_fin_garde == self.heure_debut_garde:
+            raise ValidationError({
+                'heure_fin_garde': "La fin de garde doit être différente du début."
+            })
 
     class Meta:
         ordering        = ['nom']
