@@ -22,8 +22,6 @@ from pointage.domain import (
     ScanActionType,
     PeriodType,
     AnomalyCode,
-    SYSTEM_SCAN_MIN,
-    SYSTEM_SCAN_MAX,
 )
 
 logger = logging.getLogger(__name__)
@@ -87,13 +85,14 @@ class DayStateMachine:
                 allowed=False,
                 message=(
                     "Scan en dehors de la plage opérationnelle du système "
-                    f"({SYSTEM_SCAN_MIN.strftime('%H:%M')}–{SYSTEM_SCAN_MAX.strftime('%H:%M')})."
+                    f"({context.schedule.system_scan_min.strftime('%H:%M')}–"
+                    f"{context.schedule.system_scan_max.strftime('%H:%M')})."
                 ),
                 anomaly_code=AnomalyCode.OUTSIDE_HOURS,
                 details={
                     'current_time': context.current_time.isoformat(),
-                    'system_scan_min': SYSTEM_SCAN_MIN.isoformat(),
-                    'system_scan_max': SYSTEM_SCAN_MAX.isoformat(),
+                    'system_scan_min': context.schedule.system_scan_min.isoformat(),
+                    'system_scan_max': context.schedule.system_scan_max.isoformat(),
                 }
             )
 
