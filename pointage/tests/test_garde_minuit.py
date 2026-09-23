@@ -13,7 +13,7 @@ from datetime import time as dtime, timedelta, date
 from django.test import TestCase
 from django.utils import timezone
 
-from pointage.models import Employe, Site, Pointage, AnomaliePointage
+from pointage.models import Employe, Site, Pointage, AnomaliePointage, ConfigurationPointage
 from pointage.services import process_scan
 
 
@@ -43,6 +43,41 @@ class GardeTraversantMinuitTestCase(TestCase):
                 qr_token=str(self.employe.qr_code_token),
                 site_id=self.site.id, mode='garde',
             )
+
+
+    def test_plage_de_garde_est_configurable_et_supporte_le_passage_minuit(self):
+        configuration = ConfigurationPointage.get_solo()
+        configuration.heure_debut_garde = dtime(21, 0)
+        configuration.heure_fin_garde = dtime(5, 0)
+        configuration.save()
+
+        jour = date(2026, 8, 12)
+        now_trop_tot = _aware(jour, 20, 59)
+        from unittest.mock import patch
+        with patch('pointage.services.timezone.now', return_value=now_trop_tot):
+            result = process_scan(
+                matricule=self.employe.matricule,
+                qr_token=str(self.employe.qr_code_token),
+                site_id=self.site.id,
+                mode='garde',
+            )
+        assert result['status'] == 'warning'
+        assert result['code'] == 'GARDE_HORS_PLAGE'
+
+        Pointage.objects.create(
+            employe=self.employe, site=self.site, date_pointage=jour,
+            periode='nuit', type_journee='garde', statut='absent',
+        )
+        now_fin_plage = _aware(date(2026, 8, 13), 5, 0)
+        with patch('pointage.services.timezone.now', return_value=now_fin_plage):
+            result = process_scan(
+                matricule=self.employe.matricule,
+                qr_token=str(self.employe.qr_code_token),
+                site_id=self.site.id,
+                mode='garde',
+            )
+        assert result['status'] == 'success'
+        assert result['code'] == 'debut_garde'
 
     def test_garde_20h_a_06h_le_lendemain(self):
         result_debut = self._debut_garde(date(2026, 8, 10), 20, 0)
