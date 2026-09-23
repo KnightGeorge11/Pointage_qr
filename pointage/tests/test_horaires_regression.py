@@ -5,7 +5,7 @@ from django.test import TestCase
 from pointage.context import build_site_schedule, DEFAULT_TOLERANCE_MINUTES
 from pointage.domain import DayContext, DayState, AnomalyCode
 from pointage.state_machine import DayStateMachine
-from pointage.models import Site
+from pointage.models import Site, ConfigurationPointage
 
 
 class HorairesMetierRegressionTests(TestCase):
@@ -46,6 +46,27 @@ class HorairesMetierRegressionTests(TestCase):
         schedule = build_site_schedule(self.site)
         self.assertEqual(schedule.tolerance, timedelta(minutes=30))
         self.assertEqual(DEFAULT_TOLERANCE_MINUTES, 30)
+
+    def test_bascule_apres_midi_est_parametrable(self):
+        configuration = ConfigurationPointage.get_solo()
+        configuration.heure_bascule_apres_midi = time(14, 0)
+        configuration.save()
+
+        from pointage.views import get_periode_courante
+        from unittest.mock import patch
+        from django.utils import timezone
+
+        fake_now = timezone.make_aware(
+            timezone.datetime.combine(timezone.localdate(), time(13, 59))
+        )
+        with patch('pointage.views.timezone.now', return_value=fake_now):
+            self.assertEqual(get_periode_courante(), 'matin')
+
+        fake_now = timezone.make_aware(
+            timezone.datetime.combine(timezone.localdate(), time(14, 0))
+        )
+        with patch('pointage.views.timezone.now', return_value=fake_now):
+            self.assertEqual(get_periode_courante(), 'apres_midi')
 
     def test_arrivee_0750_est_une_arrivee_anticipee_et_non_un_retard(self):
         decision = DayStateMachine().decide(self._context(time(7, 50)))
