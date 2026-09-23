@@ -301,6 +301,7 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
     list_display = (
         'heure_debut_systeme',
         'heure_fin_systeme',
+        'heure_bascule_apres_midi',
         'heure_debut_garde',
         'heure_fin_garde',
         'tolerance_minutes_defaut',
@@ -309,6 +310,7 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
     fields = (
         'heure_debut_systeme',
         'heure_fin_systeme',
+        'heure_bascule_apres_midi',
         'heure_debut_garde',
         'heure_fin_garde',
         'tolerance_minutes_defaut',
