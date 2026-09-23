@@ -119,6 +119,11 @@ class ConfigurationPointage(models.Model):
         verbose_name="Fin de la plage système",
         help_text="Aucun scan normal n'est accepté après cette heure.",
     )
+    heure_bascule_apres_midi = models.TimeField(
+        default='12:00',
+        verbose_name="Bascule matin → après-midi",
+        help_text="Heure utilisée par l'interface Web pour déterminer l'affichage de la période courante.",
+    )
     tolerance_minutes_defaut = models.PositiveSmallIntegerField(
         default=30,
         verbose_name="Tolérance par défaut (minutes)",
@@ -142,6 +147,10 @@ class ConfigurationPointage(models.Model):
         if self.heure_fin_garde == self.heure_debut_garde:
             errors['heure_fin_garde'] = (
                 "La fin de la plage de garde doit être différente de son début."
+            )
+        if not self.heure_bascule_apres_midi:
+            errors['heure_bascule_apres_midi'] = (
+                "L'heure de bascule matin → après-midi est obligatoire."
             )
         if self.tolerance_minutes_defaut < 0:
             errors['tolerance_minutes_defaut'] = (
