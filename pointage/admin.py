@@ -23,7 +23,7 @@ from .models import (
     AnomaliePointage, AnomalieTraitement, PointageAudit,
 )
 from .anomalies import marquer_traitee, marquer_cloturee
-from .forms import PointageForm
+from .forms import PointageForm, ConfigurationPointageForm
 from .anomaly_correction import corriger_pointage_anomalie
 import uuid
 from datetime import timedelta, datetime
@@ -294,11 +294,12 @@ class PosteAdmin(admin.ModelAdmin):
 
 @admin.register(ConfigurationPointage)
 class ConfigurationPointageAdmin(admin.ModelAdmin):
-    """Configuration globale du moteur de pointage.
+    """Réglages horaires globaux, éditables par le RH depuis Jazzmin.
 
-    Une seule ligne est autorisée et reste toujours accessible en modification
-    depuis Jazzmin. La suppression est volontairement impossible.
+    Une seule configuration existe. Elle définit les horaires de référence
+    lorsque le site ne fournit pas une valeur spécifique.
     """
+    form = ConfigurationPointageForm
     list_display = (
         'heure_debut_systeme',
         'heure_fin_systeme',
@@ -309,15 +310,43 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
         'seuil_depart_anticipe_minutes_defaut',
         'duree_journee_reference',
     )
-    fields = (
-        'heure_debut_systeme',
-        'heure_fin_systeme',
-        'heure_bascule_apres_midi',
-        'heure_debut_garde',
-        'heure_fin_garde',
-        'tolerance_minutes_defaut',
-        'seuil_depart_anticipe_minutes_defaut',
-        'duree_journee_reference',
+    fieldsets = (
+        ('Fenêtre générale de pointage', {
+            'fields': (
+                'heure_debut_systeme',
+                'heure_fin_systeme',
+                'heure_bascule_apres_midi',
+            ),
+            'description': (
+                'Définissez ici la plage horaire pendant laquelle les scans '
+                'normaux sont autorisés et l’heure qui sépare matin et après-midi.'
+            ),
+        }),
+        ('Horaires de garde par défaut', {
+            'fields': ('heure_debut_garde', 'heure_fin_garde'),
+            'description': (
+                'Ces horaires sont utilisés par les sites qui ne définissent '
+                'pas leur propre plage de garde. Une fin plus tôt que le début '
+                'correspond à une garde qui traverse minuit.'
+            ),
+        }),
+        ('Règles de retard et de sortie', {
+            'fields': (
+                'tolerance_minutes_defaut',
+                'seuil_depart_anticipe_minutes_defaut',
+            ),
+            'description': (
+                'Valeurs appliquées par défaut aux sites qui ne possèdent pas '
+                'leur propre réglage.'
+            ),
+        }),
+        ('Référence du temps de travail', {
+            'fields': ('duree_journee_reference',),
+            'description': (
+                'Durée utilisée par les synthèses et exports pour comparer '
+                'le temps réellement travaillé à une journée de référence.'
+            ),
+        }),
     )
 
     def has_add_permission(self, request):
@@ -325,6 +354,16 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_active and (
+            request.user.is_superuser or getattr(request.user, 'role', None) == 'admin'
+        )
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_active and (
+            request.user.is_superuser or getattr(request.user, 'role', None) == 'admin'
+        )
 
 
 
@@ -347,16 +386,27 @@ class SiteAdmin(admin.ModelAdmin):
     search_fields = ('nom', 'adresse')
     fieldsets = (
         ('Site', {'fields': ('nom', 'adresse')}),
-        ('Horaires matin', {'fields': ('heure_ouverture_matin', 'heure_fermeture_matin')}),
-        ('Horaires après-midi', {'fields': ('heure_ouverture_apres_midi', 'heure_fermeture_apres_midi')}),
-        ('Horaires de garde (facultatif)', {
-            'fields': ('heure_debut_garde', 'heure_fin_garde'),
-            'description': "Laisser les deux champs vides pour utiliser la plage de garde définie dans Configuration du pointage.",
+        ('Horaire du matin', {
+            'fields': ('heure_ouverture_matin', 'heure_fermeture_matin'),
+            'description': 'Plage normale de la matinée pour ce site.',
         }),
-        ('Réglages avancés (facultatif)', {
+        ('Horaire de l’après-midi', {
+            'fields': ('heure_ouverture_apres_midi', 'heure_fermeture_apres_midi'),
+            'description': 'Plage normale de l’après-midi pour ce site.',
+        }),
+        ('Horaire de garde du site', {
+            'fields': ('heure_debut_garde', 'heure_fin_garde'),
+            'description': (
+                'Optionnel. Si vous laissez les deux champs vides, le site '
+                'utilise les horaires de garde définis dans Configuration du pointage.'
+            ),
+        }),
+        ('Tolérance et départ anticipé', {
             'fields': ('tolerance_minutes', 'seuil_depart_anticipe_minutes'),
-            'description': "Les horaires restent propres à chaque site. Ces deux valeurs servent uniquement de valeurs globales lorsqu'un site ne définit pas son propre réglage.",
-            'classes': ('collapse',),
+            'description': (
+                'Optionnel. Laisser vide pour utiliser les valeurs globales '
+                'de Configuration du pointage.'
+            ),
         }),
     )
 
