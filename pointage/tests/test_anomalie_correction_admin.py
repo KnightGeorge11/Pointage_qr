@@ -253,7 +253,7 @@ class TestAtomiciteCorrectionRH(TestCase):
         from unittest.mock import patch
 
         url = reverse('admin:anomalie_corriger_pointage', args=[self.anomalie.pk])
-        with patch('pointage.admin.marquer_traitee', side_effect=RuntimeError('echec traitement')):
+        with patch('pointage.anomaly_correction.marquer_traitee', side_effect=RuntimeError('echec traitement')):
             self.client.post(url, {
                 'employe': self.employe.id, 'site': self.site.id,
                 'date_pointage': date.today().isoformat(), 'periode': 'matin',
