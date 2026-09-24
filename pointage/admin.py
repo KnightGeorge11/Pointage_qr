@@ -355,15 +355,30 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    def has_view_permission(self, request, obj=None):
+    # Les horaires sont précisément la configuration que l'administrateur
+    # doit pouvoir modifier depuis Jazzmin.
+    readonly_fields = ()
+
+    def get_readonly_fields(self, request, obj=None):
+        return ()
+
+    def has_module_permission(self, request):
         return request.user.is_active and (
-            request.user.is_superuser or getattr(request.user, 'role', None) == 'admin'
+            request.user.is_superuser
+            or getattr(request.user, 'role', None) == 'admin'
+            or getattr(request.user, 'is_staff', False)
         )
 
+    def has_view_permission(self, request, obj=None):
+        return self.has_module_permission(request)
+
     def has_change_permission(self, request, obj=None):
-        return request.user.is_active and (
-            request.user.is_superuser or getattr(request.user, 'role', None) == 'admin'
-        )
+        return self.has_module_permission(request)
+
+    def has_add_permission(self, request):
+        if not self.has_module_permission(request):
+            return False
+        return not ConfigurationPointage.objects.exists()
 
 
 
