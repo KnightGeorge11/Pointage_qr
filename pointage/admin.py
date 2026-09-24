@@ -24,7 +24,7 @@ from .models import (
 )
 from .anomalies import marquer_traitee, marquer_cloturee
 from .forms import PointageForm, ConfigurationPointageForm
-from .anomaly_correction import corriger_pointage_anomalie
+from .anomaly_correction import corriger_pointage_anomalie, snapshot_pointage
 import uuid
 from datetime import timedelta, datetime
 from collections import defaultdict
@@ -575,6 +575,27 @@ class PointageAdmin(admin.ModelAdmin):
         # au lieu d'une seule requête groupée.
         return super().get_queryset(request).select_related('employe', 'site')
     
+    def save_model(self, request, obj, form, change):
+        """Trace les corrections directes de pointage effectuées depuis Jazzmin."""
+        avant = None
+        if change and obj.pk:
+            original = Pointage.objects.select_related('employe', 'site').get(pk=obj.pk)
+            avant = snapshot_pointage(original)
+
+        super().save_model(request, obj, form, change)
+
+        if change and avant is not None:
+            apres = snapshot_pointage(obj)
+            if avant != apres:
+                PointageAudit.objects.create(
+                    pointage=obj,
+                    administrateur=request.user,
+                    action=PointageAudit.ACTION_UPDATE,
+                    avant=avant,
+                    apres=apres,
+                    motif=(obj.notes or '').strip() or 'Modification effectuée depuis Jazzmin.',
+                )
+
     list_display = [
         'employe',
         'date_pointage',
