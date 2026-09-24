@@ -1965,20 +1965,24 @@ def notifications_api(request):
     """
     notifications = []
 
-    anomalies_recentes = AnomaliePointage.objects.filter(
-        statut=AnomaliePointage.STATUT_OUVERTE
-    ).select_related('employe').order_by('-created_at')[:5]
-    for a in anomalies_recentes:
-        qui = a.employe.get_nom_complet() if a.employe else (a.matricule_scanne or '?')
-        notifications.append({
-            'type':    'anomalie',
-            'gravite': a.gravite,
-            'message': f"Anomalie ({a.get_type_display()}) — {qui}",
-            'url':     reverse('alertes_rh'),
-            'date':    a.created_at.isoformat(),
-        })
+    is_rh = bool(
+        request.user.is_superuser or getattr(request.user, 'role', None) == 'admin'
+    )
+    if is_rh:
+        anomalies_recentes = AnomaliePointage.objects.filter(
+            statut=AnomaliePointage.STATUT_OUVERTE
+        ).select_related('employe').order_by('-created_at')[:5]
+        for a in anomalies_recentes:
+            qui = a.employe.get_nom_complet() if a.employe else (a.matricule_scanne or '?')
+            notifications.append({
+                'type':    'anomalie',
+                'gravite': a.gravite,
+                'message': f"Anomalie ({a.get_type_display()}) — {qui}",
+                'url':     reverse('alertes_rh'),
+                'date':    a.created_at.isoformat(),
+            })
 
-    if request.user.role == 'admin':
+    if is_rh:
         demandes_en_attente = DemandeModification.objects.filter(
             statut='en_attente'
         ).select_related('demandeur').order_by('-date_creation')[:5]
