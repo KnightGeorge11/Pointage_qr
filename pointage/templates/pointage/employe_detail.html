@@ -2,7 +2,95 @@
 {% load static %}
 {% load pointage_filters %}
 
-{% block title %}Fiche employé — {{ employe.get_nom_complet }}{% endblock %}
+{% block title %}Fiche employé — {{ employe.get_nom_complet }}<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const semaines = {{ stats.graphique_semaines|safe }};
+    if (!Array.isArray(semaines) || !semaines.length || typeof Chart === 'undefined') {
+        return;
+    }
+
+    const styles = getComputedStyle(document.documentElement);
+    const textColor = styles.getPropertyValue('--text-muted').trim() || '#64748B';
+    const gridColor = styles.getPropertyValue('--border-light').trim() || '#CBD5E1';
+    const blue = styles.getPropertyValue('--blue-600').trim() || '#2563EB';
+    const blueLight = styles.getPropertyValue('--blue-100').trim() || '#DBEAFE';
+    const green = '#16A34A';
+
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12, usePointStyle: true } }
+        },
+        scales: {
+            x: { ticks: { color: textColor }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }
+        }
+    };
+
+    new Chart(document.getElementById('presenceChart'), {
+        type: 'line',
+        data: {
+            labels: semaines.map(item => item.label),
+            datasets: [{
+                label: 'Présence',
+                data: semaines.map(item => item.presence),
+                borderColor: blue,
+                backgroundColor: blueLight,
+                fill: true,
+                tension: 0.35,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            ...commonOptions,
+            scales: {
+                ...commonOptions.scales,
+                y: {
+                    ...commonOptions.scales.y,
+                    min: 0,
+                    max: 100,
+                    ticks: { color: textColor, callback: value => value + '%' }
+                }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('hoursChart'), {
+        type: 'bar',
+        data: {
+            labels: semaines.map(item => item.label),
+            datasets: [
+                {
+                    label: 'Heures travaillées',
+                    data: semaines.map(item => item.heures),
+                    backgroundColor: blue,
+                    borderRadius: 6
+                },
+                {
+                    label: 'Heures supplémentaires',
+                    data: semaines.map(item => item.sup),
+                    backgroundColor: green,
+                    borderRadius: 6
+                }
+            ]
+        },
+        options: {
+            ...commonOptions,
+            scales: {
+                ...commonOptions.scales,
+                y: {
+                    ...commonOptions.scales.y,
+                    ticks: { color: textColor, callback: value => value + 'h' }
+                }
+            }
+        }
+    });
+});
+</script>
+
+{% endblock %}
 
 {% block content %}
 <style>
@@ -20,6 +108,11 @@
 .employee-stat-value{margin-top:7px;font-size:21px;font-weight:700;color:var(--text-primary)}
 .employee-stat-note{margin-top:5px;font-size:10px;color:var(--text-muted)}
 .employee-stat-presence .employee-stat-value{color:var(--blue-700)}
+.employee-charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.employee-chart-card{min-height:300px}
+.employee-chart-wrap{position:relative;height:230px}
+.employee-chart-empty{height:230px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:12px}
+@media(max-width:900px){.employee-charts{grid-template-columns:1fr}}
 .employee-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.85fr);gap:16px}
 .employee-section-title{font-size:13px;font-weight:700;color:var(--text-primary);margin:0 0 14px}
 .employee-table{width:100%;border-collapse:collapse;font-size:12px}
@@ -64,6 +157,21 @@
         <div class="employee-card employee-stat-presence"><div class="employee-stat-label">Présence semaine</div><div class="employee-stat-value">{{ stats.taux_presence_semaine }}%</div><div class="employee-stat-note">Jours ouvrés écoulés</div></div>
         <div class="employee-card employee-stat-presence"><div class="employee-stat-label">Présence mois</div><div class="employee-stat-value">{{ stats.taux_presence_mois }}%</div><div class="employee-stat-note">Depuis le 1er du mois</div></div>
         <div class="employee-card"><div class="employee-stat-label">Anomalies ouvertes</div><div class="employee-stat-value">{{ stats.anomalies_ouvertes }}</div><div class="employee-stat-note">À traiter</div></div>
+    </div>
+
+    <div class="employee-charts">
+        <div class="employee-card employee-chart-card">
+            <h2 class="employee-section-title">Présence par semaine</h2>
+            <div class="employee-chart-wrap">
+                <canvas id="presenceChart" aria-label="Taux de présence par semaine"></canvas>
+            </div>
+        </div>
+        <div class="employee-card employee-chart-card">
+            <h2 class="employee-section-title">Activité par semaine</h2>
+            <div class="employee-chart-wrap">
+                <canvas id="hoursChart" aria-label="Heures travaillées et heures supplémentaires par semaine"></canvas>
+            </div>
+        </div>
     </div>
 
     <div class="employee-layout">
