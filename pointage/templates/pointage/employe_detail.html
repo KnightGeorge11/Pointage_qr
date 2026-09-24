@@ -68,7 +68,9 @@
         <div class="employee-card"><div class="employee-stat-label">Heures supplémentaires</div><div class="employee-stat-value">{{ stats.heures_supplementaires|timedelta_format }}</div><div class="employee-stat-note">Mois civil en cours</div></div>
         <div class="employee-card employee-stat-presence"><div class="employee-stat-label">Présence semaine</div><div class="employee-stat-value">{{ stats.taux_presence_semaine }}%</div><div class="employee-stat-note">Jours ouvrés écoulés</div></div>
         <div class="employee-card employee-stat-presence"><div class="employee-stat-label">Présence mois</div><div class="employee-stat-value">{{ stats.taux_presence_mois }}%</div><div class="employee-stat-note">Depuis le 1er du mois</div></div>
+        {% if request.user.is_superuser or request.user.role == 'admin' %}
         <div class="employee-card"><div class="employee-stat-label">Anomalies ouvertes</div><div class="employee-stat-value">{{ stats.anomalies_ouvertes }}</div><div class="employee-stat-note">À traiter</div></div>
+        {% endif %}
     </div>
 
     <div class="employee-charts">
@@ -126,6 +128,7 @@
         </div>
 
         <div>
+            {% if request.user.is_superuser or request.user.role == 'admin' %}
             <div class="employee-card" style="margin-bottom:16px">
                 <h2 class="employee-section-title">Anomalies récentes</h2>
                 {% if anomalies %}
@@ -147,6 +150,8 @@
                 </table>
                 {% else %}<div class="employee-empty">Aucune anomalie enregistrée.</div>{% endif %}
             </div>
+
+            {% endif %}
 
             <div class="employee-card" style="margin-bottom:16px">
                 <h2 class="employee-section-title">Demandes de modification</h2>
