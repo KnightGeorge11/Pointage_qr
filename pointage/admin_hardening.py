@@ -29,6 +29,15 @@ def _immutable_readonly_fields(self, request, obj=None):
     concrete = tuple(field.name for field in self.model._meta.concrete_fields)
     return tuple(dict.fromkeys((*existing, *concrete)))
 
+def _pointage_readonly_fields(self, request, obj=None):
+    """Les champs calculés restent en lecture seule, mais les données du
+    pointage existant doivent pouvoir être corrigées par le RH dans Jazzmin.
+
+    Pointage.save() recalcule ensuite retard, durée travaillée, statut et
+    heures supplémentaires à partir des valeurs modifiées.
+    """
+    return tuple(getattr(self, "readonly_fields", ()) or ())
+
 def _no_add(self, request): return False
 def _no_delete(self, request, obj=None): return False
 
@@ -199,7 +208,18 @@ def install():
             cls.has_change_permission = _rh_change_permission
             cls.has_delete_permission = _rh_delete_permission
 
-    for model in (Pointage, Scan, AnomalieTraitement, PointageAudit):
+    # Les scans, traitements et audits restent immuables. En revanche,
+    # un pointage existant doit être corrigeable par un RH directement dans
+    # Jazzmin : la classe PointageAdmin définit déjà les champs calculés
+    # (retard, heures travaillées, H.Supp, dates système) en readonly.
+    pointage_admin = registry.get(Pointage)
+    if pointage_admin:
+        cls = pointage_admin.__class__
+        cls.get_readonly_fields = _pointage_readonly_fields
+        cls.has_add_permission = _no_add
+        cls.has_delete_permission = _no_delete
+
+    for model in (Scan, AnomalieTraitement, PointageAudit):
         model_admin = registry.get(model)
         if model_admin:
             cls = model_admin.__class__
