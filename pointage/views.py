@@ -367,10 +367,26 @@ def employe_detail_view(request, pk):
         .order_by('-date_creation')[:10]
     )
 
+    # Les heures supplémentaires affichées sur la fiche employé sont
+    # celles du mois civil en cours. À chaque nouveau mois, le compteur
+    # repart donc automatiquement de zéro sans supprimer l'historique.
+    today = timezone.localtime(timezone.now()).date()
+    debut_mois = today.replace(day=1)
+    if today.month == 12:
+        debut_mois_suivant = today.replace(year=today.year + 1, month=1, day=1)
+    else:
+        debut_mois_suivant = today.replace(month=today.month + 1, day=1)
+
+    pointages_mois = Pointage.objects.filter(
+        employe=employe,
+        date_pointage__gte=debut_mois,
+        date_pointage__lt=debut_mois_suivant,
+    )
+
     total_travaille = timedelta()
     total_sup = timedelta()
     total_retard = timedelta()
-    for p in Pointage.objects.filter(employe=employe):
+    for p in pointages_mois:
         if p.heures_travaillees:
             total_travaille += p.heures_travaillees
         if p.heures_supplementaires:
