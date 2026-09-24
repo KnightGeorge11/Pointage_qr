@@ -395,6 +395,16 @@ class JourFerieAdmin(admin.ModelAdmin):
     ordering = ('date',)
     date_hierarchy = 'date'
 
+    fieldsets = (
+        ('Informations du jour férié', {
+            'fields': ('date', 'nom', 'actif'),
+            'description': (
+                'Déclarez le jour férié et indiquez s’il doit être pris en compte '
+                'dans le calcul des heures supplémentaires.'
+            ),
+        }),
+    )
+
 
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
