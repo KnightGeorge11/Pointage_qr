@@ -31,6 +31,7 @@ from .serializers import (
 )
 from .forms import EmployeForm, SiteForm, PointageForm, PosteForm
 from .services import process_scan, parse_qr_data
+from .anomaly_correction import corriger_pointage_anomalie
 from .anomalies import (
     marquer_traitee, marquer_cloturee, compter_anomalies_ouvertes,
 )
@@ -1499,24 +1500,88 @@ class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
                 {'success': False, 'error': 'Seul un administrateur ou RH peut traiter une anomalie.'},
                 status=drf_status.HTTP_403_FORBIDDEN
             )
-        
+
         anomalie = self.get_object()
-        try:
-            corrections = request.data.get('corrections')
-            marquer_traitee(
-                anomalie,
-                administrateur=request.user,
-                type_action=AnomalieTraitement.ACTION_CORRECTION if corrections else AnomalieTraitement.ACTION_JUSTIFICATION,
-                commentaire=request.data.get('commentaire', ''),
-                corrections=corrections,
+        commentaire = request.data.get('commentaire', '')
+        pointage_data = request.data.get('pointage')
+
+        # Compatibilité API : l'ancien format envoyait une liste
+        # corrections=[{champ, nouvelle_valeur}]. On la transforme en
+        # données de PointageForm afin qu'une correction soit réellement
+        # appliquée, et non seulement enregistrée comme commentaire.
+        if pointage_data is None and request.data.get('corrections'):
+            corrections_payload = request.data.get('corrections')
+            if not isinstance(corrections_payload, list):
+                return Response(
+                    {'success': False, 'error': 'Le champ corrections doit être une liste.'},
+                    status=drf_status.HTTP_400_BAD_REQUEST,
+                )
+            pointage_data = {}
+            for correction in corrections_payload:
+                if not isinstance(correction, dict) or not correction.get('champ'):
+                    return Response(
+                        {'success': False, 'error': 'Chaque correction doit contenir un champ.'},
+                        status=drf_status.HTTP_400_BAD_REQUEST,
+                    )
+                if 'nouvelle_valeur' not in correction:
+                    return Response(
+                        {'success': False, 'error': "Chaque correction doit contenir 'nouvelle_valeur'."},
+                        status=drf_status.HTTP_400_BAD_REQUEST,
+                    )
+                pointage_data[correction['champ']] = correction['nouvelle_valeur']
+        elif pointage_data is not None and not isinstance(pointage_data, dict):
+            return Response(
+                {'success': False, 'error': 'Le champ pointage doit être un objet JSON.'},
+                status=drf_status.HTTP_400_BAD_REQUEST,
             )
+
+        try:
+            if pointage_data:
+                pointage, corrections, created = corriger_pointage_anomalie(
+                    anomalie=anomalie,
+                    administrateur=request.user,
+                    donnees=pointage_data,
+                    commentaire=commentaire,
+                )
+            else:
+                marquer_traitee(
+                    anomalie,
+                    administrateur=request.user,
+                    type_action=AnomalieTraitement.ACTION_JUSTIFICATION,
+                    commentaire=commentaire,
+                    corrections=None,
+                )
+                pointage = None
+                corrections = []
+                created = False
         except ValueError as e:
             return Response({'success': False, 'error': str(e)}, status=drf_status.HTTP_400_BAD_REQUEST)
         except PermissionError as e:
             return Response({'success': False, 'error': str(e)}, status=drf_status.HTTP_403_FORBIDDEN)
-        
+        except Exception as e:
+            if hasattr(e, 'message_dict'):
+                errors = {
+                    key: [str(message) for message in messages]
+                    for key, messages in e.message_dict.items()
+                }
+                return Response(
+                    {'success': False, 'error': 'Données de correction invalides.', 'details': errors},
+                    status=drf_status.HTTP_400_BAD_REQUEST,
+                )
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=drf_status.HTTP_400_BAD_REQUEST,
+            )
+
         anomalie.refresh_from_db()
-        return Response(AnomaliePointageDetailSerializer(anomalie).data)
+        response = AnomaliePointageDetailSerializer(anomalie).data
+        if pointage is not None:
+            response['correction'] = {
+                'pointage_id': pointage.pk,
+                'created': created,
+                'corrections': corrections,
+            }
+        return Response(response)
 
     @action(detail=True, methods=['post'])
     def cloturer(self, request, pk=None):
