@@ -1649,9 +1649,13 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
                     f"✅ Pointage {'créé' if created else 'corrigé'}, anomalie #{anomalie.pk} traitée.",
                 )
             except ValidationError as e:
+                form = PointageForm(request.POST)
+                if form.is_valid():
+                    self.message_user(request, f"❌ {e}", level=messages.ERROR)
+                    return redirect(f'/admin/pointage/anomaliepointage/{anomalie.pk}/change/')
                 return render(request, 'admin/pointage/anomalie/corriger_pointage_v2.html', {
                     'anomalie': anomalie,
-                    'form': PointageForm(request.POST),
+                    'form': form,
                     'opts': self.model._meta,
                 })
             except (ValueError, PermissionError) as e:
