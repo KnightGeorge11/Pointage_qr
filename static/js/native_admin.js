@@ -55,17 +55,6 @@ document.addEventListener('DOMContentLoaded',function(){
     a.innerHTML='<i class="fas fa-arrow-left" aria-hidden="true"></i> Retour';
   });
 
-  var userTools=document.getElementById('user-tools');
-  if(userTools && !document.getElementById('pqr-mobile-nav')){
-    var toggle=document.createElement('button');
-    toggle.type='button'; toggle.id='pqr-mobile-nav'; toggle.className='pqr-mobile-nav';
-    toggle.innerHTML='<i class="fas fa-bars"></i>';
-    toggle.setAttribute('aria-label','Ouvrir le menu');
-    toggle.onclick=function(){
-      if(nav) nav.classList.toggle('pqr-open');
-    };
-    userTools.parentNode.insertBefore(toggle,userTools);
-  }
   var header=document.getElementById('header');
   if(header && !document.getElementById('pqr-admin-notif')){
     var wrap=document.createElement('div'); wrap.id='pqr-admin-notif'; wrap.className='pqr-admin-notif';
