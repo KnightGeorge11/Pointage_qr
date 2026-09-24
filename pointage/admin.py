@@ -24,6 +24,7 @@ from .models import (
 )
 from .anomalies import marquer_traitee, marquer_cloturee
 from .forms import PointageForm
+from .anomaly_correction import corriger_pointage_anomalie
 import uuid
 from datetime import timedelta, datetime
 from collections import defaultdict
@@ -1635,53 +1636,33 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
 
         if request.method == 'POST':
             commentaire = request.POST.get('commentaire', '').strip()
-            employe_id = request.POST.get('employe')
-            date_pointage = request.POST.get('date_pointage')
-            periode = request.POST.get('periode')
-
-            pointage_existant = Pointage.objects.select_for_update().filter(
-                employe_id=employe_id, date_pointage=date_pointage, periode=periode
-            ).first()
-
-            # Capturer les anciennes valeurs AVANT is_valid() : ModelForm
-            # mute l'instance liée pendant _post_clean().
-            anciennes_valeurs = {}
-            if pointage_existant:
-                for champ in ['site', 'type_journee', 'heure_arrivee', 'heure_depart', 'statut', 'notes']:
-                    anciennes_valeurs[champ] = getattr(pointage_existant, champ)
-
-            form = PointageForm(request.POST, instance=pointage_existant)
-            if not form.is_valid():
-                return render(request, 'admin/pointage/anomalie/corriger_pointage_v2.html', {
-                    'anomalie': anomalie, 'form': form, 'opts': self.model._meta,
-                })
-
-            cd = form.cleaned_data
-            corrections = []
-            created = pointage_existant is None
-            if not created:
-                for champ, ancienne in anciennes_valeurs.items():
-                    nouvelle = cd[champ]
-                    if ancienne != nouvelle:
-                        corrections.append({
-                            'champ': champ,
-                            'ancienne_valeur': str(ancienne) if ancienne is not None else None,
-                            'nouvelle_valeur': str(nouvelle) if nouvelle is not None else None,
-                        })
-
-            pointage = form.save()
 
             try:
-                marquer_traitee(
-                    anomalie, request.user, type_action=AnomalieTraitement.ACTION_CORRECTION,
-                    commentaire=commentaire, corrections=corrections, pointage_concerne=pointage,
+                pointage, corrections, created = corriger_pointage_anomalie(
+                    anomalie=anomalie,
+                    administrateur=request.user,
+                    donnees=request.POST,
+                    commentaire=commentaire,
                 )
-                self.message_user(request, f"✅ Pointage {'créé' if created else 'corrigé'}, anomalie #{anomalie.pk} traitée.")
+                self.message_user(
+                    request,
+                    f"✅ Pointage {'créé' if created else 'corrigé'}, anomalie #{anomalie.pk} traitée.",
+                )
+            except ValidationError as e:
+                return render(request, 'admin/pointage/anomalie/corriger_pointage_v2.html', {
+                    'anomalie': anomalie,
+                    'form': PointageForm(request.POST),
+                    'opts': self.model._meta,
+                })
             except (ValueError, PermissionError) as e:
                 self.message_user(request, f"❌ {e}", level=messages.ERROR)
             except Exception:
                 transaction.set_rollback(True)
-                self.message_user(request, "❌ Le traitement de la correction a échoué. Aucune modification n'a été enregistrée.", level=messages.ERROR)
+                self.message_user(
+                    request,
+                    "❌ Le traitement de la correction a échoué. Aucune modification n'a été enregistrée.",
+                    level=messages.ERROR,
+                )
 
             return redirect(f'/admin/pointage/anomaliepointage/{anomalie.pk}/change/')
 
