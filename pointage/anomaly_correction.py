@@ -84,6 +84,16 @@ def corriger_pointage_anomalie(
     if not data.get('periode') and contexte.get('periode'):
         data['periode'] = contexte['periode']
 
+    # Une correction ne peut pas déplacer une anomalie vers un autre
+    # employé/date/période : ces trois éléments identifient le mouvement
+    # concerné et doivent rester liés au dossier RH.
+    if anomalie.employe_id and data.get('employe') not in (None, '', anomalie.employe_id, str(anomalie.employe_id)):
+        raise ValidationError("L'employé d'une anomalie ne peut pas être remplacé pendant sa correction.")
+    if anomalie.date_pointage and data.get('date_pointage') not in (None, '', anomalie.date_pointage, str(anomalie.date_pointage)):
+        raise ValidationError("La date du pointage concerné ne peut pas être déplacée depuis ce dossier.")
+    if contexte.get('periode') and data.get('periode') not in (None, '', contexte['periode']):
+        raise ValidationError("La période du pointage concerné ne peut pas être déplacée depuis ce dossier.")
+
     employe_id = data.get('employe')
     date_pointage = data.get('date_pointage')
     periode = data.get('periode')
