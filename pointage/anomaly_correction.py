@@ -71,7 +71,7 @@ def corriger_pointage_anomalie(
     if anomalie.statut == AnomaliePointage.STATUT_CLOTUREE:
         raise ValueError("Cette anomalie est déjà clôturée.")
 
-    data = dict(donnees or {})
+    data = donnees.copy() if hasattr(donnees, 'copy') else dict(donnees or {})
 
     if not data.get('employe') and anomalie.employe_id:
         data['employe'] = anomalie.employe_id
