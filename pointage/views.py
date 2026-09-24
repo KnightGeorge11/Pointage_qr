@@ -383,22 +383,53 @@ def employe_detail_view(request, pk):
         date_pointage__lt=debut_mois_suivant,
     )
 
+    # Les statistiques de présence utilisent les jours ouvrés écoulés
+    # (lundi-vendredi) afin de ne pas pénaliser les jours futurs du mois.
+    debut_semaine = today - timedelta(days=today.weekday())
+
+    def taux_presence(debut_periode):
+        jours_ouvres = 0
+        for i in range((today - debut_periode).days + 1):
+            jour = debut_periode + timedelta(days=i)
+            if jour.weekday() < 5:
+                jours_ouvres += 1
+
+        if jours_ouvres == 0:
+            return 0
+
+        jours_presents = (
+            Pointage.objects.filter(
+                employe=employe,
+                date_pointage__gte=debut_periode,
+                date_pointage__lte=today,
+                heure_arrivee__isnull=False,
+            )
+            .values('date_pointage')
+            .distinct()
+            .count()
+        )
+        return min(100, round((jours_presents / jours_ouvres) * 100))
+
     total_travaille = timedelta()
     total_sup = timedelta()
     total_retard = timedelta()
-    for p in pointages_mois:
+    for p in Pointage.objects.filter(employe=employe):
         if p.heures_travaillees:
             total_travaille += p.heures_travaillees
-        if p.heures_supplementaires:
-            total_sup += p.heures_supplementaires
         if p.retard:
             total_retard += p.retard
+
+    for p in pointages_mois:
+        if p.heures_supplementaires:
+            total_sup += p.heures_supplementaires
+
+    presence_semaine = taux_presence(debut_semaine)
+    presence_mois = taux_presence(debut_mois)
 
     context = {
         'employe': employe,
         'pointages': pointages,
-        'anomalies': anomalies,
-        'audits': audits,
+        'anomalies': anomalies,        'audits': audits,
         'demandes': demandes,
         'stats': {
             'pointages': Pointage.objects.filter(employe=employe).count(),
@@ -798,7 +829,6 @@ class PointageListView(LoginRequiredMixin, ListView):
                 jours_dict[key]['apres_midi'] = pointage
             elif pointage.periode == 'nuit':
                 jours_dict[key]['nuit'] = pointage
-
         jours_list = []
         for key, jour in jours_dict.items():
             scan_map = {}
@@ -1197,8 +1227,7 @@ def export_resume_excel(request):
         NIGHT_FG   = 'A5B4FC'
         DARK       = '1A1A1A'
         GREY_LIGHT = 'F5F5F7'
-        GREY_MID   = 'E5E5E5'
-        WHITE      = 'FFFFFF'
+        GREY_MID   = 'E5E5E5'        WHITE      = 'FFFFFF'
         TOTAL_BG   = 'EEF2FF'
 
         def sd(color=GREY_MID, style='thin'):
@@ -1598,7 +1627,6 @@ class AnomaliePointageViewSet(viewsets.ReadOnlyModelViewSet):
                 'corrections': corrections,
             }
         return Response(response)
-
     @action(detail=True, methods=['post'])
     def cloturer(self, request, pk=None):
         if not request.user.is_staff:
