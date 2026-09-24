@@ -35,6 +35,8 @@ def autoriser_heures_supplementaires(modeladmin, request, queryset):
 
     count = 0
     for pointage in queryset.select_for_update().select_related('site', 'employe'):
+        if not pointage.employe.heures_supplementaires_autorisees:
+            continue
         # Le trigger PostgreSQL remet à zéro le champ tant que l'autorisation
         # est False. Il faut donc recalculer depuis les heures d'arrivée/départ
         # avant de décider si le pointage contient réellement des H.Supp.
