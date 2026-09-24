@@ -1052,16 +1052,7 @@
     <a href="{% url 'pointages' %}" class="quick-action"><i class="fas fa-list-check"></i><div><strong>Pointages</strong><span>Voir les mouvements</span></div></a>
     <a href="{% url 'alertes_rh' %}" class="quick-action"><i class="fas fa-triangle-exclamation"></i><div><strong>Anomalies</strong><span>Traiter les alertes</span></div></a>
 </div>
-\n<!-- ===== ACTIONS ===== -->
-<div class="dash-actions">
-    <button id="refreshBtn" class="btn btn-outline-secondary">
-        <i class="fas fa-sync-alt"></i> Actualiser
-    </button>
-    <a href="{% url 'scanner' %}" class="btn btn-primary">
-        <i class="fas fa-qrcode"></i> Scanner un QR
-    </a>
-</div>
-
+\n
 {% endblock %}
 
 {% block extra_js %}
