@@ -2,7 +2,9 @@
 {% load static %}
 {% load pointage_filters %}
 
-{% block title %}Fiche employé — {{ employe.get_nom_complet }}{% block content %}
+{% block title %}Fiche employé — {{ employe.get_nom_complet }}{% endblock %}
+
+{% block content %}
 <style>
 .employee-detail-page{max-width:1280px;margin:0 auto;padding:8px 0 40px}
 .employee-hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:20px}
