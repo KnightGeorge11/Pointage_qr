@@ -1227,7 +1227,8 @@ def export_resume_excel(request):
         NIGHT_FG   = 'A5B4FC'
         DARK       = '1A1A1A'
         GREY_LIGHT = 'F5F5F7'
-        GREY_MID   = 'E5E5E5'        WHITE      = 'FFFFFF'
+        GREY_MID   = 'E5E5E5'
+        WHITE      = 'FFFFFF'
         TOTAL_BG   = 'EEF2FF'
 
         def sd(color=GREY_MID, style='thin'):
