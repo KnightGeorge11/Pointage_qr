@@ -1,0 +1,59 @@
+{% load i18n admin_urls %}
+
+<div class="submit-row">
+    {% if show_save %}
+        <input type="submit" value="{% translate 'Save' %}" class="default" name="_save">
+    {% endif %}
+    {% if show_save_as_new %}
+        <input type="submit" value="{% translate 'Save as new' %}" name="_saveasnew">
+    {% endif %}
+    {% if show_save_and_add_another %}
+        <input type="submit" value="{% translate 'Save and add another' %}" name="_addanother">
+    {% endif %}
+    {% if show_save_and_continue %}
+        <input type="submit" value="{% if can_change %}{% translate 'Save and continue editing' %}{% else %}{% translate 'Save and view' %}{% endif %}" name="_continue">
+    {% endif %}
+
+    {% if original %}
+        {% url opts|admin_urlname:'changelist' as return_url %}
+    {% else %}
+        {% url opts|admin_urlname:'changelist' as return_url %}
+    {% endif %}
+    <a href="{{ return_url }}" class="pqr-form-back btn btn-outline-secondary">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+        {% translate "Retour" %}
+    </a>
+
+    {% if show_close %}
+        <a href="{% url opts|admin_urlname:'changelist' %}" class="closelink">{% translate 'Close' %}</a>
+    {% endif %}
+    {% if show_delete_link and original %}
+        <p class="deletelink-box">
+            <a href="{% url opts|admin_urlname:'delete' original.pk|admin_urlquote %}" class="deletelink">{% translate "Delete" %}</a>
+        </p>
+    {% endif %}
+</div>
+
+<style>
+    .pqr-form-back {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 38px;
+        margin-left: 8px;
+        padding: 7px 16px !important;
+        border-radius: 6px;
+        text-decoration: none !important;
+        font-weight: 600;
+    }
+    .pqr-form-back:hover {
+        text-decoration: none !important;
+    }
+    @media (max-width: 767px) {
+        .pqr-form-back {
+            width: 100%;
+            margin: 8px 0 0;
+        }
+    }
+</style>
