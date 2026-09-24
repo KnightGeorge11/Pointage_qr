@@ -2,97 +2,7 @@
 {% load static %}
 {% load pointage_filters %}
 
-{% block title %}Fiche employé — {{ employe.get_nom_complet }}<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const semaines = {{ stats.graphique_semaines|safe }};
-    if (!Array.isArray(semaines) || !semaines.length || typeof Chart === 'undefined') {
-        return;
-    }
-
-    const styles = getComputedStyle(document.documentElement);
-    const textColor = styles.getPropertyValue('--text-muted').trim() || '#64748B';
-    const gridColor = styles.getPropertyValue('--border-light').trim() || '#CBD5E1';
-    const blue = styles.getPropertyValue('--blue-600').trim() || '#2563EB';
-    const blueLight = styles.getPropertyValue('--blue-100').trim() || '#DBEAFE';
-    const green = '#16A34A';
-
-    const commonOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12, usePointStyle: true } }
-        },
-        scales: {
-            x: { ticks: { color: textColor }, grid: { display: false } },
-            y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }
-        }
-    };
-
-    new Chart(document.getElementById('presenceChart'), {
-        type: 'line',
-        data: {
-            labels: semaines.map(item => item.label),
-            datasets: [{
-                label: 'Présence',
-                data: semaines.map(item => item.presence),
-                borderColor: blue,
-                backgroundColor: blueLight,
-                fill: true,
-                tension: 0.35,
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                ...commonOptions.scales,
-                y: {
-                    ...commonOptions.scales.y,
-                    min: 0,
-                    max: 100,
-                    ticks: { color: textColor, callback: value => value + '%' }
-                }
-            }
-        }
-    });
-
-    new Chart(document.getElementById('hoursChart'), {
-        type: 'bar',
-        data: {
-            labels: semaines.map(item => item.label),
-            datasets: [
-                {
-                    label: 'Heures travaillées',
-                    data: semaines.map(item => item.heures),
-                    backgroundColor: blue,
-                    borderRadius: 6
-                },
-                {
-                    label: 'Heures supplémentaires',
-                    data: semaines.map(item => item.sup),
-                    backgroundColor: green,
-                    borderRadius: 6
-                }
-            ]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                ...commonOptions.scales,
-                y: {
-                    ...commonOptions.scales.y,
-                    ticks: { color: textColor, callback: value => value + 'h' }
-                }
-            }
-        }
-    });
-});
-</script>
-
-{% endblock %}
-
-{% block content %}
+{% block title %}Fiche employé — {{ employe.get_nom_complet }}{% block content %}
 <style>
 .employee-detail-page{max-width:1280px;margin:0 auto;padding:8px 0 40px}
 .employee-hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:20px}
@@ -266,4 +176,92 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const semaines = {{ stats.graphique_semaines|safe }};
+    if (!Array.isArray(semaines) || !semaines.length || typeof Chart === 'undefined') {
+        return;
+    }
+
+    const styles = getComputedStyle(document.documentElement);
+    const textColor = styles.getPropertyValue('--text-muted').trim() || '#64748B';
+    const gridColor = styles.getPropertyValue('--border-light').trim() || '#CBD5E1';
+    const blue = styles.getPropertyValue('--blue-600').trim() || '#2563EB';
+    const blueLight = styles.getPropertyValue('--blue-100').trim() || '#DBEAFE';
+    const green = '#16A34A';
+
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12, usePointStyle: true } }
+        },
+        scales: {
+            x: { ticks: { color: textColor }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }
+        }
+    };
+
+    new Chart(document.getElementById('presenceChart'), {
+        type: 'line',
+        data: {
+            labels: semaines.map(item => item.label),
+            datasets: [{
+                label: 'Présence',
+                data: semaines.map(item => item.presence),
+                borderColor: blue,
+                backgroundColor: blueLight,
+                fill: true,
+                tension: 0.35,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            ...commonOptions,
+            scales: {
+                ...commonOptions.scales,
+                y: {
+                    ...commonOptions.scales.y,
+                    min: 0,
+                    max: 100,
+                    ticks: { color: textColor, callback: value => value + '%' }
+                }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('hoursChart'), {
+        type: 'bar',
+        data: {
+            labels: semaines.map(item => item.label),
+            datasets: [
+                {
+                    label: 'Heures travaillées',
+                    data: semaines.map(item => item.heures),
+                    backgroundColor: blue,
+                    borderRadius: 6
+                },
+                {
+                    label: 'Heures supplémentaires',
+                    data: semaines.map(item => item.sup),
+                    backgroundColor: green,
+                    borderRadius: 6
+                }
+            ]
+        },
+        options: {
+            ...commonOptions,
+            scales: {
+                ...commonOptions.scales,
+                y: {
+                    ...commonOptions.scales.y,
+                    ticks: { color: textColor, callback: value => value + 'h' }
+                }
+            }
+        }
+    });
+});
+</script>
+
 {% endblock %}
