@@ -8,26 +8,45 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        .stats-row {
+            margin-top: 20px;
+        }
+        .stats-row > [class*="col-"] {
+            display: flex;
+            margin-bottom: 16px;
+        }
         .stat-card {
             background: #fff;
             border-radius: 14px;
-            padding: 20px 24px;
+            padding: 18px 20px;
             border: 1px solid #E2E8F0;
             box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
-            transition: all 200ms ease;
+            transition: box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease;
             position: relative;
             overflow: hidden;
+            width: 100%;
+            min-height: 154px;
+            display: flex;
+            flex-direction: column;
         }
         .stat-card:hover {
-            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
             transform: translateY(-2px);
+            border-color: #CBD5E1;
         }
         .stat-card .stat-icon {
-            font-size: 24px;
-            opacity: 0.15;
+            width: 42px;
+            height: 42px;
+            border-radius: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            opacity: 1;
             position: absolute;
             right: 16px;
             top: 16px;
+            background: #F8FAFC;
         }
         .stat-card .stat-value {
             font-size: 28px;
@@ -289,8 +308,8 @@
     <div id="dashboard-audit-anchor"></div>
 
     <!-- ===== CARTES DE STATISTIQUES ===== -->
-    <div class="row" style="margin-top: 20px;">
-        <div class="col-lg-3 col-6">
+    <div class="row stats-row">
+        <div class="col-lg-3 col-md-6 col-12">
             <div class="stat-card primary">
                 <div class="stat-icon"><i class="fas fa-users"></i></div>
                 <div class="stat-value">{{ total_employes|default:"0" }}</div>
@@ -300,7 +319,7 @@
                 </a>
             </div>
         </div>
-        <div class="col-lg-3 col-6">
+        <div class="col-lg-3 col-md-6 col-12">
             <div class="stat-card success">
                 <div class="stat-icon"><i class="fas fa-user-check"></i></div>
                 <div class="stat-value">{{ presents_aujourdhui|default:"0" }}</div>
