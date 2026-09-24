@@ -49,7 +49,7 @@ def dashboard(request):
     # Les anomalies sont des données RH : elles ne sont calculées et
     # transmises au dashboard que pour les comptes RH/admin.
     if is_rh:
-            gravite_par_type = AnomaliePointage.GRAVITE_PAR_TYPE
+        gravite_par_type = AnomaliePointage.GRAVITE_PAR_TYPE
         types_critiques = [
             type_anomalie for type_anomalie, gravite in gravite_par_type.items()
             if gravite == 'critique'
@@ -77,7 +77,12 @@ def dashboard(request):
                 )
             ).order_by('_priorite', '-created_at', '-pk')[:5]
         )
-    
+    else:
+        alertes_critiques = 0
+        alertes_warning = 0
+        alertes_info = 0
+        alertes_prioritaires = []
+
     week_ago = today - timedelta(days=6)
     daily_stats = _presence_qs(Pointage.objects.filter(
         date_pointage__gte=week_ago, date_pointage__lte=today
