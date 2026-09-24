@@ -142,6 +142,22 @@ class TestDashboardBadge(TestCase):
         assert 'anomalies-badge' in content
         assert '1 anomalie ouverte' in content
 
+    def test_dashboard_utilisateur_normal_ne_voit_aucune_trace_d_anomalie(self):
+        user = CustomUser.objects.create_user(
+            username="user_dash", password="pass1234", role="user",
+        )
+        enregistrer_anomalie(AnomaliePointage.TYPE_INVALID_QR, message="QR confidentiel")
+
+        self.client.force_login(user)
+        response = self.client.get(reverse('dashboard'))
+
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Centre d'alertes" not in content
+        assert "Anomalies" not in content
+        assert "anomalies ouvertes" not in content
+        assert "QR confidentiel" not in content
+
     def test_dashboard_centre_alertes_priorise_les_critiques(self):
         enregistrer_anomalie(AnomaliePointage.TYPE_DURING_BREAK, message="warning")
         enregistrer_anomalie(AnomaliePointage.TYPE_INVALID_QR, message="critique")
