@@ -14,6 +14,7 @@
         <input type="submit" value="{% if can_change %}{% translate 'Save and continue editing' %}{% else %}{% translate 'Save and view' %}{% endif %}" name="_continue">
     {% endif %}
 
+    {% if opts.model_name != 'configurationpointage' %}
     {% if original %}
         {% url opts|admin_urlname:'changelist' as return_url %}
     {% else %}
@@ -24,7 +25,7 @@
         {% translate "Retour" %}
     </a>
 
-    {% if show_close %}
+    {% endif %}    {% if show_close %}
         <a href="{% url opts|admin_urlname:'changelist' %}" class="closelink">{% translate 'Close' %}</a>
     {% endif %}
     {% if show_delete_link and original %}
