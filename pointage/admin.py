@@ -349,6 +349,14 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
         }),
     )
 
+    def changelist_view(self, request, extra_context=None):
+        """La configuration est un singleton : ouvrir directement son formulaire."""
+        configuration = ConfigurationPointage.get_solo()
+        return redirect(
+            'admin:pointage_configurationpointage_change',
+            object_id=configuration.pk,
+        )
+
     def has_delete_permission(self, request, obj=None):
         return False
 
