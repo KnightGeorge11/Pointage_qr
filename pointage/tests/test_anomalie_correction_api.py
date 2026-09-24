@@ -91,7 +91,7 @@ class TestAnomalieCorrectionAPI(TestCase):
         assert anomalie.traitement.pointage_concerne_id == pointage.id
         assert anomalie.traitement.corrections == [{
             "champ": "heure_depart",
-            "ancienne_valeur": "None",
+            "ancienne_valeur": None,
             "nouvelle_valeur": "12:05:00",
         }]
 
