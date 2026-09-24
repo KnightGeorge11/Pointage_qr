@@ -783,11 +783,13 @@
             {{ gardes_en_cours }} garde{{ gardes_en_cours|pluralize }} en cours
         </a>
         {% endif %}
+        {% if request.user.is_superuser or request.user.role == 'admin' %}
         {% if anomalies_ouvertes %}
         <a href="{% url 'alertes_rh' %}" class="dash-status-badge anomalies-badge">
             <i class="fas fa-triangle-exclamation"></i>
             {{ anomalies_ouvertes }} anomalie{{ anomalies_ouvertes|pluralize }} ouverte{{ anomalies_ouvertes|pluralize }}
         </a>
+        {% endif %}
         {% endif %}
         {% if demandes_en_attente %}
         <a href="{% url 'admin:pointage_demandemodification_changelist' %}" class="dash-status-badge anomalies-badge">
@@ -825,6 +827,7 @@
             <div class="cockpit-meta">en cours maintenant</div>
         </div>
     </div>
+    {% if request.user.is_superuser or request.user.role == 'admin' %}
     <div class="cockpit-card">
         <div class="cockpit-icon"><i class="fas fa-bell"></i></div>
         <div>
@@ -833,7 +836,9 @@
             <div class="cockpit-meta">anomalies ouvertes</div>
         </div>
     </div>
+    {% endif %}
 </div>
+{% if request.user.is_superuser or request.user.role == 'admin' %}
 <!-- ===== CENTRE D'ALERTES ===== -->
 <div class="alert-center">
     <div class="alert-center-header">
@@ -865,6 +870,8 @@
     <div class="alert-center-empty"><i class="fas fa-check-circle"></i> Aucune alerte ouverte.</div>
     {% endif %}
 </div>
+
+{% endif %}
 
 <!-- ===== STATISTIQUES ===== -->
 <div class="stats-grid">
@@ -1050,7 +1057,9 @@
     <a href="{% url 'scanner' %}" class="quick-action"><i class="fas fa-qrcode"></i><div><strong>Nouveau pointage</strong><span>Scanner un employé</span></div></a>
     <a href="{% url 'employes' %}" class="quick-action"><i class="fas fa-users"></i><div><strong>Employés</strong><span>Consulter le personnel</span></div></a>
     <a href="{% url 'pointages' %}" class="quick-action"><i class="fas fa-list-check"></i><div><strong>Pointages</strong><span>Voir les mouvements</span></div></a>
+    {% if request.user.is_superuser or request.user.role == 'admin' %}
     <a href="{% url 'alertes_rh' %}" class="quick-action"><i class="fas fa-triangle-exclamation"></i><div><strong>Anomalies</strong><span>Traiter les alertes</span></div></a>
+    {% endif %}
 </div>
 \n
 {% endblock %}
