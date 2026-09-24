@@ -1,5 +1,6 @@
 # pointage/views.py
 
+import json
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -426,10 +427,54 @@ def employe_detail_view(request, pk):
     presence_semaine = taux_presence(debut_semaine)
     presence_mois = taux_presence(debut_mois)
 
+    # Données réelles pour les graphiques : les 4 dernières semaines.
+    # La semaine courante est calculée uniquement jusqu'à aujourd'hui.
+    debut_graphique = debut_semaine - timedelta(weeks=3)
+    semaines_graphique = []
+    for index in range(4):
+        debut = debut_graphique + timedelta(weeks=index)
+        fin = min(debut + timedelta(days=6), today)
+        if debut > today:
+            continue
+
+        jours_ouvres = sum(
+            1 for offset in range((fin - debut).days + 1)
+            if (debut + timedelta(days=offset)).weekday() < 5
+        )
+        jours_presents = (
+            Pointage.objects.filter(
+                employe=employe,
+                date_pointage__gte=debut,
+                date_pointage__lte=fin,
+                heure_arrivee__isnull=False,
+            )
+            .values('date_pointage')
+            .distinct()
+            .count()
+        )
+
+        heures_semaine = timedelta()
+        sup_semaine = timedelta()
+        for p in Pointage.objects.filter(
+            employe=employe,
+            date_pointage__gte=debut,
+            date_pointage__lte=fin,
+        ):
+            heures_semaine += p.heures_travaillees or timedelta()
+            sup_semaine += p.heures_supplementaires or timedelta()
+
+        semaines_graphique.append({
+            'label': f"{debut.strftime('%d/%m')} – {fin.strftime('%d/%m')}",
+            'presence': round((jours_presents / jours_ouvres) * 100) if jours_ouvres else 0,
+            'heures': round(heures_semaine.total_seconds() / 3600, 2),
+            'sup': round(sup_semaine.total_seconds() / 3600, 2),
+        })
+
     context = {
         'employe': employe,
         'pointages': pointages,
-        'anomalies': anomalies,        'audits': audits,
+        'anomalies': anomalies,
+        'audits': audits,
         'demandes': demandes,
         'stats': {
             'pointages': Pointage.objects.filter(employe=employe).count(),
@@ -440,6 +485,9 @@ def employe_detail_view(request, pk):
             'heures_travaillees': total_travaille,
             'heures_supplementaires': total_sup,
             'retard': total_retard,
+            'taux_presence_semaine': presence_semaine,
+            'taux_presence_mois': presence_mois,
+            'graphique_semaines': json.dumps(semaines_graphique),
         },
     }
     return render(request, 'pointage/employe_detail.html', context)
