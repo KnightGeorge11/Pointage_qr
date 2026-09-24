@@ -227,6 +227,11 @@ class Employe(models.Model):
     qr_code_token   = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     date_creation   = models.DateTimeField(auto_now_add=True)
     actif           = models.BooleanField(default=True)
+    heures_supplementaires_autorisees = models.BooleanField(
+        default=False,
+        verbose_name='Heures supplémentaires autorisées',
+        help_text='Autorise cet employé à effectuer des heures supplémentaires. La validation de chaque pointage reste gérée séparément par la RH.',
+    )
 
     def __str__(self):
         return f"{self.prenom} {self.nom} ({self.matricule})"
