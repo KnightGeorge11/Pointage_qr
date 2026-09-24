@@ -40,40 +40,44 @@ def dashboard(request):
     ).count()
 
     pointages_recents = today_pointages.select_related('employe', 'site').order_by('-date_creation')[:10]
-    demandes_en_attente = DemandeModification.objects.filter(statut='en_attente').count()
-    anomalies_ouvertes = compter_anomalies_ouvertes()
-
-    # Le dashboard effectif est cette vue durcie : elle doit donc exposer
-    # aussi le centre d'alertes ajouté dans la vue principale.
-    gravite_par_type = AnomaliePointage.GRAVITE_PAR_TYPE
-    types_critiques = [
-        type_anomalie for type_anomalie, gravite in gravite_par_type.items()
-        if gravite == 'critique'
-    ]
-    types_warning = [
-        type_anomalie for type_anomalie, gravite in gravite_par_type.items()
-        if gravite == 'warning'
-    ]
-    alertes_critiques = AnomaliePointage.objects.filter(
-        statut=AnomaliePointage.STATUT_OUVERTE, type__in=types_critiques
-    ).count()
-    alertes_warning = AnomaliePointage.objects.filter(
-        statut=AnomaliePointage.STATUT_OUVERTE, type__in=types_warning
-    ).count()
-    alertes_info = max(0, anomalies_ouvertes - alertes_critiques - alertes_warning)
-    alertes_prioritaires = list(
-        AnomaliePointage.objects.filter(
-            statut=AnomaliePointage.STATUT_OUVERTE
-        ).select_related('employe', 'site').annotate(
-            _priorite=Case(
-                When(type__in=types_critiques, then=Value(0)),
-                When(type__in=types_warning, then=Value(1)),
-                default=Value(2),
-                output_field=IntegerField(),
-            )
-        ).order_by('_priorite', '-created_at', '-pk')[:5]
+    is_rh = bool(
+        request.user.is_superuser or getattr(request.user, 'role', None) == 'admin'
     )
+    demandes_en_attente = DemandeModification.objects.filter(statut='en_attente').count()
+    anomalies_ouvertes = compter_anomalies_ouvertes() if is_rh else 0
 
+    # Les anomalies sont des données RH : elles ne sont calculées et
+    # transmises au dashboard que pour les comptes RH/admin.
+    if is_rh:
+            gravite_par_type = AnomaliePointage.GRAVITE_PAR_TYPE
+        types_critiques = [
+            type_anomalie for type_anomalie, gravite in gravite_par_type.items()
+            if gravite == 'critique'
+        ]
+        types_warning = [
+            type_anomalie for type_anomalie, gravite in gravite_par_type.items()
+            if gravite == 'warning'
+        ]
+        alertes_critiques = AnomaliePointage.objects.filter(
+            statut=AnomaliePointage.STATUT_OUVERTE, type__in=types_critiques
+        ).count()
+        alertes_warning = AnomaliePointage.objects.filter(
+            statut=AnomaliePointage.STATUT_OUVERTE, type__in=types_warning
+        ).count()
+        alertes_info = max(0, anomalies_ouvertes - alertes_critiques - alertes_warning)
+        alertes_prioritaires = list(
+            AnomaliePointage.objects.filter(
+                statut=AnomaliePointage.STATUT_OUVERTE
+            ).select_related('employe', 'site').annotate(
+                _priorite=Case(
+                    When(type__in=types_critiques, then=Value(0)),
+                    When(type__in=types_warning, then=Value(1)),
+                    default=Value(2),
+                    output_field=IntegerField(),
+                )
+            ).order_by('_priorite', '-created_at', '-pk')[:5]
+        )
+    
     week_ago = today - timedelta(days=6)
     daily_stats = _presence_qs(Pointage.objects.filter(
         date_pointage__gte=week_ago, date_pointage__lte=today
@@ -129,10 +133,10 @@ def dashboard(request):
         'pointages_recents': pointages_recents,
         'demandes_en_attente': demandes_en_attente,
         'anomalies_ouvertes': anomalies_ouvertes,
-        'alertes_critiques': alertes_critiques,
-        'alertes_warning': alertes_warning,
-        'alertes_info': alertes_info,
-        'alertes_prioritaires': alertes_prioritaires,
+        'alertes_critiques': alertes_critiques if is_rh else 0,
+        'alertes_warning': alertes_warning if is_rh else 0,
+        'alertes_info': alertes_info if is_rh else 0,
+        'alertes_prioritaires': alertes_prioritaires if is_rh else [],
         'aujourdhui': today,
         'daily_data': {
             'presents': presents_aujourdhui,
