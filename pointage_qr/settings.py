@@ -166,7 +166,11 @@ LOGOUT_REDIRECT_URL = '/login/'
 # CONFIGURATION JAZZMIN — Version Premium avec Navigation + Badges
 # ============================================================
 JAZZMIN_SETTINGS = {
-    "custom_js": "admin/js/jazzmin-badges.js",
+    "custom_js": [
+        "admin/js/jazzmin-badges.js",
+        "admin/js/jazzmin-back-buttons.js",
+    ],
+    "custom_css": "admin/css/jazzmin-back-buttons.css",
     # ── Identité ──
     "site_title": "Pointage Admin",
     "site_header": "Pointage QR",
