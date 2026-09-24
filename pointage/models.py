@@ -497,6 +497,13 @@ class Pointage(models.Model):
             self.heures_supplementaires = timedelta(0)
             return
 
+        # L'autorisation employé est la première condition d'éligibilité.
+        # La validation RH du pointage reste ensuite nécessaire pour rendre
+        # les heures supplémentaires payables/exportables.
+        if not self.employe_id or not self.employe.heures_supplementaires_autorisees:
+            self.heures_supplementaires = timedelta(0)
+            return
+
         if self.periode == 'nuit':
             self.heures_supplementaires = self._calculer_heures_supplementaires_garde()
             return
@@ -559,6 +566,14 @@ class Pointage(models.Model):
             self.calculer_retard()
         self.calculer_heures_travaillees()
         self.calculer_heures_supplementaires()
+
+        # Si l'autorisation employé a été retirée, une validation antérieure
+        # ne doit pas rester incohérente sur un pointage que l'on recalcule.
+        if self.employe_id and not self.employe.heures_supplementaires_autorisees:
+            self.heures_supplementaires_autorisees = False
+            self.heures_supplementaires_autorisees_par = None
+            self.date_autorisation_heures_supplementaires = None
+            self.motif_autorisation_heures_supplementaires = ''
 
         if self.periode == 'nuit':
             self.statut = 'present' if self.heure_arrivee else 'absent'
