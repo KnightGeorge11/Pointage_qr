@@ -24,7 +24,6 @@ ALLOWED_HOSTS = config(
 )
 
 INSTALLED_APPS = [
-    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -161,124 +160,8 @@ LOGOUT_REDIRECT_URL = '/login/'
 
 
 # settings.py
-
 # ============================================================
-# CONFIGURATION JAZZMIN — Version Premium avec Navigation + Badges
+# ADMIN DJANGO NATIF
 # ============================================================
-JAZZMIN_SETTINGS = {
-    "custom_js": [
-        "admin/js/jazzmin-badges.js",
-        "admin/js/jazzmin-back-buttons.js",
-    ],
-    "custom_css": "admin/css/jazzmin-back-buttons.css",
-    # ── Identité ──
-    "site_title": "Pointage Admin",
-    "site_header": "Pointage QR",
-    "site_brand": "Pointage QR",
-    "welcome_sign": "Bienvenue dans l'administration",
-    "copyright": "Pointage QR © 2026",
-    
-    # ── Icônes ──
-    "icons": {
-        "auth": "fas fa-lock",
-        "auth.user": "fas fa-user",
-        "auth.Group": "fas fa-users",
-        "pointage.CustomUser": "fas fa-user-gear",
-        "pointage.Employe": "fas fa-users",
-        "pointage.Pointage": "fas fa-clock-rotate-left",
-        "pointage.Site": "fas fa-building",
-        "pointage.Scan": "fas fa-qrcode",
-        "pointage.Poste": "fas fa-briefcase",
-        "pointage.JourFerie": "fas fa-calendar-days",
-        "pointage.ConfigurationPointage": "fas fa-sliders",
-        "pointage.AnomaliePointage": "fas fa-triangle-exclamation",
-        "pointage.PointageAudit": "fas fa-shield-halved",
-        "pointage.DemandeModification": "fas fa-pen-to-square",
-    },
-    
-    # ── Liens du menu supérieur ──
-    "topmenu_links": [
-        {"name": "App Web", "url": "/", "new_window": False},
-    ],
-    
-    "usermenu_links": [
-        {"name": "App Web", "url": "/", "icon": "fas fa-home"},
-    ],
-    
-    # ── Organisation de la sidebar ──
-    "show_sidebar": True,
-    "navigation_expanded": True,
-    
-    # ── Cacher les modèles inutiles ──
-    "hide_models": [
-        "authtoken.token",
-        "authtoken.tokenproxy",
-    ],
-    
-    "hide_apps": [],
-    
-    "order_with_respect_to": [
-        "auth",
-        "pointage",
-    ],
-    
-    "default_icon_parents": "fas fa-folder",
-    "default_icon_children": "fas fa-circle",
-    
-    "search_model": "pointage.Employe",
-    "user_avatar": None,
-    
-    # ── Dashboard personnalisé ──
-    "dashboard": "admin/index.html",
-    
-}
-
-# ============================================================
-# JAZZMIN UI TWEAKS — Version Premium
-# ============================================================
-JAZZMIN_UI_TWEAKS = {
-    # ── Tailles ──
-    "navbar_small_text": False,
-    "footer_small_text": False,
-    "body_small_text": False,
-    "brand_small_text": False,
-    
-    # ── Couleurs ──
-    "brand_colour": "navbar-dark",
-    "accent": "accent-primary",
-    
-    # ── Navbar ──
-    "navbar": "navbar-white navbar-light",
-    "no_navbar_border": False,
-    "navbar_fixed": True,
-    
-    # ── Layout ──
-    "layout_boxed": False,
-    "footer_fixed": False,
-    
-    # ── Sidebar ──
-    "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-primary",
-    "sidebar_nav_small_text": False,
-    "sidebar_disable_expand": False,
-    "sidebar_nav_child_indent": True,
-    "sidebar_nav_compact_style": False,
-    "sidebar_nav_legacy_style": False,
-    "sidebar_nav_flat_style": True,
-    
-    # ── Thème ──
-    "theme": "flatly",
-    # On force le thème clair pour éviter que le mode sombre du navigateur
-    # transforme le dashboard personnalisé (conçu en palette claire).
-    "default_theme_mode": "light",
-    
-    # ── Boutons ──
-    "button_classes": {
-        "primary": "btn-primary",
-        "secondary": "btn-outline-secondary",
-        "info": "btn-outline-info",
-        "warning": "btn-outline-warning",
-        "danger": "btn-outline-danger",
-        "success": "btn-success",
-    },
-}
+# L'interface d'administration utilise les templates Django natifs
+# et le thème personnalisé de static/admin/css/native_admin.css.
