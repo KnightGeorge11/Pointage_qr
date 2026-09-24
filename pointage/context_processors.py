@@ -261,6 +261,7 @@ def dashboard_context(request):
         'postes_data': postes_data,
         'logs_detailed': logs_detailed,
         'logs_recents': logs_recents,
+        'audits_recents': audits_recents,
         'pointages_data': pointages_data,
         'pointages_recents': pointages_recents,
         'anomalies_data': anomalies_data,
