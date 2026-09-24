@@ -15,9 +15,11 @@
 .employee-actions{display:flex;gap:8px;flex-wrap:wrap}
 .employee-card{background:var(--bg-white);border:1px solid var(--border-light);border-radius:var(--radius-md);box-shadow:var(--shadow-sm);padding:18px;transition:box-shadow var(--transition-base),transform var(--transition-fast)}
 .employee-card:hover{box-shadow:var(--shadow-md)}
-.employee-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.employee-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
 .employee-stat-label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);font-weight:700}
 .employee-stat-value{margin-top:7px;font-size:21px;font-weight:700;color:var(--text-primary)}
+.employee-stat-note{margin-top:5px;font-size:10px;color:var(--text-muted)}
+.employee-stat-presence .employee-stat-value{color:var(--blue-700)}
 .employee-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.85fr);gap:16px}
 .employee-section-title{font-size:13px;font-weight:700;color:var(--text-primary);margin:0 0 14px}
 .employee-table{width:100%;border-collapse:collapse;font-size:12px}
@@ -56,10 +58,12 @@
     </div>
 
     <div class="employee-grid">
-        <div class="employee-card"><div class="employee-stat-label">Pointages</div><div class="employee-stat-value">{{ stats.pointages }}</div></div>
-        <div class="employee-card"><div class="employee-stat-label">Heures travaillées</div><div class="employee-stat-value">{{ stats.heures_travaillees|timedelta_format }}</div></div>
-        <div class="employee-card"><div class="employee-stat-label">Heures supplémentaires</div><div class="employee-stat-value">{{ stats.heures_supplementaires|timedelta_format }}</div></div>
-        <div class="employee-card"><div class="employee-stat-label">Anomalies ouvertes</div><div class="employee-stat-value">{{ stats.anomalies_ouvertes }}</div></div>
+        <div class="employee-card"><div class="employee-stat-label">Pointages</div><div class="employee-stat-value">{{ stats.pointages }}</div><div class="employee-stat-note">Historique total</div></div>
+        <div class="employee-card"><div class="employee-stat-label">Heures travaillées</div><div class="employee-stat-value">{{ stats.heures_travaillees|timedelta_format }}</div><div class="employee-stat-note">Historique total</div></div>
+        <div class="employee-card"><div class="employee-stat-label">Heures supplémentaires</div><div class="employee-stat-value">{{ stats.heures_supplementaires|timedelta_format }}</div><div class="employee-stat-note">Mois civil en cours</div></div>
+        <div class="employee-card employee-stat-presence"><div class="employee-stat-label">Présence semaine</div><div class="employee-stat-value">{{ stats.taux_presence_semaine }}%</div><div class="employee-stat-note">Jours ouvrés écoulés</div></div>
+        <div class="employee-card employee-stat-presence"><div class="employee-stat-label">Présence mois</div><div class="employee-stat-value">{{ stats.taux_presence_mois }}%</div><div class="employee-stat-note">Depuis le 1er du mois</div></div>
+        <div class="employee-card"><div class="employee-stat-label">Anomalies ouvertes</div><div class="employee-stat-value">{{ stats.anomalies_ouvertes }}</div><div class="employee-stat-note">À traiter</div></div>
     </div>
 
     <div class="employee-layout">
