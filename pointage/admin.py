@@ -1544,7 +1544,7 @@ class AnomalieTraitementInline(admin.StackedInline):
 
 @admin.register(AnomaliePointage)
 class AnomaliePointageAdmin(admin.ModelAdmin):
-    list_display = ('type_display', 'employe_ou_matricule', 'gravite_badge', 'statut_badge', 'created_at')
+    list_display = ('type_display', 'employe_ou_matricule', 'gravite_badge', 'statut_badge', 'created_at', 'boutons_action')
     list_filter = ('statut', 'type')
     search_fields = ('employe__nom', 'employe__prenom', 'employe__matricule', 'matricule_scanne', 'message')
     date_hierarchy = 'created_at'
@@ -1600,6 +1600,24 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
             f'{label}</span>'
         )
     gravite_badge.short_description = 'Gravité'
+
+    def boutons_action(self, obj):
+        """Actions RH directement visibles dans la liste Jazzmin."""
+        if obj.statut == AnomaliePointage.STATUT_CLOTUREE:
+            return mark_safe(
+                '<span style="color:#4ade80;font-size:12px;font-style:italic;">'
+                '✓ Clôturée</span>'
+            )
+        url = reverse('admin_anomaly_workflow', args=[obj.pk])
+        label = '🔧 Traiter' if obj.statut == AnomaliePointage.STATUT_OUVERTE else '👁️ Voir / traiter'
+        return mark_safe(
+            f'<a href="{url}" style="display:inline-flex;align-items:center;'
+            f'gap:5px;background:rgba(79,142,247,.12);color:#60a5fa;'
+            f'border:1px solid rgba(79,142,247,.35);padding:5px 12px;'
+            f'border-radius:6px;font-size:11px;font-weight:600;'
+            f'text-decoration:none;white-space:nowrap;">{label}</a>'
+        )
+    boutons_action.short_description = 'Actions'
 
     def statut_badge(self, obj):
         styles = {
