@@ -1281,15 +1281,17 @@ document.addEventListener('DOMContentLoaded', function () {
        4. CAMEMBERT POSTES
     ===================================================== */
     {% if postes_data %}
+    // Palette volontairement limitée aux tons déjà utilisés par l'écran de connexion.
+    // Les couleurs secondaires très saturées sont supprimées pour réduire la fatigue visuelle.
     const posteColors = [
         colors.ink,
         colors.blue,
+        '#1E3A8A',
         colors.green,
         colors.amber,
         colors.red,
-        '#8B5CF6',
-        '#EC4899',
-        '#14B8A6',
+        '#64748B',
+        '#94A3B8',
     ];
 
     new Chart(document.getElementById('postesChart'), {
