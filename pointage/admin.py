@@ -23,7 +23,7 @@ from .models import (
     AnomaliePointage, AnomalieTraitement, PointageAudit,
 )
 from .anomalies import marquer_traitee, marquer_cloturee
-from .forms import PointageForm, ConfigurationPointageForm
+from .forms import PointageForm, ConfigurationPointageForm, JourFerieForm
 from .anomaly_correction import corriger_pointage_anomalie, snapshot_pointage
 import uuid
 from datetime import timedelta, datetime
@@ -389,6 +389,7 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
 
 @admin.register(JourFerie)
 class JourFerieAdmin(admin.ModelAdmin):
+    form = JourFerieForm
     list_display = ('date', 'nom', 'actif')
     list_filter = ('actif',)
     search_fields = ('nom',)
