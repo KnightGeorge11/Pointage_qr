@@ -34,8 +34,10 @@ def autoriser_heures_supplementaires(modeladmin, request, queryset):
         return
 
     count = 0
+    skipped = 0
     for pointage in queryset.select_for_update().select_related('site', 'employe'):
         if not pointage.employe.heures_supplementaires_autorisees:
+            skipped += 1
             continue
         # Le trigger PostgreSQL remet à zéro le champ tant que l'autorisation
         # est False. Il faut donc recalculer depuis les heures d'arrivée/départ
@@ -74,11 +76,10 @@ def autoriser_heures_supplementaires(modeladmin, request, queryset):
         )
         count += 1
 
-    modeladmin.message_user(
-        request,
-        f"{count} pointage(s) avec heures supplémentaires autorisé(s).",
-        level=messages.SUCCESS,
-    )
+    message = f"{count} pointage(s) avec heures supplémentaires autorisé(s)."
+    if skipped:
+        message += f" {skipped} ignoré(s) : employé non autorisé aux heures supplémentaires."
+    modeladmin.message_user(request, message, level=messages.SUCCESS)
 
 
 autoriser_heures_supplementaires.short_description = "✅ Autoriser les heures supplémentaires"
