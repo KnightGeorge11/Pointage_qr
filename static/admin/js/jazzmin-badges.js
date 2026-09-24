@@ -144,6 +144,42 @@
                    d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
         }
 
+        // Les notifications affichées par cette cloche appartiennent à Jazzmin.
+        // Une notification admin ne doit donc jamais utiliser par erreur une URL
+        // de l'application Web (/dashboard/, /anomalies/, etc.). On accepte
+        // uniquement une URL /admin/ provenant du même domaine. Les types admin
+        // connus disposent en plus d'un fallback interne si le backend renvoie
+        // exceptionnellement une URL vide ou ancienne.
+        function getJazzminNotificationUrl(n) {
+            var rawUrl = typeof n.url === 'string' ? n.url.trim() : '';
+
+            if (rawUrl) {
+                try {
+                    var parsed = new URL(rawUrl, window.location.origin);
+                    if (parsed.origin === window.location.origin &&
+                        parsed.pathname.indexOf('/admin/') === 0) {
+                        return parsed.pathname + parsed.search + parsed.hash;
+                    }
+                } catch (error) {
+                    // URL invalide : on utilise le routage interne ci-dessous.
+                }
+            }
+
+            if (n.type === 'demande_en_attente') {
+                return '/admin/pointage/demandemodification/';
+            }
+
+            // Une anomalie admin doit toujours ouvrir son workflow Jazzmin.
+            // Sans identifiant, on préfère rendre la notification non cliquable
+            // plutôt que de renvoyer accidentellement l'administrateur vers le Web.
+            if (n.type === 'anomalie' && n.anomalie_id) {
+                return '/admin/pointage/anomaliepointage/' +
+                    encodeURIComponent(n.anomalie_id) + '/workflow/';
+            }
+
+            return null;
+        }
+
         function addNotificationItem($body, n) {
             var colorMap = {critique: '#EF4444', danger: '#EF4444', warning: '#F59E0B', success: '#22C55E', info: '#3B82F6'};
             var color = colorMap[n.gravite] || '#3B82F6';
@@ -151,7 +187,8 @@
                 ? (n.gravite === 'success' ? 'fa-circle-check' : 'fa-circle-xmark')
                 : (n.type === 'demande_en_attente' ? 'fa-pen-to-square' : 'fa-triangle-exclamation');
 
-            var $item = n.url ? $('<a></a>').attr('href', n.url) : $('<div></div>');
+            var notificationUrl = getJazzminNotificationUrl(n);
+            var $item = notificationUrl ? $('<a></a>').attr('href', notificationUrl) : $('<div></div>');
             $item.css({display: 'flex', gap: '10px', padding: '9px 14px', borderBottom: '1px solid rgba(0,0,0,.06)', textDecoration: 'none', color: '#333', fontSize: '12.5px'});
 
             var $icon = $('<span></span>').css({flexShrink: 0, width: '24px', height: '24px', borderRadius: '50%', background: color + '22', color: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px'}).append($('<i></i>').addClass('fas ' + icon));
