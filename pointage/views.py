@@ -352,11 +352,14 @@ def employe_detail_view(request, pk):
         .select_related('site')
         .order_by('-date_pointage', 'periode')[:30]
     )
+    is_rh = bool(
+        request.user.is_superuser or getattr(request.user, 'role', None) == 'admin'
+    )
     anomalies = list(
         AnomaliePointage.objects.filter(employe=employe)
         .select_related('site')
         .order_by('-created_at')[:20]
-    )
+    ) if is_rh else []
     audits = list(
         PointageAudit.objects.filter(pointage__employe=employe)
         .select_related('administrateur', 'pointage')
@@ -481,7 +484,7 @@ def employe_detail_view(request, pk):
             'anomalies_ouvertes': AnomaliePointage.objects.filter(
                 employe=employe,
                 statut=AnomaliePointage.STATUT_OUVERTE,
-            ).count(),
+            ).count() if is_rh else 0,
             'heures_travaillees': total_travaille,
             'heures_supplementaires': total_sup,
             'retard': total_retard,
