@@ -431,6 +431,7 @@ class SiteAdmin(admin.ModelAdmin):
 class EmployeAdmin(admin.ModelAdmin):
     list_display = ('matricule', 'nom', 'prenom', 'get_poste', 'email', 'telephone', 'actif', 'heures_supplementaires_autorisees', 'qr_code_preview', 'date_creation')
     list_filter = ('poste', 'actif', 'heures_supplementaires_autorisees', 'date_creation')
+    list_editable = ('heures_supplementaires_autorisees',)
     search_fields = ('nom', 'prenom', 'matricule', 'poste__nom', 'email', 'telephone')
     readonly_fields = ('qr_code_token', 'date_creation', 'qr_code_display', 'info_qr_code', 'lien_pointages')
     ordering = ('matricule',)
