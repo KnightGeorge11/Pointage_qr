@@ -429,8 +429,8 @@ class SiteAdmin(admin.ModelAdmin):
 
 @admin.register(Employe)
 class EmployeAdmin(admin.ModelAdmin):
-    list_display = ('matricule', 'nom', 'prenom', 'get_poste', 'email', 'telephone', 'actif', 'qr_code_preview', 'date_creation')
-    list_filter = ('poste', 'actif', 'date_creation')
+    list_display = ('matricule', 'nom', 'prenom', 'get_poste', 'email', 'telephone', 'actif', 'heures_supplementaires_autorisees', 'qr_code_preview', 'date_creation')
+    list_filter = ('poste', 'actif', 'heures_supplementaires_autorisees', 'date_creation')
     search_fields = ('nom', 'prenom', 'matricule', 'poste__nom', 'email', 'telephone')
     readonly_fields = ('qr_code_token', 'date_creation', 'qr_code_display', 'info_qr_code', 'lien_pointages')
     ordering = ('matricule',)
@@ -441,7 +441,7 @@ class EmployeAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Informations personnelles', {
-            'fields': ('nom', 'prenom', 'matricule', 'poste', 'actif')
+            'fields': ('nom', 'prenom', 'matricule', 'poste', 'actif', 'heures_supplementaires_autorisees')
         }),
         ('Contact', {
             'fields': ('email', 'telephone'),
@@ -606,7 +606,13 @@ class PointageAdmin(admin.ModelAdmin):
         'site__nom',
     ]
     
-    readonly_fields = ('retard', 'heures_travaillees', 'heures_supplementaires', 'date_creation', 'date_modification')
+    readonly_fields = (
+        'retard', 'heures_travaillees', 'heures_supplementaires',
+        'heures_supplementaires_autorisees_par',
+        'date_autorisation_heures_supplementaires',
+        'motif_autorisation_heures_supplementaires',
+        'date_creation', 'date_modification',
+    )
     date_hierarchy = 'date_pointage'
     
     # ============================================================
