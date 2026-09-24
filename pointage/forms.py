@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
-from .models import Employe, Site, Pointage, CustomUser, ConfigurationPointage
+from .models import Employe, Site, Pointage, CustomUser, ConfigurationPointage, JourFerie
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -67,7 +67,7 @@ class SiteForm(forms.ModelForm):
 
 
 class ConfigurationPointageForm(forms.ModelForm):
-    """Formulaire Jazzmin clair pour les horaires globaux du pointage."""
+    """Formulaire Jazzmin clair et homogène avec les autres formulaires admin."""
     class Meta:
         model = ConfigurationPointage
         fields = [
@@ -81,14 +81,41 @@ class ConfigurationPointageForm(forms.ModelForm):
             'duree_journee_reference',
         ]
         widgets = {
-            'heure_debut_systeme': forms.TimeInput(attrs={'type': 'time', 'step': 60}),
-            'heure_fin_systeme': forms.TimeInput(attrs={'type': 'time', 'step': 60}),
-            'heure_bascule_apres_midi': forms.TimeInput(attrs={'type': 'time', 'step': 60}),
-            'heure_debut_garde': forms.TimeInput(attrs={'type': 'time', 'step': 60}),
-            'heure_fin_garde': forms.TimeInput(attrs={'type': 'time', 'step': 60}),
-            'tolerance_minutes_defaut': forms.NumberInput(attrs={'min': 0, 'step': 1}),
-            'seuil_depart_anticipe_minutes_defaut': forms.NumberInput(attrs={'min': 0, 'step': 1}),
-            'duree_journee_reference': forms.TextInput(attrs={'placeholder': '08:00:00'}),
+            'heure_debut_systeme': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time', 'step': 60}),
+            'heure_fin_systeme': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time', 'step': 60}),
+            'heure_bascule_apres_midi': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time', 'step': 60}),
+            'heure_debut_garde': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time', 'step': 60}),
+            'heure_fin_garde': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time', 'step': 60}),
+            'tolerance_minutes_defaut': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 1}),
+            'seuil_depart_anticipe_minutes_defaut': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 1}),
+            'duree_journee_reference': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '08:00:00'}),
+        }
+        labels = {
+            'heure_debut_systeme': 'Début des scans autorisés',
+            'heure_fin_systeme': 'Fin des scans autorisés',
+            'heure_bascule_apres_midi': 'Bascule matin → après-midi',
+            'heure_debut_garde': 'Début de garde par défaut',
+            'heure_fin_garde': 'Fin de garde par défaut',
+            'tolerance_minutes_defaut': 'Tolérance par défaut (minutes)',
+            'seuil_depart_anticipe_minutes_defaut': 'Seuil départ anticipé (minutes)',
+            'duree_journee_reference': 'Durée journalière de référence',
+        }
+
+
+class JourFerieForm(forms.ModelForm):
+    """Formulaire Jour férié homogène avec les autres formulaires admin."""
+    class Meta:
+        model = JourFerie
+        fields = ['date', 'nom', 'actif']
+        widgets = {
+            'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'nom': forms.TextInput(attrs={'class': 'form-control'}),
+            'actif': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'date': 'Date',
+            'nom': 'Libellé',
+            'actif': 'Actif',
         }
         labels = {
             'heure_debut_systeme': 'Début des scans autorisés',
