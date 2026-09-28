@@ -59,11 +59,20 @@ CORS_ALLOWED_ORIGINS = config(
 )
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-# Sécurité HTTP en production : activée uniquement quand DEBUG=False.
+# Sécurité HTTP/HTTPS.
+#
+# Le déploiement LAN fourni par le projet utilise actuellement HTTP
+# (ex. http://192.168.3.101:8000) pour le Web, le mobile et le desktop.
+# Ne pas forcer HTTPS par défaut : cela rendrait les cookies de session et
+# CSRF inutilisables sur HTTP et casserait l'authentification Web.
+#
+# Pour un déploiement HTTPS, définir explicitement :
+#   SECURE_SSL_REDIRECT=True
+# Les cookies Secure suivent alors le même choix.
 if not DEBUG:
-    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
+    SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
+    CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_REFERRER_POLICY = 'same-origin'
