@@ -1,0 +1,53 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="pqr-confirm-page">
+  <div class="pqr-confirm-card">
+    <div class="pqr-confirm-icon {% if action == 'approuver' %}is-accept{% else %}is-reject{% endif %}">
+      {% if action == 'approuver' %}✓{% else %}×{% endif %}
+    </div>
+    <div>
+      <div class="pqr-eyebrow">Demande de modification #{{ demande.pk }}</div>
+      <h1>{{ titre }}</h1>
+      <p class="pqr-confirm-text">{{ texte }}</p>
+    </div>
+  </div>
+
+  <div class="pqr-confirm-details">
+    <div class="pqr-confirm-details-head">Données de la demande</div>
+    <div class="pqr-confirm-details-body">{{ donnees_html|safe }}</div>
+  </div>
+
+  <form method="post" class="pqr-confirm-actions">
+    {% csrf_token %}
+    <button type="submit" class="pqr-confirm-submit {% if action == 'approuver' %}is-accept{% else %}is-reject{% endif %}">
+      {{ label_bouton }}
+    </button>
+    <a href="{% url 'admin:pointage_demandemodification_changelist' %}" class="pqr-confirm-cancel">← Retour sans action</a>
+  </form>
+</div>
+
+<style>
+.pqr-confirm-page{max-width:900px;margin:0 auto}
+.pqr-confirm-card,.pqr-confirm-details{background:#0f172a;border:1px solid #1e293b;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.18)}
+.pqr-confirm-card{display:flex;gap:16px;align-items:flex-start;padding:24px;margin-bottom:18px}
+.pqr-confirm-icon{width:46px;height:46px;flex:0 0 46px;border-radius:12px;display:grid;place-items:center;font-size:27px;font-weight:800}
+.pqr-confirm-icon.is-accept{background:rgba(74,222,128,.12);color:#4ade80}
+.pqr-confirm-icon.is-reject{background:rgba(248,113,113,.12);color:#f87171}
+.pqr-eyebrow{color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px}
+.pqr-confirm-card h1{margin:0 0 8px!important;color:#f8fafc!important;font-size:24px!important}
+.pqr-confirm-text{margin:0;color:#cbd5e1;line-height:1.6}
+.pqr-confirm-details{overflow:hidden;margin-bottom:18px}
+.pqr-confirm-details-head{padding:14px 18px;background:#111827;color:#f8fafc;font-weight:700;border-bottom:1px solid #1e293b}
+.pqr-confirm-details-body{padding:18px;color:#cbd5e1;overflow:auto}
+.pqr-confirm-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pqr-confirm-submit,.pqr-confirm-cancel{min-height:40px;padding:9px 18px;border-radius:7px;font-weight:700;text-decoration:none!important;cursor:pointer}
+.pqr-confirm-submit{border:1px solid transparent}
+.pqr-confirm-submit.is-accept{background:#166534;color:#f0fdf4;border-color:#22c55e}
+.pqr-confirm-submit.is-reject{background:#991b1b;color:#fef2f2;border-color:#ef4444}
+.pqr-confirm-cancel{background:#111827;color:#cbd5e1!important;border:1px solid #334155}
+.pqr-confirm-submit:hover,.pqr-confirm-cancel:hover{filter:brightness(1.08)}
+@media(max-width:767px){.pqr-confirm-card{padding:18px}.pqr-confirm-actions{flex-direction:column;align-items:stretch}.pqr-confirm-submit,.pqr-confirm-cancel{text-align:center}}
+</style>
+{% endblock %}
