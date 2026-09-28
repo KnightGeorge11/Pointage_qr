@@ -66,7 +66,8 @@ export const AppProvider = ({ children }: any) => {
             setIsAuthenticated(true)
             setCurrentUser(user)
           } else {
-            await apiService.clearAuth()
+            setIsAuthenticated(false)
+            setCurrentUser(null)
           }
         }
       } catch (err) {
