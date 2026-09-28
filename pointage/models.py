@@ -122,7 +122,7 @@ class ConfigurationPointage(models.Model):
     pas d'un site particulier, notamment la fenêtre opérationnelle globale.
     """
     heure_debut_systeme = models.TimeField(
-        default='05:00',
+        default=time(5, 0),
         verbose_name="Début de la plage système",
         help_text="Aucun scan normal n'est accepté avant cette heure.",
     )
@@ -137,7 +137,7 @@ class ConfigurationPointage(models.Model):
         help_text="Une fin plus tôt que le début signifie une garde traversant minuit.",
     )
     heure_fin_systeme = models.TimeField(
-        default='23:00',
+        default=time(23, 0),
         verbose_name="Fin de la plage système",
         help_text="Aucun scan normal n'est accepté après cette heure.",
     )
