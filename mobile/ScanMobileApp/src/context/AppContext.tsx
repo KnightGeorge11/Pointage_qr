@@ -54,11 +54,20 @@ export const AppProvider = ({ children }: any) => {
           setApiStatus(prev => ({ ...prev, baseUrl: savedUrl }))
         }
 
+        // Réhydrate d'abord l'instance Axios avec l'URL et le token
+        // persistés. Sans cela, après un redémarrage l'état local indiquait
+        // "connecté" mais Axios repartait sans Authorization: Token ...
+        // et tous les endpoints protégés répondaient 401.
+        await apiService.initialize()
         const authenticated = await apiService.isAuthenticated()
         if (authenticated) {
           const user = await apiService.getCurrentUser()
-          setIsAuthenticated(true)
-          setCurrentUser(user)
+          if (user) {
+            setIsAuthenticated(true)
+            setCurrentUser(user)
+          } else {
+            await apiService.clearAuth()
+          }
         }
       } catch (err) {
         console.error('Erreur chargement données:', err)
