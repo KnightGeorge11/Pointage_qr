@@ -232,6 +232,53 @@ body.change-list:not(.model-pointage) .paginator .this-page{
     border-radius:8px;
 }
 
+/* ── Employé CRUD ───────────────────────────────────────── */
+body.model-employe.change-form:not(.model-pointage) #content-main .module{
+    margin-bottom:18px!important;
+}
+body.model-employe.change-form:not(.model-pointage) #content-main .module h2{
+    font-size:12px!important;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+}
+body.model-employe.change-form:not(.model-pointage) #content-main .form-row .field-nom,
+body.model-employe.change-form:not(.model-pointage) #content-main .form-row .field-prenom{
+    min-width:280px;
+}
+body.model-employe.change-form:not(.model-pointage) #content-main .field-info_qr_code .readonly,
+body.model-employe.change-form:not(.model-pointage) #content-main .field-lien_pointages .readonly{
+    background:#0b1220!important;
+    border:1px solid #1e293b!important;
+    border-radius:12px!important;
+    padding:14px!important;
+}
+body.model-employe.change-form:not(.model-pointage) #content-main .field-qr_code_display .readonly{
+    background:#020617!important;
+    border:1px solid #1e293b!important;
+    border-radius:12px!important;
+    padding:18px!important;
+}
+body.model-employe.change-form:not(.model-pointage) #content-main .field-qr_code_token .readonly{
+    color:#a5b4fc!important;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+body.model-employe.change-form:not(.model-pointage) #content-main .field-info_qr_code .button,
+body.model-employe.change-form:not(.model-pointage) #content-main .field-lien_pointages .button{
+    border-radius:9px!important;
+    background:#1e293b!important;
+    border:1px solid #475569!important;
+    color:#e2e8f0!important;
+}
+body.model-employe.change-form:not(.model-pointage) #content-main .field-info_qr_code .button:hover,
+body.model-employe.change-form:not(.model-pointage) #content-main .field-lien_pointages .button:hover{
+    background:#334155!important;
+    border-color:#6366f1!important;
+    color:#fff!important;
+}
+body.model-employe.change-form:not(.model-pointage) #content-main .field-info_qr_code{
+    margin-bottom:8px;
+}
+
 /* ── Standard admin chrome ───────────────────────────────── */
 body:not(.model-pointage) #breadcrumbs{
     background:transparent!important;
