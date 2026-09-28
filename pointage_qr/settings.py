@@ -76,9 +76,16 @@ if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_REFERRER_POLICY = 'same-origin'
-    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000, cast=int)
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+    # HSTS ne doit être envoyé que si HTTPS est réellement activé :
+    # sinon un navigateur qui visite le serveur HTTP LAN pourrait mémoriser
+    # une politique HTTPS et casser les connexions suivantes.
+    SECURE_HSTS_SECONDS = config(
+        'SECURE_HSTS_SECONDS',
+        default=31536000 if SECURE_SSL_REDIRECT else 0,
+        cast=int,
+    )
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
+    SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
 
 CORS_ALLOW_HEADERS = [
     'accept', 'accept-encoding', 'authorization', 'content-type',
