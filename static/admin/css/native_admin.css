@@ -151,45 +151,89 @@ h1{
 .module table{width:100%}
 #content-main>p{color:var(--pqr-muted)}
 
-/* ── Changelists / tables ────────────────────────────────── */
-.object-tools{margin-top:0}
-.object-tools a,.addlink,.changelink,.deletelink,.button{
+/* ── CRUD changelists / tables ──────────────────────────────
+   Intentionally scoped away from model-pointage: the Pointage history
+   has its own specialized template and must keep its existing layout. */
+body:not(.model-pointage) .object-tools{margin-top:0}
+body:not(.model-pointage) .object-tools a,
+body:not(.model-pointage) .addlink,
+body:not(.model-pointage) .changelink,
+body:not(.model-pointage) .deletelink,
+body:not(.model-pointage) .button{
     border-radius:10px!important;font-weight:700!important;font-size:12px!important;
 }
-a.addlink,.addlink{
+body:not(.model-pointage) a.addlink,
+body:not(.model-pointage) .addlink{
     background:var(--pqr-primary)!important;color:#fff!important;
     border:0!important;padding:9px 14px!important;
 }
-a.addlink:hover{background:var(--pqr-primary-dark)!important}
-#changelist{background:transparent!important;border:0!important;box-shadow:none!important}
-#changelist-filter{
+body:not(.model-pointage) a.addlink:hover{background:var(--pqr-primary-dark)!important}
+body:not(.model-pointage) #changelist{background:transparent!important;border:0!important;box-shadow:none!important}
+body:not(.model-pointage) #changelist-filter{
     background:#0f172a!important;border:1px solid var(--pqr-border)!important;
     border-radius:12px!important;box-shadow:var(--pqr-shadow)!important;
 }
-#changelist-filter h2{
+body:not(.model-pointage) #changelist-filter h2{
     background:#111827!important;color:#cbd5e1!important;
     font-size:11px;text-transform:uppercase;letter-spacing:.06em;
 }
-#changelist-filter a{color:#a5b4fc}
-#changelist table{
+body:not(.model-pointage) #changelist-filter a{color:#a5b4fc}
+body:not(.model-pointage) #changelist table{
     border:1px solid var(--pqr-border)!important;border-radius:12px!important;
     overflow:hidden;background:#0f172a!important;
 }
-#changelist table thead th{
+body:not(.model-pointage) #changelist table thead th{
     background:#0b1220!important;color:#64748b!important;
     font-size:10px;text-transform:uppercase;letter-spacing:.06em;
     border-bottom:1px solid var(--pqr-border)!important;
 }
-#changelist table tbody tr{background:#0f172a!important}
-#changelist table tbody tr:hover{background:#172033!important}
-#changelist table td,#changelist table th{padding:11px 13px}
-#changelist .paginator{
+body:not(.model-pointage) #changelist table tbody tr{background:#0f172a!important}
+body:not(.model-pointage) #changelist table tbody tr:hover{background:#172033!important}
+body:not(.model-pointage) #changelist table td,
+body:not(.model-pointage) #changelist table th{padding:11px 13px}
+body:not(.model-pointage) #changelist .paginator{
     border:1px solid var(--pqr-border)!important;background:#0f172a!important;
     padding:10px 14px;color:#94a3b8;
 }
-#changelist .paginator a{color:#a5b4fc}
+body:not(.model-pointage) #changelist .paginator a{color:#a5b4fc}
+
+/* CRUD page framing */
+body.change-list:not(.model-pointage) #content-main,
+body.change-form:not(.model-pointage) #content-main{
+    max-width:1400px;
+}
+body.change-form:not(.model-pointage) .aligned label{
+    color:#cbd5e1!important;
+}
+body.change-form:not(.model-pointage) .aligned .form-row{
+    background:transparent;
+}
+body.change-form:not(.model-pointage) .readonly{
+    color:#94a3b8;
+}
+body.change-form:not(.model-pointage) .fieldBox,
+body.change-form:not(.model-pointage) .form-row{
+    box-sizing:border-box;
+}
+body.change-list:not(.model-pointage) #searchbar{
+    background:#020617!important;color:#f8fafc!important;
+    border:1px solid #334155!important;border-radius:10px!important;
+    padding:9px 11px!important;
+}
+body.change-list:not(.model-pointage) .actions{
+    background:#0b1220!important;border:1px solid var(--pqr-border)!important;
+    border-radius:10px!important;padding:10px!important;
+}
+body.change-list:not(.model-pointage) .actions select{
+    min-width:180px;
+}
+body.change-list:not(.model-pointage) .paginator a,
+body.change-list:not(.model-pointage) .paginator .this-page{
+    border-radius:8px;
+}
 
 /* ── Forms ────────────────────────────────────────────────── */
+
 input,textarea,select{font-family:inherit}
 input[type=text],input[type=password],input[type=email],input[type=url],
 input[type=number],input[type=date],input[type=time],
