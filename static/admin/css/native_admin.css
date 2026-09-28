@@ -387,7 +387,7 @@ body:not(.model-pointage) .submit-row{
     background:#0b1220!important;border-top:1px solid var(--pqr-border)!important;
     padding:13px 18px;display:flex;gap:8px;align-items:center;
 }
-body:not(.model-pointage) .submit-row body:not(.model-pointage) input[type=submit],body:not(.model-pointage) .submit-row a{
+body:not(.model-pointage) .submit-row input[type=submit],body:not(.model-pointage) .submit-row a{
     border-radius:10px!important;padding:9px 15px!important;
     font-family:inherit;font-size:12px!important;font-weight:700!important;
 }
@@ -523,6 +523,96 @@ body.change-form:not(.model-pointage) .selector h2{
 .pqr-notif-item{display:flex;gap:9px;padding:10px 14px;border-bottom:1px solid #1e293b;color:#cbd5e1!important;text-decoration:none!important;font-size:12px}
 .pqr-notif-item:hover{background:#172033}.pqr-notif-item i{width:20px;text-align:center;color:#818cf8}
 .pqr-notif-empty{padding:18px;text-align:center;color:#64748b;font-size:12px}
+
+/* ── Final CRUD consistency ─────────────────────────────── */
+body:not(.model-pointage) .results table{
+    border-collapse:separate!important;
+    border-spacing:0!important;
+}
+body:not(.model-pointage) .results thead th{
+    color:#94a3b8!important;
+    background:#111827!important;
+    border-bottom:1px solid #334155!important;
+    font-size:10px!important;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+}
+body:not(.model-pointage) .results tbody tr{
+    background:#0f172a!important;
+}
+body:not(.model-pointage) .results tbody tr:nth-child(even){
+    background:#0d1626!important;
+}
+body:not(.model-pointage) .results tbody tr:hover{
+    background:#172033!important;
+}
+body:not(.model-pointage) .results td,
+body:not(.model-pointage) .results th{
+    border-color:#1e293b!important;
+}
+body:not(.model-pointage) .results a{
+    color:#a5b4fc!important;
+}
+body:not(.model-pointage) .results a:hover{
+    color:#c7d2fe!important;
+}
+body:not(.model-pointage) .paginator{
+    background:#0f172a!important;
+    border:1px solid #1e293b!important;
+    border-radius:10px!important;
+    padding:10px 12px!important;
+    color:#94a3b8!important;
+}
+body:not(.model-pointage) .paginator a{
+    color:#a5b4fc!important;
+}
+body:not(.model-pointage) .filtered .actions{
+    background:#111827!important;
+    border:1px solid #1e293b!important;
+    border-radius:10px!important;
+}
+body:not(.model-pointage) .filtered .actions select{
+    background:#0b1220!important;
+    color:#cbd5e1!important;
+    border-color:#334155!important;
+}
+body:not(.model-pointage) #changelist-filter{
+    background:#0f172a!important;
+    border:1px solid #1e293b!important;
+    border-radius:12px!important;
+    overflow:hidden;
+}
+body:not(.model-pointage) #changelist-filter h2{
+    background:#111827!important;
+    color:#f8fafc!important;
+}
+body:not(.model-pointage) #changelist-filter h3{
+    color:#94a3b8!important;
+}
+body:not(.model-pointage) #changelist-filter a{
+    color:#cbd5e1!important;
+}
+body:not(.model-pointage) #changelist-filter li.selected a{
+    color:#a5b4fc!important;
+    font-weight:700;
+}
+body:not(.model-pointage) .form-row .readonly{
+    color:#cbd5e1!important;
+}
+body.model-anomaliepointage.change-form #content-main .module{
+    border-color:#334155!important;
+}
+body.model-anomaliepointage.change-form #content-main .submit-row{
+    border-top-color:#334155!important;
+}
+body.model-configurationpointage.change-form #content-main .module,
+body.model-site.change-form #content-main .module,
+body.model-poste.change-form #content-main .module,
+body.model-jourferie.change-form #content-main .module,
+body.model-customuser.change-form #content-main .module,
+body.model-demandemodification.change-form #content-main .module{
+    border-color:#1e293b!important;
+}
 
 /* ── Responsive: compact rather than oversized ───────────── */
 @media(max-width:1024px){
