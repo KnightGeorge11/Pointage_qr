@@ -92,11 +92,14 @@ class HomeScreen(tk.Frame):
                               command=self._on_scan_press, cursor="hand2")
         scan_btn.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
 
-        history_btn = tk.Button(actions, text="📋\nHistorique", bg=COLORS["card"], fg=COLORS["dark"],
-                                 font=("Segoe UI", 11, "bold"), relief="flat", bd=0, pady=26,
-                                 activebackground=COLORS["bg_alt"], activeforeground=COLORS["dark"],
-                                 command=lambda: self.app.navigate("HistoryScreen"), cursor="hand2")
-        history_btn.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+        # Le journal global est une vue superviseur : l'API serveur exige
+        # un compte staff/RH. On ne l'affiche donc pas aux opérateurs standards.
+        if self.app.current_user and self.app.current_user.get("is_staff"):
+            history_btn = tk.Button(actions, text="📋\nHistorique", bg=COLORS["card"], fg=COLORS["dark"],
+                                     font=("Segoe UI", 11, "bold"), relief="flat", bd=0, pady=26,
+                                     activebackground=COLORS["bg_alt"], activeforeground=COLORS["dark"],
+                                     command=lambda: self.app.navigate("HistoryScreen"), cursor="hand2")
+            history_btn.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
 
         # Lien discret vers paramètres (URL serveur)
         settings_link = tk.Label(self, text="⚙ Paramètres serveur", bg=COLORS["bg"], fg=COLORS["muted"],
