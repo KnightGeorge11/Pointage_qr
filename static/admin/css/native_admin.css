@@ -232,48 +232,103 @@ body.change-list:not(.model-pointage) .paginator .this-page{
     border-radius:8px;
 }
 
+/* ── CRUD forms ─────────────────────────────────────────────
+   Scoped away from the specialized Pointage history template. */
 /* ── Forms ────────────────────────────────────────────────── */
 
-input,textarea,select{font-family:inherit}
-input[type=text],input[type=password],input[type=email],input[type=url],
-input[type=number],input[type=date],input[type=time],
-input[type=datetime-local],textarea,select{
+body:not(.model-pointage) input,body:not(.model-pointage) textarea,body:not(.model-pointage) select{font-family:inherit}
+body:not(.model-pointage) input[type=text],body:not(.model-pointage) input[type=password],body:not(.model-pointage) input[type=email],body:not(.model-pointage) input[type=url],
+body:not(.model-pointage) input[type=number],body:not(.model-pointage) input[type=date],body:not(.model-pointage) input[type=time],
+body:not(.model-pointage) input[type=datetime-local],body:not(.model-pointage) textarea,body:not(.model-pointage) select{
     border:1px solid #334155!important;border-radius:10px!important;
     background:#020617!important;color:#f8fafc!important;
     padding:9px 11px!important;box-sizing:border-box;
 }
-input::placeholder,textarea::placeholder{color:#475569}
-input:focus,textarea:focus,select:focus{
+body:not(.model-pointage) input::placeholder,body:not(.model-pointage) textarea::placeholder{color:#475569}
+body:not(.model-pointage) input:focus,body:not(.model-pointage) textarea:focus,select:focus{
     border-color:var(--pqr-primary)!important;
     box-shadow:0 0 0 3px rgba(99,102,241,.16)!important;outline:0;
 }
-.form-row{border-bottom:1px solid rgba(51,65,85,.45);padding:13px 18px}
-.form-row:last-child{border-bottom:0}
-.form-row label{color:#cbd5e1;font-size:12px;font-weight:700}
-.help,.helptext{color:#64748b;font-size:11px}
-fieldset{border:0!important;margin:0!important}
-fieldset.module{padding:0}
-fieldset.module h2{margin:0}
-.submit-row{
+body:not(.model-pointage) .form-row{border-bottom:1px solid rgba(51,65,85,.45);padding:13px 18px}
+body:not(.model-pointage) .form-row:last-child{border-bottom:0}
+body:not(.model-pointage) .form-row label{color:#cbd5e1;font-size:12px;font-weight:700}
+body:not(.model-pointage) .help,body:not(.model-pointage) .helptext{color:#64748b;font-size:11px}
+body:not(.model-pointage) fieldset{border:0!important;margin:0!important}
+body:not(.model-pointage) fieldset.module{padding:0}
+body:not(.model-pointage) fieldset.module h2{margin:0}
+body:not(.model-pointage) .submit-row{
     background:#0b1220!important;border-top:1px solid var(--pqr-border)!important;
     padding:13px 18px;display:flex;gap:8px;align-items:center;
 }
-.submit-row input[type=submit],.submit-row a{
+body:not(.model-pointage) .submit-row body:not(.model-pointage) input[type=submit],body:not(.model-pointage) .submit-row a{
     border-radius:10px!important;padding:9px 15px!important;
     font-family:inherit;font-size:12px!important;font-weight:700!important;
 }
-.submit-row input.default{
+body:not(.model-pointage) .submit-row input.default{
     background:var(--pqr-primary)!important;border:1px solid var(--pqr-primary)!important;color:#fff!important;
 }
-.submit-row input.default:hover{background:var(--pqr-primary-dark)!important}
-.submit-row a{
+body:not(.model-pointage) .submit-row input.default:hover{background:var(--pqr-primary-dark)!important}
+body:not(.model-pointage) .submit-row a{
     background:#1e293b!important;color:#cbd5e1!important;
     border:1px solid #334155;text-decoration:none!important;
 }
-.submit-row a:hover{background:#334155!important;color:#fff!important}
-.deletelink-box{margin-left:auto}
-.deletelink{color:#fb7185!important}
+body:not(.model-pointage) .submit-row a:hover{background:#334155!important;color:#fff!important}
+body:not(.model-pointage) .deletelink-box{margin-left:auto}
+body:not(.model-pointage) .deletelink{color:#fb7185!important}
 
+
+/* Extra form polish for standard create/edit pages. */
+body.change-form:not(.model-pointage) #content-main > form > .aligned,
+body.change-form:not(.model-pointage) #content-main > form > .module{
+    background:#0f172a!important;
+    border:1px solid var(--pqr-border)!important;
+    border-radius:14px!important;
+    box-shadow:var(--pqr-shadow)!important;
+    overflow:hidden;
+}
+body.change-form:not(.model-pointage) .module h2{
+    color:#f8fafc!important;
+    background:#111827!important;
+    border-bottom:1px solid var(--pqr-border)!important;
+}
+body.change-form:not(.model-pointage) .aligned .form-row{
+    padding:16px 20px;
+}
+body.change-form:not(.model-pointage) .aligned label{
+    color:#cbd5e1!important;
+}
+body.change-form:not(.model-pointage) .aligned .vTextField,
+body.change-form:not(.model-pointage) .aligned input,
+body.change-form:not(.model-pointage) .aligned textarea,
+body.change-form:not(.model-pointage) .aligned select{
+    max-width:720px;
+}
+body.change-form:not(.model-pointage) .aligned .vLargeTextField{
+    width:min(720px,100%);
+}
+body.change-form:not(.model-pointage) .form-row .readonly{
+    padding:9px 11px;
+    background:#020617;
+    border:1px solid #1e293b;
+    border-radius:10px;
+}
+body.change-form:not(.model-pointage) .required label:after{
+    color:#fb7185!important;
+}
+body.change-form:not(.model-pointage) .submit-row{
+    border-radius:0 0 14px 14px;
+}
+body.change-form:not(.model-pointage) .inline-group{
+    margin-top:18px;
+}
+body.change-form:not(.model-pointage) .selector{
+    background:#0f172a;
+    border-radius:12px;
+    padding:12px;
+}
+body.change-form:not(.model-pointage) .selector h2{
+    background:transparent!important;
+}
 /* ── Messages / inline forms ─────────────────────────────── */
 .messagelist{margin:0 0 18px;padding:0}
 .messagelist li{
