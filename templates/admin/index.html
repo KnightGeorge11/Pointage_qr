@@ -263,6 +263,123 @@
         .chart-card .chart-body {
             padding: 20px;
         }
+
+        /* Pointage QR dashboard — dark enterprise visual layer.
+           The Django context, URLs, loops and chart data remain unchanged. */
+        #content .pqr-dashboard-dark,
+        #content > div:first-child { color: #cbd5e1; }
+
+        #content .stat-card,
+        #content .notification-card,
+        #content .chart-card,
+        #content > div > .row > div > div[style*="background: #fff"] {
+            background: #0f172a !important;
+            border-color: #1e293b !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,.22) !important;
+        }
+        #content .stat-card:hover,
+        #content .notification-card:hover {
+            border-color: #334155 !important;
+            box-shadow: 0 14px 34px rgba(0,0,0,.28) !important;
+        }
+        #content .stat-card .stat-value,
+        #content .notification-card .notif-number { color: #f8fafc !important; }
+        #content .stat-card.primary .stat-value { color: #a5b4fc !important; }
+        #content .stat-card.success .stat-value { color: #34d399 !important; }
+        #content .stat-card.warning .stat-value { color: #fbbf24 !important; }
+        #content .stat-card.info .stat-value { color: #818cf8 !important; }
+        #content .stat-card .stat-label,
+        #content .notification-card .notif-label,
+        #content .notification-card .notif-sub,
+        #content .stat-card .stat-link { color: #94a3b8 !important; }
+        #content .stat-card .stat-link:hover,
+        #content .notification-card:hover .notif-arrow { color: #a5b4fc !important; }
+
+        #content .stat-card .stat-icon {
+            background: #111827 !important;
+        }
+        #content .stat-card.primary .stat-icon { color:#818cf8 !important; }
+        #content .stat-card.success .stat-icon { color:#34d399 !important; }
+        #content .stat-card.warning .stat-icon { color:#fbbf24 !important; }
+        #content .stat-card.info .stat-icon { color:#818cf8 !important; }
+
+        #content .notification-card .notif-icon.pending {
+            background: rgba(244,63,94,.16) !important; color:#fb7185 !important;
+        }
+        #content .notification-card .notif-icon.zero {
+            background: rgba(16,185,129,.14) !important; color:#34d399 !important;
+        }
+        #content .notification-card .notif-icon.anomalies {
+            background: rgba(245,158,11,.14) !important; color:#fbbf24 !important;
+        }
+        #content .notification-card .notif-icon.incomplets {
+            background: rgba(99,102,241,.16) !important; color:#a5b4fc !important;
+        }
+
+        #content .chart-card .chart-header {
+            background:#111827 !important;
+            border-bottom-color:#1e293b !important;
+        }
+        #content .chart-card .chart-header .chart-title { color:#f8fafc !important; }
+        #content .chart-card .chart-header .chart-title i { color:#818cf8 !important; }
+        #content .chart-card .chart-header span {
+            background:#020617 !important; color:#64748b !important;
+        }
+
+        #content table,
+        #content table thead th,
+        #content table tbody tr,
+        #content table tbody td {
+            background:#0f172a !important;
+            color:#cbd5e1 !important;
+            border-color:#1e293b !important;
+        }
+        #content table thead th {
+            background:#0b1220 !important;
+            color:#64748b !important;
+        }
+        #content table tbody tr:hover { background:#172033 !important; }
+        #content table strong { color:#f8fafc !important; }
+        #content table a { color:#a5b4fc !important; }
+        #content .badge-status.present,
+        #content .badge-status.closed {
+            background:rgba(16,185,129,.16) !important; color:#a7f3d0 !important;
+        }
+        #content .badge-status.retard,
+        #content .badge-status.treated {
+            background:rgba(245,158,11,.16) !important; color:#fde68a !important;
+        }
+        #content .badge-status.absent,
+        #content .badge-status.open {
+            background:rgba(244,63,94,.16) !important; color:#fecdd3 !important;
+        }
+        #content .badge-gravite.critique {
+            background:rgba(244,63,94,.16) !important; color:#fecdd3 !important;
+        }
+        #content .badge-gravite.warning {
+            background:rgba(245,158,11,.16) !important; color:#fde68a !important;
+        }
+        #content .badge-gravite.info {
+            background:rgba(99,102,241,.16) !important; color:#c7d2fe !important;
+        }
+
+        #content .btn-outline-secondary {
+            background:#0f172a !important;
+            color:#cbd5e1 !important;
+            border-color:#334155 !important;
+        }
+        #content .btn-outline-secondary:hover {
+            background:#1e293b !important;
+            color:#fff !important;
+        }
+
+        @media(max-width:767px){
+            #content > div { max-width:100%; }
+            #content > div > div[style*="grid-template-columns"] {
+                grid-template-columns:1fr !important;
+            }
+        }
+
     </style>
 {% endblock %}
 
@@ -744,17 +861,17 @@
 document.addEventListener('DOMContentLoaded', function() {
     
     const colors = {
-        blue: '#2563EB',
-        blueDim: 'rgba(37, 99, 235, 0.7)',
-        green: '#22C55E',
-        greenDim: 'rgba(34, 197, 94, 0.7)',
-        amber: '#F59E0B',
-        amberDim: 'rgba(245, 158, 11, 0.7)',
-        red: '#EF4444',
-        redDim: 'rgba(239, 68, 68, 0.7)',
-        ink: '#0F172A',
-        muted: '#64748B',
-        border: '#E2E8F0',
+        blue: '#6366F1',
+        blueDim: 'rgba(99, 102, 241, 0.72)',
+        green: '#34D399',
+        greenDim: 'rgba(52, 211, 153, 0.72)',
+        amber: '#FBBF24',
+        amberDim: 'rgba(251, 191, 36, 0.72)',
+        red: '#FB7185',
+        redDim: 'rgba(251, 113, 133, 0.72)',
+        ink: '#F8FAFC',
+        muted: '#94A3B8',
+        border: '#1E293B',
     };
     
     // ============================================================
