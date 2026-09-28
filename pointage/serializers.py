@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from .models import Employe, Site, Pointage, Scan, Poste, AnomaliePointage, AnomalieTraitement
 from .services import process_scan
@@ -12,6 +13,22 @@ class SiteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Site
         fields = '__all__'
+
+    def validate(self, attrs):
+        # Model.save() n'appelle pas automatiquement Model.clean(). Sans
+        # cette validation, l'API CRUD pouvait enregistrer un site dont la
+        # fermeture est avant (ou égale à) l'ouverture, alors que le formulaire
+        # Web refusait déjà ce cas.
+        instance = self.instance or Site()
+        for field, value in attrs.items():
+            setattr(instance, field, value)
+        try:
+            instance.full_clean()
+        except DjangoValidationError as exc:
+            if hasattr(exc, 'message_dict'):
+                raise serializers.ValidationError(exc.message_dict)
+            raise serializers.ValidationError(exc.messages)
+        return attrs
 
 class EmployeSerializer(serializers.ModelSerializer):
     poste_details = PosteSerializer(source='poste', read_only=True)
