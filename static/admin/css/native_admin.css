@@ -232,6 +232,86 @@ body.change-list:not(.model-pointage) .paginator .this-page{
     border-radius:8px;
 }
 
+/* ── Standard admin chrome ───────────────────────────────── */
+body:not(.model-pointage) #breadcrumbs{
+    background:transparent!important;
+    color:#64748b!important;
+    padding:0 0 14px!important;
+    font-size:11px!important;
+}
+body:not(.model-pointage) #breadcrumbs a{color:#a5b4fc!important}
+body:not(.model-pointage) #content h1{
+    color:#f8fafc!important;
+    font-size:24px!important;
+    font-weight:800!important;
+    letter-spacing:-.02em;
+    margin:0 0 18px!important;
+}
+body:not(.model-pointage) .object-tools{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin:0 0 16px!important;
+}
+body:not(.model-pointage) .object-tools li{margin:0!important}
+body:not(.model-pointage) .object-tools a{
+    background:#0f172a!important;
+    border:1px solid #334155!important;
+    color:#cbd5e1!important;
+    box-shadow:none!important;
+}
+body:not(.model-pointage) .object-tools a:hover{
+    background:#1e293b!important;
+    border-color:#6366f1!important;
+    color:#fff!important;
+}
+body:not(.model-pointage) .object-tools .addlink{
+    background:#6366f1!important;
+    border-color:#6366f1!important;
+    color:#fff!important;
+}
+body:not(.model-pointage) .submit-row{
+    display:flex!important;
+    align-items:center;
+    gap:8px;
+    padding:14px 18px!important;
+    background:#0b1220!important;
+    border-top:1px solid #1e293b!important;
+}
+body:not(.model-pointage) .submit-row input{
+    width:auto!important;
+}
+body:not(.model-pointage) .submit-row .deletelink-box{
+    margin-left:auto!important;
+}
+body:not(.model-pointage) .submit-row .default{
+    background:#6366f1!important;
+    border-color:#6366f1!important;
+}
+body:not(.model-pointage) .submit-row input[type=submit]{
+    border-radius:9px!important;
+    padding:9px 14px!important;
+}
+body:not(.model-pointage) .help{
+    color:#64748b!important;
+}
+body:not(.model-pointage) .calendarbox,
+body:not(.model-pointage) .clockbox{
+    background:#0f172a!important;
+    border:1px solid #334155!important;
+    color:#cbd5e1!important;
+}
+body:not(.model-pointage) .calendarbox a,
+body:not(.model-pointage) .clockbox a{color:#a5b4fc!important}
+
+/* Mobile CRUD controls stay compact; no oversized navigation. */
+@media(max-width:767px){
+    body:not(.model-pointage) #content h1{font-size:20px!important}
+    body:not(.model-pointage) .object-tools{width:100%}
+    body:not(.model-pointage) .object-tools a{width:100%;text-align:center}
+    body:not(.model-pointage) .submit-row .deletelink-box{margin-left:0!important}
+}
+
 /* ── CRUD forms ─────────────────────────────────────────────
    Scoped away from the specialized Pointage history template. */
 /* ── Forms ────────────────────────────────────────────────── */
