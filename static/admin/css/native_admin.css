@@ -28,8 +28,8 @@ body{font-size:14px}
 #user-tools a{color:var(--pqr-text)!important;text-decoration:none}
 #user-tools a:hover{color:var(--pqr-primary)!important}
 #user-tools form{display:inline;margin:0;padding:0}
-#user-tools form button{appearance:none;border:0;background:transparent;color:var(--pqr-text);font:inherit;font-size:12px;cursor:pointer;padding:0;text-decoration:none}
-#user-tools form button:hover{color:var(--pqr-primary)}
+#user-tools form{display:inline-flex!important;align-items:center;margin:0!important;padding:0!important}\n#user-tools form button{appearance:none!important;border:0!important;background:transparent!important;box-shadow:none!important;color:var(--pqr-text)!important;font:inherit!important;font-size:12px!important;font-weight:500!important;cursor:pointer;padding:0!important;text-decoration:none!important;line-height:1.4!important}
+#user-tools form button:hover{color:var(--pqr-primary)!important}
 
 #nav-sidebar{
     background:#0b1220;
@@ -38,7 +38,49 @@ body{font-size:14px}
     width:240px;
     box-sizing:border-box;
 }
-#nav-sidebar .module{background:transparent;border:0;box-shadow:none;margin-bottom:14px}
+#nav-sidebar .module{
+    background:transparent!important;
+    border:0!important;
+    box-shadow:none!important;
+    margin-bottom:10px;
+}
+#nav-sidebar .module table{
+    width:100%;
+    table-layout:auto;
+    background:transparent!important;
+    border:0!important;
+}
+#nav-sidebar .module tbody,
+#nav-sidebar .module tr,
+#nav-sidebar .module th,
+#nav-sidebar .module td{
+    background:transparent!important;
+    border:0!important;
+}
+#nav-sidebar .module th{
+    width:auto!important;
+    padding:0!important;
+    text-align:left;
+    white-space:normal;
+}
+#nav-sidebar .module td{
+    width:1%!important;
+    padding:0!important;
+    text-align:right;
+    white-space:nowrap;
+}
+#nav-sidebar .module th a{
+    width:100%;
+    min-width:0;
+}
+#nav-sidebar .module td a.addlink{
+    display:inline-flex;
+    width:auto;
+    min-width:auto;
+    white-space:nowrap;
+    padding:7px 9px!important;
+    border-radius:7px!important;
+}
 #nav-sidebar .app-auth,
 #nav-sidebar .app-pointage{margin-bottom:16px}
 #nav-sidebar caption,#nav-sidebar th{
