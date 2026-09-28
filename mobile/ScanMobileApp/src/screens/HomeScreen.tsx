@@ -6,7 +6,7 @@ import { useAppContext } from '../context/AppContext'
 import { colors, radius } from '../theme/colors'
 
 const HomeScreen = ({ navigation }: any) => {
-  const { apiStatus, selectedSite } = useAppContext()
+  const { apiStatus, selectedSite, currentUser } = useAppContext()
   const [currentTime, setCurrentTime] = useState(new Date())
 
   useEffect(() => {
@@ -62,10 +62,12 @@ const HomeScreen = ({ navigation }: any) => {
           <Text style={styles.actionText}>Scanner</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.actionButton, styles.historyButton]} onPress={handleHistoryPress}>
-          <Ionicons name="reader-outline" size={30} color={colors.ink} />
-          <Text style={[styles.actionText, { color: colors.ink }]}>Historique</Text>
-        </TouchableOpacity>
+        {currentUser?.is_staff && (
+          <TouchableOpacity style={[styles.actionButton, styles.historyButton]} onPress={handleHistoryPress}>
+            <Ionicons name="reader-outline" size={30} color={colors.ink} />
+            <Text style={[styles.actionText, { color: colors.ink }]}>Historique</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
     </View>
