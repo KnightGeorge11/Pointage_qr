@@ -114,42 +114,42 @@ a:hover{color:#c7d2fe}
 }
 
 /* ── Main surface ─────────────────────────────────────────── */
-#content{
+body:not(.model-pointage) #content{
     max-width:none!important;
     padding:28px 32px 40px!important;
     background:#020617!important;
 }
-.breadcrumbs{
+body:not(.model-pointage) .breadcrumbs{
     background:transparent!important;color:#64748b!important;
     padding:0 0 18px!important;font-size:12px;
 }
 .breadcrumbs a{color:#94a3b8!important}
 .breadcrumbs a:hover{color:#a5b4fc!important}
-h1{
+body:not(.model-pointage) h1{
     font-size:25px;line-height:1.2;color:#f8fafc!important;
     font-weight:700;letter-spacing:-.025em;margin:0 0 22px;
 }
 
 /* ── Cards / modules ─────────────────────────────────────── */
-.module,.card{
+body:not(.model-pointage) .module,body:not(.model-pointage) .card{
     background:rgba(15,23,42,.88)!important;
     border:1px solid var(--pqr-border)!important;
     border-radius:14px!important;
     box-shadow:var(--pqr-shadow)!important;
     overflow:hidden;margin-bottom:20px;
 }
-.module caption,.module h2,.card-header{
+body:not(.model-pointage) .module caption,body:not(.model-pointage) .module h2,body:not(.model-pointage) .card-header{
     background:#111827!important;color:#f8fafc!important;
     border-bottom:1px solid var(--pqr-border)!important;
     font-size:14px;font-weight:700;padding:14px 18px;
 }
-.card-body{padding:18px;background:transparent}
-.card-footer{
+body:not(.model-pointage) .card-body{padding:18px;background:transparent}
+body:not(.model-pointage) .card-footer{
     background:#0b1220!important;border-top:1px solid var(--pqr-border)!important;
     padding:13px 18px;
 }
-.module table{width:100%}
-#content-main>p{color:var(--pqr-muted)}
+body:not(.model-pointage) .module table{width:100%}
+body:not(.model-pointage) #content-main>p{color:var(--pqr-muted)}
 
 /* ── CRUD changelists / tables ──────────────────────────────
    Intentionally scoped away from model-pointage: the Pointage history
