@@ -1,5 +1,5 @@
 {% extends "admin/base.html" %}
-{% load static i18n %}
+{% load static %}
 
 {% block title %}{{ title }} | Pointage QR{% endblock %}
 
@@ -27,14 +27,6 @@
 {% block extrahead %}
     {{ block.super }}
     <script src="{% static 'js/native_admin.js' %}" defer></script>
-{% endblock %}
-
-{% block userlinks %}
-    <a href="{% url 'admin:password_change' %}">{% translate 'Change password' %}</a>
-    <form method="post" action="{% url 'admin:logout' %}" class="pqr-logout-form">
-        {% csrf_token %}
-        <button type="submit">{% translate 'Log out' %}</button>
-    </form>
 {% endblock %}
 
 {% block nav-global %}{% endblock %}
