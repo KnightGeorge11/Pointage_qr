@@ -2,23 +2,50 @@
 {% load i18n %}
 
 {% block content %}
-<h1>Corriger le pointage</h1>
-<p>
-    Anomalie #{{ anomalie.pk }} — {{ anomalie.get_type_display }}
-    {% if anomalie.employe %}— {{ anomalie.employe.prenom }} {{ anomalie.employe.nom }} ({{ anomalie.employe.matricule }}){% endif %}
-</p>
-<p style="color:#666;">{{ anomalie.message }}</p>
-
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <p>
-        <label for="id_commentaire">Commentaire (obligatoire)</label><br>
-        <textarea name="commentaire" id="id_commentaire" rows="3" cols="60" required></textarea>
+<div class="pqr-workflow-page">
+  <div class="pqr-workflow-card">
+    <div class="pqr-eyebrow">Traitement d'anomalie #{{ anomalie.pk }}</div>
+    <h1>Corriger le pointage</h1>
+    <p class="pqr-workflow-summary">
+      {{ anomalie.get_type_display }}
+      {% if anomalie.employe %} — {{ anomalie.employe.prenom }} {{ anomalie.employe.nom }} ({{ anomalie.employe.matricule }}){% endif %}
     </p>
-    <div class="submit-row">
-        <input type="submit" value="Corriger le pointage" class="default">
-        <a href="/admin/pointage/anomaliepointage/{{ anomalie.pk }}/change/" class="button cancel-link">Annuler</a>
+    <div class="pqr-workflow-message">{{ anomalie.message }}</div>
+  </div>
+
+  <form method="post" class="pqr-workflow-form">
+    {% csrf_token %}
+    <div class="pqr-form-section">
+      <div class="pqr-form-section-title">Correction</div>
+      {{ form.as_p }}
+      <div class="pqr-comment">
+        <label for="id_commentaire">Commentaire (obligatoire)</label>
+        <textarea name="commentaire" id="id_commentaire" rows="4" required></textarea>
+      </div>
     </div>
-</form>
+    <div class="submit-row pqr-workflow-actions">
+      <input type="submit" value="Corriger le pointage" class="default">
+      <a href="{% url 'admin:pointage_anomaliepointage_change' anomalie.pk %}" class="button cancel-link">Annuler</a>
+    </div>
+  </form>
+</div>
+
+<style>
+.pqr-workflow-page{max-width:900px;margin:0 auto}
+.pqr-workflow-card,.pqr-form-section{background:#0f172a;border:1px solid #1e293b;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.18)}
+.pqr-workflow-card{padding:24px;margin-bottom:18px}
+.pqr-eyebrow{color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px}
+.pqr-workflow-card h1{margin:0 0 7px!important;color:#f8fafc!important;font-size:24px!important}
+.pqr-workflow-summary{margin:0 0 14px;color:#cbd5e1;font-weight:600}
+.pqr-workflow-message{padding:12px 14px;background:#111827;border:1px solid #334155;border-radius:8px;color:#cbd5e1;line-height:1.55}
+.pqr-form-section{padding:20px}
+.pqr-form-section-title{font-size:14px;font-weight:700;color:#f8fafc;padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid #1e293b}
+.pqr-form-section p{color:#cbd5e1}
+.pqr-form-section label,.pqr-comment label{color:#cbd5e1;font-weight:600}
+.pqr-form-section input,.pqr-form-section select,.pqr-form-section textarea,.pqr-comment textarea{background:#020617!important;color:#f8fafc!important;border:1px solid #334155!important;border-radius:7px;padding:9px 11px;box-sizing:border-box}
+.pqr-form-section input,.pqr-form-section select{max-width:720px}
+.pqr-comment{margin-top:16px}.pqr-comment textarea{display:block;width:min(720px,100%);margin-top:7px}
+.pqr-workflow-actions{margin-top:18px}
+@media(max-width:767px){.pqr-workflow-card,.pqr-form-section{padding:16px}.pqr-workflow-actions{display:flex;flex-direction:column;gap:8px}.pqr-workflow-actions>*{width:100%;box-sizing:border-box;text-align:center}}
+</style>
 {% endblock %}
