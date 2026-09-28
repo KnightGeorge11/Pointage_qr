@@ -77,15 +77,37 @@ class Site(models.Model):
 
     def clean(self):
         super().clean()
+        errors = {}
+
+        # Un horaire normal ne peut pas avoir sa fermeture avant (ou égale à)
+        # son ouverture. Sans cette validation, le CRUD admin pouvait
+        # enregistrer un site incohérent que le moteur de pointage rejetait
+        # ensuite seulement au moment du scan.
+        if self.heure_fermeture_matin <= self.heure_ouverture_matin:
+            errors['heure_fermeture_matin'] = (
+                "La fermeture du matin doit être après l'ouverture du matin."
+            )
+        if self.heure_fermeture_apres_midi <= self.heure_ouverture_apres_midi:
+            errors['heure_fermeture_apres_midi'] = (
+                "La fermeture de l'après-midi doit être après son ouverture."
+            )
+
         if (self.heure_debut_garde is None) != (self.heure_fin_garde is None):
-            raise ValidationError({
-                'heure_debut_garde': "Renseignez les deux horaires de garde ou laissez les deux vides pour utiliser la configuration globale.",
-                'heure_fin_garde': "Renseignez les deux horaires de garde ou laissez les deux vides pour utiliser la configuration globale.",
+            errors.update({
+                'heure_debut_garde': (
+                    "Renseignez les deux horaires de garde ou laissez les deux "
+                    "vides pour utiliser la configuration globale."
+                ),
+                'heure_fin_garde': (
+                    "Renseignez les deux horaires de garde ou laissez les deux "
+                    "vides pour utiliser la configuration globale."
+                ),
             })
         if self.heure_debut_garde is not None and self.heure_fin_garde == self.heure_debut_garde:
-            raise ValidationError({
-                'heure_fin_garde': "La fin de garde doit être différente du début."
-            })
+            errors['heure_fin_garde'] = "La fin de garde doit être différente du début."
+
+        if errors:
+            raise ValidationError(errors)
 
     class Meta:
         ordering        = ['nom']
