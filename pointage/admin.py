@@ -449,7 +449,8 @@ class SiteAdmin(admin.ModelAdmin):
 
 @admin.register(Employe)
 class EmployeAdmin(admin.ModelAdmin):
-    list_display = ('matricule', 'nom', 'prenom', 'get_poste', 'email', 'telephone', 'actif', 'heures_supplementaires_autorisees', 'qr_code_preview', 'fiche_admin', 'date_creation')
+    list_display = ('matricule_detail', 'nom', 'prenom', 'get_poste', 'email', 'telephone', 'actif', 'heures_supplementaires_autorisees', 'qr_code_preview', 'fiche_admin', 'date_creation')
+    list_display_links = ('matricule_detail',)
     list_filter = ('poste', 'actif', 'heures_supplementaires_autorisees', 'date_creation')
     list_editable = ('heures_supplementaires_autorisees',)
     search_fields = ('nom', 'prenom', 'matricule', 'poste__nom', 'email', 'telephone')
@@ -473,6 +474,17 @@ class EmployeAdmin(admin.ModelAdmin):
         # mais rend le template dans le shell Jazzmin/Admin.
         request._employe_detail_template = 'admin/pointage/employe_detail.html'
         return employe_detail_view(request, object_id)
+
+    def matricule_detail(self, obj):
+        if not obj or not obj.pk:
+            return obj.matricule if obj else '—'
+        url = reverse('admin:pointage_employe_detail', args=[obj.pk])
+        return format_html(
+            '<a href="{}" style="font-weight:600;text-decoration:none;">{}</a>',
+            url, obj.matricule,
+        )
+    matricule_detail.short_description = 'Matricule'
+    matricule_detail.admin_order_field = 'matricule'
 
     def fiche_admin(self, obj):
         if not obj or not obj.pk:
