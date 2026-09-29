@@ -1,0 +1,73 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Correction du pointage #{{ anomalie.pk }} | {{ site_title|default:"Pointage QR" }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+.pqr-correction{max-width:980px;margin:20px auto;color:#f8fafc}
+.pqr-correction-card{background:#0f172a;border:1px solid #1e293b;border-radius:14px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.22)}
+.pqr-correction-head{padding:22px 26px;background:#111827;border-bottom:1px solid #1e293b}
+.pqr-correction-head h1{margin:0;color:#f8fafc;font-size:22px}.pqr-correction-head p{margin:6px 0 0;color:#94a3b8;font-size:13px}
+.pqr-correction-body{padding:26px}
+.pqr-info{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:22px}
+.pqr-info-box{background:#111827;border:1px solid #1e293b;border-radius:10px;padding:14px}.pqr-label{display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.05em}.pqr-value{display:block;margin-top:5px;color:#f8fafc;font-weight:600}
+.pqr-errors{background:#450a0a;border:1px solid #7f1d1d;color:#fecaca;border-radius:10px;padding:14px;margin-bottom:18px}
+.pqr-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.pqr-field{min-width:0}.pqr-field.full{grid-column:1/-1}.pqr-field label{display:block;color:#cbd5e1;font-weight:600;font-size:13px;margin-bottom:7px}
+.pqr-field input,.pqr-field select,.pqr-field textarea{width:100%;box-sizing:border-box;background:#020617;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:9px 11px}
+.pqr-field textarea{min-height:88px;resize:vertical}.pqr-field input:focus,.pqr-field select:focus,.pqr-field textarea:focus{outline:0;border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.16)}
+.pqr-field ul.errorlist{color:#fca5a5;margin:5px 0;padding-left:18px;font-size:12px}.pqr-help{color:#64748b;font-size:11px;margin-top:5px}
+.pqr-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;padding-top:20px;border-top:1px solid #1e293b}
+.pqr-btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 16px;border-radius:8px;text-decoration:none;border:0;font-weight:700;cursor:pointer}
+.pqr-btn-primary{background:#6366f1;color:#fff}.pqr-btn-primary:hover{background:#4f46e5;color:#fff}.pqr-btn-secondary{background:#1e293b;color:#e2e8f0}.pqr-btn-secondary:hover{background:#334155;color:#fff}
+@media(max-width:700px){.pqr-info,.pqr-fields{grid-template-columns:1fr}.pqr-field.full{grid-column:auto}.pqr-correction-body{padding:18px}.pqr-actions{flex-direction:column}.pqr-btn{width:100%}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+<div class="pqr-correction">
+  <div class="pqr-correction-card">
+    <div class="pqr-correction-head">
+      <h1>📝 Corriger le pointage</h1>
+      <p>Anomalie #{{ anomalie.pk }} · correction RH tracée dans l'historique de traitement</p>
+    </div>
+    <div class="pqr-correction-body">
+      <div class="pqr-info">
+        <div class="pqr-info-box"><span class="pqr-label">Employé</span><span class="pqr-value">{{ anomalie.employe|default:"—" }}</span></div>
+        <div class="pqr-info-box"><span class="pqr-label">Date</span><span class="pqr-value">{{ anomalie.date_pointage|date:"d/m/Y"|default:"—" }}</span></div>
+        <div class="pqr-info-box"><span class="pqr-label">Anomalie</span><span class="pqr-value">{{ anomalie.get_type_display }}</span></div>
+      </div>
+
+      {% if form.non_field_errors %}
+      <div class="pqr-errors">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="pqr-fields">
+          {% for field in form %}
+            <div class="pqr-field{% if field.name == 'notes' %} full{% endif %}">
+              {{ field.errors }}
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}<div class="pqr-help">{{ field.help_text }}</div>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+        <div style="margin-top:18px">
+          <label for="id_commentaire" style="display:block;color:#cbd5e1;font-weight:600;font-size:13px;margin-bottom:7px">Commentaire RH</label>
+          <textarea id="id_commentaire" name="commentaire" required minlength="3" maxlength="2000" placeholder="Expliquez la correction effectuée…" style="width:100%;box-sizing:border-box;background:#020617;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:9px 11px;min-height:90px;resize:vertical"></textarea>
+        </div>
+        <div class="pqr-actions">
+          <a class="pqr-btn pqr-btn-secondary" href="{% url 'admin:pointage_anomaliepointage_change' anomalie.pk %}">← Annuler</a>
+          <button class="pqr-btn pqr-btn-primary" type="submit">Enregistrer la correction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}
