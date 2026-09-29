@@ -494,6 +494,16 @@ def employe_detail_view(request, pk):
         },
     }
     template_name = getattr(request, '_employe_detail_template', 'pointage/employe_detail.html')
+
+    # Si la fiche est ouverte depuis Jazzmin, fusionner le contexte métier
+    # avec celui de l'AdminSite. C'est ce qui permet au template custom de
+    # conserver toute la navigation/sidebar Jazzmin au lieu de n'afficher
+    # que le lien Dashboard.
+    admin_context = getattr(request, '_employe_detail_admin_context', None)
+    if admin_context:
+        admin_context.update(context)
+        context = admin_context
+
     return render(request, template_name, context)
 
 @login_required
