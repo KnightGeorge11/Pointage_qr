@@ -67,7 +67,7 @@ class SiteForm(forms.ModelForm):
 
 
 class ConfigurationPointageForm(forms.ModelForm):
-    """Formulaire Django Admin clair et homogène avec les autres formulaires admin."""
+    """Formulaire Jazzmin clair et homogène avec les autres formulaires admin."""
     class Meta:
         model = ConfigurationPointage
         fields = [
