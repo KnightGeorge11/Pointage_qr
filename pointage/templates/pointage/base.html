@@ -187,13 +187,10 @@ body{min-height:100vh}
         {% if request.user.is_superuser or request.user.role == 'admin' %}
         <li><a href="{% url 'alertes_rh' %}" class="sb-link {% if request.resolver_match.url_name == 'alertes_rh' or request.resolver_match.url_name == 'alerte_detail' %}is-active{% endif %}"><i class="fas fa-triangle-exclamation"></i><span>Anomalies</span></a></li>
         {% endif %}
-        {% if request.user.is_superuser or request.user.role == 'admin' %}
-        <li><div class="sb-section-label">Administration RH</div></li>
+        <li><div class="sb-section-label">Gestion</div></li>
         <li><a href="{% url 'employes' %}" class="sb-link {% if request.resolver_match.url_name == 'employes' %}is-active{% endif %}"><i class="fas fa-users"></i><span>Employés</span></a></li>
         <li><a href="{% url 'postes' %}" class="sb-link {% if request.resolver_match.url_name == 'postes' %}is-active{% endif %}"><i class="fas fa-briefcase"></i><span>Postes</span></a></li>
         <li><a href="{% url 'sites' %}" class="sb-link {% if request.resolver_match.url_name == 'sites' %}is-active{% endif %}"><i class="fas fa-building"></i><span>Sites</span></a></li>
-        <li><a href="{% url 'alertes_rh' %}" class="sb-link {% if request.resolver_match.url_name == 'alertes_rh' %}is-active{% endif %}"><i class="fas fa-triangle-exclamation"></i><span>Anomalies</span></a></li>
-        {% endif %}
     </ul>
     <div class="sb-logout"><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="sb-link"><i class="fas fa-right-from-bracket"></i><span>Déconnexion</span></button></form></div>
     <div class="sb-footer"><div class="sb-user"><div class="sb-avatar">{{ request.user.username|slice:":2"|upper }}</div><div><div class="sb-user-name">{{ request.user.get_full_name|default:request.user.username }}</div><div class="sb-user-role">{% if request.user.is_superuser %}Administrateur{% elif request.user.is_staff %}Ressources humaines{% else %}Opérateur{% endif %}</div></div></div></div>
