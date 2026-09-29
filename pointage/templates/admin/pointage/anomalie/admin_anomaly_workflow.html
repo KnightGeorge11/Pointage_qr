@@ -6,13 +6,13 @@
 {% block extrastyle %}
 {{ block.super }}
 <style>
-.workflow-card{max-width:1040px;margin:20px auto;background:#0f172a;color:#f8fafc;border:1px solid #1e293b;border-radius:14px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.22)}
-.workflow-head{padding:22px 26px;border-bottom:1px solid #1e293b;display:flex;justify-content:space-between;gap:16px;align-items:center;background:#111827}
-.workflow-title{margin:0;font-size:21px;color:#f8fafc}.workflow-sub{margin:5px 0 0;color:#94a3b8;font-size:13px}
-.workflow-body{padding:26px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.box{padding:15px;border:1px solid #1e293b;border-radius:10px;background:#111827}.label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8}.value{margin-top:6px;font-weight:600;color:#f8fafc}
-.status{display:inline-block;padding:6px 11px;border-radius:999px;font-size:12px;font-weight:700}.open{background:#450a0a;color:#fca5a5}.treated{background:#451a03;color:#fcd34d}.closed{background:#052e16;color:#86efac}
-.workflow-actions{margin-top:24px;padding-top:22px;border-top:1px solid #1e293b}.action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.action-card{border:1px solid #1e293b;border-radius:10px;padding:17px;background:#111827}.action-card h3{margin:0 0 7px;font-size:14px;color:#f8fafc}.action-card p{margin:0 0 12px;color:#94a3b8;font-size:12px;line-height:1.5}.action-card textarea{width:100%;min-height:92px;box-sizing:border-box;margin-bottom:10px;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:7px;padding:9px;resize:vertical}.action-card textarea:focus{outline:2px solid rgba(99,102,241,.35);border-color:#6366f1}.btn{display:inline-block;border:0;border-radius:8px;padding:10px 14px;color:#fff;text-decoration:none;cursor:pointer;font-weight:600;font-size:12px}.btn-blue{background:#6366f1}.btn-green{background:#16a34a}.btn-red{background:#dc2626}.btn-gray{background:#1e293b;color:#e2e8f0}.locked{padding:15px;border-radius:8px;background:#052e16;border:1px solid #166534;color:#86efac;font-weight:600}
-.decision{margin-top:14px;padding:17px;border-radius:9px;background:#172554;border:1px solid #1e3a8a}.decision strong{display:block;margin-bottom:8px;color:#f8fafc}.decision-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.decision-item{padding:11px;background:#0f172a;border:1px solid #1e293b;border-radius:7px}.decision-label{font-size:11px;color:#94a3b8;text-transform:uppercase}.decision-value{font-weight:600;margin-top:3px;color:#f8fafc}
+.workflow-card{max-width:1040px;margin:20px auto;background:#fff;color:#212529;border:1px solid rgba(128,128,128,.22);border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.workflow-head{padding:22px 26px;border-bottom:1px solid rgba(128,128,128,.2);display:flex;justify-content:space-between;gap:16px;align-items:center;background:#fafbfc}
+.workflow-title{margin:0;font-size:21px;color:inherit}.workflow-sub{margin:5px 0 0;color:#6c757d;font-size:13px}
+.workflow-body{padding:26px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.box{padding:15px;border:1px solid #e1e5ea;border-radius:9px;background:#f8f9fa}.label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6c757d}.value{margin-top:6px;font-weight:600;color:inherit}
+.status{display:inline-block;padding:6px 11px;border-radius:999px;font-size:12px;font-weight:700}.open{background:#fff1f2;color:#b4232f}.treated{background:#fff8e1;color:#8a6200}.closed{background:#eaf8ee;color:#218838}
+.workflow-actions{margin-top:24px;padding-top:22px;border-top:1px solid rgba(128,128,128,.2)}.action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.action-card{border:1px solid rgba(128,128,128,.22);border-radius:10px;padding:17px;background:#fafbfc}.action-card h3{margin:0 0 7px;font-size:14px;color:inherit}.action-card p{margin:0 0 12px;color:#6c757d;font-size:12px;line-height:1.5}.action-card textarea{width:100%;min-height:92px;box-sizing:border-box;margin-bottom:10px;background:#fff;color:#212529;border:1px solid rgba(128,128,128,.25);border-radius:7px;padding:9px;resize:vertical}.action-card textarea:focus{outline:2px solid rgba(79,142,247,.35);border-color:#4f8ef7}.btn{display:inline-block;border:0;border-radius:7px;padding:10px 14px;color:#fff;text-decoration:none;cursor:pointer;font-weight:600;font-size:12px}.btn-blue{background:#4f8ef7}.btn-green{background:#28a745}.btn-red{background:#dc3545}.btn-gray{background:#f4f5f7;color:#343a40}.locked{padding:15px;border-radius:8px;background:#f0fff4;border:1px solid #bfe7ca;color:#218838;font-weight:600}
+.decision{margin-top:14px;padding:17px;border-radius:9px;background:#f1f6ff;border:1px solid #cfe0ff}.decision strong{display:block;margin-bottom:8px}.decision-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.decision-item{padding:11px;background:#f8f9fa;border:1px solid #e1e5ea;border-radius:7px}.decision-label{font-size:11px;color:#6c757d;text-transform:uppercase}.decision-value{font-weight:600;margin-top:3px;color:inherit}
 @media(max-width:800px){.grid,.action-grid,.decision-grid{grid-template-columns:1fr}}@media(max-width:600px){.workflow-body{padding:18px}.workflow-head{padding:18px}.workflow-title{font-size:18px}}
 </style>
 {% endblock %}
@@ -106,7 +106,7 @@
         </div>
       {% endif %}
 
-      <div style="margin-top:20px"><a class="btn btn-gray" href="{% url 'admin:pointage_anomaliepointage_change' anomalie.pk %}">← Retour à la fiche administration</a></div>
+      <div style="margin-top:20px"><a class="btn btn-gray" href="{% url 'admin:pointage_anomaliepointage_change' anomalie.pk %}">← Retour à la fiche Jazzmin</a></div>
     </div>
   </div>
 </div>
