@@ -23,7 +23,7 @@ def _is_rh_request(request):
 
 
 def dashboard_context(request):
-    """Fournit les données statistiques pour le dashboard Jazzmin."""
+    """Fournit les données statistiques pour le dashboard Django Admin."""
     if not _is_rh_request(request):
         return {}
 
@@ -271,7 +271,7 @@ def dashboard_context(request):
 
 
 def admin_badge_counts(request):
-    """Fournit les compteurs pour les badges de la sidebar Jazzmin."""
+    """Fournit les compteurs pour les badges de la sidebar Django Admin."""
     if not _is_rh_request(request):
         return {}
 
