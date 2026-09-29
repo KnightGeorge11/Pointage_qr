@@ -17,6 +17,21 @@ document.addEventListener('DOMContentLoaded',function(){
   };
   var nav=document.getElementById('nav-sidebar');
   if(nav){
+    // Native Django Admin applies a negative sidebar margin by default. Keep our
+    // custom desktop sidebar visible even if the native CSS is loaded later.
+    if(window.matchMedia('(min-width: 768px)').matches){
+      nav.style.setProperty('position','fixed','important');
+      nav.style.setProperty('left','0','important');
+      nav.style.setProperty('margin-left','0','important');
+      nav.style.setProperty('margin-right','0','important');
+      nav.style.setProperty('visibility','visible','important');
+      nav.style.setProperty('display','block','important');
+      nav.style.setProperty('opacity','1','important');
+      nav.style.setProperty('width','260px','important');
+      nav.style.setProperty('min-width','260px','important');
+      nav.style.setProperty('max-width','260px','important');
+      nav.style.setProperty('z-index','20','important');
+    }
     nav.querySelectorAll('a').forEach(function(a){
       var href=a.getAttribute('href')||'';
       var key=Object.keys(icons).find(function(k){return href.indexOf(k)===0});
