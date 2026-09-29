@@ -3,6 +3,7 @@
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
 from django.contrib.auth.models import Group
+from rest_framework.authtoken.models import Token
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 from django.urls import path, reverse
@@ -31,6 +32,14 @@ from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+
+
+# Pointage QR — Token hidden from native admin navigation.
+# The DRF tokens remain fully functional for API/mobile/desktop authentication.
+try:
+    admin.site.unregister(Token)
+except admin.sites.NotRegistered:
+    pass
 
 
 # ============================================================
