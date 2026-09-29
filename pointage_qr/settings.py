@@ -24,6 +24,7 @@ ALLOWED_HOSTS = config(
 )
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -59,33 +60,17 @@ CORS_ALLOWED_ORIGINS = config(
 )
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-# Sécurité HTTP/HTTPS.
-#
-# Le déploiement LAN fourni par le projet utilise actuellement HTTP
-# (ex. http://192.168.3.101:8000) pour le Web, le mobile et le desktop.
-# Ne pas forcer HTTPS par défaut : cela rendrait les cookies de session et
-# CSRF inutilisables sur HTTP et casserait l'authentification Web.
-#
-# Pour un déploiement HTTPS, définir explicitement :
-#   SECURE_SSL_REDIRECT=True
-# Les cookies Secure suivent alors le même choix.
+# Sécurité HTTP en production : activée uniquement quand DEBUG=False.
 if not DEBUG:
-    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
-    SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
-    CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
+    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_REFERRER_POLICY = 'same-origin'
-    # HSTS ne doit être envoyé que si HTTPS est réellement activé :
-    # sinon un navigateur qui visite le serveur HTTP LAN pourrait mémoriser
-    # une politique HTTPS et casser les connexions suivantes.
-    SECURE_HSTS_SECONDS = config(
-        'SECURE_HSTS_SECONDS',
-        default=31536000 if SECURE_SSL_REDIRECT else 0,
-        cast=int,
-    )
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
-    SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
+    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000, cast=int)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 CORS_ALLOW_HEADERS = [
     'accept', 'accept-encoding', 'authorization', 'content-type',
@@ -176,8 +161,124 @@ LOGOUT_REDIRECT_URL = '/login/'
 
 
 # settings.py
+
 # ============================================================
-# ADMIN DJANGO NATIF
+# CONFIGURATION JAZZMIN — Version Premium avec Navigation + Badges
 # ============================================================
-# L'interface d'administration utilise les templates Django natifs
-# et le thème personnalisé de static/admin/css/native_admin.css.
+JAZZMIN_SETTINGS = {
+    "custom_js": [
+        "admin/js/jazzmin-badges.js",
+        "admin/js/jazzmin-back-buttons.js",
+    ],
+    "custom_css": "admin/css/jazzmin-back-buttons.css",
+    # ── Identité ──
+    "site_title": "Pointage Admin",
+    "site_header": "Pointage QR",
+    "site_brand": "Pointage QR",
+    "welcome_sign": "Bienvenue dans l'administration",
+    "copyright": "Pointage QR © 2026",
+    
+    # ── Icônes ──
+    "icons": {
+        "auth": "fas fa-lock",
+        "auth.user": "fas fa-user",
+        "auth.Group": "fas fa-users",
+        "pointage.CustomUser": "fas fa-user-gear",
+        "pointage.Employe": "fas fa-users",
+        "pointage.Pointage": "fas fa-clock-rotate-left",
+        "pointage.Site": "fas fa-building",
+        "pointage.Scan": "fas fa-qrcode",
+        "pointage.Poste": "fas fa-briefcase",
+        "pointage.JourFerie": "fas fa-calendar-days",
+        "pointage.ConfigurationPointage": "fas fa-sliders",
+        "pointage.AnomaliePointage": "fas fa-triangle-exclamation",
+        "pointage.PointageAudit": "fas fa-shield-halved",
+        "pointage.DemandeModification": "fas fa-pen-to-square",
+    },
+    
+    # ── Liens du menu supérieur ──
+    "topmenu_links": [
+        {"name": "App Web", "url": "/", "new_window": False},
+    ],
+    
+    "usermenu_links": [
+        {"name": "App Web", "url": "/", "icon": "fas fa-home"},
+    ],
+    
+    # ── Organisation de la sidebar ──
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    
+    # ── Cacher les modèles inutiles ──
+    "hide_models": [
+        "authtoken.token",
+        "authtoken.tokenproxy",
+    ],
+    
+    "hide_apps": [],
+    
+    "order_with_respect_to": [
+        "auth",
+        "pointage",
+    ],
+    
+    "default_icon_parents": "fas fa-folder",
+    "default_icon_children": "fas fa-circle",
+    
+    "search_model": "pointage.Employe",
+    "user_avatar": None,
+    
+    # ── Dashboard personnalisé ──
+    "dashboard": "admin/index.html",
+    
+}
+
+# ============================================================
+# JAZZMIN UI TWEAKS — Version Premium
+# ============================================================
+JAZZMIN_UI_TWEAKS = {
+    # ── Tailles ──
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    
+    # ── Couleurs ──
+    "brand_colour": "navbar-dark",
+    "accent": "accent-primary",
+    
+    # ── Navbar ──
+    "navbar": "navbar-white navbar-light",
+    "no_navbar_border": False,
+    "navbar_fixed": True,
+    
+    # ── Layout ──
+    "layout_boxed": False,
+    "footer_fixed": False,
+    
+    # ── Sidebar ──
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-primary",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": True,
+    
+    # ── Thème ──
+    "theme": "flatly",
+    # On force le thème clair pour éviter que le mode sombre du navigateur
+    # transforme le dashboard personnalisé (conçu en palette claire).
+    "default_theme_mode": "light",
+    
+    # ── Boutons ──
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-outline-secondary",
+        "info": "btn-outline-info",
+        "warning": "btn-outline-warning",
+        "danger": "btn-outline-danger",
+        "success": "btn-success",
+    },
+}
