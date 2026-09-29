@@ -1,5 +1,5 @@
 {% extends "admin/change_list.html" %}
-{% load static i18n admin_list pointage_filters %}
+{% load static i18n admin_list jazzmin pointage_filters %}
 
 {% block extrahead %}
     {{ block.super }}
@@ -10,7 +10,7 @@
            Design tokens repris du design system utilisateur
            (pointage/templates/pointage/base.html), préfixés
            pqr- pour ne jamais entrer en collision avec le CSS
-           de Django Admin / AdminLTE.
+           de Jazzmin / AdminLTE.
            ===================================================== */
         .pqr-view {
             --pqr-bg-surface:   #F8FAFC;
@@ -111,7 +111,7 @@
         }
 
         /* =====================================================
-           Barre de recherche / filtres native Django Admin
+           Barre de recherche / filtres native Jazzmin
            (#change-list-filters, rendue par le bloc "search"
            ci-dessous) — CSS uniquement, structure HTML intacte.
            Habille les <select> bruts avec les tokens pqr- pour
@@ -383,7 +383,7 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- BARRE DE RECHERCHE / FILTRES NATIVE DJANGO ADMIN — TOUJOURS -->
+    <!-- BARRE DE RECHERCHE / FILTRES NATIVE JAZZMIN — TOUJOURS -->
     <!-- VISIBLE ET FONCTIONNELLE (dates, employé, site, période, -->
     <!-- recherche, bouton "Ajouter pointage"). Ne JAMAIS envelopper -->
     <!-- ces deux blocs dans un conteneur masqué : c'était le bug -->
@@ -581,7 +581,7 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- TABLEAU PRINCIPAL (Django Admin) — actions groupées, tri, édition -->
+    <!-- TABLEAU PRINCIPAL (Jazzmin) — actions groupées, tri, édition -->
     <!-- rapide : toujours disponible, masqué par défaut. Seuls le   -->
     <!-- tableau et sa pagination sont dans #pqr-table-view — la     -->
     <!-- recherche/les filtres restent affichés en permanence.       -->
