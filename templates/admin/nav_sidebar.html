@@ -69,11 +69,6 @@
       <i class="fas fa-shield-halved"></i><span>Audit</span>
     </a>
     {% endif %}
-    {% if perms.auth.view_group %}
-    <a href="{% url 'admin:auth_group_changelist' %}" class="pqr-admin-link {% if '/admin/auth/group/' in request.path %}is-active{% endif %}">
-      <i class="fas fa-users-gear"></i><span>Groupes</span>
-    </a>
-    {% endif %}
   </nav>
 
   <div class="pqr-admin-footer">
