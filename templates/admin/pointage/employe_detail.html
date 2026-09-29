@@ -12,6 +12,11 @@
 </style>
 {% endblock %}
 
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
 {% block title %}Fiche employé — {{ employe.get_nom_complet }}{% endblock %}
 
 {% block content %}
