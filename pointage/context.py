@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 # Valeur historique conservée comme constante de compatibilité pour les tests
 # et les imports externes. En production, la valeur est lue dans
-# ConfigurationPointage depuis Django Admin.
+# ConfigurationPointage depuis Jazzmin.
 DEFAULT_TOLERANCE_MINUTES = 30
 """Valeur de secours historique ; la configuration RH est prioritaire."""
 
