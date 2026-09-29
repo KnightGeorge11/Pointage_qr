@@ -372,6 +372,7 @@
             border-color:var(--pqr-blue-500);
         }
         .pqr-pointage-detail-link.night-detail { margin-left:auto; margin-top:0; }
+        .pqr-footer-detail-actions { gap:6px; flex-wrap:wrap; justify-content:flex-end; }
 </style>
 {% endblock %}
 
@@ -577,10 +578,25 @@
                         </span>
                         {% endif %}
                     </div>
-                    <div class="pqr-footer-action">
+                    <div class="pqr-footer-action pqr-footer-detail-actions">
+                        {% if jour.matin %}
+                        <a class="pqr-pointage-detail-link" href="{% url 'admin:pointage_pointage_detail' jour.matin.pk %}">
+                            <i class="fas fa-eye"></i> Détail matin
+                        </a>
+                        {% endif %}
+                        {% if jour.apres_midi %}
+                        <a class="pqr-pointage-detail-link" href="{% url 'admin:pointage_pointage_detail' jour.apres_midi.pk %}">
+                            <i class="fas fa-eye"></i> Détail après-midi
+                        </a>
+                        {% endif %}
+                        {% if jour.nuit %}
+                        <a class="pqr-pointage-detail-link" href="{% url 'admin:pointage_pointage_detail' jour.nuit.pk %}">
+                            <i class="fas fa-eye"></i> Détail garde
+                        </a>
+                        {% endif %}
                         {% if jour.admin_pointage_id %}
                         <a class="pqr-btn-edit" href="{% url 'admin:pointage_pointage_change' jour.admin_pointage_id %}">
-                            <i class="fas fa-pen"></i> Corriger dans l'admin
+                            <i class="fas fa-pen"></i> Modifier
                         </a>
                         {% endif %}
                     </div>
