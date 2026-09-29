@@ -22,6 +22,7 @@ from .admin_security import (
 from .web_notification_routing import notifications_api as web_notifications_api
 from .admin_anomaly_workflow import admin_anomaly_workflow
 from .scanner_anticipation import scanner_web_view, confirmer_sortie_anticipee
+from .permissions import rh_required
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
@@ -32,23 +33,23 @@ urlpatterns = [
     path('', RedirectView.as_view(pattern_name='dashboard', permanent=False), name='root'),
     path('dashboard/', dashboard, name='dashboard'),
     path('index/', index, name='index'),
-    path('employes/', EmployeListView.as_view(), name='employes'),
-    path('employes/nouveau/', employe_create_view, name='employe_create'),
-    path('employes/<int:pk>/', employe_detail_view, name='employe_detail'),
-    path('employes/<int:pk>/update/', employe_update_view, name='employe_update'),
-    path('employes/<int:pk>/delete/', employe_delete_view, name='employe_delete'),
-    path('sites/', SiteListView.as_view(), name='sites'),
-    path('sites/nouveau/', site_create_view, name='site_create'),
-    path('sites/<int:pk>/modifier/', site_update_view, name='site_update'),
-    path('sites/<int:pk>/supprimer/', site_delete_view, name='site_delete'),
+    path('employes/', rh_required(EmployeListView.as_view()), name='employes'),
+    path('employes/nouveau/', rh_required(employe_create_view), name='employe_create'),
+    path('employes/<int:pk>/', rh_required(employe_detail_view), name='employe_detail'),
+    path('employes/<int:pk>/update/', rh_required(employe_update_view), name='employe_update'),
+    path('employes/<int:pk>/delete/', rh_required(employe_delete_view), name='employe_delete'),
+    path('sites/', rh_required(SiteListView.as_view()), name='sites'),
+    path('sites/nouveau/', rh_required(site_create_view), name='site_create'),
+    path('sites/<int:pk>/modifier/', rh_required(site_update_view), name='site_update'),
+    path('sites/<int:pk>/supprimer/', rh_required(site_delete_view), name='site_delete'),
     path('pointages/', PointageListView.as_view(), name='pointages'),
     path('pointages/<int:pk>/', PointageDetailView.as_view(), name='pointage_detail'),
     path('pointages/<int:pk>/supprimer/', PointageDeleteView.as_view(), name='pointage_supprimer'),
     path('pointages/export/resume/', export_resume_excel, name='export_resume_excel'),
-    path('postes/', PosteListView.as_view(), name='postes'),
-    path('postes/nouveau/', poste_create_view, name='poste_create'),
-    path('postes/<int:pk>/modifier/', poste_update_view, name='poste_update'),
-    path('postes/<int:pk>/supprimer/', poste_delete_view, name='poste_delete'),
+    path('postes/', rh_required(PosteListView.as_view()), name='postes'),
+    path('postes/nouveau/', rh_required(poste_create_view), name='poste_create'),
+    path('postes/<int:pk>/modifier/', rh_required(poste_update_view), name='poste_update'),
+    path('postes/<int:pk>/supprimer/', rh_required(poste_delete_view), name='poste_delete'),
     path('scanner/', scanner_web_view, name='scanner'),
     path('scanner/sortie-anticipee/confirmer/', confirmer_sortie_anticipee, name='scanner_confirmer_sortie_anticipee'),
     path('anomalies/', alertes_rh_view, name='alertes_rh'),
