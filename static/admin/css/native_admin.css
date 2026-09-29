@@ -652,3 +652,77 @@ html,body{background:#020617!important;color:#cbd5e1!important}
 #content{background:#020617!important}
 #footer{background:#0f172a!important;color:#64748b!important;border-top:1px solid #1e293b!important}
 #footer a{color:#94a3b8!important}
+
+/* FINAL BLUE ENTERPRISE SHELL — aligned with the User Web sidebar */
+:root{
+ --pqr-bg:#eef5ff;--pqr-surface:#ffffff;--pqr-surface-2:#f5f9fe;--pqr-surface-3:#e5efff;
+ --pqr-border:#d8e5f4;--pqr-border-soft:#e3edf7;--pqr-ink:#173f6d;--pqr-text:#476582;
+ --pqr-muted:#7890aa;--pqr-subtle:#8da4bc;--pqr-primary:#2563eb;--pqr-primary-dark:#1d4ed8;
+ --pqr-success:#16845b;--pqr-warning:#b77900;--pqr-danger:#c7374d;
+}
+html,body{background:#eef5ff!important;color:#476582!important}
+#header{min-height:68px!important;height:68px!important;background:#fff!important;border-bottom:1px solid #d8e5f4!important;box-shadow:0 1px 8px rgba(22,62,117,.05)!important;padding:0 24px!important}
+.pqr-brand{color:#173f6d!important}.pqr-brand-mark{background:#0b4ea2!important;box-shadow:none!important}
+.pqr-brand small{color:#7890aa!important}
+#user-tools{color:#7890aa!important}#user-tools a{color:#476582!important}#user-tools a:hover{color:#2563eb!important}
+#nav-sidebar{
+ top:68px!important;width:260px!important;min-width:260px!important;max-width:260px!important;
+ background:#0b4ea2!important;border-right:1px solid #083f84!important;padding:12px!important;
+ box-shadow:4px 0 18px rgba(11,78,162,.10)!important
+}
+#nav-sidebar .module{background:transparent!important}
+#nav-sidebar caption,#nav-sidebar th{
+ color:rgba(255,255,255,.58)!important;padding:16px 12px 8px!important;
+ font-size:10px!important;letter-spacing:.12em!important;font-weight:700!important
+}
+#nav-sidebar .section{color:rgba(255,255,255,.58)!important}
+#nav-sidebar a{
+ color:rgba(255,255,255,.82)!important;border-radius:8px!important;padding:10px 12px!important;
+ min-height:40px!important;background:transparent!important;font-size:13px!important;font-weight:600!important
+}
+#nav-sidebar a:hover{background:rgba(255,255,255,.12)!important;color:#fff!important}
+#nav-sidebar a.current-model{background:rgba(255,255,255,.16)!important;color:#fff!important;box-shadow:none!important}
+#nav-sidebar .pqr-nav-icon{color:rgba(255,255,255,.78)!important}
+#nav-sidebar a:hover .pqr-nav-icon,#nav-sidebar a.current-model .pqr-nav-icon{color:#f5c542!important}
+#nav-sidebar .pqr-nav-badge{background:#f5c542!important;color:#17365d!important}
+#nav-sidebar .toggle-nav-sidebar{display:none!important}
+body:not(.model-pointage) #content{margin-left:260px!important;max-width:none!important;background:#eef5ff!important;padding:28px 32px 40px!important}
+body:not(.model-pointage) #footer{margin-left:260px!important;background:#fff!important;border-top:1px solid #d8e5f4!important;color:#7890aa!important}
+#main{background:#eef5ff!important;min-height:calc(100vh - 68px)!important}
+body:not(.model-pointage) #breadcrumbs{color:#7890aa!important}
+body:not(.model-pointage) #breadcrumbs a{color:#2563eb!important}
+body:not(.model-pointage) #content h1{color:#173f6d!important}
+body:not(.model-pointage) .module,body:not(.model-pointage) .card{
+ background:#fff!important;border:1px solid #d8e5f4!important;box-shadow:0 6px 18px rgba(22,62,117,.07)!important
+}
+body:not(.model-pointage) .module caption,body:not(.model-pointage) .module h2,body:not(.model-pointage) .card-header{
+ background:#f5f9fe!important;color:#173f6d!important;border-color:#d8e5f4!important
+}
+body:not(.model-pointage) #changelist-filter{background:#fff!important;border-color:#d8e5f4!important;box-shadow:0 6px 18px rgba(22,62,117,.07)!important}
+body:not(.model-pointage) #changelist-filter h2{background:#f5f9fe!important;color:#476582!important}
+body:not(.model-pointage) #changelist-filter a{color:#2563eb!important}
+body:not(.model-pointage) #changelist table{background:#fff!important;border-color:#d8e5f4!important}
+body:not(.model-pointage) #changelist table thead th{background:#eef5ff!important;color:#63809e!important;border-color:#d8e5f4!important}
+body:not(.model-pointage) #changelist table tbody tr{background:#fff!important}
+body:not(.model-pointage) #changelist table tbody tr:hover{background:#f4f8fd!important}
+body:not(.model-pointage) #changelist table td,body:not(.model-pointage) #changelist table th{color:#476582!important;border-color:#e3ebf4!important}
+body:not(.model-pointage) #changelist .paginator{background:#fff!important;border-color:#d8e5f4!important;color:#7890aa!important}
+body:not(.model-pointage) #changelist .paginator a{color:#2563eb!important}
+body:not(.model-pointage) input,body:not(.model-pointage) select,body:not(.model-pointage) textarea{
+ background:#fff!important;color:#173f6d!important;border-color:#c7d8ea!important
+}
+body:not(.model-pointage) input:focus,body:not(.model-pointage) select:focus,body:not(.model-pointage) textarea:focus{
+ border-color:#4d8fe5!important;box-shadow:0 0 0 2px rgba(37,99,235,.10)!important
+}
+body:not(.model-pointage) .object-tools a{background:#fff!important;border-color:#c7d8ea!important;color:#476582!important}
+body:not(.model-pointage) .object-tools a:hover{background:#eaf3ff!important;border-color:#7eace0!important;color:#1d4ed8!important}
+body:not(.model-pointage) .object-tools .addlink,body:not(.model-pointage) .submit-row .default{
+ background:#2563eb!important;border-color:#2563eb!important;color:#fff!important
+}
+body:not(.model-pointage) .submit-row{background:#f5f9fe!important;border-color:#d8e5f4!important}
+body:not(.model-pointage) .help{color:#7890aa!important}
+@media(max-width:767px){
+ body:not(.model-pointage) #content{margin-left:0!important;padding:20px!important}
+ body:not(.model-pointage) #footer{margin-left:0!important}
+ #nav-sidebar{width:260px!important;min-width:260px!important}
+}
