@@ -1,6 +1,6 @@
 """Routage explicite des notifications de l'application Web.
 
-Le endpoint Web ne doit jamais fabriquer de liens /admin/. Django Admin possède
+Le endpoint Web ne doit jamais fabriquer de liens /admin/. Jazzmin possède
 son propre endpoint et réécrit uniquement ses propres notifications vers
 l'espace d'administration.
 """
