@@ -31,7 +31,7 @@ def _immutable_readonly_fields(self, request, obj=None):
 
 def _pointage_readonly_fields(self, request, obj=None):
     """Les champs calculés restent en lecture seule, mais les données du
-    pointage existant doivent pouvoir être corrigées par le RH dans Django Admin.
+    pointage existant doivent pouvoir être corrigées par le RH dans Jazzmin.
 
     Pointage.save() recalcule ensuite retard, durée travaillée, statut et
     heures supplémentaires à partir des valeurs modifiées.
@@ -165,7 +165,7 @@ def _safe_request_action(self, request, pk, approve):
         self.message_user(request, f"La demande #{pk} est déjà traitée.", level=messages.WARNING)
         return redirect("../../")
     if request.method == "GET":
-        return render(request, "admin/pointage/demandemodification/confirm_action.html", {
+        return render(request, "admin/pointage/demande/confirm_action.html", {
             "title": f"Confirmer : {action} la demande #{pk}", "demande": demande,
             "action": action, "opts": self.model._meta, "cancel_url": "../../",
         })
@@ -210,7 +210,7 @@ def install():
 
     # Les scans, traitements et audits restent immuables. En revanche,
     # un pointage existant doit être corrigeable par un RH directement dans
-    # Django Admin : la classe PointageAdmin définit déjà les champs calculés
+    # Jazzmin : la classe PointageAdmin définit déjà les champs calculés
     # (retard, heures travaillées, H.Supp, dates système) en readonly.
     pointage_admin = registry.get(Pointage)
     if pointage_admin:
@@ -259,7 +259,7 @@ def install():
         cls.has_view_permission = _rh_view_permission
         cls.has_add_permission = _rh_add_permission
         cls.has_change_permission = _rh_change_permission
-        # Le CRUD utilisateur reste disponible dans Django Admin. La classe
+        # Le CRUD utilisateur reste disponible dans Jazzmin. La classe
         # CustomUserAdmin gère elle-même les protections de suppression et
         # la cohérence rôle -> accès admin.
     from . import views
