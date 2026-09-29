@@ -13,7 +13,7 @@ urlpatterns = [
     path('password-reset/', include('django.contrib.auth.urls')),
 
     # ── App principale ────────────────────────────────────────────────────
-    # Placée avant /admin/ pour que l'actionnaire d'anomalie Jazzmin
+    # Placée avant /admin/ pour que l'actionnaire d'anomalie Django Admin
     # /admin/pointage/anomaliepointage/<id>/workflow/ soit résolu par
     # pointage.urls. Les autres URLs /admin/ continuent vers Django admin.
     path('', include('pointage.urls')),
