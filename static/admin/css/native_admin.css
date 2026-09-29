@@ -47,6 +47,13 @@ a:hover{color:var(--pqr-blue-dark)}
 #user-tools a:hover{color:var(--pqr-blue)!important}
 
 /* Sidebar: same visual language as User Web */
+#nav-sidebar,
+#nav-sidebar[aria-expanded="false"],
+#nav-sidebar[aria-expanded="true"]{
+  visibility:visible!important;
+  display:block!important;
+  opacity:1!important;
+}
 #nav-sidebar{
   position:fixed!important;top:68px!important;left:0!important;bottom:0!important;
   width:260px!important;min-width:260px!important;max-width:260px!important;
