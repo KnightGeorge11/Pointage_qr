@@ -107,7 +107,7 @@ a:hover{color:var(--pqr-blue-dark)}
 
 /* Main content follows User Web dimensions */
 @media(min-width:768px){
-  #container{margin-left:260px!important;min-height:100vh}
+  #container{margin-left:0!important;min-height:100vh}\n  #main{margin-left:260px!important;min-width:0!important;box-sizing:border-box}
   #content{box-sizing:border-box}
 }
 @media(max-width:767px){
