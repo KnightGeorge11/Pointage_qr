@@ -205,7 +205,7 @@ class CustomUserAdmin(UserAdmin):
     Les formulaires Django dédiés sont utilisés explicitement afin que les
     mots de passe soient toujours traités par set_password()/hashage Django.
     Un compte role='user' peut se connecter à l'application sans avoir accès
-    à Jazzmin ; seul role='admin' (ou superuser) donne accès à l'administration.
+    à Django Admin ; seul role='admin' (ou superuser) donne accès à l'administration.
     """
     form = UserChangeForm
     add_form = UserCreationForm
@@ -303,7 +303,7 @@ class PosteAdmin(admin.ModelAdmin):
 
 @admin.register(ConfigurationPointage)
 class ConfigurationPointageAdmin(admin.ModelAdmin):
-    """Réglages horaires globaux, éditables par le RH depuis Jazzmin.
+    """Réglages horaires globaux, éditables par le RH depuis Django Admin.
 
     Une seule configuration existe. Elle définit les horaires de référence
     lorsque le site ne fournit pas une valeur spécifique.
@@ -370,7 +370,7 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
         return False
 
     # Les horaires sont précisément la configuration que l'administrateur
-    # doit pouvoir modifier depuis Jazzmin.
+    # doit pouvoir modifier depuis Django Admin.
     readonly_fields = ()
 
     def get_readonly_fields(self, request, obj=None):
@@ -604,7 +604,7 @@ class PointageAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related('employe', 'site')
     
     def save_model(self, request, obj, form, change):
-        """Trace les corrections directes de pointage effectuées depuis Jazzmin."""
+        """Trace les corrections directes de pointage effectuées depuis Django Admin."""
         avant = None
         if change and obj.pk:
             original = Pointage.objects.select_related('employe', 'site').get(pk=obj.pk)
@@ -621,7 +621,7 @@ class PointageAdmin(admin.ModelAdmin):
                     action=PointageAudit.ACTION_UPDATE,
                     avant=avant,
                     apres=apres,
-                    motif=(obj.notes or '').strip() or 'Modification effectuée depuis Jazzmin.',
+                    motif=(obj.notes or '').strip() or 'Modification effectuée depuis Django Admin.',
                 )
 
     list_display = [
@@ -1658,7 +1658,7 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
     gravite_badge.short_description = 'Gravité'
 
     def boutons_action(self, obj):
-        """Actions RH directement visibles dans la liste Jazzmin."""
+        """Actions RH directement visibles dans la liste Django Admin."""
         if obj.statut == AnomaliePointage.STATUT_CLOTUREE:
             return mark_safe(
                 '<span style="color:#4ade80;font-size:12px;font-style:italic;">'
