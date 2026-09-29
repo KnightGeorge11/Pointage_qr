@@ -628,6 +628,33 @@ class EmployeAdmin(admin.ModelAdmin):
 class PointageAdmin(admin.ModelAdmin):
     change_list_template = "admin/pointage/pointage_changelist.html"
 
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                '<path:object_id>/detail/',
+                self.admin_site.admin_view(self.detail_view),
+                name='pointage_pointage_detail',
+            ),
+        ]
+        return custom + urls
+
+    def detail_view(self, request, object_id):
+        pointage = get_object_or_404(
+            Pointage.objects.select_related('employe', 'site', 'heures_supplementaires_autorisees_par')
+            .prefetch_related('scans__site'),
+            pk=object_id,
+        )
+        context = {
+            **self.admin_site.each_context(request),
+            'title': pointage.get_display_name(),
+            'pointage': pointage,
+            'scans': pointage.scans.select_related('site').order_by('timestamp'),
+            'change_url': reverse('admin:pointage_pointage_change', args=[pointage.pk]),
+            'list_url': reverse('admin:pointage_pointage_changelist'),
+        }
+        return render(request, 'admin/pointage/pointage_detail.html', context)
+
     def get_queryset(self, request):
         # Évite le N+1 : 'employe' et 'site' sont affichés sur CHAQUE ligne
         # de list_display, sans ça la liste (souvent la plus volumineuse du
@@ -688,12 +715,43 @@ class PointageAdmin(admin.ModelAdmin):
         'site__nom',
     ]
     
+    # Les informations de validation des H.S. appartiennent au pointage,
+    # mais ne doivent jamais être modifiées comme un simple champ.
+    # Leur gestion passe par les actions RH dédiées de overtime_admin.py.
     readonly_fields = (
         'retard', 'heures_travaillees', 'heures_supplementaires',
+        'heures_supplementaires_autorisees',
         'heures_supplementaires_autorisees_par',
         'date_autorisation_heures_supplementaires',
         'motif_autorisation_heures_supplementaires',
         'date_creation', 'date_modification',
+    )
+    fieldsets = (
+        ('Informations du pointage', {
+            'fields': (
+                'employe', 'site', 'date_pointage', 'date_depart',
+                'periode', 'type_journee', 'heure_arrivee', 'heure_depart',
+                'statut', 'notes',
+            ),
+        }),
+        ('Calculs du pointage', {
+            'fields': ('retard', 'heures_travaillees', 'heures_supplementaires'),
+        }),
+        ('Validation des heures supplémentaires', {
+            'description': (
+                "La validation ou la révocation des heures supplémentaires "
+                "se fait uniquement avec les actions RH de la liste des pointages."
+            ),
+            'fields': (
+                'heures_supplementaires_autorisees',
+                'heures_supplementaires_autorisees_par',
+                'date_autorisation_heures_supplementaires',
+                'motif_autorisation_heures_supplementaires',
+            ),
+        }),
+        ('Traçabilité', {
+            'fields': ('date_creation', 'date_modification'),
+        }),
     )
     date_hierarchy = 'date_pointage'
     
