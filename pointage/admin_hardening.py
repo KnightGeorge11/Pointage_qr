@@ -165,7 +165,7 @@ def _safe_request_action(self, request, pk, approve):
         self.message_user(request, f"La demande #{pk} est déjà traitée.", level=messages.WARNING)
         return redirect("../../")
     if request.method == "GET":
-        return render(request, "admin/pointage/demande/confirm_action.html", {
+        return render(request, "admin/pointage/demandemodification/confirm_action.html", {
             "title": f"Confirmer : {action} la demande #{pk}", "demande": demande,
             "action": action, "opts": self.model._meta, "cancel_url": "../../",
         })
