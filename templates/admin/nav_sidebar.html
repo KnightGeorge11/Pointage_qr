@@ -1,0 +1,83 @@
+{% load i18n %}
+<aside id="nav-sidebar" class="pqr-admin-sidebar" aria-label="Navigation principale">
+  <a href="{% url 'admin:index' %}" class="pqr-admin-brand">
+    <span class="pqr-admin-brand-mark"><i class="fas fa-qrcode" aria-hidden="true"></i></span>
+    <span><strong>Pointage QR</strong><small>Administration</small></span>
+  </a>
+
+  <nav class="pqr-admin-nav">
+    <div class="pqr-admin-section">Principal</div>
+    <a href="{% url 'admin:index' %}" class="pqr-admin-link {% if request.path == '/admin/' %}is-active{% endif %}">
+      <i class="fas fa-chart-pie"></i><span>Tableau de bord</span>
+    </a>
+    {% if perms.pointage.view_pointage %}
+    <a href="{% url 'admin:pointage_pointage_changelist' %}" class="pqr-admin-link {% if '/admin/pointage/pointage/' in request.path %}is-active{% endif %}">
+      <i class="fas fa-clock-rotate-left"></i><span>Journal des pointages</span>
+    </a>
+    {% endif %}
+    {% if perms.pointage.view_scan %}
+    <a href="{% url 'admin:pointage_scan_changelist' %}" class="pqr-admin-link {% if '/admin/pointage/scan/' in request.path %}is-active{% endif %}">
+      <i class="fas fa-qrcode"></i><span>Scans</span>
+    </a>
+    {% endif %}
+
+    <div class="pqr-admin-section">Gestion</div>
+    {% if perms.pointage.view_employe %}
+    <a href="{% url 'admin:pointage_employe_changelist' %}" class="pqr-admin-link {% if '/admin/pointage/employe/' in request.path %}is-active{% endif %}">
+      <i class="fas fa-users"></i><span>Employés</span>
+    </a>
+    {% endif %}
+    {% if perms.pointage.view_customuser %}
+    <a href="{% url 'admin:pointage_customuser_changelist' %}" class="pqr-admin-link {% if '/admin/pointage/customuser/' in request.path %}is-active{% endif %}">
+      <i class="fas fa-user-gear"></i><span>Utilisateurs</span>
+    </a>
+    {% endif %}
+    {% if perms.pointage.view_poste %}
+    <a href="{% url 'admin:pointage_poste_changelist' %}" class="pqr-admin-link {% if '/admin/pointage/poste/' in request.path %}is-active{% endif %}">
+      <i class="fas fa-briefcase"></i><span>Postes</span>
+    </a>
+    {% endif %}
+    {% if perms.pointage.view_site %}
+    <a href="{% url 'admin:pointage_site_changelist' %}" class="pqr-admin-link {% if '/admin/pointage/site/' in request.path %}is-active{% endif %}">
+      <i class="fas fa-building"></i><span>Sites</span>
+    </a>
+    {% endif %}
+    {% if perms.pointage.view_jourferie %}
+    <a href="{% url 'admin:pointage_jourferie_changelist' %}" class="pqr-admin-link {% if '/admin/pointage/jourferie/' in request.path %}is-active{% endif %}">
+      <i class="fas fa-calendar-days"></i><span>Jours fériés</span>
+    </a>
+    {% endif %}
+    {% if perms.pointage.view_configurationpointage %}
+    <a href="{% url 'admin:pointage_configurationpointage_changelist' %}" class="pqr-admin-link {% if '/admin/pointage/configurationpointage/' in request.path %}is-active{% endif %}">
+      <i class="fas fa-sliders"></i><span>Configuration</span>
+    </a>
+    {% endif %}
+
+    <div class="pqr-admin-section">Suivi & contrôle</div>
+    {% if perms.pointage.view_anomaliepointage %}
+    <a href="{% url 'admin:pointage_anomaliepointage_changelist' %}" class="pqr-admin-link {% if '/admin/pointage/anomaliepointage/' in request.path %}is-active{% endif %}">
+      <i class="fas fa-triangle-exclamation"></i><span>Anomalies</span>
+    </a>
+    {% endif %}
+    {% if perms.pointage.view_demandemodification %}
+    <a href="{% url 'admin:pointage_demandemodification_changelist' %}" class="pqr-admin-link {% if '/admin/pointage/demandemodification/' in request.path %}is-active{% endif %}">
+      <i class="fas fa-pen-to-square"></i><span>Demandes</span>
+    </a>
+    {% endif %}
+    {% if perms.pointage.view_pointageaudit %}
+    <a href="{% url 'admin:pointage_pointageaudit_changelist' %}" class="pqr-admin-link {% if '/admin/pointage/pointageaudit/' in request.path %}is-active{% endif %}">
+      <i class="fas fa-shield-halved"></i><span>Audit</span>
+    </a>
+    {% endif %}
+    {% if perms.auth.view_group %}
+    <a href="{% url 'admin:auth_group_changelist' %}" class="pqr-admin-link {% if '/admin/auth/group/' in request.path %}is-active{% endif %}">
+      <i class="fas fa-users-gear"></i><span>Groupes</span>
+    </a>
+    {% endif %}
+  </nav>
+
+  <div class="pqr-admin-footer">
+    <a href="{% url 'dashboard' %}" class="pqr-admin-link"><i class="fas fa-arrow-up-right-from-square"></i><span>Application</span></a>
+    <a href="{% url 'admin:logout' %}" class="pqr-admin-link"><i class="fas fa-right-from-bracket"></i><span>Déconnexion</span></a>
+  </div>
+</aside>
