@@ -220,6 +220,18 @@ export const initializeApi = async (): Promise<boolean> => {
   return result.success;
 };
 
+/**
+ * Prépare l'API juste avant une nouvelle connexion opérateur.
+ * L'URL du serveur est relue depuis AsyncStorage puis testée automatiquement.
+ * Ainsi, l'utilisateur n'a jamais besoin d'ouvrir les paramètres et de
+ * toucher manuellement à « Tester la connexion » après une déconnexion.
+ * La configuration de l'URL reste indépendante du jeton d'authentification.
+ */
+export const prepareForLogin = async (): Promise<ConnectionTestResult> => {
+  await refreshApi();
+  return testConnection();
+};
+
 export const setBaseUrl = async (url: string): Promise<void> => {
   const cleanUrl = url.replace(/\/+$/, '');
   await AsyncStorage.setItem(STORAGE_KEYS.API_URL, cleanUrl);
@@ -236,6 +248,7 @@ export const apiService = {
   checkStatus,
   setBaseUrl,
   getCurrentServerUrl,
+  prepareForLogin,
   getCurrentUser,
 
   /**
