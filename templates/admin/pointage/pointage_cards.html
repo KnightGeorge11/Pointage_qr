@@ -1,6 +1,6 @@
 <!-- templates/admin/pointage/pointage_changelist.html -->
 {% extends "admin/change_list.html" %}
-{% load static i18n admin_list pointage_filters %}
+{% load static i18n admin_list jazzmin pointage_filters %}
 
 {% block extrahead %}
     {{ block.super }}
@@ -841,7 +841,7 @@
             }
         }
 
-        /* ── Ajustements pour l'admin Django Admin ── */
+        /* ── Ajustements pour l'admin Jazzmin ── */
         #content-main {
             padding: 0 !important;
         }
