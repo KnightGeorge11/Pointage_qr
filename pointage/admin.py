@@ -25,6 +25,7 @@ from .models import (
 from .anomalies import marquer_traitee, marquer_cloturee
 from .forms import PointageForm, ConfigurationPointageForm, JourFerieForm
 from .anomaly_correction import corriger_pointage_anomalie, snapshot_pointage
+from .views import employe_detail_view
 import uuid
 from datetime import timedelta, datetime
 from collections import defaultdict
@@ -448,13 +449,41 @@ class SiteAdmin(admin.ModelAdmin):
 
 @admin.register(Employe)
 class EmployeAdmin(admin.ModelAdmin):
-    list_display = ('matricule', 'nom', 'prenom', 'get_poste', 'email', 'telephone', 'actif', 'heures_supplementaires_autorisees', 'qr_code_preview', 'date_creation')
+    list_display = ('matricule', 'nom', 'prenom', 'get_poste', 'email', 'telephone', 'actif', 'heures_supplementaires_autorisees', 'qr_code_preview', 'fiche_admin', 'date_creation')
     list_filter = ('poste', 'actif', 'heures_supplementaires_autorisees', 'date_creation')
     list_editable = ('heures_supplementaires_autorisees',)
     search_fields = ('nom', 'prenom', 'matricule', 'poste__nom', 'email', 'telephone')
     readonly_fields = ('qr_code_token', 'date_creation', 'qr_code_display', 'info_qr_code', 'lien_pointages')
     ordering = ('matricule',)
     actions = ['regenerer_qr_codes', 'activer_employes', 'desactiver_employes']
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                '<path:object_id>/detail/',
+                self.admin_site.admin_view(self.detail_view),
+                name='pointage_employe_detail',
+            ),
+        ]
+        return custom + urls
+
+    def detail_view(self, request, object_id):
+        # Réutilise exactement le même contexte métier que la fiche User,
+        # mais rend le template dans le shell Jazzmin/Admin.
+        request._employe_detail_template = 'admin/pointage/employe_detail.html'
+        return employe_detail_view(request, object_id)
+
+    def fiche_admin(self, obj):
+        if not obj or not obj.pk:
+            return '—'
+        url = reverse('admin:pointage_employe_detail', args=[obj.pk])
+        return format_html(
+            '<a href="{}" class="button" style="text-decoration:none;">'
+            '<i class="fas fa-eye"></i> Voir la fiche</a>',
+            url,
+        )
+    fiche_admin.short_description = 'Fiche'
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('poste')
