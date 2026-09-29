@@ -493,7 +493,8 @@ def employe_detail_view(request, pk):
             'graphique_semaines': json.dumps(semaines_graphique),
         },
     }
-    return render(request, 'pointage/employe_detail.html', context)
+    template_name = getattr(request, '_employe_detail_template', 'pointage/employe_detail.html')
+    return render(request, template_name, context)
 
 @login_required
 def employe_create_view(request):
