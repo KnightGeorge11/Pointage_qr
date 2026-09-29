@@ -7,7 +7,7 @@ from pointage.anomalies import enregistrer_anomalie
 from pointage.models import AnomaliePointage, AnomalieTraitement, CustomUser, Employe
 
 
-class TestWorkflowAnomalieJazzmin(TestCase):
+class TestWorkflowAnomalieDjango Admin(TestCase):
     """Vérifie le workflow RH exposé dans l'espace d'administration."""
 
     def setUp(self):
