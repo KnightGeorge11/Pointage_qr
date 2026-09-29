@@ -35,7 +35,7 @@ class NotificationRoutingIsolationTests(TestCase):
         for notification in data["notifications"]:
             self.assertNotIn("/admin/", notification.get("url", ""))
 
-    def test_django admin_notifications_utilisent_le_endpoint_admin_separe(self):
+    def test_django_admin_notifications_utilisent_le_endpoint_admin_separe(self):
         anomalie = enregistrer_anomalie(
             AnomaliePointage.TYPE_DURING_BREAK,
             message="Scan pendant la pause",
