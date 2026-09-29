@@ -99,6 +99,15 @@ export const AppProvider = ({ children }: any) => {
   }
 
   const login = async (username: string, password: string) => {
+    // L'URL du serveur est persistée séparément de l'authentification.
+    // Avant chaque nouvelle session, on recharge automatiquement cette URL
+    // et on vérifie le serveur : aucun test manuel n'est nécessaire après
+    // une déconnexion.
+    const connection = await apiService.prepareForLogin()
+    if (!connection.success) {
+      throw new Error(connection.message || 'Impossible de joindre le serveur')
+    }
+
     const user = await apiService.login(username, password)
     setCurrentUser(user)
     setIsAuthenticated(true)
