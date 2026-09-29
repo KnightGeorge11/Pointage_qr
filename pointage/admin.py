@@ -470,9 +470,13 @@ class EmployeAdmin(admin.ModelAdmin):
         return custom + urls
 
     def detail_view(self, request, object_id):
-        # Réutilise exactement le même contexte métier que la fiche User,
-        # mais rend le template dans le shell Jazzmin/Admin.
+        # Cette vue métier est rendue dans le shell Jazzmin. Une vue Django
+        # classique ne reçoit pas automatiquement le contexte AdminSite
+        # (available_apps, navigation, titre, etc.). Sans ce contexte,
+        # Jazzmin ne peut pas construire sa sidebar sur cette URL custom.
         request._employe_detail_template = 'admin/pointage/employe_detail.html'
+        request._employe_detail_admin_context = self.admin_site.each_context(request)
+        request.current_app = self.admin_site.name
         return employe_detail_view(request, object_id)
 
     def matricule_detail(self, obj):
