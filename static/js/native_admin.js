@@ -1,20 +1,6 @@
 (function(){
 'use strict';
 document.addEventListener('DOMContentLoaded',function(){
-  var icons={
-    '/admin/pointage/customuser/':'fa-user-gear',
-    '/admin/pointage/employe/':'fa-users',
-    '/admin/pointage/pointage/':'fa-clock',
-    '/admin/pointage/site/':'fa-building',
-    '/admin/pointage/scan/':'fa-qrcode',
-    '/admin/pointage/poste/':'fa-briefcase',
-    '/admin/pointage/jourferie/':'fa-calendar-days',
-    '/admin/pointage/configurationpointage/':'fa-sliders',
-    '/admin/pointage/anomaliepointage/':'fa-triangle-exclamation',
-    '/admin/pointage/pointageaudit/':'fa-shield-halved',
-    '/admin/pointage/demandemodification/':'fa-pen-to-square',
-    '/admin/auth/group/':'fa-users-gear'
-  };
   var nav=document.getElementById('nav-sidebar');
   if(nav){
     // Native Django Admin applies a negative sidebar margin by default. Keep our
@@ -32,16 +18,6 @@ document.addEventListener('DOMContentLoaded',function(){
       nav.style.setProperty('max-width','260px','important');
       nav.style.setProperty('z-index','20','important');
     }
-    nav.querySelectorAll('a').forEach(function(a){
-      var href=a.getAttribute('href')||'';
-      var key=Object.keys(icons).find(function(k){return href.indexOf(k)===0});
-      if(key && !a.querySelector('.pqr-nav-icon')){
-        var i=document.createElement('i');
-        i.className='fas '+icons[key]+' pqr-nav-icon';
-        i.setAttribute('aria-hidden','true');
-        a.insertBefore(i,a.firstChild);
-      }
-    });
     fetch('/api/admin-badge-counts/',{credentials:'same-origin'})
       .then(function(r){return r.ok?r.json():null})
       .then(function(data){
