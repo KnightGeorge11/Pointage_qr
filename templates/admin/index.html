@@ -263,30 +263,6 @@
         .chart-card .chart-body {
             padding: 20px;
         }
-
-        /* Enterprise RH dashboard — surfaces claires, lisibilité maximale. */
-        #content .dashboard-section-title {
-            margin: 28px 0 12px;
-            color: #0F172A;
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: .02em;
-        }
-        #content .dashboard-section-title i { color: #2563EB; margin-right: 8px; }
-        #content .dashboard-table {
-            background: #fff;
-            border: 1px solid #E2E8F0;
-            border-radius: 14px;
-            overflow: hidden;
-        }
-
-        @media(max-width:767px){
-            #content > div { max-width:100%; }
-            #content > div > div[style*="grid-template-columns"] {
-                grid-template-columns:1fr !important;
-            }
-        }
-
     </style>
 {% endblock %}
 
@@ -321,8 +297,14 @@
         </div>
     </div>
 
-    <!-- Ancrage conservé pour compatibilité avec d'anciennes extensions ;
-         l'audit est maintenant rendu directement par le contexte Django. -->
+    <!-- Ancrage stable pour le widget d'audit (voir static/admin/js/jazzmin-badges.js).
+         Corrigé le 11/09/2026 : les anciens sélecteurs génériques (#content-main,
+         .content-wrapper .content) ciblaient une structure AdminLTE 3 qui n'existe
+         plus dans cette version de Jazzmin (AdminLTE 4 : <main class="app-main">),
+         donc le widget ne s'affichait jamais nulle part, silencieusement. Un ancrage
+         dédié directement dans CE template (le vrai template du dashboard /admin/,
+         distinct de pointage/dashboard.html) garantit qu'il apparaît ici, dans le
+         contenu du dashboard, et jamais dans la barre de navigation. -->
     <div id="dashboard-audit-anchor"></div>
 
     <!-- ===== CARTES DE STATISTIQUES ===== -->
@@ -768,17 +750,17 @@
 document.addEventListener('DOMContentLoaded', function() {
     
     const colors = {
-        blue: '#6366F1',
-        blueDim: 'rgba(99, 102, 241, 0.72)',
-        green: '#34D399',
-        greenDim: 'rgba(52, 211, 153, 0.72)',
-        amber: '#FBBF24',
-        amberDim: 'rgba(251, 191, 36, 0.72)',
-        red: '#FB7185',
-        redDim: 'rgba(251, 113, 133, 0.72)',
-        ink: '#F8FAFC',
-        muted: '#94A3B8',
-        border: '#1E293B',
+        blue: '#2563EB',
+        blueDim: 'rgba(37, 99, 235, 0.7)',
+        green: '#22C55E',
+        greenDim: 'rgba(34, 197, 94, 0.7)',
+        amber: '#F59E0B',
+        amberDim: 'rgba(245, 158, 11, 0.7)',
+        red: '#EF4444',
+        redDim: 'rgba(239, 68, 68, 0.7)',
+        ink: '#0F172A',
+        muted: '#64748B',
+        border: '#E2E8F0',
     };
     
     // ============================================================
