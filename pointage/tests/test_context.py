@@ -522,7 +522,7 @@ class TestCollectDayContextNonNormalPointages(TestCase):
 
 
 class TestConfigurationPointageHoraires(TestCase):
-    """Vérifie que les valeurs globales modifiables dans Jazzmin sont utilisées."""
+    """Vérifie que les valeurs globales modifiables dans Django Admin sont utilisées."""
 
     def setUp(self):
         self.site = Site.objects.create(
