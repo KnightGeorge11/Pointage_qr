@@ -3,7 +3,6 @@
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
 from django.contrib.auth.models import Group
-from rest_framework.authtoken.models import Token
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 from django.urls import path, reverse
@@ -32,14 +31,6 @@ from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-
-
-# Pointage QR — Token hidden from native admin navigation.
-# The DRF tokens remain fully functional for API/mobile/desktop authentication.
-try:
-    admin.site.unregister(Token)
-except admin.sites.NotRegistered:
-    pass
 
 
 # ============================================================
@@ -205,7 +196,7 @@ class CustomUserAdmin(UserAdmin):
     Les formulaires Django dédiés sont utilisés explicitement afin que les
     mots de passe soient toujours traités par set_password()/hashage Django.
     Un compte role='user' peut se connecter à l'application sans avoir accès
-    à Django Admin ; seul role='admin' (ou superuser) donne accès à l'administration.
+    à Jazzmin ; seul role='admin' (ou superuser) donne accès à l'administration.
     """
     form = UserChangeForm
     add_form = UserCreationForm
@@ -303,7 +294,7 @@ class PosteAdmin(admin.ModelAdmin):
 
 @admin.register(ConfigurationPointage)
 class ConfigurationPointageAdmin(admin.ModelAdmin):
-    """Réglages horaires globaux, éditables par le RH depuis Django Admin.
+    """Réglages horaires globaux, éditables par le RH depuis Jazzmin.
 
     Une seule configuration existe. Elle définit les horaires de référence
     lorsque le site ne fournit pas une valeur spécifique.
@@ -370,7 +361,7 @@ class ConfigurationPointageAdmin(admin.ModelAdmin):
         return False
 
     # Les horaires sont précisément la configuration que l'administrateur
-    # doit pouvoir modifier depuis Django Admin.
+    # doit pouvoir modifier depuis Jazzmin.
     readonly_fields = ()
 
     def get_readonly_fields(self, request, obj=None):
@@ -604,7 +595,7 @@ class PointageAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related('employe', 'site')
     
     def save_model(self, request, obj, form, change):
-        """Trace les corrections directes de pointage effectuées depuis Django Admin."""
+        """Trace les corrections directes de pointage effectuées depuis Jazzmin."""
         avant = None
         if change and obj.pk:
             original = Pointage.objects.select_related('employe', 'site').get(pk=obj.pk)
@@ -621,7 +612,7 @@ class PointageAdmin(admin.ModelAdmin):
                     action=PointageAudit.ACTION_UPDATE,
                     avant=avant,
                     apres=apres,
-                    motif=(obj.notes or '').strip() or 'Modification effectuée depuis Django Admin.',
+                    motif=(obj.notes or '').strip() or 'Modification effectuée depuis Jazzmin.',
                 )
 
     list_display = [
@@ -1658,7 +1649,7 @@ class AnomaliePointageAdmin(admin.ModelAdmin):
     gravite_badge.short_description = 'Gravité'
 
     def boutons_action(self, obj):
-        """Actions RH directement visibles dans la liste Django Admin."""
+        """Actions RH directement visibles dans la liste Jazzmin."""
         if obj.statut == AnomaliePointage.STATUT_CLOTUREE:
             return mark_safe(
                 '<span style="color:#4ade80;font-size:12px;font-style:italic;">'
