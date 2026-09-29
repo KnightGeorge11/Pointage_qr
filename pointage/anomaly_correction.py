@@ -57,14 +57,18 @@ def corriger_pointage_anomalie(
 
     donnees contient les champs de PointageForm. Les champs employe/date/
     période peuvent être omis : dans ce cas, la cible de l'anomalie est
-    utilisée. Une anomalie clôturée est définitivement immuable.
+    utilisée. Pour une correction d'un pointage existant, les champs absents
+    de donnees sont repris depuis le pointage afin de permettre les payloads
+    partiels de l'API (ex. seulement heure_depart).
 
     Retourne (pointage, corrections, created).
     """
+    # Verrouiller uniquement l'anomalie. Les relations employé/site sont
+    # nullable (SET_NULL) et ne doivent pas être incluses dans la requête
+    # verrouillée PostgreSQL.
     anomalie = (
         AnomaliePointage.objects
         .select_for_update()
-        .select_related('employe', 'site')
         .get(pk=anomalie.pk)
     )
 
@@ -113,6 +117,28 @@ def corriger_pointage_anomalie(
         )
         .first()
     )
+
+    # PointageForm est volontairement un formulaire complet. L'API peut
+    # toutefois envoyer uniquement le champ à corriger. Dans ce cas, on
+    # complète les champs absents avec les valeurs actuelles du pointage.
+    if pointage_existant:
+        form_fields = (
+            'employe',
+            'site',
+            'date_pointage',
+            'periode',
+            'type_journee',
+            'heure_arrivee',
+            'heure_depart',
+            'statut',
+            'notes',
+        )
+        for field in form_fields:
+            if field not in data:
+                if field in ('employe', 'site'):
+                    data[field] = getattr(pointage_existant, f'{field}_id')
+                else:
+                    data[field] = getattr(pointage_existant, field)
 
     before = snapshot_pointage(pointage_existant) if pointage_existant else {}
 
