@@ -14,7 +14,7 @@ from .models import AnomaliePointage, AnomalieTraitement
 
 @login_required
 def admin_anomaly_workflow(request, pk):
-    """Panneau de traitement RH accessible depuis Django Admin."""
+    """Panneau de traitement RH accessible depuis Jazzmin."""
     if not _is_rh(request.user):
         return HttpResponseForbidden("Accès réservé au personnel RH.")
 
