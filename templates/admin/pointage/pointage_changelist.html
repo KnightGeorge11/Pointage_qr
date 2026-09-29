@@ -352,7 +352,27 @@
         @media (max-width: 480px) {
             .stats-mini { grid-template-columns: 1fr 1fr; }
         }
-    </style>
+    
+        .pqr-pointage-detail-link {
+            display:inline-flex;
+            align-items:center;
+            gap:5px;
+            margin-top:7px;
+            padding:4px 9px;
+            border:1px solid var(--pqr-border-light);
+            border-radius:6px;
+            background:var(--pqr-bg-white);
+            color:var(--pqr-blue-600);
+            font-size:10px;
+            font-weight:700;
+            text-decoration:none;
+        }
+        .pqr-pointage-detail-link:hover {
+            background:var(--pqr-blue-50);
+            border-color:var(--pqr-blue-500);
+        }
+        .pqr-pointage-detail-link.night-detail { margin-left:auto; margin-top:0; }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -473,6 +493,9 @@
                     {% if jour.nuit.heures_travaillees %}
                     <span class="pqr-night-total">{{ jour.nuit.heures_travaillees|timedelta_format }} travaillées</span>
                     {% endif %}
+                    {% if jour.nuit %}
+                    <a href="{% url 'admin:pointage_pointage_detail' jour.nuit.pk %}" class="pqr-pointage-detail-link night-detail"><i class="fas fa-eye"></i> Détails</a>
+                    {% endif %}
                 </div>
                 {% else %}
                 <div class="pqr-scans-grid">
@@ -484,6 +507,7 @@
                             <div class="pqr-scan-status {% if jour.matin.retard.total_seconds > 0 %}warn{% else %}ok{% endif %}">
                                 {% if jour.matin.retard.total_seconds > 0 %}+{{ jour.matin.retard|timedelta_format }}{% else %}À l'heure{% endif %}
                             </div>
+                            <a href="{% url 'admin:pointage_pointage_detail' jour.matin.pk %}" class="pqr-pointage-detail-link"><i class="fas fa-eye"></i> Détails</a>
                         {% else %}
                             <div class="pqr-scan-time empty">—</div>
                             <div class="pqr-scan-site">—</div>
@@ -496,6 +520,7 @@
                             <div class="pqr-scan-time">{{ jour.matin.heure_depart|time:"H:i" }}</div>
                             <div class="pqr-scan-site">{{ jour.matin.site.nom|default:jour.site.nom }}</div>
                             <div class="pqr-scan-status ok">{% if jour.matin.heures_travaillees %}{{ jour.matin.heures_travaillees|timedelta_format }} trav.{% else %}Pointé{% endif %}</div>
+                            <a href="{% url 'admin:pointage_pointage_detail' jour.matin.pk %}" class="pqr-pointage-detail-link"><i class="fas fa-eye"></i> Détails</a>
                         {% else %}
                             <div class="pqr-scan-time empty">—</div>
                             <div class="pqr-scan-site">—</div>
@@ -510,6 +535,7 @@
                             <div class="pqr-scan-status {% if jour.apres_midi.retard.total_seconds > 0 %}warn{% else %}ok{% endif %}">
                                 {% if jour.apres_midi.retard.total_seconds > 0 %}+{{ jour.apres_midi.retard|timedelta_format }}{% else %}À l'heure{% endif %}
                             </div>
+                            <a href="{% url 'admin:pointage_pointage_detail' jour.apres_midi.pk %}" class="pqr-pointage-detail-link"><i class="fas fa-eye"></i> Détails</a>
                         {% else %}
                             <div class="pqr-scan-time empty">—</div>
                             <div class="pqr-scan-site">—</div>
@@ -522,6 +548,7 @@
                             <div class="pqr-scan-time">{{ jour.apres_midi.heure_depart|time:"H:i" }}</div>
                             <div class="pqr-scan-site">{{ jour.apres_midi.site.nom|default:jour.site.nom }}</div>
                             <div class="pqr-scan-status ok">{% if jour.apres_midi.heures_travaillees %}{{ jour.apres_midi.heures_travaillees|timedelta_format }} trav.{% else %}Pointé{% endif %}</div>
+                            <a href="{% url 'admin:pointage_pointage_detail' jour.apres_midi.pk %}" class="pqr-pointage-detail-link"><i class="fas fa-eye"></i> Détails</a>
                         {% else %}
                             <div class="pqr-scan-time empty">—</div>
                             <div class="pqr-scan-site">—</div>
