@@ -2,7 +2,7 @@
 
 from functools import wraps
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden
+from django.shortcuts import render
 
 
 def is_rh(user):
@@ -18,6 +18,6 @@ def rh_required(view_func):
     @login_required
     def wrapped(request, *args, **kwargs):
         if not is_rh(request.user):
-            return HttpResponseForbidden("Accès réservé au personnel RH.")
+            return render(request, "pointage/access_denied.html", status=403)
         return view_func(request, *args, **kwargs)
     return wrapped
