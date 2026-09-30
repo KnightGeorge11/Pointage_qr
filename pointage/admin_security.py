@@ -47,14 +47,14 @@ def alertes_rh_view(request, *args, **kwargs):
 @login_required
 def alerte_detail_view(request, *args, **kwargs):
     if not _is_rh(request.user):
-        return HttpResponseForbidden("Accès réservé au personnel RH.")
+        return render(request, "pointage/access_denied.html", status=403)
     return views.alerte_detail_view(request, *args, **kwargs)
 
 
 @login_required
 def export_resume_excel(request, *args, **kwargs):
     if not _is_rh(request.user):
-        return HttpResponseForbidden("Accès réservé au personnel RH.")
+        return render(request, "pointage/access_denied.html", status=403)
     return views.export_resume_excel(request, *args, **kwargs)
 
 
