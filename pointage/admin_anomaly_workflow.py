@@ -2,7 +2,6 @@
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.db import transaction
@@ -16,7 +15,7 @@ from .models import AnomaliePointage, AnomalieTraitement
 def admin_anomaly_workflow(request, pk):
     """Panneau de traitement RH accessible depuis Jazzmin."""
     if not _is_rh(request.user):
-        return HttpResponseForbidden("Accès réservé au personnel RH.")
+        return render(request, "pointage/access_denied.html", status=403)
 
     if request.method == "POST":
         try:
