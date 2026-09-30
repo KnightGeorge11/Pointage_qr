@@ -1,0 +1,48 @@
+{% extends "pointage/base.html" %}
+
+{% block title %}Accès restreint — Pointage QR{% endblock %}
+{% block page_title %}Accès restreint{% endblock %}
+
+{% block extra_css %}
+<style>
+    .access-denied-shell{min-height:calc(100vh - var(--topbar-h) - 90px);display:flex;align-items:center;justify-content:center;padding:24px 12px}
+    .access-denied-card{width:min(100%,560px);background:#fff;border:1px solid #d8e5f4;border-radius:18px;box-shadow:0 18px 40px rgba(22,62,117,.12);overflow:hidden;text-align:center}
+    .access-denied-head{padding:30px 28px 22px;background:linear-gradient(135deg,#0b4ea2,#2563eb);color:#fff}
+    .access-denied-icon{width:64px;height:64px;margin:0 auto 16px;border-radius:18px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);font-size:28px}
+    .access-denied-head h1{margin:0 0 6px;font-size:21px;font-weight:700}
+    .access-denied-head p{margin:0;color:rgba(255,255,255,.82);font-size:13px}
+    .access-denied-body{padding:26px 28px 28px}
+    .access-denied-message{margin:0 auto 20px;max-width:420px;color:#476582;font-size:14px;line-height:1.7}
+    .access-denied-note{display:flex;align-items:flex-start;gap:10px;text-align:left;margin-bottom:22px;padding:12px 14px;border:1px solid #d8e5f4;border-radius:10px;background:#f4f8fd;color:#63809e;font-size:12px;line-height:1.5}
+    .access-denied-note i{color:#2563eb;margin-top:2px;flex-shrink:0}
+    .access-denied-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+    .access-denied-actions .btn{min-width:150px;justify-content:center}
+    @media(max-width:480px){.access-denied-head{padding:26px 20px 20px}.access-denied-body{padding:22px 18px 24px}.access-denied-actions{flex-direction:column}.access-denied-actions .btn{width:100%}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="access-denied-shell">
+    <section class="access-denied-card" role="alert" aria-labelledby="accessDeniedTitle">
+        <div class="access-denied-head">
+            <div class="access-denied-icon"><i class="fas fa-lock"></i></div>
+            <h1 id="accessDeniedTitle">Accès restreint</h1>
+            <p>Cette section est réservée au personnel RH.</p>
+        </div>
+        <div class="access-denied-body">
+            <p class="access-denied-message">
+                Votre compte n'a pas les autorisations nécessaires pour consulter cette page.
+                Les données concernées sont accessibles uniquement aux utilisateurs RH autorisés.
+            </p>
+            <div class="access-denied-note">
+                <i class="fas fa-circle-info"></i>
+                <span>Vous pouvez continuer à utiliser les fonctionnalités disponibles pour votre compte.</span>
+            </div>
+            <div class="access-denied-actions">
+                <a href="{% url 'dashboard' %}" class="btn btn-primary"><i class="fas fa-house"></i> Retour au tableau de bord</a>
+                <a href="javascript:history.back()" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Page précédente</a>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
