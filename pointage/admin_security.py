@@ -4,7 +4,8 @@ import json
 from datetime import timedelta
 
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import JsonResponse
+from django.shortcuts import render
 from django.utils import timezone
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
@@ -39,7 +40,7 @@ class IsRHViewSetPermission(BasePermission):
 @login_required
 def alertes_rh_view(request, *args, **kwargs):
     if not _is_rh(request.user):
-        return HttpResponseForbidden("Accès réservé au personnel RH.")
+        return render(request, "pointage/access_denied.html", status=403)
     return views.alertes_rh_view(request, *args, **kwargs)
 
 
