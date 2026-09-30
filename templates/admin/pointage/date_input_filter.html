@@ -9,7 +9,7 @@
                class="form-control"
                style="padding:6px 8px;font-size:13px;height:auto;">
         {% if choice.value %}
-        <a href="?{{ choice.reset_query_string }}" title="{% trans 'Réinitialiser' %}" style="font-size:14px;color:#94A3B8;text-decoration:none;">✕</a>
+        <a href="{{ choice.reset_query_string }}" title="{% trans 'Réinitialiser' %}" style="font-size:14px;color:#94A3B8;text-decoration:none;">✕</a>
         {% endif %}
     </div>
     {% endfor %}
