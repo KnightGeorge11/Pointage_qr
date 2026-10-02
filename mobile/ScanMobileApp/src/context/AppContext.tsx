@@ -17,8 +17,6 @@ type AppContextType = {
   setSites: (sites: Site[]) => void
   apiStatus: ApiStatus
   setApiStatus: (status: ApiStatus) => void
-  // Authentification — le compte connecté (opérateur) est totalement
-  // distinct de l'employé scanné pendant un pointage.
   isAuthenticated: boolean
   currentUser: CurrentUser | null
   authChecked: boolean
@@ -37,27 +35,19 @@ export const AppProvider = ({ children }: any) => {
   })
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
-  // authChecked évite d'afficher brièvement l'écran Login avant que la
-  // vérification du token stocké ne soit terminée (pas de reconnexion
-  // visible si un jeton valide existe déjà).
   const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
     const loadSavedData = async () => {
       try {
         const saved = await AsyncStorage.getItem(STORAGE_KEYS.SELECTED_SITE)
-        if (saved) {
-          setSelectedSiteState(JSON.parse(saved))
-        }
+        if (saved) setSelectedSiteState(JSON.parse(saved))
+
         const savedUrl = await AsyncStorage.getItem(STORAGE_KEYS.API_URL)
         if (savedUrl) {
           setApiStatus(prev => ({ ...prev, baseUrl: savedUrl }))
         }
 
-        // Réhydrate d'abord l'instance Axios avec l'URL et le token
-        // persistés. Sans cela, après un redémarrage l'état local indiquait
-        // "connecté" mais Axios repartait sans Authorization: Token ...
-        // et tous les endpoints protégés répondaient 401.
         const connected = await apiService.initialize()
         setApiStatus(prev => ({
           ...prev,
@@ -65,15 +55,13 @@ export const AppProvider = ({ children }: any) => {
           baseUrl: apiService.getCurrentServerUrl(),
           lastCheck: new Date(),
         }))
+
         const authenticated = await apiService.isAuthenticated()
         if (authenticated) {
           const user = await apiService.getCurrentUser()
           if (user) {
             setIsAuthenticated(true)
             setCurrentUser(user)
-          } else {
-            setIsAuthenticated(false)
-            setCurrentUser(null)
           }
         }
       } catch (err) {
@@ -99,24 +87,32 @@ export const AppProvider = ({ children }: any) => {
   }
 
   const login = async (username: string, password: string) => {
-    // L'URL du serveur est persistée séparément de l'authentification.
-    // Avant chaque nouvelle session, on recharge automatiquement cette URL
-    // et on vérifie le serveur : aucun test manuel n'est nécessaire après
-    // une déconnexion.
-    const connection = await apiService.prepareForLogin()
-    if (!connection.success) {
-      throw new Error(connection.message || 'Impossible de joindre le serveur')
-    }
-
+    // Le login est maintenant autonome : apiService.login() relit
+    // systématiquement l'URL persistée et reconstruit Axios avant l'appel.
+    // On ne bloque donc plus une nouvelle session sur l'ancien état de
+    // connexion ou sur un test manuel de la configuration.
     const user = await apiService.login(username, password)
     setCurrentUser(user)
     setIsAuthenticated(true)
+
+    setApiStatus(prev => ({
+      ...prev,
+      connected: true,
+      baseUrl: apiService.getCurrentServerUrl(),
+      lastCheck: new Date(),
+    }))
   }
 
   const logout = async () => {
     await apiService.logout()
     setCurrentUser(null)
     setIsAuthenticated(false)
+    setApiStatus(prev => ({
+      ...prev,
+      connected: false,
+      baseUrl: apiService.getCurrentServerUrl(),
+      lastCheck: new Date(),
+    }))
   }
 
   return (
