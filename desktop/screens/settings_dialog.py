@@ -99,9 +99,9 @@ class SettingsDialog(tk.Toplevel):
 
         def report(result):
             if result["success"]:
-                self.result_label.config(text="Connexion réussie ✅", fg=COLORS["success"])
+                self.result_label.config(text=f"Connexion réussie ✅ • {result.get('response_time', '?')} ms", fg=COLORS["success"])
             else:
-                self.result_label.config(text=f"Échec : {result['message']}", fg=COLORS["error"])
+                self.result_label.config(text=f"Échec : {result['message']} • {result.get('response_time', '?')} ms", fg=COLORS["error"])
 
         # Teste l'URL saisie sans jamais la persister ni y faire basculer
         # le reste de l'app : tant que ce n'est pas confirmé par
