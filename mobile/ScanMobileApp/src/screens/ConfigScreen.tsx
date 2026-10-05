@@ -11,6 +11,7 @@ const ConfigScreen = () => {
   const [isTesting, setIsTesting] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [testResult, setTestResult] = useState<string | null>(null)
+  const [testResultSuccess, setTestResultSuccess] = useState(false)
 
   useEffect(() => {
     setBaseUrlState(apiStatus.baseUrl || getCurrentServerUrl())
@@ -37,13 +38,20 @@ const ConfigScreen = () => {
   const handleTestConnection = async () => {
     setIsTesting(true)
     setTestResult(null)
+    setTestResultSuccess(false)
     try {
       // Teste l'URL actuellement saisie dans le champ, pas forcément
       // celle déjà enregistrée — sinon "Tester" avant "Sauvegarder"
       // testerait silencieusement l'ancienne configuration.
       const status = await testConnection(baseUrl)
-      setTestResult(status.success ? 'Connexion réussie' : 'Connexion échouée')
+      setTestResultSuccess(status.success)
+      setTestResult(
+        status.success
+          ? `Connexion réussie${status.responseTime != null ? ` • ${status.responseTime} ms` : ''}`
+          : `${status.message || 'Connexion échouée'}${status.responseTime != null ? ` • ${status.responseTime} ms` : ''}`
+      )
     } catch (error) {
+      setTestResultSuccess(false)
       setTestResult('Erreur lors du test')
     } finally {
       setIsTesting(false)
@@ -113,7 +121,7 @@ const ConfigScreen = () => {
       </TouchableOpacity>
 
       {testResult && (
-        <Text style={[styles.resultText, { color: testResult.includes('réussie') ? colors.greenText : colors.redText }]}>
+        <Text style={[styles.resultText, { color: testResultSuccess ? colors.greenText : colors.redText }]}>
           {testResult}
         </Text>
       )}
