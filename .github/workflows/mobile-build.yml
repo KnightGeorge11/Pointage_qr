@@ -1,6 +1,10 @@
 name: Build application mobile Android
 
 on:
+  pull_request:
+    paths:
+      - "mobile/ScanMobileApp/**"
+      - ".github/workflows/mobile-build.yml"
   push:
     branches: [main]
     paths:
