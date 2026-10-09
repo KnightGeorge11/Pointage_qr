@@ -37,25 +37,22 @@ Principaux éléments du dépôt :
 - NETWORK_SETUP.md : réseau LAN ;
 - .github/workflows/mobile-build.yml : build Android automatique.
 
-## 2. Prérequis serveur
+## 2. Prérequis de mise en production
 
-Ubuntu récent recommandé :
+Ce guide commence avec un serveur de production déjà provisionné et administrable. Il ne couvre pas l'installation du système d'exploitation ni le choix d'un fournisseur.
 
-~~~bash
-sudo apt update
-sudo apt install -y python3 python3-venv python3-pip git nginx postgresql postgresql-contrib
-~~~
+Avant de déployer, vérifier que l'environnement cible dispose déjà de :
 
-Vérifier :
+- Python compatible avec les dépendances du projet et `venv` ;
+- PostgreSQL, avec un compte et une base dédiés ;
+- Git pour récupérer le dépôt ;
+- un service applicatif compatible WSGI (Gunicorn) ;
+- un reverse proxy HTTPS (Nginx ou équivalent) ;
+- un gestionnaire de services adapté à l'environnement, si systemd est utilisé dans les exemples ci-dessous ;
+- un nom de domaine et un certificat TLS valides pour une exposition Internet.
 
-~~~bash
-python3 --version
-git --version
-nginx -v
-psql --version
-~~~
+Les commandes systemd, Nginx et Certbot ci-dessous sont des exemples pour un serveur Linux qui utilise ces outils. Sur une plateforme managée ou un autre environnement, appliquez les équivalents fournis par l'hébergeur. N'exposez jamais PostgreSQL ni Gunicorn directement à Internet.
 
-Utiliser un compte Linux dédié au projet, pas root.
 
 ## 3. Installer ou mettre à jour le dépôt
 
