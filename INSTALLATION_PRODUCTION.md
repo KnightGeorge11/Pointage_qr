@@ -688,40 +688,34 @@ https://pointage.exemple.tld
 
 URL stable, HTTPS et clients indépendants de l'IP privée.
 
-## 29. Ordre recommandé pour une première production
+## 29. Ordre recommandé pour une première mise en production
 
-1. Installer Ubuntu et les paquets.
-2. Installer PostgreSQL.
-3. Cloner le dépôt.
-4. Créer le venv.
-5. Installer requirements.txt.
-6. Créer le .env.
-7. Générer SECRET_KEY.
-8. Configurer PostgreSQL.
-9. check.
-10. migrate.
-11. createsuperuser.
-12. collectstatic.
-13. Tester Django.
-14. Configurer Gunicorn/systemd.
-15. Configurer Nginx.
-16. Tester Nginx + Gunicorn.
-17. Configurer DNS.
-18. Configurer NAT si nécessaire.
-19. Installer HTTPS.
-20. Configurer les valeurs HTTPS Django.
-21. Redémarrer Gunicorn.
-22. check --deploy.
-23. Tester Web/Jazzmin.
-24. Tester /api/mobile/test/.
-25. Configurer l'URL HTTPS desktop.
-26. Configurer l'URL HTTPS mobile.
-27. Tester login/logout.
-28. Tester les scans.
-29. Construire la version mobile de production.
-30. Construire/tester PointageQR.exe.
-31. Mettre en place les sauvegardes.
-32. Documenter mise à jour et retour arrière.
+Le serveur et les services de base sont supposés déjà provisionnés. Adapter les commandes aux outils réellement disponibles sur l'environnement cible.
+
+1. Vérifier l'accès administrateur au serveur et la disponibilité de Python, Git et PostgreSQL.
+2. Vérifier que la base et l'utilisateur PostgreSQL dédiés existent.
+3. Cloner le dépôt ou récupérer la version validée à déployer.
+4. Créer l'environnement virtuel Python.
+5. Installer les dépendances de `requirements.txt`.
+6. Créer le fichier `.env` privé avec les secrets et paramètres de production.
+7. Vérifier la connexion à PostgreSQL.
+8. Exécuter `python manage.py check`.
+9. Sauvegarder la base existante avant toute mise à jour d'une installation déjà utilisée.
+10. Exécuter `python manage.py migrate`.
+11. Créer le superutilisateur si c'est une nouvelle installation.
+12. Exécuter `python manage.py collectstatic --noinput`.
+13. Vérifier `python manage.py check --deploy` et corriger les avertissements applicables.
+14. Configurer le serveur WSGI et le gestionnaire de services disponibles sur la plateforme.
+15. Configurer le reverse proxy et le domaine.
+16. Valider DNS, HTTPS et le renouvellement du certificat.
+17. Tester l'application Web/Jazzmin et l'endpoint `/api/mobile/test/`.
+18. Configurer les clients mobile et desktop avec l'URL HTTPS réelle.
+19. Tester connexion, déconnexion, nouvelle connexion et scans avec des comptes de test.
+20. Construire et tester les versions distribuables mobile et desktop.
+21. Mettre en place les sauvegardes et tester la procédure de restauration.
+22. Documenter la version déployée et la procédure de retour arrière.
+
+Les commandes Linux, systemd, Nginx et Certbot des sections précédentes sont des exemples, pas une exigence d'utiliser Ubuntu. Sur une plateforme managée, utilisez les services équivalents proposés par l'hébergeur.
 
 ## 30. Sécurité essentielle
 
