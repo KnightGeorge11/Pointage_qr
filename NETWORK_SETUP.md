@@ -9,8 +9,7 @@ modifier un fichier `.py`, `.ts` ou `.tsx` quand l'IP du serveur change.
 Le serveur Django tourne sur une VM dont l'IP est distribuée par DHCP. Elle a
 déjà changé plusieurs fois (`192.168.3.115` → `192.168.3.16` →
 `192.168.3.101`). Avant cette mise à jour, cette IP était codée en dur à
-6 endroits différents (`settings.py`, `storage.py`, `constants.ts`,
-`settings_dialog.py`, `ConfigScreen.tsx`, `README.md`), donc chaque
+6 endroits différents (`settings.py`, `storage.py`, `constants.ts`, les écrans de configuration desktop/mobile et la documentation), donc chaque
 changement d'IP obligeait à modifier et redéployer le code.
 
 ## Ce qui a changé dans ce projet
