@@ -30,7 +30,9 @@ export const AppProvider = ({ children }: any) => {
   const [selectedSite, setSelectedSiteState] = useState<Site | null>(null)
   const [sites, setSites] = useState<Site[]>([])
   const [apiStatus, setApiStatus] = useState<ApiStatus>({
-    connected: true,
+    // L'état reste faux jusqu'à ce que initialize() ait réellement testé l'API.
+    // Ne pas afficher une connexion réussie avant la réponse du serveur.
+    connected: false,
     baseUrl: DEFAULT_API_URL,
   })
   const [isAuthenticated, setIsAuthenticated] = useState(false)
