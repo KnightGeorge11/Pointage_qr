@@ -1,92 +1,69 @@
 # Configuration réseau — Pointage QR
 
-Ce document explique comment configurer le réseau **une bonne fois pour
-toutes** pour le vrai lancement (production/VM), sans plus jamais avoir à
-modifier un fichier `.py`, `.ts` ou `.tsx` quand l'IP du serveur change.
+Ce document décrit la configuration réseau pour deux cas différents :
+- **LAN / essais internes** : le client et le serveur sont sur le même réseau ;
+- **production Internet** : les clients utilisent un domaine HTTPS stable.
 
-## Le problème
+Pour une production accessible depuis Internet, privilégiez un nom de domaine HTTPS. Une IP privée telle que `192.168.x.x` n'est pas une adresse publique et ne doit pas être utilisée comme URL Internet.
 
-Le serveur Django tourne sur une VM dont l'IP est distribuée par DHCP. Elle a
-déjà changé plusieurs fois (`192.168.3.115` → `192.168.3.16` →
-`192.168.3.101`). Avant cette mise à jour, cette IP était codée en dur à
-6 endroits différents (`settings.py`, `storage.py`, `constants.ts`, les écrans de configuration desktop/mobile et la documentation), donc chaque
-changement d'IP obligeait à modifier et redéployer le code.
+## 1. Configuration de l'URL côté client
 
-## Ce qui a changé dans ce projet
+Les applications mobile et desktop permettent de configurer l'URL de l'API depuis leurs écrans de paramètres. Utilisez l'URL correspondant réellement à votre environnement :
 
-**Le serveur Django (`settings.py`)** lit maintenant `ALLOWED_HOSTS`,
-`CORS_ALLOWED_ORIGINS` et `CSRF_TRUSTED_ORIGINS` depuis le fichier `.env`
-(variables `DJANGO_ALLOWED_HOSTS` et `CORS_EXTRA_ORIGINS`). **C'est le seul
-endroit à modifier côté serveur** quand une IP change — un seul fichier,
-jamais de code Python.
+- LAN de test : `http://<IP-LAN-DU-SERVEUR>:8000` si le serveur Django est volontairement accessible sur ce port dans le réseau local ;
+- production : `https://<votre-domaine>`.
 
-**Les apps clientes (desktop et mobile)** avaient déjà, avant cette mise à
-jour, un écran de paramètres qui enregistre l'URL du serveur localement
-(`⚙ Paramètres serveur` côté desktop, écran de config côté mobile). Ce
-n'était pas branché avec le reste — c'est maintenant cohérent avec la
-même logique : on ne touche jamais au code, on met à jour l'URL une fois
-dans l'app après installation.
+Testez la connexion depuis l'application et enregistrez l'URL. L'application mobile conserve l'URL choisie dans son stockage local ; une déconnexion du compte ne doit pas nécessiter de reconfigurer le serveur.
 
-## Recommandation : régler le problème à la racine (une seule fois)
+La valeur `DEFAULT_API_URL` dans `mobile/ScanMobileApp/src/utils/constants.ts` est uniquement une valeur initiale pour une nouvelle installation. Une URL déjà enregistrée par l'utilisateur peut primer sur cette valeur. Ne changez pas cette constante pour corriger une installation existante sans vérifier le stockage local.
 
-Deux approches, combinables :
+## 2. Configuration Django
 
-### Option A — IP fixe (la plus fiable, recommandée en priorité)
+Le serveur lit les hôtes autorisés depuis `DJANGO_ALLOWED_HOSTS`. Les origines CORS sont configurées par `CORS_EXTRA_ORIGINS` et les origines CSRF de confiance par `CSRF_TRUSTED_ORIGINS`. Définissez ces variables dans l'environnement de déploiement ou le fichier `.env` privé, en utilisant les valeurs adaptées à l'environnement.
 
-Une réservation DHCP est le moyen le plus simple de ne plus jamais revoir
-l'IP changer, et elle fonctionne partout (Windows, Android, iOS) sans
-dépendance supplémentaire :
+Exemple de production avec domaine :
 
-1. Récupérez l'adresse MAC de la VM : `ip link show` sur la VM (interface
-   réseau principale, souvent `enp0s3` ou `eth0`).
-2. Dans l'interface d'administration du routeur, section DHCP / réservation
-   d'adresse (« Address Reservation », « Static Lease »…), associez cette
-   MAC à une IP fixe (par exemple `192.168.3.101`).
-3. Redémarrez le réseau de la VM (`sudo netplan apply` ou reboot) : elle
-   recevra désormais toujours la même IP.
-
-Alternative sans routeur configurable : IP statique directement dans
-Netplan sur la VM (`/etc/netplan/*.yaml`, clé `addresses:`), à condition
-qu'elle soit hors de la plage DHCP du routeur pour éviter les conflits.
-
-### Option B — Nom d'hôte via mDNS (confort supplémentaire, pas suffisant seul)
-
-```bash
-sudo apt install avahi-daemon
-sudo systemctl enable --now avahi-daemon
+```dotenv
+DJANGO_ALLOWED_HOSTS=pointage.exemple.tld
+CORS_EXTRA_ORIGINS=https://pointage.exemple.tld
+CSRF_TRUSTED_ORIGINS=https://pointage.exemple.tld
 ```
 
-Le serveur devient joignable via `pointageqr.local` depuis les machines qui
-savent résoudre le mDNS (Linux, macOS, et Windows si le service Bonjour est
-présent). C'est pratique pour un navigateur ou l'app desktop.
+Remplacez `pointage.exemple.tld` par le vrai domaine. Ne copiez pas cet exemple tel quel. Après modification de la configuration serveur, redémarrez le service applicatif selon votre environnement et vérifiez les journaux.
 
-**Limite importante :** la résolution `.local` sur **Android n'est pas
-fiable** pour les requêtes HTTP classiques (contrairement à des API de
-découverte réseau spécifiques que l'app n'utilise pas). Ne comptez donc pas
-uniquement sur `pointageqr.local` pour l'app mobile Android — combinez avec
-l'option A, ou entrez directement l'IP fixe dans l'app.
+Ne commitez jamais le fichier `.env`, les mots de passe, les clés secrètes ou les jetons d'accès.
 
-## Ce qu'il reste à faire après avoir choisi une IP fixe (une seule fois)
+## 3. LAN : conserver une adresse stable
 
-1. **Serveur** — dans `.env`, mettez à jour `DJANGO_ALLOWED_HOSTS` et
-   `CORS_EXTRA_ORIGINS` avec l'IP retenue (déjà pré-rempli avec
-   `192.168.3.101` et `192.168.3.212` par défaut). Redémarrez Gunicorn :
-   `sudo systemctl restart gunicorn`.
-2. **Desktop** — ouvrez l'app → écran d'accueil → **⚙ Paramètres serveur**
-   → entrez `http://<IP-fixe>:8000` (ou `http://pointageqr.local:8000` si
-   avahi est configuré) → Tester → Enregistrer.
-3. **Mobile** — ouvrez l'app → écran de configuration → entrez la même URL
-   → Tester la connexion → Sauvegarder.
+Si le serveur est une VM ou une machine dans un réseau local, une réservation DHCP dans le routeur peut stabiliser son adresse :
 
-Une fois cette étape faite, l'IP ne devrait plus jamais changer (grâce à la
-réservation DHCP), et même si elle change un jour, il suffit de refaire les
-3 étapes ci-dessus — toujours sans toucher au code.
+1. Relevez l'adresse MAC de l'interface réseau du serveur.
+2. Dans le routeur, associez cette adresse MAC à une adresse libre via la réservation DHCP.
+3. Vérifiez que le serveur a bien reçu l'adresse réservée et que les clients peuvent joindre l'API.
 
-## Sécurité — à propos du fichier `.env`
+Les outils de configuration réseau dépendent du système d'exploitation et de l'hyperviseur. N'appliquez pas de commande réseau spécifique sans vérifier qu'elle correspond à l'environnement : une mauvaise configuration peut rendre le serveur inaccessible.
 
-Le fichier `.env` fourni contenait des secrets réels (clé Django, mot de
-passe PostgreSQL) directement dans l'archive transmise. La clé `SECRET_KEY`
-a été régénérée dans le cadre de cette mise à jour. Il est recommandé de
-changer aussi le mot de passe PostgreSQL (`DB_PASSWORD`) côté base de
-données ET dans `.env`, et de ne **jamais** committer ou partager ce fichier
-(`.gitignore` l'exclut déjà correctement).
+Une IP statique configurée directement sur le serveur est aussi possible, mais elle doit être compatible avec le sous-réseau et exclue de la plage DHCP distribuée afin d'éviter les conflits.
+
+## 4. Nom local et mDNS
+
+Un nom local tel que `pointageqr.local` peut être pratique dans certains réseaux, si le serveur et les clients prennent en charge la résolution mDNS. Cette résolution n'est pas garantie sur tous les systèmes, notamment dans toutes les configurations Android.
+
+Ne faites donc pas dépendre une production critique uniquement d'un nom `.local`. Pour l'accès Internet, utilisez un domaine public avec HTTPS.
+
+## 5. Sécurité réseau
+
+- N'exposez pas PostgreSQL (port 5432) à Internet.
+- N'exposez pas directement Gunicorn ni le serveur de développement Django.
+- Pour la production Internet, publiez l'application derrière un reverse proxy HTTPS.
+- N'autorisez le port 8000 que si cela est nécessaire aux tests LAN, et uniquement sur le réseau de confiance.
+- N'activez pas de redirection de ports sur le routeur sans comprendre sa portée et son impact de sécurité.
+
+## 6. Diagnostic rapide
+
+1. Depuis l'application, lancez le test de connexion sur l'URL exacte.
+2. Vérifiez que le serveur répond à `/api/mobile/test/`.
+3. Vérifiez l'adresse IP ou le DNS, le routage, le pare-feu et, pour Internet, le certificat TLS.
+4. Si Django renvoie `DisallowedHost`, vérifiez `DJANGO_ALLOWED_HOSTS`.
+5. Si le navigateur signale une erreur CSRF, vérifiez `CSRF_TRUSTED_ORIGINS`.
+6. Si l'API répond mais le client échoue, vérifiez les journaux et l'URL réellement enregistrée dans les paramètres de l'application.
